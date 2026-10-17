@@ -1,0 +1,56 @@
+'use strict';
+const { _electron: electron, expect } = require('@playwright/test');
+const fs = require('node:fs/promises');
+const fsSync = require('node:fs');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const root = path.resolve(__dirname, '..');
+
+async function run() {
+  const directory = await fs.mkdtemp(path.join(root, '.cache', 'desktop-smoke-'));
+  const packaged = process.env.WORD_STUDIO_EXECUTABLE;
+  const binary = packaged || [root, path.dirname(root), path.join(path.dirname(root), 'slide-studio')]
+    .map(dir => path.join(dir, 'node_modules/electron/dist/electron.exe')).find(file => fsSync.existsSync(file));
+  if (!binary) throw new Error('Install Electron before running the desktop smoke test.');
+  const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.WORD_STUDIO_DEV;
+  const app = await electron.launch({ executablePath: binary, args: [...(packaged ? [] : [root]), `--user-data-dir=${path.join(directory, 'profile')}`], env });
+  try {
+    const window = await app.firstWindow();
+    const errors = []; window.on('pageerror', error => errors.push(error.message));
+    const fixture = path.join(directory, 'long-document.html');
+    const pdf = path.join(directory, 'preview.pdf');
+    const paragraph = '한글 PDF 페이지 배치 검증과 혼합 English 문장입니다. '.repeat(180);
+    const rows = Array.from({ length: 80 }, (_, i) => `<tr><td><p>${i + 1}</p></td><td><p>행 내용 ${i + 1}</p></td></tr>`).join('');
+    await fs.writeFile(fixture, `<p>${paragraph}</p><table><tr><th><p>번호</p></th><th><p>내용</p></th></tr>${rows}</table>`);
+    await app.evaluate(({ dialog }, paths) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [paths.fixture] });
+      dialog.showSaveDialog = async () => ({ canceled: false, filePath: paths.pdf });
+    }, { fixture, pdf });
+    await window.locator('.tiptap').waitFor();
+    await window.keyboard.press('Control+o');
+    await expect(window.locator('.tiptap table tr')).toHaveCount(81);
+    await expect(window.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
+    const recovery = await window.evaluate(() => window.wordDesktop.readRecovery());
+    assert.ok(recovery.some(record => JSON.parse(record.current).title === 'long-document'));
+    await window.getByRole('button', { name: '보기', exact: true }).click();
+    await window.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    await expect(window.locator('.print-page').first()).toBeVisible();
+    const previewPages = await window.locator('.print-page').count();
+    await window.screenshot({ path: path.join(directory, 'preview.png') });
+    await window.getByRole('button', { name: 'PDF 저장', exact: true }).click();
+    await expect(window.getByText('PDF를 저장했습니다', { exact: true })).toBeVisible();
+    const data = await fs.readFile(pdf);
+    assert.equal(data.subarray(0, 4).toString(), '%PDF');
+    const pdfPages = (data.toString('latin1').match(/\/Type\s*\/Page\b/g) || []).length;
+    assert.equal(pdfPages, previewPages, 'Native PDF must match the preview page count.');
+    await window.getByRole('button', { name: '편집으로 돌아가기', exact: true }).click();
+    assert.equal(await window.locator('.print-layout').count(), 0);
+    const isolation = await window.evaluate(() => ({ node: typeof window.require, bridge: typeof window.wordDesktop.saveRecovery }));
+    assert.deepEqual(isolation, { node: 'undefined', bridge: 'function' });
+    assert.deepEqual(errors, []);
+    const report = { passed: true, packaged: Boolean(packaged), previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length, rendererErrors: errors, directory };
+    await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2));
+    console.log(JSON.stringify(report, null, 2));
+  } finally { await app.close(); }
+}
+fs.mkdir(path.join(root, '.cache'), { recursive: true }).then(run).catch(error => { console.error(error); process.exitCode = 1; });

@@ -1,0 +1,105 @@
+import type JSZip from 'jszip';
+import type { Comment, PageSettings } from './types';
+const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+const all = (root: Element | Document, tag: string) => Array.from(root.getElementsByTagNameNS(W, tag));
+const val = (el: Element | undefined, key = 'val') => el?.getAttributeNS(W, key) ?? '';
+const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
+
+/** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
+export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
+  const comments: Comment[] = [];
+  const idMap = new Map<string, string>();
+  const commentFile = zip.file('word/comments.xml');
+  const resolved = new Set<string>();
+  const extended = zip.file('word/commentsExtended.xml');
+  if (extended) for (const el of Array.from(parse(await extended.async('string')).getElementsByTagName('*'))) {
+    const attrs = Array.from(el.attributes);
+    if (attrs.some(a => a.localName === 'done' && a.value === '1')) {
+      const para = attrs.find(a => a.localName === 'paraId')?.value;
+      if (para) resolved.add(para);
+    }
+  }
+  if (commentFile) for (const el of all(parse(await commentFile.async('string')), 'comment')) {
+    const id = crypto.randomUUID();
+    idMap.set(val(el, 'id'), id);
+    const date = val(el, 'date');
+    const lastParagraph = all(el, 'p').at(-1);
+    const paraId = lastParagraph && Array.from(lastParagraph.attributes).find(a => a.localName === 'paraId')?.value;
+    comments.push({ id, quote: '', text: all(el, 'p').map(p => all(p, 't').map(t => t.textContent).join('')).join('\n'),
+      createdAt: Number.isFinite(Date.parse(date)) ? new Date(date).toISOString() : new Date().toISOString(),
+      resolved: Boolean(paraId && resolved.has(paraId)) });
+  }
+  let sequence = 900000;
+  const markers = new Map<string, { kind: string; id?: string; paragraph?: Element; nextPage?: PageSettings }>();
+  const bookmark = (name: string) => {
+    const fragment = body.createDocumentFragment();
+    const id = String(++sequence);
+    const start = body.createElementNS(W, 'w:bookmarkStart');
+    start.setAttributeNS(W, 'w:id', id); start.setAttributeNS(W, 'w:name', name);
+    const end = body.createElementNS(W, 'w:bookmarkEnd'); end.setAttributeNS(W, 'w:id', id);
+    fragment.append(start, end);
+    return fragment;
+  };
+  for (const kind of ['commentRangeStart', 'commentRangeEnd']) for (const el of all(body, kind)) {
+    const id = idMap.get(val(el, 'id'));
+    if (!id) continue;
+    const name = `ws_marker_${sequence}`;
+    markers.set(name, { kind: kind === 'commentRangeStart' ? 'start' : 'end', id });
+    el.replaceWith(bookmark(name));
+  }
+  let section = 0;
+  for (const paragraph of all(body, 'p')) {
+    const name = `ws_marker_${sequence}`;
+    const isEnd = all(paragraph, 'sectPr').length > 0;
+    markers.set(name, { kind: 'paragraph', paragraph,
+      ...(isEnd ? { nextPage: pages[++section] } : {}) });
+    const properties = Array.from(paragraph.children).find(e => e.localName === 'pPr');
+    paragraph.insertBefore(bookmark(name), properties ? properties.nextSibling : paragraph.firstChild);
+  }
+  zip.file('word/document.xml', new XMLSerializer().serializeToString(body));
+  return {
+    buffer: await zip.generateAsync({ type: 'arraybuffer' }), comments,
+    decorate(html: string) {
+      const template = document.createElement('template'); template.innerHTML = html;
+      // Attach paragraph properties before deleting marker anchors.
+      for (const anchor of template.content.querySelectorAll('a[id]')) {
+        const marker = markers.get(anchor.id);
+        if (marker?.kind !== 'paragraph') continue;
+        const p = anchor.closest<HTMLElement>('p,h1,h2,h3,h4,h5,h6,li');
+        if (!p || !marker.paragraph) continue;
+        const props = all(marker.paragraph, 'pPr')[0];
+        if (props) {
+          const align = val(all(props, 'jc')[0]);
+          if (['left', 'right', 'center', 'both'].includes(align)) p.style.textAlign = align === 'both' ? 'justify' : align;
+          const indent = Number(val(all(props, 'ind')[0], 'left'));
+          if (indent > 0) p.style.marginLeft = `${indent / 15}px`;
+          const spacing = all(props, 'spacing')[0];
+          const line = Number(val(spacing, 'line'));
+          if (line > 0 && (!val(spacing, 'lineRule') || val(spacing, 'lineRule') === 'auto')) p.style.lineHeight = String(line / 240);
+        }
+        if (marker.nextPage) {
+          const sectionBreak = document.createElement('div');
+          sectionBreak.setAttribute('data-section-page', JSON.stringify(marker.nextPage));
+          p.after(sectionBreak);
+        }
+      }
+      const active = new Set<string>();
+      const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
+      const items: Node[] = []; while (walker.nextNode()) items.push(walker.currentNode);
+      for (const item of items) {
+        if (item instanceof HTMLAnchorElement && markers.has(item.id)) {
+          const marker = markers.get(item.id)!;
+          if (marker.kind === 'start') active.add(marker.id!);
+          if (marker.kind === 'end') active.delete(marker.id!);
+          item.remove();
+        } else if (item.nodeType === Node.TEXT_NODE && active.size && item.textContent) {
+          const span = document.createElement('span');
+          span.setAttribute('data-comment-ids', [...active].join(' '));
+          item.parentNode!.replaceChild(span, item); span.append(item);
+          for (const id of active) { const comment = comments.find(c => c.id === id); if (comment) comment.quote += item.textContent; }
+        }
+      }
+      return template.innerHTML;
+    },
+  };
+}

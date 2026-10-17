@@ -1,0 +1,1218 @@
+import type { JSONContent } from "@tiptap/react";
+import DOMPurify from "dompurify";
+import JSZip from "jszip";
+import mammoth from "mammoth";
+import {
+  AlignmentType,
+  BorderStyle,
+  Document as DocxDocument,
+  ExternalHyperlink,
+  Footer,
+  Header,
+  HeadingLevel,
+  ImageRun,
+  LevelFormat,
+  LineRuleType,
+  Packer,
+  PageBreak,
+  PageNumber,
+  PageOrientation,
+  Paragraph,
+  Table,
+  TableCell,
+  TableRow,
+  TextRun,
+  CommentRangeStart, CommentRangeEnd, CommentReference,
+  UnderlineType,
+  WidthType,
+} from "docx";
+import type {
+  IParagraphOptions,
+  IRunOptions,
+  NumberingDefinition,
+  ParagraphChild,
+} from "docx";
+import { defaultPage, pageMargins } from "./types";
+import { prepareDocxMetadata } from './docx-metadata';
+import type { PageSettings, StudioDocument } from "./types";
+
+export interface ImportResult {
+  document: StudioDocument;
+  html?: string;
+  warnings: string[];
+}
+export const DOCX_EXPORT_NOTICE =
+  "DOCX에는 본문 서식, 표, 그림, 구역 설정과 검토 메모를 저장합니다. 편집 상태의 백업에는 Word Studio 형식도 함께 사용하세요.";
+const MAX_FILE_BYTES = 40 * 1024 * 1024;
+const MAX_INFLATED_BYTES = 100 * 1024 * 1024;
+const RASTER_DATA =
+  /^data:image\/(png|jpe?g|gif|webp|bmp);base64,([A-Za-z0-9+/=\s]+)$/i;
+const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|#)/i;
+const INLINE = new Set(["text", "hardBreak"]);
+const BLOCKS = new Set([
+  "paragraph",
+  "heading",
+  "blockquote",
+  "bulletList",
+  "orderedList",
+  "codeBlock",
+  "horizontalRule",
+  "pageBreak",
+  "sectionBreak",
+  "image",
+  "table",
+]);
+const MARKS = new Set([
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "subscript",
+  "superscript",
+  "textStyle",
+  "highlight",
+  "link",
+  "code",
+  "commentAnchor",
+]);
+
+function fail(message: string): never {
+  throw new Error(message);
+}
+function object(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function boundedString(value: unknown, max: number): value is string {
+  return typeof value === "string" && value.length <= max;
+}
+function finite(value: unknown, min: number, max: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= min &&
+    value <= max
+  );
+}
+function validDate(value: unknown): value is string {
+  return (
+    boundedString(value, 50) &&
+    /^\d{4}-\d{2}-\d{2}T/.test(value) &&
+    Number.isFinite(Date.parse(value))
+  );
+}
+function keysOnly(
+  value: Record<string, unknown>,
+  keys: string[],
+  label: string,
+) {
+  if (Object.keys(value).some((key) => !keys.includes(key)))
+    fail(`${label}에 지원하지 않는 속성이 있습니다.`);
+}
+function validImage(src: unknown): src is string {
+  return (
+    typeof src === "string" &&
+    src.length <= 22 * 1024 * 1024 &&
+    RASTER_DATA.test(src)
+  );
+}
+function safeLink(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= 8192 &&
+    SAFE_LINK.test(value) &&
+    !/[\u0000-\u001f]/.test(value)
+  );
+}
+
+/** Validate before loading JSON into ProseMirror; never silently discard unknown document data. */
+export function validateDocument(input: unknown): StudioDocument {
+  if (!object(input)) fail("Word Studio 문서가 올바른 JSON 객체가 아닙니다.");
+  keysOnly(
+    input,
+    ["id", "format", "version", "title", "content", "page", "comments", "updatedAt"],
+    "문서",
+  );
+  if (input.format !== "word-studio" || input.version !== 1)
+    fail("지원하지 않는 Word Studio 문서 버전입니다.");
+  if (input.id !== undefined && (typeof input.id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(input.id))) fail('문서 ID가 올바르지 않습니다.');
+  if (!boundedString(input.title, 512) || !validDate(input.updatedAt))
+    fail("문서 제목 또는 저장 날짜가 올바르지 않습니다.");
+  const page = input.page;
+  if (!object(page)) fail("용지 설정이 없습니다.");
+  keysOnly(
+    page,
+    ["size", "orientation", "margin", "margins", "header", "footer", "pageNumbers"],
+    "용지 설정",
+  );
+  if (
+    !["A4", "Letter"].includes(String(page.size)) ||
+    !["portrait", "landscape"].includes(String(page.orientation)) ||
+    !finite(page.margin, 0, 75) ||
+    !boundedString(page.header, 10000) ||
+    !boundedString(page.footer, 10000) ||
+    typeof page.pageNumbers !== "boolean"
+  )
+    fail("용지 설정이 올바르지 않습니다.");
+  if (page.margins !== undefined) {
+    if (!object(page.margins)) fail('방향별 여백이 올바르지 않습니다.');
+    keysOnly(page.margins, ['top', 'right', 'bottom', 'left'], '방향별 여백');
+    if (['top', 'right', 'bottom', 'left'].some(k => !finite((page.margins as Record<string, unknown>)[k], 0, 75))) fail('방향별 여백이 올바르지 않습니다.');
+  }
+  if (!Array.isArray(input.comments) || input.comments.length > 10000)
+    fail("검토 메모 목록이 올바르지 않습니다.");
+  const ids = new Set<string>();
+  for (const comment of input.comments) {
+    if (!object(comment)) fail("검토 메모가 올바르지 않습니다.");
+    keysOnly(
+      comment,
+      ["id", "quote", "text", "createdAt", "resolved"],
+      "검토 메모",
+    );
+    if (
+      !boundedString(comment.id, 128) ||
+      !comment.id ||
+      ids.has(comment.id) ||
+      !boundedString(comment.quote, 100000) ||
+      !boundedString(comment.text, 100000) ||
+      !validDate(comment.createdAt) ||
+      typeof comment.resolved !== "boolean"
+    )
+      fail("검토 메모가 올바르지 않습니다.");
+    ids.add(comment.id);
+  }
+  let nodes = 0;
+  const walk = (value: unknown, parent: string | null, depth: number): void => {
+    if (++nodes > 100000 || depth > 64) fail("문서 구조가 너무 큽니다.");
+    if (!object(value) || typeof value.type !== "string")
+      fail("문서 본문 구조가 올바르지 않습니다.");
+    keysOnly(value, ["type", "attrs", "content", "marks", "text"], "본문 요소");
+    const type = value.type;
+    if (parent === null ? type !== "doc" : type === "doc")
+      fail("문서 최상위 구조가 올바르지 않습니다.");
+    if (
+      type !== "doc" &&
+      !BLOCKS.has(type) &&
+      !INLINE.has(type) &&
+      !["listItem", "tableRow", "tableCell", "tableHeader"].includes(type)
+    )
+      fail(`지원하지 않는 본문 요소: ${type}`);
+    if (
+      parent === "paragraph" ||
+      parent === "heading" ||
+      parent === "codeBlock"
+    ) {
+      if (!INLINE.has(type)) fail("문단 안에 잘못된 요소가 있습니다.");
+    } else if (parent === "bulletList" || parent === "orderedList") {
+      if (type !== "listItem") fail("목록 구조가 올바르지 않습니다.");
+    } else if (parent === "table") {
+      if (type !== "tableRow") fail("표 행 구조가 올바르지 않습니다.");
+    } else if (parent === "tableRow") {
+      if (!["tableCell", "tableHeader"].includes(type))
+        fail("표 셀 구조가 올바르지 않습니다.");
+    } else if (parent !== null && !BLOCKS.has(type))
+      fail("잘못된 본문 요소 위치입니다.");
+    if (value.attrs !== undefined) {
+      if (!object(value.attrs)) fail("본문 속성이 올바르지 않습니다.");
+      for (const [key, attr] of Object.entries(value.attrs)) {
+        if (
+          ["__proto__", "constructor", "prototype"].includes(key) ||
+          key.length > 100
+        )
+          fail("잘못된 본문 속성입니다.");
+        if (
+          attr !== null &&
+          typeof attr !== "string" &&
+          typeof attr !== "number" &&
+          typeof attr !== "boolean" &&
+          !(
+            key === "colwidth" &&
+            Array.isArray(attr) &&
+            attr.length <= 1000 &&
+            attr.every((n) => finite(n, 0, 10000))
+          )
+        )
+          fail("본문 속성 형식이 올바르지 않습니다.");
+        if (typeof attr === "string" && key !== "src" && attr.length > 10000)
+          fail("본문 속성이 너무 깁니다.");
+        if (typeof attr === "number" && !Number.isFinite(attr))
+          fail("본문 수치 속성이 올바르지 않습니다.");
+      }
+    }
+    const attrs = value.attrs as Record<string, unknown> | undefined;
+    if (type === 'sectionBreak') {
+      if (parent !== 'doc') fail('구역 나누기는 문서의 최상위에 있어야 합니다.');
+      if (typeof attrs?.page !== 'string' || attrs.page.length > 10000) fail('구역 설정이 올바르지 않습니다.');
+      const sectionPage = JSON.parse(attrs.page);
+      validateDocument({ format: 'word-studio', version: 1, title: '', updatedAt: new Date().toISOString(), page: sectionPage,
+        comments: [], content: { type: 'doc', content: [{ type: 'paragraph' }] } });
+    }
+    if (type === "image" && !validImage(attrs?.src))
+      fail("문서 그림은 PNG, JPG, GIF, BMP 또는 WebP 데이터여야 합니다.");
+    if (
+      type === "heading" &&
+      (!finite(attrs?.level, 1, 6) || !Number.isInteger(attrs?.level))
+    )
+      fail("제목 수준이 올바르지 않습니다.");
+    if (["tableCell", "tableHeader"].includes(type)) {
+      for (const key of ["colspan", "rowspan"])
+        if (
+          attrs?.[key] != null &&
+          (!finite(attrs[key], 1, 1000) || !Number.isInteger(attrs[key]))
+        )
+          fail("표 셀 크기가 올바르지 않습니다.");
+    }
+    if (type === "text") {
+      if (!boundedString(value.text, 4000000) || !value.text)
+        fail("텍스트 요소가 올바르지 않습니다.");
+    } else if (value.text !== undefined)
+      fail("텍스트가 아닌 요소에 텍스트 속성이 있습니다.");
+    if (value.marks !== undefined) {
+      if (
+        !Array.isArray(value.marks) ||
+        value.marks.length > 20 ||
+        !INLINE.has(type)
+      )
+        fail("텍스트 서식이 올바르지 않습니다.");
+      for (const mark of value.marks) {
+        if (!object(mark) || !MARKS.has(String(mark.type)))
+          fail("지원하지 않는 텍스트 서식입니다.");
+        keysOnly(mark, ["type", "attrs"], "텍스트 서식");
+        if (
+          mark.attrs !== undefined &&
+          (!object(mark.attrs) ||
+            Object.entries(mark.attrs).some(
+              ([key, val]) =>
+                ["__proto__", "constructor", "prototype"].includes(key) ||
+                (val !== null &&
+                  typeof val !== "string" &&
+                  typeof val !== "number" &&
+                  typeof val !== "boolean") ||
+                (typeof val === "string" && val.length > 10000),
+            ))
+        )
+          fail("텍스트 서식 속성이 올바르지 않습니다.");
+        if (
+          mark.type === "link" &&
+          (!object(mark.attrs) || !safeLink(mark.attrs.href))
+        )
+          fail("지원하지 않는 링크 주소입니다.");
+      }
+    }
+    const leaf = [
+      "text",
+      "hardBreak",
+      "horizontalRule",
+      "pageBreak",
+      "sectionBreak",
+      "image",
+    ].includes(type);
+    if (value.content !== undefined && (!Array.isArray(value.content) || leaf))
+      fail("본문 자식 요소가 올바르지 않습니다.");
+    const children = (value.content ?? []) as unknown[];
+    if (
+      [
+        "doc",
+        "bulletList",
+        "orderedList",
+        "listItem",
+        "table",
+        "tableRow",
+        "tableCell",
+        "tableHeader",
+        "blockquote",
+      ].includes(type) &&
+      children.length === 0
+    )
+      fail("필수 본문 요소가 비어 있습니다.");
+    if (
+      type === "listItem" &&
+      (!object(children[0]) || children[0].type !== "paragraph")
+    )
+      fail("목록 항목에는 첫 문단이 필요합니다.");
+    children.forEach((child) => walk(child, type, depth + 1));
+  };
+  walk(input.content, null, 0);
+  return input as unknown as StudioDocument;
+}
+
+/** Removes active markup, external images and CSS capable of loading external resources. */
+export function sanitizeImportedHtml(source: string): {
+  html: string;
+  warnings: string[];
+} {
+  const purified = DOMPurify.sanitize(source, {
+    ALLOWED_TAGS: [
+      "p",
+      "br",
+      "div",
+      "span",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "strong",
+      "b",
+      "em",
+      "i",
+      "u",
+      "s",
+      "strike",
+      "del",
+      "sub",
+      "sup",
+      "mark",
+      "a",
+      "ul",
+      "ol",
+      "li",
+      "blockquote",
+      "pre",
+      "code",
+      "hr",
+      "table",
+      "thead",
+      "tbody",
+      "tfoot",
+      "tr",
+      "th",
+      "td",
+      "img",
+    ],
+    ALLOWED_ATTR: [
+      "style",
+      "href",
+      "src",
+      "alt",
+      "title",
+      "width",
+      "height",
+      "colspan",
+      "rowspan",
+      "start",
+      "data-type",
+      "data-color",
+      "data-colwidth",
+      "data-page-break",
+      "data-section-page",
+      "data-comment-ids",
+    ],
+    ALLOW_DATA_ATTR: false,
+  });
+  const template = document.createElement("template");
+  template.innerHTML = purified;
+  const warnings: string[] = [];
+  let removedImages = 0;
+  for (const img of template.content.querySelectorAll("img")) {
+    if (!validImage(img.getAttribute("src"))) {
+      img.replaceWith(
+        document.createTextNode(img.getAttribute("alt") || "[외부 그림]"),
+      );
+      removedImages++;
+    }
+  }
+  if (removedImages)
+    warnings.push(
+      `외부 주소 또는 지원하지 않는 그림 ${removedImages}개를 제외했습니다.`,
+    );
+  for (const anchor of template.content.querySelectorAll("a")) {
+    if (!safeLink(anchor.getAttribute("href"))) anchor.removeAttribute("href");
+    anchor.setAttribute("rel", "noopener noreferrer");
+    anchor.setAttribute("target", "_blank");
+  }
+  const safeStyles = new Set([
+    "font-family",
+    "font-size",
+    "font-weight",
+    "font-style",
+    "text-decoration",
+    "text-decoration-line",
+    "color",
+    "background-color",
+    "text-align",
+    "line-height",
+    "margin-left",
+    "vertical-align",
+    "white-space",
+    "width",
+    "height",
+  ]);
+  for (const element of template.content.querySelectorAll<HTMLElement>(
+    "[style]",
+  )) {
+    const oldStyle = element.style;
+    const output: string[] = [];
+    for (const name of Array.from(oldStyle)) {
+      const value = oldStyle.getPropertyValue(name);
+      if (
+        safeStyles.has(name) &&
+        !/url\s*\(|expression\s*\(|@import|var\s*\(|\\/i.test(value) &&
+        value.length < 300
+      )
+        output.push(`${name}:${value}`);
+    }
+    element.removeAttribute("style");
+    if (output.length) element.setAttribute("style", output.join(";"));
+  }
+  return { html: template.innerHTML || "<p></p>", warnings };
+}
+
+function makeDocument(name: string, content?: JSONContent): StudioDocument {
+  return {
+    id: crypto.randomUUID(),
+    format: "word-studio",
+    version: 1,
+    title: name.replace(/\.[^.]+$/, "").slice(0, 512) || "제목 없는 문서",
+    content: content ?? { type: "doc", content: [{ type: "paragraph" }] },
+    page: { ...defaultPage },
+    comments: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+function xml(source: string): XMLDocument {
+  if (/<!DOCTYPE|<!ENTITY/i.test(source))
+    fail("지원하지 않는 XML 선언이 있습니다.");
+  const parsed = new DOMParser().parseFromString(source, "application/xml");
+  if (parsed.getElementsByTagName("parsererror").length)
+    fail("DOCX 내부 XML을 읽을 수 없습니다.");
+  return parsed;
+}
+const elements = (node: Element | XMLDocument, name: string) =>
+  Array.from(node.getElementsByTagNameNS("*", name));
+const attr = (node: Element | undefined, name: string) =>
+  node?.getAttributeNS(
+    "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+    name,
+  ) ??
+  node?.getAttribute(`w:${name}`) ??
+  null;
+function textOf(node: Element | XMLDocument): string {
+  return elements(node, "p")
+    .map((p) => {
+      const copy = p.cloneNode(true) as Element;
+      for (const field of elements(copy, "fldSimple"))
+        if (/\b(?:PAGE|NUMPAGES)\b/i.test(attr(field, "instr") || ""))
+          field.remove();
+      let skipPageField = false;
+      let result = "";
+      for (const run of elements(copy, "r")) {
+        if (
+          elements(run, "instrText").some((instruction) =>
+            /\b(?:PAGE|NUMPAGES)\b/i.test(instruction.textContent || ""),
+          )
+        )
+          skipPageField = true;
+        if (!skipPageField)
+          result += elements(run, "t")
+            .map((t) => t.textContent || "")
+            .join("");
+        if (
+          elements(run, "fldChar").some(
+            (field) => attr(field, "fldCharType") === "end",
+          )
+        )
+          skipPageField = false;
+      }
+      return result;
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function readDocxPage(
+  zip: JSZip,
+  body: XMLDocument,
+  warnings: string[],
+  selectedSection?: Element,
+): Promise<PageSettings> {
+  const page: PageSettings = { ...defaultPage, pageNumbers: false };
+  const sections = elements(body, "sectPr");
+  const section = selectedSection ?? sections[0];
+  if (!section) return page;
+  const size = elements(section, "pgSz")[0];
+  const width = Number(attr(size, "w")),
+    height = Number(attr(size, "h"));
+  page.orientation =
+    attr(size, "orient") === "landscape" || (width > height && height > 0)
+      ? "landscape"
+      : "portrait";
+  const smaller = Math.min(width, height),
+    larger = Math.max(width, height);
+  if (Math.abs(smaller - 12240) < 150 && Math.abs(larger - 15840) < 150)
+    page.size = "Letter";
+  else if (
+    width &&
+    (Math.abs(smaller - 11906) > 150 || Math.abs(larger - 16838) > 150)
+  )
+    warnings.push("지원하지 않는 용지 크기를 A4로 표시합니다.");
+  const margin = elements(section, "pgMar")[0];
+  const margins = ["top", "right", "bottom", "left"].map((key) =>
+    Number(attr(margin, key)),
+  );
+  if (
+    margin &&
+    margins.every((n) => Number.isFinite(n) && n >= 0 && n <= 4252)
+  ) {
+    page.margin = Math.round((margins[0] / (1440 / 25.4)) * 10) / 10;
+    if (margins.some((n) => n !== margins[0]))
+      page.margins = { top: margins[0] * 25.4 / 1440, right: margins[1] * 25.4 / 1440, bottom: margins[2] * 25.4 / 1440, left: margins[3] * 25.4 / 1440 };
+  }
+  const relFile = zip.file("word/_rels/document.xml.rels");
+  if (!relFile) return page;
+  const rels = xml(await relFile.async("string"));
+  for (const kind of ["header", "footer"] as const) {
+    const refs = elements(section, `${kind}Reference`);
+    const ref = refs.find((r) => attr(r, "type") === "default") ?? refs[0];
+    if (!ref) continue;
+    const id =
+      ref.getAttributeNS(
+        "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+        "id",
+      ) ?? ref.getAttribute("r:id");
+    const rel = elements(rels, "Relationship").find(
+      (r) =>
+        r.getAttribute("Id") === id &&
+        r.getAttribute("TargetMode") !== "External",
+    );
+    const target = rel?.getAttribute("Target");
+    if (!target || target.includes("..") || /[\\:]/.test(target)) continue;
+    const part = zip.file(
+      target.startsWith("/") ? target.slice(1) : `word/${target}`,
+    );
+    if (!part) continue;
+    const parsed = xml(await part.async("string"));
+    page[kind] = textOf(parsed).slice(0, 10000);
+    if (
+      elements(parsed, "instrText").some((n) =>
+        /\bPAGE\b/i.test(n.textContent || ""),
+      ) ||
+      elements(parsed, "fldSimple").some((n) =>
+        /\bPAGE\b/i.test(attr(n, "instr") || ""),
+      )
+    )
+      page.pageNumbers = true;
+    if (refs.length > 1)
+      warnings.push(
+        "첫 페이지와 짝수 페이지 머리글·바닥글을 기본 내용으로 통합했습니다.",
+      );
+  }
+  return page;
+}
+
+export async function importFile(file: File): Promise<ImportResult> {
+  if (!file.size) fail("비어 있는 파일입니다.");
+  if (file.size > MAX_FILE_BYTES) fail("40MB 이하의 문서를 열어 주세요.");
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  if (extension === "wordstudio") {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch {
+      fail("Word Studio 파일의 JSON을 읽을 수 없습니다.");
+    }
+    return { document: validateDocument(parsed), warnings: [] };
+  }
+  if (extension === "txt") {
+    const text = (await file.text()).replace(/^\uFEFF/, "");
+    return {
+      document: makeDocument(file.name, {
+        type: "doc",
+        content: text
+          .split(/\r\n|\n|\r/)
+          .map((line) => ({
+            type: "paragraph",
+            ...(line ? { content: [{ type: "text", text: line }] } : {}),
+          })),
+      }),
+      warnings: [],
+    };
+  }
+  if (extension === "html" || extension === "htm") {
+    const sanitized = sanitizeImportedHtml(await file.text());
+    return { document: makeDocument(file.name), ...sanitized };
+  }
+  if (extension !== "docx")
+    fail(
+      "DOCX, Word Studio, HTML 또는 TXT 파일을 선택해 주세요. 구형 DOC 파일은 DOCX로 변환해야 합니다.",
+    );
+  const buffer = await file.arrayBuffer();
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(buffer);
+  } catch {
+    fail(
+      "DOCX 파일을 읽을 수 없습니다. 암호화 또는 손상된 파일인지 확인해 주세요.",
+    );
+  }
+  const entries = Object.values(zip.files);
+  if (entries.length > 10000) fail("DOCX에 내부 파일이 너무 많습니다.");
+  // JSZip exposes central-directory size metadata before inflating file contents.
+  const inflatedSize = entries.reduce(
+    (sum, entry) =>
+      sum +
+      ((entry as unknown as { _data?: { uncompressedSize?: number } })._data
+        ?.uncompressedSize ?? 0),
+    0,
+  );
+  if (inflatedSize > MAX_INFLATED_BYTES)
+    fail("압축을 푼 DOCX 크기가 100MB를 초과합니다.");
+  const documentXml = zip.file("word/document.xml");
+  if (!documentXml || !zip.file("[Content_Types].xml"))
+    fail("유효한 DOCX 문서가 아닙니다.");
+  const body = xml(await documentXml.async("string"));
+  const warnings = [
+    "DOCX는 편집 가능한 본문으로 변환됩니다. 원본의 세밀한 글꼴·배치·페이지 나눔은 달라질 수 있습니다.",
+  ];
+  if (elements(body, "drawing").some((n) => elements(n, "anchor").length))
+    warnings.push("떠 있는 그림은 본문 안의 그림으로 배치됩니다.");
+  if (elements(body, "ins").length || elements(body, "del").length)
+    warnings.push(
+      "변경 내용 추적은 최종 본문으로 가져옵니다. 검토 이력은 보존하지 않습니다.",
+    );
+  if (
+    elements(body, "oMath").length ||
+    elements(body, "object").length ||
+    elements(body, "pict").length
+  )
+    warnings.push(
+      "수식, OLE 개체 또는 도형은 완전히 변환되지 않을 수 있습니다.",
+    );
+  const doc = makeDocument(file.name);
+  const sections = elements(body, 'sectPr');
+  const pages = await Promise.all(sections.map(s => readDocxPage(zip, body, warnings, s)));
+  doc.page = pages[0] ?? { ...defaultPage };
+  if (sections.some(s => ['continuous', 'oddPage', 'evenPage'].includes(attr(elements(s, 'type')[0], 'val') || '')))
+    warnings.push('연속·홀수·짝수 구역 나눔은 새 페이지 구역 나눔으로 표시합니다.');
+  const metadata = await prepareDocxMetadata(zip, body, pages);
+  doc.comments = metadata.comments;
+  const result = await mammoth.convertToHtml(
+    { arrayBuffer: metadata.buffer },
+    {
+      externalFileAccess: false,
+      includeEmbeddedStyleMap: false,
+      ignoreEmptyParagraphs: false,
+      styleMap: [
+        "u => u",
+        "strike => s",
+        "p[style-name='Title'] => h1:fresh",
+        "p[style-name='Subtitle'] => h2:fresh",
+      ],
+    },
+  );
+  const sanitized = sanitizeImportedHtml(metadata.decorate(result.value));
+  return {
+    document: doc,
+    html: sanitized.html,
+    warnings: [
+      ...new Set([
+        ...warnings,
+        ...sanitized.warnings,
+        ...result.messages.map((message) => message.message),
+      ]),
+    ],
+  };
+}
+
+function rgb(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const hex = value.replace("#", "");
+  if (/^[0-9a-f]{6}$/i.test(hex)) return hex.toUpperCase();
+  if (/^[0-9a-f]{3}$/i.test(hex))
+    return hex
+      .split("")
+      .map((c) => c + c)
+      .join("")
+      .toUpperCase();
+  const match = value.match(/^rgba?\(\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)/i);
+  if (match)
+    return match
+      .slice(1, 4)
+      .map((n) => Math.min(255, Number(n)).toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase();
+  const names: Record<string, string> = {
+    black: "000000",
+    white: "FFFFFF",
+    yellow: "FFFF00",
+    red: "FF0000",
+    blue: "0000FF",
+    green: "008000",
+    gray: "808080",
+  };
+  return names[value.toLowerCase()];
+}
+function fontPoints(value: unknown): number | undefined {
+  const parsed = Number.parseFloat(String(value));
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Math.min(400, String(value).endsWith("px") ? parsed * 0.75 : parsed);
+}
+function runOptions(node: JSONContent): IRunOptions {
+  const options: { -readonly [K in keyof IRunOptions]: IRunOptions[K] } = {
+    text: node.text ?? "",
+  };
+  for (const mark of node.marks ?? []) {
+    switch (mark.type) {
+      case "bold":
+        options.bold = true;
+        break;
+      case "italic":
+        options.italics = true;
+        break;
+      case "underline":
+        options.underline = { type: UnderlineType.SINGLE };
+        break;
+      case "strike":
+        options.strike = true;
+        break;
+      case "subscript":
+        options.subScript = true;
+        break;
+      case "superscript":
+        options.superScript = true;
+        break;
+      case "code":
+        options.font = "Consolas";
+        options.shading = { fill: "F1F3F5" };
+        break;
+      case "highlight":
+        options.shading = { fill: rgb(mark.attrs?.color) ?? "FFF59D" };
+        break;
+      case "textStyle": {
+        if (mark.attrs?.fontFamily)
+          options.font = String(mark.attrs.fontFamily)
+            .split(",")[0]
+            .replace(/["']/g, "");
+        const size = fontPoints(mark.attrs?.fontSize);
+        if (size) options.size = Math.round(size * 2);
+        const color = rgb(mark.attrs?.color);
+        if (color) options.color = color;
+        const background = rgb(mark.attrs?.backgroundColor);
+        if (background) options.shading = { fill: background };
+        break;
+      }
+    }
+  }
+  return options;
+}
+function alignment(value: unknown) {
+  return (
+    (
+      {
+        left: AlignmentType.LEFT,
+        center: AlignmentType.CENTER,
+        right: AlignmentType.RIGHT,
+        justify: AlignmentType.JUSTIFIED,
+      } as const
+    )[String(value) as "left"] ?? AlignmentType.LEFT
+  );
+}
+function paragraphOptions(node: JSONContent): IParagraphOptions {
+  const lineHeight =
+    node.attrs?.lineSpacing ??
+    node.attrs?.lineHeight ??
+    node.content
+      ?.flatMap((n) => n.marks ?? [])
+      .find((m) => m.type === "textStyle")?.attrs?.lineHeight;
+  const line = Number.parseFloat(lineHeight);
+  const indent = Number(node.attrs?.indent);
+  return {
+    alignment: alignment(node.attrs?.textAlign),
+    ...(Number.isFinite(indent) && indent > 0
+      ? { indent: { left: Math.round(indent * 15) } }
+      : {}),
+    spacing: {
+      after: 120,
+      ...(Number.isFinite(line) && line > 0 && line < 5
+        ? { line: Math.round(line * 240), lineRule: LineRuleType.AUTO }
+        : {}),
+    },
+    widowControl: true,
+  };
+}
+
+async function imageRun(
+  node: JSONContent,
+  availablePixels: number,
+): Promise<ImageRun> {
+  const src = node.attrs?.src;
+  if (!validImage(src))
+    fail("그림을 DOCX로 저장할 수 없습니다. 로컬 그림을 다시 삽입해 주세요.");
+  const decoded = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    const timeout = window.setTimeout(
+      () => reject(new Error("그림을 읽는 시간이 초과되었습니다.")),
+      10000,
+    );
+    img.onload = () => {
+      window.clearTimeout(timeout);
+      resolve(img);
+    };
+    img.onerror = () => {
+      window.clearTimeout(timeout);
+      reject(new Error("손상된 그림이 있어 DOCX를 저장하지 못했습니다."));
+    };
+    img.src = src;
+  });
+  let data = src;
+  let type = src.match(RASTER_DATA)![1].toLowerCase();
+  if (type === "jpeg") type = "jpg";
+  if (type === "webp") {
+    const canvas = document.createElement("canvas");
+    canvas.width = decoded.naturalWidth;
+    canvas.height = decoded.naturalHeight;
+    const context = canvas.getContext("2d");
+    if (!context) fail("그림 변환을 시작하지 못했습니다.");
+    context.drawImage(decoded, 0, 0);
+    data = canvas.toDataURL("image/png");
+    type = "png";
+  }
+  let width = Number(node.attrs?.width) || decoded.naturalWidth;
+  let height =
+    Number(node.attrs?.height) ||
+    (width * decoded.naturalHeight) / decoded.naturalWidth;
+  const scale = Math.min(1, availablePixels / width, 950 / height);
+  width = Math.max(1, Math.round(width * scale));
+  height = Math.max(1, Math.round(height * scale));
+  return new ImageRun({
+    type: type as "png" | "jpg" | "gif" | "bmp",
+    data,
+    transformation: { width, height },
+    altText: {
+      name: String(node.attrs?.title || "그림"),
+      title: String(node.attrs?.title || ""),
+      description: String(node.attrs?.alt || ""),
+    },
+  });
+}
+
+export async function exportDocx(document: StudioDocument): Promise<Blob> {
+  validateDocument(document);
+  const page = document.page;
+  const mmToTwip = (mm: number) => Math.round((mm * 1440) / 25.4);
+  const portraitWidth = page.size === "Letter" ? 215.9 : 210;
+  const portraitHeight = page.size === "Letter" ? 279.4 : 297;
+  let contentWidth = mmToTwip(
+    (page.orientation === "landscape" ? portraitHeight : portraitWidth) -
+      pageMargins(page).left - pageMargins(page).right,
+  );
+  const numbering: NumberingDefinition[] = [];
+  let listId = 0;
+  const commentIds = new Map(document.comments.map((comment, i) => [comment.id, i]));
+  const remaining = new Map<string, number>();
+  const anchored = (node: JSONContent): string[] => (node.marks?.find(m => m.type === 'commentAnchor')?.attrs?.ids || '').split(' ').filter((id: string) => commentIds.has(id));
+  const count = (node: JSONContent) => {
+    if (node.type === 'text') for (const id of anchored(node)) remaining.set(id, (remaining.get(id) ?? 0) + 1);
+    node.content?.forEach(count);
+  };
+  count(document.content);
+  const opened = new Set<string>();
+  let wroteUnanchored = false;
+  const inline = async (nodes: JSONContent[]): Promise<ParagraphChild[]> => {
+    const runs: ParagraphChild[] = [];
+    if (!wroteUnanchored) {
+      wroteUnanchored = true;
+      for (const [id, numeric] of commentIds) if (!remaining.has(id))
+        runs.push(new CommentRangeStart(numeric), new CommentRangeEnd(numeric), new TextRun({ children: [new CommentReference(numeric)] }));
+    }
+    for (const node of nodes) {
+      if (node.type === "text") {
+        const ids = anchored(node);
+        for (const id of ids) if (!opened.has(id)) { runs.push(new CommentRangeStart(commentIds.get(id)!)); opened.add(id); }
+        const run = new TextRun(runOptions(node));
+        const link = node.marks?.find((m) => m.type === "link");
+        if (
+          link &&
+          safeLink(link.attrs?.href) &&
+          !link.attrs.href.startsWith("#")
+        )
+          runs.push(
+            new ExternalHyperlink({ children: [run], link: link.attrs.href }),
+          );
+        else runs.push(run);
+        for (const id of ids) {
+          remaining.set(id, remaining.get(id)! - 1);
+          if (!remaining.get(id)) runs.push(new CommentRangeEnd(commentIds.get(id)!), new TextRun({ children: [new CommentReference(commentIds.get(id)!)] }));
+        }
+      } else if (node.type === "hardBreak")
+        runs.push(new TextRun({ break: 1 }));
+      else if (node.type === "image")
+        runs.push(await imageRun(node, contentWidth / 15));
+    }
+    return runs;
+  };
+  type Context = {
+    depth?: number;
+    indent?: number;
+    list?: { reference: string; level: number };
+  };
+  const blocks = async (
+    nodes: JSONContent[],
+    context: Context = {},
+  ): Promise<(Paragraph | Table)[]> => {
+    const output: (Paragraph | Table)[] = [];
+    for (const node of nodes) {
+      if (
+        node.type === "paragraph" ||
+        node.type === "heading" ||
+        node.type === "codeBlock"
+      ) {
+        const headings = [
+          HeadingLevel.HEADING_1,
+          HeadingLevel.HEADING_2,
+          HeadingLevel.HEADING_3,
+          HeadingLevel.HEADING_4,
+          HeadingLevel.HEADING_5,
+          HeadingLevel.HEADING_6,
+        ];
+        output.push(
+          new Paragraph({
+            ...paragraphOptions(node),
+            children: await inline(node.content ?? []),
+            ...(node.type === "heading"
+              ? { heading: headings[(node.attrs?.level ?? 1) - 1] }
+              : {}),
+            ...(node.type === "codeBlock"
+              ? {
+                  run: { font: "Consolas", size: 20 },
+                  shading: { fill: "F3F4F6" },
+                }
+              : {}),
+            ...(context.list ? { numbering: context.list } : {}),
+            ...(context.indent ? { indent: { left: context.indent } } : {}),
+          }),
+        );
+      } else if (node.type === "image")
+        output.push(
+          new Paragraph({
+            children: [await imageRun(node, contentWidth / 15)],
+            alignment: alignment(node.attrs?.textAlign),
+          }),
+        );
+      else if (node.type === "pageBreak")
+        output.push(new Paragraph({ children: [new PageBreak()] }));
+      else if (node.type === "horizontalRule")
+        output.push(
+          new Paragraph({
+            border: {
+              bottom: { color: "B8C2CC", style: BorderStyle.SINGLE, size: 6 },
+            },
+          }),
+        );
+      else if (node.type === "blockquote")
+        output.push(
+          ...(await blocks(node.content ?? [], {
+            ...context,
+            indent: (context.indent ?? 0) + 360,
+          })),
+        );
+      else if (node.type === "bulletList" || node.type === "orderedList") {
+        const reference = `studio-list-${++listId}`;
+        const level = Math.min(context.depth ?? 0, 8);
+        numbering.push({
+          reference,
+          levels: Array.from({ length: 9 }, (_, i) => ({
+            level: i,
+            format:
+              node.type === "orderedList"
+                ? LevelFormat.DECIMAL
+                : LevelFormat.BULLET,
+            text:
+              node.type === "orderedList"
+                ? `%${i + 1}.`
+                : ["•", "◦", "▪"][i % 3],
+            start:
+              node.type === "orderedList"
+                ? Math.max(1, Number(node.attrs?.start) || 1)
+                : 1,
+            alignment: AlignmentType.LEFT,
+            style: {
+              paragraph: { indent: { left: 720 * (i + 1), hanging: 360 } },
+            },
+          })),
+        });
+        for (const item of node.content ?? []) {
+          let first = true;
+          for (const child of item.content ?? []) {
+            const isParagraph = ["paragraph", "heading"].includes(
+              child.type ?? "",
+            );
+            output.push(
+              ...(await blocks([child], {
+                depth: level + 1,
+                ...(first && isParagraph ? { list: { reference, level } } : {}),
+                ...(!first && isParagraph ? { indent: 720 * (level + 1) } : {}),
+              })),
+            );
+            if (isParagraph) first = false;
+          }
+        }
+      } else if (node.type === "table") {
+        const rows: TableRow[] = [];
+        const columnWidths: number[] = [];
+        const firstRow = node.content?.[0]?.content ?? [];
+        for (const cell of firstRow) {
+          const span = Math.max(1, Number(cell.attrs?.colspan) || 1);
+          for (let i = 0; i < span; i++)
+            columnWidths.push(
+              Number(cell.attrs?.colwidth?.[i])
+                ? Math.round(cell.attrs!.colwidth[i] * 15)
+                : 0,
+            );
+        }
+        const fallback = Math.floor(
+          contentWidth / Math.max(1, columnWidths.length),
+        );
+        for (let i = 0; i < columnWidths.length; i++)
+          if (!columnWidths[i]) columnWidths[i] = fallback;
+        const total = columnWidths.reduce((a, b) => a + b, 0);
+        if (total > contentWidth)
+          for (let i = 0; i < columnWidths.length; i++)
+            columnWidths[i] = Math.max(
+              1,
+              Math.floor((columnWidths[i] * contentWidth) / total),
+            );
+        for (const row of node.content ?? []) {
+          const cells: TableCell[] = [];
+          for (const cell of row.content ?? []) {
+            const children = await blocks(cell.content ?? []);
+            if (
+              !children.length ||
+              children[children.length - 1] instanceof Table
+            )
+              children.push(new Paragraph(""));
+            const color =
+              rgb(cell.attrs?.backgroundColor) ??
+              (cell.type === "tableHeader" ? "E8EEF7" : undefined);
+            cells.push(
+              new TableCell({
+                children,
+                columnSpan: Number(cell.attrs?.colspan) || 1,
+                rowSpan: Number(cell.attrs?.rowspan) || 1,
+                ...(color ? { shading: { fill: color } } : {}),
+                margins: { top: 90, bottom: 90, left: 120, right: 120 },
+              }),
+            );
+          }
+          rows.push(
+            new TableRow({
+              children: cells,
+              tableHeader: (row.content ?? []).every(
+                (cell) => cell.type === "tableHeader",
+              ),
+            }),
+          );
+        }
+        output.push(
+          new Table({
+            rows,
+            width: { size: contentWidth, type: WidthType.DXA },
+            columnWidths,
+          }),
+        );
+      }
+    }
+    return output;
+  };
+  const groups: { page: PageSettings; nodes: JSONContent[] }[] = [{ page, nodes: [] }];
+  for (const node of document.content.content ?? []) {
+    if (node.type === 'sectionBreak') groups.push({ page: JSON.parse(node.attrs!.page), nodes: [] });
+    else groups[groups.length - 1].nodes.push(node);
+  }
+  const sections = [];
+  for (const group of groups) {
+  const page = group.page;
+  const portraitWidth = page.size === 'Letter' ? 215.9 : 210;
+  const portraitHeight = page.size === 'Letter' ? 279.4 : 297;
+  const margins = pageMargins(page);
+  contentWidth = mmToTwip((page.orientation === 'landscape' ? portraitHeight : portraitWidth) - margins.left - margins.right);
+  const children = await blocks(group.nodes);
+  const footerChildren: Paragraph[] = [];
+  if (page.footer)
+    footerChildren.push(
+      new Paragraph({
+        text: page.footer,
+        alignment: AlignmentType.CENTER,
+        run: { size: 18, color: "697386" },
+      }),
+    );
+  if (page.pageNumbers)
+    footerChildren.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            children: [PageNumber.CURRENT],
+            size: 18,
+            color: "697386",
+          }),
+        ],
+      }),
+    );
+  sections.push(
+      {
+        children: children.length ? children : [new Paragraph("")],
+        properties: {
+          page: {
+            size: {
+              width: mmToTwip(portraitWidth),
+              height: mmToTwip(portraitHeight),
+              orientation:
+                page.orientation === "landscape"
+                  ? PageOrientation.LANDSCAPE
+                  : PageOrientation.PORTRAIT,
+            },
+            margin: {
+              top: mmToTwip(margins.top),
+              right: mmToTwip(margins.right),
+              bottom: mmToTwip(margins.bottom),
+              left: mmToTwip(margins.left),
+              header: 360,
+              footer: 360,
+            },
+          },
+        },
+        ...{
+              headers: {
+                default: new Header({
+                  children: [
+                    new Paragraph({
+                      text: page.header,
+                      run: { size: 18, color: "697386" },
+                    }),
+                  ],
+                }),
+              },
+            },
+        footers: { default: new Footer({ children: footerChildren.length ? footerChildren : [new Paragraph('')] }) },
+      },
+  );
+  }
+  const docx = new DocxDocument({
+    title: document.title,
+    creator: 'Word Studio',
+    description: 'Created with Word Studio',
+    numbering: { config: numbering },
+    comments: { children: document.comments.map((comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: 'Word Studio', date: new Date(comment.createdAt),
+      resolved: comment.resolved, children: comment.text.split('\n').map(text => new Paragraph(text)) })) },
+    styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } } },
+    sections,
+  });
+  const blob = await Packer.toBlob(docx);
+  if (!document.comments.length) return blob;
+  // docx 9.12 emits resolution metadata only for replies. Standalone comments
+  // need the same standard OOXML part; use its generated paragraph IDs.
+  const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+  const commentsXml = xml(await zip.file('word/comments.xml')!.async('string'));
+  const extended = document.comments.map((comment, index) => {
+    const el = elements(commentsXml, 'comment').find(c => attr(c, 'id') === String(index));
+    const paragraph = el && elements(el, 'p').at(-1);
+    const paraId = paragraph && Array.from(paragraph.attributes).find(a => a.localName === 'paraId')?.value;
+    return paraId ? `<w15:commentEx w15:paraId="${paraId}" w15:done="${comment.resolved ? 1 : 0}"/>` : '';
+  }).join('');
+  zip.file('word/commentsExtended.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w15:commentsEx xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml">${extended}</w15:commentsEx>`);
+  const relsPath = 'word/_rels/document.xml.rels';
+  zip.file(relsPath, (await zip.file(relsPath)!.async('string')).replace('</Relationships>', '<Relationship Id="rIdStudioCommentsExtended" Type="http://schemas.microsoft.com/office/2011/relationships/commentsExtended" Target="commentsExtended.xml"/></Relationships>'));
+  zip.file('[Content_Types].xml', (await zip.file('[Content_Types].xml')!.async('string')).replace('</Types>', '<Override PartName="/word/commentsExtended.xml" ContentType="application/vnd.ms-word.commentsExtended+xml"/></Types>'));
+  return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+}
