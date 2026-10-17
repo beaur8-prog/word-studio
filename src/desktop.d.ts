@@ -2,6 +2,7 @@ export {};
 declare global {
   interface Window {
     wordDesktop?: {
+      paste?: () => Promise<void>;
       platform: string;
       readRecovery(): Promise<{ current: string; previous?: string; savedAt: string }[]>;
       saveRecovery(serialized: string): Promise<boolean>;

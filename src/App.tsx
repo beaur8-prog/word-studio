@@ -63,6 +63,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { editorExtensions } from "./extensions";
+import { TableContextMenu } from './TableContextMenu';
 import { defaultPage, pageMargins } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
@@ -1929,6 +1930,7 @@ export default function App() {
                   ))}
                 </div>
                 <EditorContent editor={editor} />
+                <TableContextMenu editor={editor} readOnly={readOnly} notify={notify} />
               </div>
             </div>
           </div>

@@ -10,6 +10,7 @@ import Superscript from "@tiptap/extension-superscript";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { CellAppearance } from './table-format';
 
 export const PageBreak = Node.create({
   name: "pageBreak",
@@ -181,6 +182,7 @@ export const editorExtensions = [
   TableKit.configure({
     table: { resizable: true, allowTableNodeSelection: true },
   }),
+  CellAppearance,
   Image.configure({ allowBase64: true }),
   Highlight.configure({ multicolor: true }),
   Subscript,

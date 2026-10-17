@@ -4,6 +4,56 @@ const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const all = (root: Element | Document, tag: string) => Array.from(root.getElementsByTagNameNS(W, tag));
 const val = (el: Element | undefined, key = 'val') => el?.getAttributeNS(W, key) ?? '';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
+const child = (root: Element | undefined, name: string) => root && Array.from(root.children).find(el => el.localName === name);
+const hex = (value: string) => /^[\da-f]{6}$/i.test(value) ? `#${value}` : '';
+
+function decorateCell(cell: HTMLElement, source: Element) {
+  const paragraphProps = child(all(source, 'p')[0], 'pPr');
+  if (paragraphProps) {
+    const defaults = document.createElement('span').style;
+    defaults.cssText = runStyle(paragraphProps);
+    for (const property of ['font-family', 'font-size', 'color']) {
+      if (defaults.getPropertyValue(property)) cell.style.setProperty(property, defaults.getPropertyValue(property));
+    }
+  }
+  const props = child(source, 'tcPr');
+  if (!props) return;
+  const fill = hex(val(child(props, 'shd'), 'fill'));
+  if (fill) cell.style.backgroundColor = fill;
+  else if (val(child(props, 'shd'), 'fill') === 'auto') cell.style.backgroundColor = 'transparent';
+  const vertical = val(child(props, 'vAlign'));
+  if (['top', 'center', 'bottom'].includes(vertical)) cell.style.verticalAlign = vertical === 'center' ? 'middle' : vertical;
+  const borders = child(props, 'tcBorders'), margins = child(props, 'tcMar');
+  for (const side of ['top', 'right', 'bottom', 'left']) {
+    const border = child(borders, side) ?? child(borders, side === 'left' ? 'start' : side === 'right' ? 'end' : side);
+    const kind = val(border);
+    if (border) {
+      const styles: Record<string, string> = { single: 'solid', dashed: 'dashed', dashSmallGap: 'dashed', dotted: 'dotted', double: 'double', nil: 'none', none: 'none' };
+      const width = Number(val(border, 'sz')) / 8 || .75;
+      cell.style.setProperty(`border-${side}`, `${styles[kind] === 'none' ? 0 : width}pt ${styles[kind] ?? 'solid'} ${hex(val(border, 'color')) || '#000000'}`);
+    }
+    const margin = child(margins, side) ?? child(margins, side === 'left' ? 'start' : side === 'right' ? 'end' : side);
+    if (margin && val(margin, 'type') === 'dxa') cell.style.setProperty(`padding-${side}`, `${Number(val(margin, 'w')) / 15}px`);
+  }
+}
+
+function runStyle(run: Element): string {
+  const props = child(run, 'rPr');
+  if (!props) return '';
+  const style = document.createElement('span').style;
+  const color = hex(val(child(props, 'color')));
+  if (color) style.color = color;
+  const font = child(props, 'rFonts');
+  const family = val(font, 'eastAsia') || val(font, 'ascii') || val(font, 'hAnsi');
+  if (family) style.fontFamily = family;
+  const size = Number(val(child(props, 'sz')));
+  if (size > 0) style.fontSize = `${size / 2}pt`;
+  const highlight = val(child(props, 'highlight'));
+  if (highlight && highlight !== 'none') style.backgroundColor = highlight;
+  const shading = hex(val(child(props, 'shd'), 'fill'));
+  if (shading) style.backgroundColor = shading;
+  return style.cssText;
+}
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
@@ -30,7 +80,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       resolved: Boolean(paraId && resolved.has(paraId)) });
   }
   let sequence = 900000;
-  const markers = new Map<string, { kind: string; id?: string; paragraph?: Element; nextPage?: PageSettings }>();
+  const markers = new Map<string, { kind: string; id?: string; paragraph?: Element; cell?: Element; style?: string; nextPage?: PageSettings }>();
   const bookmark = (name: string) => {
     const fragment = body.createDocumentFragment();
     const id = String(++sequence);
@@ -47,11 +97,21 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     markers.set(name, { kind: kind === 'commentRangeStart' ? 'start' : 'end', id });
     el.replaceWith(bookmark(name));
   }
+  for (const run of all(body, 'r')) {
+    const style = runStyle(run);
+    if (!style) continue;
+    const start = `ws_marker_${sequence}`;
+    markers.set(start, { kind: 'runStart', style }); run.before(bookmark(start));
+    const end = `ws_marker_${sequence}`;
+    markers.set(end, { kind: 'runEnd' }); run.after(bookmark(end));
+  }
   let section = 0;
   for (const paragraph of all(body, 'p')) {
     const name = `ws_marker_${sequence}`;
     const isEnd = all(paragraph, 'sectPr').length > 0;
-    markers.set(name, { kind: 'paragraph', paragraph,
+    const parent = paragraph.parentElement;
+    const cell = parent?.localName === 'tc' && all(parent, 'p')[0] === paragraph ? parent : undefined;
+    markers.set(name, { kind: 'paragraph', paragraph, cell,
       ...(isEnd ? { nextPage: pages[++section] } : {}) });
     const properties = Array.from(paragraph.children).find(e => e.localName === 'pPr');
     paragraph.insertBefore(bookmark(name), properties ? properties.nextSibling : paragraph.firstChild);
@@ -67,6 +127,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         if (marker?.kind !== 'paragraph') continue;
         const p = anchor.closest<HTMLElement>('p,h1,h2,h3,h4,h5,h6,li');
         if (!p || !marker.paragraph) continue;
+        const cell = p.closest<HTMLElement>('td,th');
+        if (cell && marker.cell) decorateCell(cell, marker.cell);
         const props = all(marker.paragraph, 'pPr')[0];
         if (props) {
           const align = val(all(props, 'jc')[0]);
@@ -84,6 +146,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         }
       }
       const active = new Set<string>();
+      let activeStyle = '';
       const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
       const items: Node[] = []; while (walker.nextNode()) items.push(walker.currentNode);
       for (const item of items) {
@@ -91,10 +154,13 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           const marker = markers.get(item.id)!;
           if (marker.kind === 'start') active.add(marker.id!);
           if (marker.kind === 'end') active.delete(marker.id!);
+          if (marker.kind === 'runStart') activeStyle = marker.style || '';
+          if (marker.kind === 'runEnd') activeStyle = '';
           item.remove();
-        } else if (item.nodeType === Node.TEXT_NODE && active.size && item.textContent) {
+        } else if (item.nodeType === Node.TEXT_NODE && (active.size || activeStyle) && item.textContent) {
           const span = document.createElement('span');
-          span.setAttribute('data-comment-ids', [...active].join(' '));
+          if (active.size) span.setAttribute('data-comment-ids', [...active].join(' '));
+          if (activeStyle) span.style.cssText = activeStyle;
           item.parentNode!.replaceChild(span, item); span.append(item);
           for (const id of active) { const comment = comments.find(c => c.id === id); if (comment) comment.quote += item.textContent; }
         }

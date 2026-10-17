@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('wordDesktop', Object.freeze({
   openFile: () => ipcRenderer.invoke('word-studio:open-file'),
   exportPdf: payload => ipcRenderer.invoke('word-studio:export-pdf', payload),
   print: () => ipcRenderer.invoke('word-studio:print'),
+  paste: () => ipcRenderer.invoke('word-studio:paste'),
   setTheme: theme => {
     if (theme !== 'dark' && theme !== 'light') throw new TypeError('Choose a dark or light theme.');
     ipcRenderer.send('word-studio:set-theme', theme);

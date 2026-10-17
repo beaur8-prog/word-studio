@@ -25,12 +25,14 @@ import {
   CommentRangeStart, CommentRangeEnd, CommentReference,
   UnderlineType,
   WidthType,
+  VerticalAlignTable,
 } from "docx";
 import type {
   IParagraphOptions,
   IRunOptions,
   NumberingDefinition,
   ParagraphChild,
+  ITableCellBorders,
 } from "docx";
 import { defaultPage, pageMargins } from "./types";
 import { prepareDocxMetadata } from './docx-metadata';
@@ -437,6 +439,10 @@ export function sanitizeImportedHtml(source: string): {
     "white-space",
     "width",
     "height",
+    "border", "border-top", "border-right", "border-bottom", "border-left",
+    "border-style", "border-width", "border-color",
+    ...['top', 'right', 'bottom', 'left'].flatMap(side => [`border-${side}-style`, `border-${side}-width`, `border-${side}-color`]),
+    "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
   ]);
   for (const element of template.content.querySelectorAll<HTMLElement>(
     "[style]",
@@ -747,6 +753,32 @@ function fontPoints(value: unknown): number | undefined {
   if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
   return Math.min(400, String(value).endsWith("px") ? parsed * 0.75 : parsed);
 }
+
+function cellBorders(attrs: Record<string, unknown> = {}): ITableCellBorders {
+  return Object.fromEntries(['top', 'right', 'bottom', 'left'].map(side => {
+    const value = attrs[`border${side[0].toUpperCase()}${side.slice(1)}`];
+    const css = document.createElement('span').style;
+    css.border = typeof value === 'string' ? value : '1px solid #c6ced8';
+    const styles = { solid: BorderStyle.SINGLE, dashed: BorderStyle.DASHED, dotted: BorderStyle.DOTTED, double: BorderStyle.DOUBLE };
+    return [side, {
+      style: ['none', 'hidden'].includes(css.borderStyle) ? BorderStyle.NIL : styles[css.borderStyle as keyof typeof styles] ?? BorderStyle.SINGLE,
+      size: Math.max(0, Math.round((fontPoints(css.borderWidth) ?? .75) * 8)), color: rgb(css.borderColor) ?? 'C6CED8',
+    }];
+  }));
+}
+
+function inheritCellText(nodes: JSONContent[], attrs: Record<string, unknown> = {}): JSONContent[] {
+  const defaults = { fontFamily: attrs.fontFamily, fontSize: attrs.fontSize, color: attrs.textColor };
+  if (!Object.values(defaults).some(Boolean)) return nodes;
+  return nodes.map(node => {
+    if (node.type === 'text') {
+      const existing = node.marks?.find(mark => mark.type === 'textStyle')?.attrs ?? {};
+      return { ...node, marks: [...(node.marks ?? []).filter(mark => mark.type !== 'textStyle'),
+        { type: 'textStyle', attrs: { ...defaults, ...Object.fromEntries(Object.entries(existing).filter(([, value]) => value != null)) } }] };
+    }
+    return node.content ? { ...node, content: inheritCellText(node.content, attrs) } : node;
+  });
+}
 function runOptions(node: JSONContent): IRunOptions {
   const options: { -readonly [K in keyof IRunOptions]: IRunOptions[K] } = {
     text: node.text ?? "",
@@ -944,6 +976,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   type Context = {
     depth?: number;
     indent?: number;
+    cellRun?: IRunOptions;
     list?: { reference: string; level: number };
   };
   const blocks = async (
@@ -969,6 +1002,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           new Paragraph({
             ...paragraphOptions(node),
             children: await inline(node.content ?? []),
+            ...(context.cellRun ? { run: context.cellRun } : {}),
             ...(node.type === "heading"
               ? { heading: headings[(node.attrs?.level ?? 1) - 1] }
               : {}),
@@ -1075,31 +1109,40 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         for (const row of node.content ?? []) {
           const cells: TableCell[] = [];
           for (const cell of row.content ?? []) {
-            const children = await blocks(cell.content ?? []);
+            const children = await blocks(inheritCellText(cell.content ?? [], cell.attrs), {
+              cellRun: runOptions({ type: 'text', marks: [{ type: 'textStyle', attrs: {
+                fontFamily: cell.attrs?.fontFamily, fontSize: cell.attrs?.fontSize, color: cell.attrs?.textColor,
+              } }] }),
+            });
             if (
               !children.length ||
               children[children.length - 1] instanceof Table
             )
               children.push(new Paragraph(""));
             const color =
-              rgb(cell.attrs?.backgroundColor) ??
+              cell.attrs?.backgroundColor === 'transparent' ? undefined : rgb(cell.attrs?.backgroundColor) ??
               (cell.type === "tableHeader" ? "E8EEF7" : undefined);
             cells.push(
               new TableCell({
                 children,
                 columnSpan: Number(cell.attrs?.colspan) || 1,
                 rowSpan: Number(cell.attrs?.rowspan) || 1,
-                ...(color ? { shading: { fill: color } } : {}),
-                margins: { top: 90, bottom: 90, left: 120, right: 120 },
+                ...(color || cell.attrs?.backgroundColor === 'transparent' ? { shading: { fill: color ?? 'auto' } } : {}),
+                borders: cellBorders(cell.attrs),
+                verticalAlign: cell.attrs?.verticalAlign === 'middle' ? VerticalAlignTable.CENTER : cell.attrs?.verticalAlign === 'bottom' ? VerticalAlignTable.BOTTOM : VerticalAlignTable.TOP,
+                margins: Object.fromEntries(['top', 'right', 'bottom', 'left'].map(side => {
+                  const padding = Number.parseFloat(cell.attrs?.[`padding${side[0].toUpperCase()}${side.slice(1)}`]);
+                  return [side, Number.isFinite(padding) ? Math.round(Math.max(0, padding) * 15) : ['left', 'right'].includes(side) ? 150 : 120];
+                })),
               }),
             );
           }
           rows.push(
             new TableRow({
               children: cells,
-              tableHeader: (row.content ?? []).every(
+              ...((row.content ?? []).every(
                 (cell) => cell.type === "tableHeader",
-              ),
+              ) ? { tableHeader: true } : {}),
             }),
           );
         }

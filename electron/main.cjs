@@ -174,6 +174,12 @@ function installMenu() {
 
 function installIPC() {
   const recovery = createRecoveryStore(path.join(app.getPath('userData'), 'recovery'));
+  ipcMain.handle('word-studio:paste', event => {
+    requireTrustedSender(event);
+    // Chromium delivers a normal paste event, including table HTML, through
+    // the editor's existing sanitization path. No general clipboard API is exposed.
+    event.sender.paste();
+  });
   ipcMain.handle('word-studio:read-recovery', event => { requireTrustedSender(event); return recovery.list(); });
   ipcMain.handle('word-studio:save-recovery', (event, serialized) => { requireTrustedSender(event); return recovery.save(serialized); });
   ipcMain.on('word-studio:set-theme', (event, theme) => {
