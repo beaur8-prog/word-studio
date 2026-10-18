@@ -4,6 +4,8 @@ Windows·macOS용 로컬 문서 편집기입니다. 한국어 리본, 서식 편
 
 일반 사용자는 [최신 릴리즈](https://github.com/beaur8-prog/word-studio/releases/latest)에서 앱을 내려받으세요. [다운로드·설치·사용 안내와 버전별 변경 내역](USER_GUIDE.md)에 Mac과 Windows의 설치, 실행, 업데이트 방법을 정리했습니다.
 
+> **첫 설치·실행 시 운영체제의 보안 경고가 나타날 수 있습니다.** Mac 배포본은 Apple Developer ID 서명·공증을 받지 않았고, Windows 설치 파일과 앱은 코드 서명을 받지 않았습니다. Mac에서는 개발자 확인 또는 실행 차단 안내가, Windows에서는 SmartScreen 또는 알 수 없는 게시자 경고가 나타날 수 있습니다. 경고 문구와 실행 허용 여부는 운영체제 버전·보안 설정·조직 정책에 따라 다릅니다. 자세한 내용은 [설치·실행 안내](USER_GUIDE.md)를 참고하세요.
+
 ## 실행
 
 Node.js 22.12 이상이 필요합니다. 저장소를 내려받은 폴더에서 실행하세요.
