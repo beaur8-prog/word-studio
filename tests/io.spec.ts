@@ -336,7 +336,7 @@ test("DOCX export contains formatted text, lists, tables, image, page breaks and
   expect(result.imported.html).toContain("<strong>");
   expect(result.imported.html).toMatch(/<table[\s>]/);
   expect(result.imported.html).toContain("data:image/png;base64,");
-  expect(result.imported.document.page).toEqual({
+  expect(result.imported.document.page).toMatchObject({
     size: "Letter",
     orientation: "landscape",
     margin: 20,
@@ -347,5 +347,7 @@ test("DOCX export contains formatted text, lists, tables, image, page breaks and
     gutter: 0, headerDistance: 6.35, footerDistance: 6.35,
     firstHeader: '', firstFooter: '', evenHeader: '내 머리글', evenFooter: '내 바닥글', evenPageNumbers: true,
   });
+  expect(result.imported.document.page.headerHtml).toContain('내 머리글');
+  expect(result.imported.document.page.footerHtml).toContain('data-page-number="PAGE"');
   expect(result.imported.warnings.length).toBeGreaterThan(0);
 });

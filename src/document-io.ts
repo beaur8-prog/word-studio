@@ -1,5 +1,6 @@
+import { sanitizeImportedHtml, validImage, safeLink, RASTER_DATA } from "./document-html";
+export { sanitizeImportedHtml } from "./document-html";
 import type { JSONContent } from "@tiptap/react";
-import DOMPurify from "dompurify";
 import JSZip from "jszip";
 import mammoth from "mammoth";
 import {
@@ -7,6 +8,8 @@ import {
   BorderStyle,
   Document as DocxDocument,
   ExternalHyperlink,
+  InternalHyperlink,
+  Bookmark,
   Footer,
   Header,
   HeadingLevel,
@@ -29,6 +32,7 @@ import {
   HeightRule,
   Tab,
   SimpleField,
+  FootnoteReferenceRun, EndnoteReferenceRun, SectionType, SymbolRun,
 } from "docx";
 import type {
   IParagraphOptions,
@@ -43,6 +47,9 @@ import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
 import { overlapParts } from './word-overlap';
 import { rowHeight, MAX_ROW_HEIGHT } from './table-row-resize';
+import { storyHtml, documentNotes, attachDocumentNotes, structureDocxSections } from './docx-stories';
+import { parseDocumentHtml } from './extensions';
+import { imageFloating } from './image-floating';
 import type { PageSettings, StudioDocument } from "./types";
 
 export interface ImportResult {
@@ -54,10 +61,7 @@ export const DOCX_EXPORT_NOTICE =
   "DOCX에는 본문 서식, 표, 그림, 구역 설정과 검토 메모를 저장합니다. 편집 상태의 백업에는 Word Studio 형식도 함께 사용하세요.";
 const MAX_FILE_BYTES = 40 * 1024 * 1024;
 const MAX_INFLATED_BYTES = 100 * 1024 * 1024;
-const RASTER_DATA =
-  /^data:image\/(png|jpe?g|gif|webp|bmp);base64,([A-Za-z0-9+/=\s]+)$/i;
-const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|#)/i;
-const INLINE = new Set(["text", "hardBreak", "inlineImage", "documentTab", "wordOverlap"]);
+const INLINE = new Set(["text", "hardBreak", "inlineImage", "documentTab", "wordOverlap", "documentBookmark", "noteReference", "documentField", "documentSymbol"]);
 const BLOCKS = new Set([
   "paragraph",
   "heading",
@@ -70,6 +74,7 @@ const BLOCKS = new Set([
   "sectionBreak",
   "image",
   "table",
+  "documentNote", "columnGroup", "sectionContent",
 ]);
 const MARKS = new Set([
   "bold",
@@ -117,22 +122,6 @@ function keysOnly(
   if (Object.keys(value).some((key) => !keys.includes(key)))
     fail(`${label}에 지원하지 않는 속성이 있습니다.`);
 }
-function validImage(src: unknown): src is string {
-  return (
-    typeof src === "string" &&
-    src.length <= 22 * 1024 * 1024 &&
-    RASTER_DATA.test(src)
-  );
-}
-function safeLink(value: unknown): value is string {
-  return (
-    typeof value === "string" &&
-    value.length <= 8192 &&
-    SAFE_LINK.test(value) &&
-    !/[\u0000-\u001f]/.test(value)
-  );
-}
-
 /** Validate before loading JSON into ProseMirror; never silently discard unknown document data. */
 export function validateDocument(input: unknown): StudioDocument {
   if (!object(input)) fail("Word Studio 문서가 올바른 JSON 객체가 아닙니다.");
@@ -152,7 +141,8 @@ export function validateDocument(input: unknown): StudioDocument {
     page,
     ["size", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
       'differentFirstPage', 'differentOddEven', 'firstHeader', 'firstFooter', 'evenHeader', 'evenFooter',
-      'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop'],
+      'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop', 'breakType', 'columns',
+      'headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'],
     "용지 설정",
   );
   if (
@@ -175,6 +165,15 @@ export function validateDocument(input: unknown): StudioDocument {
     if (page[key] !== undefined && !boundedString(page[key], 10000)) fail('머리글·바닥글이 올바르지 않습니다.');
   for (const key of ['headerDistance', 'footerDistance', 'gutter'])
     if (page[key] !== undefined && !finite(page[key], 0, 75)) fail('용지 여백이 올바르지 않습니다.');
+  if (page.breakType !== undefined && !['nextPage','continuous','oddPage','evenPage','nextColumn'].includes(String(page.breakType))) fail('구역 나누기 종류가 올바르지 않습니다.');
+  if (page.columns !== undefined) {
+    if (!object(page.columns) || !finite(page.columns.count, 1, 12) || !Number.isInteger(page.columns.count) || !finite(page.columns.space, 0, 1000)) fail('다단 설정이 올바르지 않습니다.');
+    keysOnly(page.columns, ['count','space','widths','balance'], '다단');
+    if (page.columns.balance !== undefined && typeof page.columns.balance !== 'boolean') fail('단 균형 설정이 올바르지 않습니다.');
+    if (page.columns.widths !== undefined && (!Array.isArray(page.columns.widths) || page.columns.widths.length !== page.columns.count || !page.columns.widths.every(w => finite(w, 1, 10000)))) fail('단 너비가 올바르지 않습니다.');
+  }
+  for (const key of ['headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'])
+    if (page[key] !== undefined && !boundedString(page[key], MAX_FILE_BYTES)) fail('머리글·바닥글 본문이 너무 큽니다.');
   if (!Array.isArray(input.comments) || input.comments.length > 10000)
     fail("검토 메모 목록이 올바르지 않습니다.");
   const ids = new Set<string>();
@@ -182,7 +181,7 @@ export function validateDocument(input: unknown): StudioDocument {
     if (!object(comment)) fail("검토 메모가 올바르지 않습니다.");
     keysOnly(
       comment,
-      ["id", "quote", "text", "createdAt", "resolved"],
+      ["id", "quote", "text", "createdAt", "resolved", "author", "initials", "html"],
       "검토 메모",
     );
     if (
@@ -196,6 +195,7 @@ export function validateDocument(input: unknown): StudioDocument {
     )
       fail("검토 메모가 올바르지 않습니다.");
     ids.add(comment.id);
+    for (const key of ['author','initials','html']) if (comment[key] !== undefined && !boundedString(comment[key], key === 'html' ? 1000000 : 512)) fail('검토 메모 정보가 올바르지 않습니다.');
   }
   let nodes = 0;
   const walk = (value: unknown, parent: string | null, depth: number): void => {
@@ -249,25 +249,31 @@ export function validateDocument(input: unknown): StudioDocument {
           )
         )
           fail("본문 속성 형식이 올바르지 않습니다.");
-        if (typeof attr === "string" && key !== "src" && attr.length > 10000)
+        if (typeof attr === "string" && key !== "src" && attr.length > ((type === 'sectionBreak' || type === 'sectionContent') && key === 'page' ? MAX_FILE_BYTES : 10000))
           fail("본문 속성이 너무 깁니다.");
         if (typeof attr === "number" && !Number.isFinite(attr))
           fail("본문 수치 속성이 올바르지 않습니다.");
       }
     }
     const attrs = value.attrs as Record<string, unknown> | undefined;
+    if (type === 'documentSymbol' && (!boundedString(attrs?.font, 100) || !attrs?.font || !/^\d{1,5}$/.test(String(attrs?.code)) || !finite(Number(attrs?.code), 0, 65535) || !boundedString(attrs?.glyph, 100))) fail('기호 글자가 올바르지 않습니다.');
+    if (type === 'documentBookmark' && (!boundedString(attrs?.name, 1000) || !attrs?.name)) fail('책갈피 이름이 올바르지 않습니다.');
+    if (type === 'documentField' && !['PAGE','NUMPAGES'].includes(String(attrs?.kind))) fail('페이지 필드가 올바르지 않습니다.');
+    if ((type === 'documentNote' || type === 'noteReference') && (!boundedString(attrs?.id, 128) || !attrs?.id || !['footnote','endnote'].includes(String(attrs?.kind)) || !boundedString(attrs?.label, 100))) fail('각주·미주 정보가 올바르지 않습니다.');
+    if (type === 'columnGroup' && (!finite(attrs?.count, 1, 12) || !Number.isInteger(attrs?.count) || !finite(attrs?.space, 0, 1000) || (attrs?.balance !== undefined && typeof attrs.balance !== 'boolean'))) fail('다단 본문 설정이 올바르지 않습니다.');
     if (type === 'wordOverlap' && !overlapParts(attrs?.parts).length) fail('겹친 글자 형식이 올바르지 않습니다.');
     if (type === 'tableRow' && attrs?.rowHeight != null && !rowHeight(attrs.rowHeight))
       fail(`표 행 높이는 0보다 크고 ${MAX_ROW_HEIGHT}px 이하여야 합니다.`);
-    if (type === 'sectionBreak') {
+    if (type === 'sectionBreak' || type === 'sectionContent') {
       if (parent !== 'doc') fail('구역 나누기는 문서의 최상위에 있어야 합니다.');
-      if (typeof attrs?.page !== 'string' || attrs.page.length > 10000) fail('구역 설정이 올바르지 않습니다.');
+      if (typeof attrs?.page !== 'string' || attrs.page.length > MAX_FILE_BYTES) fail('구역 설정이 올바르지 않습니다.');
       const sectionPage = JSON.parse(attrs.page);
       validateDocument({ format: 'word-studio', version: 1, title: '', updatedAt: new Date().toISOString(), page: sectionPage,
         comments: [], content: { type: 'doc', content: [{ type: 'paragraph' }] } });
     }
     if ((type === "image" || type === "inlineImage") && !validImage(attrs?.src))
       fail("문서 그림은 PNG, JPG, GIF, BMP 또는 WebP 데이터여야 합니다.");
+    if ((type === 'image' || type === 'inlineImage') && attrs?.floating != null && !imageFloating(attrs.floating)) fail('그림 둘러싸기 설정이 올바르지 않습니다.');
     if (
       type === "heading" &&
       (!finite(attrs?.level, 1, 6) || !Number.isInteger(attrs?.level))
@@ -328,6 +334,9 @@ export function validateDocument(input: unknown): StudioDocument {
       "inlineImage",
       "documentTab",
       "wordOverlap",
+      "documentBookmark",
+      "noteReference", "documentField",
+      "documentSymbol",
     ].includes(type);
     if (value.content !== undefined && (!Array.isArray(value.content) || leaf))
       fail("본문 자식 요소가 올바르지 않습니다.");
@@ -342,6 +351,7 @@ export function validateDocument(input: unknown): StudioDocument {
         "tableCell",
         "tableHeader",
         "blockquote",
+        "documentNote", "columnGroup", "sectionContent",
       ].includes(type) &&
       children.length === 0
     )
@@ -384,140 +394,6 @@ export function validateDocument(input: unknown): StudioDocument {
 }
 
 /** Removes active markup, external images and CSS capable of loading external resources. */
-export function sanitizeImportedHtml(source: string): {
-  html: string;
-  warnings: string[];
-} {
-  const purified = DOMPurify.sanitize(source, {
-    ALLOWED_TAGS: [
-      "p",
-      "br",
-      "div",
-      "span",
-      "h1",
-      "h2",
-      "h3",
-      "h4",
-      "h5",
-      "h6",
-      "strong",
-      "b",
-      "em",
-      "i",
-      "u",
-      "s",
-      "strike",
-      "del",
-      "sub",
-      "sup",
-      "mark",
-      "a",
-      "ul",
-      "ol",
-      "li",
-      "blockquote",
-      "pre",
-      "code",
-      "hr",
-      "table",
-      "colgroup", "col",
-      "thead",
-      "tbody",
-      "tfoot",
-      "tr",
-      "th",
-      "td",
-      "img",
-    ],
-    ALLOWED_ATTR: [
-      "style",
-      "href",
-      "src",
-      "alt",
-      "title",
-      "width",
-      "height",
-      "colspan",
-      "colwidth",
-      "rowspan",
-      "start",
-      "data-type",
-      "data-color",
-      "data-colwidth",
-      "data-page-break",
-      "data-section-page",
-      "data-comment-ids",
-      "data-inline-image",
-      "data-docx-tab", "data-tab-stops",
-      "data-word-line-rule", "data-word-line",
-      "data-word-row-rule",
-      "data-word-overlap",
-    ],
-    ALLOW_DATA_ATTR: false,
-  });
-  const template = document.createElement("template");
-  template.innerHTML = purified;
-  const warnings: string[] = [];
-  let removedImages = 0;
-  for (const img of template.content.querySelectorAll("img")) {
-    if (!validImage(img.getAttribute("src"))) {
-      img.replaceWith(
-        document.createTextNode(img.getAttribute("alt") || "[외부 그림]"),
-      );
-      removedImages++;
-    }
-  }
-  if (removedImages)
-    warnings.push(
-      `외부 주소 또는 지원하지 않는 그림 ${removedImages}개를 제외했습니다.`,
-    );
-  for (const anchor of template.content.querySelectorAll("a")) {
-    if (!safeLink(anchor.getAttribute("href"))) anchor.removeAttribute("href");
-    anchor.setAttribute("rel", "noopener noreferrer");
-    anchor.setAttribute("target", "_blank");
-  }
-  const safeStyles = new Set([
-    "font-family",
-    "font-size",
-    "font-weight",
-    "font-style",
-    "text-decoration",
-    "text-decoration-line",
-    "color",
-    "background-color",
-    "text-align",
-    "line-height",
-    "margin-left",
-    "margin-right", "margin-top", "margin-bottom", "text-indent", "letter-spacing",
-    "vertical-align",
-    "white-space",
-    "width",
-    "height",
-    "border", "border-top", "border-right", "border-bottom", "border-left",
-    "border-style", "border-width", "border-color",
-    ...['top', 'right', 'bottom', 'left'].flatMap(side => [`border-${side}-style`, `border-${side}-width`, `border-${side}-color`]),
-    "padding", "padding-top", "padding-right", "padding-bottom", "padding-left",
-  ]);
-  for (const element of template.content.querySelectorAll<HTMLElement>(
-    "[style]",
-  )) {
-    const oldStyle = element.style;
-    const output: string[] = [];
-    for (const name of Array.from(oldStyle)) {
-      const value = oldStyle.getPropertyValue(name);
-      if (
-        safeStyles.has(name) &&
-        !/url\s*\(|expression\s*\(|@import|var\s*\(|\\/i.test(value) &&
-        value.length < 300
-      )
-        output.push(`${name}:${value}`);
-    }
-    element.removeAttribute("style");
-    if (output.length) element.setAttribute("style", output.join(";"));
-  }
-  return { html: template.innerHTML || "<p></p>", warnings };
-}
-
 function makeDocument(name: string, content?: JSONContent): StudioDocument {
   return {
     id: crypto.randomUUID(),
@@ -590,6 +466,11 @@ async function readDocxPage(
   const sections = elements(body, "sectPr");
   const section = selectedSection ?? sections[0];
   if (!section) return page;
+  const breakType = attr(elements(section, 'type')[0], 'val') || 'nextPage';
+  if (['nextPage','continuous','oddPage','evenPage','nextColumn'].includes(breakType)) page.breakType = breakType as PageSettings['breakType'];
+  const columns = elements(section, 'cols')[0];
+  if (columns) page.columns = { count: Math.max(1, Math.min(12, Number(attr(columns, 'num')) || elements(columns, 'col').length || 1)),
+    space: Math.max(0, Math.min(1000, Number(attr(columns, 'space') ?? 720) / 15)) };
   const size = elements(section, "pgSz")[0];
   const width = Number(attr(size, "w")),
     height = Number(attr(size, "h"));
@@ -611,6 +492,7 @@ async function readDocxPage(
   page.differentFirstPage = enabled(elements(section, 'titlePg')[0]);
   const settingsFile = zip.file('word/settings.xml');
   const settings = settingsFile ? xml(await settingsFile.async('string')) : undefined;
+  if (page.columns && settings) page.columns.balance = !enabled(elements(settings, 'noColumnBalance')[0]);
   page.differentOddEven = !!settings && enabled(elements(settings, 'evenAndOddHeaders')[0]);
   page.gutterTop = !!settings && enabled(elements(settings, 'gutterAtTop')[0]);
   for (const [source, destination] of [['header', 'headerDistance'], ['footer', 'footerDistance'], ['gutter', 'gutter']] as const) {
@@ -661,6 +543,7 @@ async function readDocxPage(
     const parsed = xml(await part.async("string"));
     const key = type === 'default' ? kind : `${type}${kind === 'header' ? 'Header' : 'Footer'}` as 'firstHeader' | 'firstFooter' | 'evenHeader' | 'evenFooter';
     page[key] = textOf(parsed).slice(0, 10000);
+    page[`${key}Html` as 'headerHtml'] = sanitizeImportedHtml(await storyHtml(zip, part.name, parsed.documentElement, page)).html;
     if (
       elements(parsed, "instrText").some((n) =>
         /\bPAGE\b/i.test(n.textContent || ""),
@@ -740,7 +623,7 @@ export async function importFile(file: File): Promise<ImportResult> {
     "DOCX는 편집 가능한 본문으로 변환됩니다. 원본의 세밀한 글꼴·배치·페이지 나눔은 달라질 수 있습니다.",
   ];
   if (elements(body, "drawing").some((n) => elements(n, "anchor").length))
-    warnings.push("떠 있는 그림은 본문 안의 그림으로 배치됩니다.");
+    warnings.push("떠 있는 그림의 둘러싸기와 위치를 가져옵니다. 중앙 그림 양쪽의 텍스트 흐름과 복잡한 윤곽은 Word와 다를 수 있습니다.");
   if (elements(body, "ins").length || elements(body, "del").length)
     warnings.push(
       "변경 내용 추적은 최종 본문으로 가져옵니다. 검토 이력은 보존하지 않습니다.",
@@ -759,10 +642,14 @@ export async function importFile(file: File): Promise<ImportResult> {
   const sections = elements(body, 'sectPr');
   const pages = await Promise.all(sections.map(s => readDocxPage(zip, body, warnings, s)));
   doc.page = pages[0] ?? { ...defaultPage };
-  if (sections.some(s => ['continuous', 'oddPage', 'evenPage'].includes(attr(elements(s, 'type')[0], 'val') || '')))
-    warnings.push('연속·홀수·짝수 구역 나눔은 새 페이지 구역 나눔으로 표시합니다.');
   const metadata = await prepareDocxMetadata(zip, body, pages);
   doc.comments = metadata.comments;
+  const commentsPart = zip.file('word/comments.xml');
+  if (commentsPart) {
+    const raw = elements(xml(await commentsPart.async('string')), 'comment');
+    for (let i = 0; i < doc.comments.length; i++) if (raw[i])
+      doc.comments[i].html = sanitizeImportedHtml(await storyHtml(zip, 'word/comments.xml', raw[i], doc.page)).html;
+  }
   const result = await mammoth.convertToHtml(
     { arrayBuffer: metadata.buffer },
     {
@@ -777,7 +664,8 @@ export async function importFile(file: File): Promise<ImportResult> {
       ],
     },
   );
-  const sanitized = sanitizeImportedHtml(metadata.decorate(result.value));
+  const notes = await documentNotes(zip, doc.page);
+  const sanitized = sanitizeImportedHtml(structureDocxSections(attachDocumentNotes(metadata.decorate(result.value), notes), pages));
   return {
     document: doc,
     html: sanitized.html,
@@ -882,6 +770,12 @@ function runOptions(node: JSONContent): IRunOptions {
         options.shading = { fill: rgb(mark.attrs?.color) ?? "FFF59D" };
         break;
       case "textStyle": {
+        if (mark.attrs?.smallCaps) options.smallCaps = true;
+        if (mark.attrs?.allCaps) options.allCaps = true;
+        if (mark.attrs?.decorationStyle === 'double') {
+          if (node.marks?.some(m => m.type === 'underline')) options.underline = { type: UnderlineType.DOUBLE };
+          if (node.marks?.some(m => m.type === 'strike')) { options.strike = false; options.doubleStrike = true; }
+        }
         if (mark.attrs?.fontFamily)
           options.font = String(mark.attrs.fontFamily)
             .split(",")[0]
@@ -897,6 +791,10 @@ function runOptions(node: JSONContent): IRunOptions {
         break;
       }
     }
+  }
+  if (node.marks?.some(mark => mark.type === 'textStyle' && mark.attrs?.decorationStyle === 'double')) {
+    if (node.marks.some(mark => mark.type === 'underline')) options.underline = { type: UnderlineType.DOUBLE };
+    if (node.marks.some(mark => mark.type === 'strike')) { options.strike = false; options.doubleStrike = true; }
   }
   return options;
 }
@@ -995,6 +893,7 @@ async function imageRun(
     type: type as "png" | "jpg" | "gif" | "bmp",
     data,
     transformation: { width, height },
+    ...(imageFloating(node.attrs?.floating) ? { floating: imageFloating(node.attrs?.floating) } : {}),
     altText: {
       name: String(node.attrs?.title || "그림"),
       title: String(node.attrs?.title || ""),
@@ -1014,6 +913,18 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       pageMargins(page).left - pageMargins(page).right,
   );
   const numbering: NumberingDefinition[] = [];
+  const configuredLists = new Set<string>();
+  const listLevels = new Map<string, Map<number, Record<string, unknown>>>();
+  const notes = new Map<string, JSONContent>();
+  const scan = (node: JSONContent) => {
+    if (node.type === 'documentNote') notes.set(String(node.attrs?.id), node);
+    if (node.type === 'listItem' && node.attrs?.wordListId) {
+      const id = String(node.attrs.wordListId), levels = listLevels.get(id) || new Map();
+      levels.set(Number(node.attrs.wordListLevel) || 0, node.attrs); listLevels.set(id, levels);
+    }
+    node.content?.forEach(scan);
+  }; scan(document.content);
+  const noteIds = new Map([...notes.keys()].map((id, index) => [id, index + 1]));
   let listId = 0;
   const commentIds = new Map(document.comments.map((comment, i) => [comment.id, i]));
   const remaining = new Map<string, number>();
@@ -1040,11 +951,12 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         const link = node.marks?.find((m) => m.type === "link");
         if (
           link &&
-          safeLink(link.attrs?.href) &&
-          !link.attrs.href.startsWith("#")
+          safeLink(link.attrs?.href)
         )
           runs.push(
-            new ExternalHyperlink({ children: [run], link: link.attrs.href }),
+            link.attrs.href.startsWith('#')
+              ? new InternalHyperlink({ children: [run], anchor: link.attrs.href.slice(1) })
+              : new ExternalHyperlink({ children: [run], link: link.attrs.href }),
           );
         else runs.push(run);
         for (const id of ids) {
@@ -1054,6 +966,13 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       } else if (node.type === "hardBreak")
         runs.push(new TextRun({ break: 1 }));
       else if (node.type === 'documentTab') runs.push(new TextRun({ children: [new Tab()] }));
+      else if (node.type === 'documentBookmark') runs.push(new Bookmark({ id: String(node.attrs?.name || ''), children: [] }));
+      else if (node.type === 'documentField') runs.push(new TextRun({ children: [node.attrs?.kind === 'NUMPAGES' ? PageNumber.TOTAL_PAGES : PageNumber.CURRENT] }));
+      else if (node.type === 'documentSymbol') runs.push(new SymbolRun({ ...runOptions(node), symbolfont: String(node.attrs?.font || 'Symbol'), char: Number(node.attrs?.code).toString(16).padStart(4, '0') }));
+      else if (node.type === 'noteReference') {
+        const id = noteIds.get(String(node.attrs?.id));
+        if (id) runs.push(node.attrs?.kind === 'endnote' ? new EndnoteReferenceRun(id) : new FootnoteReferenceRun(id));
+      }
       else if (node.type === 'wordOverlap') {
         const parts = overlapParts(node.attrs?.parts);
         const field = new SimpleField(`EQ \\o\\ac(${parts.join(',')})`);
@@ -1132,21 +1051,23 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             indent: (context.indent ?? 0) + 360,
           })),
         );
+      else if (node.type === 'columnGroup' || node.type === 'sectionContent') output.push(...await blocks(node.content || [], context));
       else if (node.type === "bulletList" || node.type === "orderedList") {
-        const reference = `studio-list-${++listId}`;
-        const level = Math.min(context.depth ?? 0, 8);
-        numbering.push({
+        const imported = node.content?.[0]?.attrs;
+        const reference = imported?.wordListId ? `studio-imported-${imported.wordListId}` : `studio-list-${++listId}`;
+        const level = Math.min(Number(imported?.wordListLevel ?? context.depth ?? 0), 8);
+        if (!configuredLists.has(reference)) numbering.push({
           reference,
           levels: Array.from({ length: 9 }, (_, i) => ({
             level: i,
-            format:
+            format: (listLevels.get(String(imported?.wordListId))?.get(i)?.wordListFormat as typeof LevelFormat.DECIMAL) || (
               node.type === "orderedList"
                 ? LevelFormat.DECIMAL
-                : LevelFormat.BULLET,
-            text:
+                : LevelFormat.BULLET),
+            text: String(listLevels.get(String(imported?.wordListId))?.get(i)?.wordListPattern || (
               node.type === "orderedList"
                 ? `%${i + 1}.`
-                : ["•", "◦", "▪"][i % 3],
+                : ["•", "◦", "▪"][i % 3])),
             start:
               node.type === "orderedList"
                 ? Math.max(1, Number(node.attrs?.start) || 1)
@@ -1157,6 +1078,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             },
           })),
         });
+        configuredLists.add(reference);
         for (const item of node.content ?? []) {
           let first = true;
           for (const child of item.content ?? []) {
@@ -1275,6 +1197,13 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     else groups[groups.length - 1].nodes.push(node);
   }
   const sections = [];
+  const footnotes: Record<string, { children: Paragraph[] }> = {}, endnotes: Record<string, { children: Paragraph[] }> = {};
+  for (const [id, note] of notes) {
+    // Both paragraph and table objects implement the block XML component
+    // protocol, although docx's public note type lists Paragraph only.
+    const children = await blocks(note.content || []);
+    (note.attrs?.kind === 'endnote' ? endnotes : footnotes)[String(noteIds.get(id))] = { children: children as Paragraph[] };
+  }
   for (const group of groups) {
   const page = group.page;
   const portraitWidth = page.size === 'Letter' ? 215.9 : 210;
@@ -1282,17 +1211,20 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const margins = pageMargins(page);
   contentWidth = mmToTwip((page.orientation === 'landscape' ? portraitHeight : portraitWidth) - margins.left - margins.right);
   const children = await blocks(group.nodes);
-  const footer = (text: string, numbers: boolean) => new Footer({ children: [
-    new Paragraph({ text, alignment: AlignmentType.CENTER, run: { size: 18, color: '697386' } }),
-    ...(numbers ? [new Paragraph({ alignment: AlignmentType.CENTER,
+  const richBlocks = async (html: string) => blocks(parseDocumentHtml(sanitizeImportedHtml(html).html).content || []);
+  const footer = async (text: string, numbers: boolean, html?: string, headerHtml?: string) => new Footer({ children: [
+    ...(html ? await richBlocks(html) : [new Paragraph({ text, alignment: AlignmentType.CENTER, run: { size: 18, color: '697386' } })]),
+    ...(numbers && !/data-page-number/.test((html || '') + (headerHtml || '')) ? [new Paragraph({ alignment: AlignmentType.CENTER,
       children: [new TextRun({ children: [PageNumber.CURRENT], size: 18, color: '697386' })] })] : []),
   ] });
-  const header = (text: string) => new Header({ children: [new Paragraph({ text, run: { size: 18, color: '697386' } })] });
+  const header = async (text: string, html?: string) => new Header({ children: html ? await richBlocks(html) : [new Paragraph({ text, run: { size: 18, color: '697386' } })] });
   const baseMargins = basePageMargins(page);
   sections.push(
       {
         children: children.length ? children : [new Paragraph("")],
         properties: {
+          type: page.breakType || SectionType.NEXT_PAGE,
+          ...(page.columns ? { column: { count: page.columns.count, space: Math.round(page.columns.space * 15), equalWidth: true } } : {}),
           titlePage: page.differentFirstPage,
           page: {
             size: {
@@ -1314,11 +1246,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             },
           },
         },
-        headers: { default: header(page.header),
-          first: header(page.firstHeader ?? ''), even: header(page.differentOddEven ? page.evenHeader ?? '' : page.header) },
-        footers: { default: footer(page.footer, page.pageNumbers),
-          first: footer(page.firstFooter ?? '', page.firstPageNumbers ?? false),
-          even: footer(page.differentOddEven ? page.evenFooter ?? '' : page.footer, page.differentOddEven ? page.evenPageNumbers ?? false : page.pageNumbers) },
+        headers: { default: await header(page.header, page.headerHtml),
+          first: await header(page.firstHeader ?? '', page.firstHeaderHtml), even: await header(page.differentOddEven ? page.evenHeader ?? '' : page.header, page.differentOddEven ? page.evenHeaderHtml : page.headerHtml) },
+        footers: { default: await footer(page.footer, page.pageNumbers, page.footerHtml, page.headerHtml),
+          first: await footer(page.firstFooter ?? '', page.firstPageNumbers ?? false, page.firstFooterHtml, page.firstHeaderHtml),
+          even: await footer(page.differentOddEven ? page.evenFooter ?? '' : page.footer, page.differentOddEven ? page.evenPageNumbers ?? false : page.pageNumbers, page.differentOddEven ? page.evenFooterHtml : page.footerHtml, page.differentOddEven ? page.evenHeaderHtml : page.headerHtml) },
       },
   );
   }
@@ -1327,9 +1259,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     creator: 'Word Studio',
     description: 'Created with Word Studio',
     evenAndOddHeaderAndFooters: groups.some(group => group.page.differentOddEven),
+    compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false) },
     numbering: { config: numbering },
-    comments: { children: document.comments.map((comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: 'Word Studio', date: new Date(comment.createdAt),
-      resolved: comment.resolved, children: comment.text.split('\n').map(text => new Paragraph(text)) })) },
+    footnotes, endnotes,
+    comments: { children: await Promise.all(document.comments.map(async (comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: comment.author ?? 'Word Studio', initials: comment.initials, date: new Date(comment.createdAt),
+      resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph(text)) }))) },
     styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } } },
     sections,
   });

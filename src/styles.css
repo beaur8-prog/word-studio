@@ -795,7 +795,7 @@ button:hover:not(:disabled) {
 .tiptap th {
   border: 1px solid #c6ced8;
   padding: 8px 10px;
-  min-width: 30px;
+  min-width: 1px;
   vertical-align: top;
   position: relative;
   box-sizing: border-box;
@@ -1903,3 +1903,31 @@ button:hover:not(:disabled) {
   body.studio-printing .print-content p, body.studio-printing .print-content h1, body.studio-printing .print-content h2, body.studio-printing .print-content h3 { orphans: 1; widows: 1; break-after: auto; }
   body.studio-printing .print-header, body.studio-printing .print-footer { display: flex !important; }
 }
+
+.tiptap li[data-list-label]::marker { content: attr(data-list-label) " "; }
+.document-bookmark { display: inline; font-size: 0; }
+
+.document-furniture, .print-footnotes { padding: 0; min-height: 0; font-size: 9pt; line-height: 1.4; }
+.document-furniture { overflow: visible; }
+.document-furniture p { margin: 0; }
+.document-furniture img { max-width: 100%; object-fit: contain; }
+.document-furniture table, .print-footnotes table { margin: 0; border-collapse: collapse; table-layout: fixed; max-width: 100%; }
+.document-symbol { font-family: 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Noto Sans Symbols', sans-serif; }
+.note-reference { font-size: .75em; vertical-align: super; cursor: pointer; color: #2864a8; }
+.document-note { border-top: 1px solid #88929b; margin: 14px 0 4px; padding: 5px 0 0; font-size: 10pt; }
+.document-note::before { content: attr(data-note-label) '. '; font-size: 10pt; }
+.document-note > p:first-child { display: inline; }
+.print-footnotes { position: absolute; }
+.print-footnotes .document-note { border: 0; margin: 4px 0 0; padding: 0; }
+.print-footnotes:has(.document-note) { border-top: 1px solid #77818b; padding-top: 6px; }
+
+.document-stack .tiptap:has(> .document-section-content) { padding: 0; min-height: 0; }
+.document-stack:has(.document-section-content) { min-height: 0 !important; }
+.document-stack:has(.document-section-content) > .paper-backgrounds { display: none; }
+.document-section-content { position: relative; }
+.section-editable { position: relative; box-sizing: border-box; z-index: 1; }
+.section-papers { position: absolute; inset: 0; pointer-events: none; }
+.section-paper { position: absolute; background: #fff; box-shadow: 0 2px 9px #0002; }
+.section-header, .section-footer { position: absolute; }
+.document-columns { column-fill: balance; }
+@media print { body.studio-printing .print-header { display: block !important; } }

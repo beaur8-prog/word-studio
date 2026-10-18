@@ -19,6 +19,14 @@ export interface PageSettings {
   footerDistance?: number;
   gutter?: number;
   gutterTop?: boolean;
+  breakType?: 'nextPage' | 'continuous' | 'evenPage' | 'oddPage' | 'nextColumn';
+  columns?: { count: number; space: number; widths?: number[]; balance?: boolean };
+  headerHtml?: string;
+  footerHtml?: string;
+  firstHeaderHtml?: string;
+  firstFooterHtml?: string;
+  evenHeaderHtml?: string;
+  evenFooterHtml?: string;
 }
 export interface Comment {
   id: string;
@@ -26,6 +34,9 @@ export interface Comment {
   text: string;
   createdAt: string;
   resolved: boolean;
+  author?: string;
+  initials?: string;
+  html?: string;
 }
 export interface StudioDocument {
   id?: string;
@@ -47,8 +58,9 @@ export const pageMargins = (page: PageSettings) => {
 };
 export function pageFurniture(page: PageSettings, number: number, first = number === 1) {
   const prefix = first && page.differentFirstPage ? 'first' : number % 2 === 0 && page.differentOddEven ? 'even' : null;
-  return prefix ? { header: page[`${prefix}Header`] ?? '', footer: page[`${prefix}Footer`] ?? '', pageNumbers: page[`${prefix}PageNumbers`] ?? false }
-    : { header: page.header, footer: page.footer, pageNumbers: page.pageNumbers };
+  return prefix ? { header: page[`${prefix}Header`] ?? '', footer: page[`${prefix}Footer`] ?? '', pageNumbers: page[`${prefix}PageNumbers`] ?? false,
+    headerHtml: page[`${prefix}HeaderHtml`], footerHtml: page[`${prefix}FooterHtml`] }
+    : { header: page.header, footer: page.footer, pageNumbers: page.pageNumbers, headerHtml: page.headerHtml, footerHtml: page.footerHtml };
 }
 export const defaultPage: PageSettings = {
   size: "A4",

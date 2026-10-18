@@ -1,6 +1,6 @@
 {
   "name": "word-studio",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -36,7 +36,9 @@
     "lucide-react": "^0.468.0",
     "mammoth": "1.13.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "@tiptap/extension-underline": "3.32.0",
+    "@tiptap/extension-strike": "3.32.0"
   },
   "devDependencies": {
     "@electron/asar": "^3.4.1",

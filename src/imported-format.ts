@@ -23,11 +23,22 @@ export const ImportedFormat = Extension.create({
   name: 'importedFormat',
   addGlobalAttributes() {
     return [
+      { types: ['listItem'], attributes: Object.fromEntries(['id','level','format','pattern','label'].map(key => [`wordList${key[0].toUpperCase()}${key.slice(1)}`, {
+        default: null, parseHTML: (el: HTMLElement) => el.getAttribute(`data-list-${key}`),
+        renderHTML: (a: Record<string, unknown>) => a[`wordList${key[0].toUpperCase()}${key.slice(1)}`] != null ? { [`data-list-${key}`]: a[`wordList${key[0].toUpperCase()}${key.slice(1)}`] } : {},
+      }])) },
       { types: ['paragraph', 'heading'], attributes: Object.fromEntries(Object.entries(properties).map(([key, property]) => [key, attribute(property)])) },
       { types: ['textStyle'], attributes: { letterSpacing: {
         default: null, parseHTML: (el: HTMLElement) => el.style.letterSpacing || null,
         renderHTML: (a: Record<string, unknown>) => css('letter-spacing', a.letterSpacing) ? { style: `letter-spacing:${css('letter-spacing', a.letterSpacing)}` } : {},
-      } } },
+      },
+      smallCaps: { default: null, parseHTML: (el: HTMLElement) => el.style.fontVariantCaps === 'small-caps' ? true : null,
+        renderHTML: (a: Record<string, unknown>) => a.smallCaps ? { style: 'font-variant-caps:small-caps' } : {} },
+      allCaps: { default: null, parseHTML: (el: HTMLElement) => el.style.textTransform === 'uppercase' ? true : null,
+        renderHTML: (a: Record<string, unknown>) => a.allCaps ? { style: 'text-transform:uppercase' } : {} },
+      decorationStyle: { default: null, parseHTML: (el: HTMLElement) => el.style.textDecorationStyle || null,
+        renderHTML: (a: Record<string, unknown>) => ['solid','double','dotted','dashed','wavy'].includes(String(a.decorationStyle)) ? { style: `text-decoration-style:${a.decorationStyle}` } : {} },
+      } },
       { types: ['table'], attributes: {
         tableIndent: { default: null, parseHTML: (el: HTMLElement) => el.style.marginLeft || null,
           renderHTML: (a: Record<string, unknown>) => a.tableIndent ? { style: `margin-left:${css('margin-left', a.tableIndent)}` } : {} },

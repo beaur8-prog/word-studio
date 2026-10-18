@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+const escapeHtml = (text: string) => { const el = document.createElement('span'); el.textContent = text; return el.innerHTML; };
 import { EditorContent, useEditor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
 import { EditorState } from '@tiptap/pm/state';
@@ -440,6 +441,30 @@ export default function App() {
     return () => el?.removeEventListener("pagecount", change);
   }, [editor]);
   useEffect(() => {
+    const stack = stackRef.current; if (!stack || !editor) return;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
+        const margins = pageMargins(page), px = 96 / 25.4;
+        const scale = stack.getBoundingClientRect().width / stack.offsetWidth || 1;
+        const occupied = (selector: string, distance: number) => Math.max(0, ...[...stack.querySelectorAll<HTMLElement>(selector)].map(el =>
+          el.textContent?.trim() || el.querySelector('img,table') ? distance * px + el.getBoundingClientRect().height / scale + 2 : 0));
+        const top = Math.max(margins.top * px, occupied('.paper-header', page.headerDistance ?? Math.max(0, margins.top / 2 - 3)));
+        const bottom = Math.max(margins.bottom * px, occupied('.paper-footer', page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)));
+        stack.style.setProperty('--page-padding', `${top}px ${margins.right * px}px ${bottom}px ${margins.left * px}px`);
+        stack.dataset.margin = String(top); stack.dataset.bottomMargin = String(bottom);
+        for (const field of stack.querySelectorAll<HTMLElement>('.paper [data-page-number]')) {
+          const index = [...stack.querySelectorAll('.paper')].indexOf(field.closest('.paper')!);
+          field.textContent = String(field.dataset.pageNumber === 'NUMPAGES' ? pages : index + 1);
+        }
+      });
+    };
+    const observer = new ResizeObserver(update);
+    stack.querySelectorAll('.paper-header,.paper-footer').forEach(el => observer.observe(el));
+    update(); document.fonts.addEventListener('loadingdone', update);
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); document.fonts.removeEventListener('loadingdone', update); };
+  }, [editor, page, pages]);
+  useEffect(() => {
     if (editor)
       requestAnimationFrame(() =>
         editor.view.dispatch(editor.state.tr.setMeta("addToHistory", false)),
@@ -775,7 +800,8 @@ export default function App() {
     pageHeight = page.orientation === "portrait" ? dims[1] : dims[0],
     margin = (pageMargins(page).top * 96) / 25.4;
   const setPageValue = (change: Partial<PageSettings>) =>
-    setPage((p) => ({ ...p, ...change, ...(change.margin !== undefined ? { margins: undefined } : {}) }));
+    setPage((p) => ({ ...p, ...change, ...(change.margin !== undefined ? { margins: undefined } : {}),
+      ...Object.fromEntries(['header','footer','firstHeader','firstFooter','evenHeader','evenFooter'].filter(key => key in change).map(key => [`${key}Html`, undefined])) }));
   const format = editor.getAttributes("textStyle");
   void selectionVersion;
   const fit = () => {
@@ -1979,16 +2005,15 @@ export default function App() {
                       className="paper"
                       style={{ top: i * (pageHeight + 24), height: pageHeight }}
                     >
-                      <span
-                        className="paper-header"
+                      <div
+                        className="paper-header document-furniture"
                         style={{
                           left: margins.left * 96 / 25.4,
                           right: margins.right * 96 / 25.4,
                           top: page.headerDistance !== undefined ? page.headerDistance * 96 / 25.4 : Math.max(12, margin / 2 - 8),
                         }}
-                      >
-                        {pageFurniture(page, i + 1).header}
-                      </span>
+                        dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(pageFurniture(page, i + 1).headerHtml || `<p>${escapeHtml(pageFurniture(page, i + 1).header)}</p>`).html }}
+                      />
                       <div
                         className="paper-footer"
                         style={{
@@ -1997,8 +2022,8 @@ export default function App() {
                           bottom: page.footerDistance !== undefined ? page.footerDistance * 96 / 25.4 : Math.max(12, margins.bottom * 96 / 25.4 / 2 - 8),
                         }}
                       >
-                        <span>{pageFurniture(page, i + 1).footer}</span>
-                        {pageFurniture(page, i + 1).pageNumbers && <span>{i + 1}</span>}
+                        <div className="document-furniture" dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(pageFurniture(page, i + 1).footerHtml || `<p>${escapeHtml(pageFurniture(page, i + 1).footer)}</p>`).html }} />
+                        {pageFurniture(page, i + 1).pageNumbers && !/data-page-number/.test((pageFurniture(page, i + 1).headerHtml || '') + (pageFurniture(page, i + 1).footerHtml || '')) && <span>{i + 1}</span>}
                       </div>
                     </div>
                   ))}
@@ -2047,7 +2072,8 @@ export default function App() {
                     if (from >= 0) editor.chain().focus().setTextSelection({ from, to }).scrollIntoView().run();
                     else notify('연결된 본문이 삭제됐거나 문서 전체에 남긴 메모입니다.');
                   }}>본문으로 이동</button>
-                  <p>{c.text}</p>
+                  {c.author && <small>{c.author}{c.initials ? ` (${c.initials})` : ''}</small>}
+                  {c.html ? <div className="comment-story" dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(c.html).html }} /> : <p>{c.text}</p>}
                   <button
                     onClick={() =>
                       setComments(

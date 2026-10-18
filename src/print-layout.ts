@@ -1,6 +1,8 @@
 import { pageMargins, pageFurniture, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
+import { sanitizeImportedHtml } from './document-html';
+import { layoutColumns } from './column-layout';
 
 export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
 const PX = 96 / 25.4;
@@ -16,7 +18,11 @@ function splitText(element: HTMLElement, offset: number): [HTMLElement, HTMLElem
   }
   const before = document.createRange(), after = document.createRange();
   before.selectNodeContents(element); after.selectNodeContents(element);
-  if (node) { before.setEnd(node, remaining); after.setStart(node, remaining); }
+  if (node) {
+    const atomic = node.parentElement?.closest('[data-note-reference],[data-symbol-font],[data-page-number],[data-docx-tab],[data-docx-bookmark]');
+    if (atomic && remaining < (node.textContent?.length || 0)) { before.setEndBefore(atomic); after.setStartBefore(atomic); }
+    else { before.setEnd(node, remaining); after.setStart(node, remaining); }
+  }
   else after.collapse(false);
   const a = element.cloneNode(false) as HTMLElement, b = element.cloneNode(false) as HTMLElement;
   a.append(before.cloneContents()); b.append(after.cloneContents());
@@ -40,38 +46,70 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
       table.style.width = `${columns.reduce((sum, c) => sum + parseFloat(c.style.width), 0)}px`;
   }
   const warnings = new Set<string>();
-  let settings = initialPage, pageNumber = 0, content: HTMLElement;
+  const noteBodies = new Map<string, HTMLElement>();
+  for (const note of source.querySelectorAll<HTMLElement>('[data-document-note][data-note-kind="footnote"]')) {
+    noteBodies.set(note.dataset.documentNote!, note); note.remove();
+  }
+  let settings = initialPage, pageNumber = 0, content: HTMLElement, footnotes: HTMLElement;
   let sectionNumber = 0;
   let sectionPage = 0;
+  let sectionJustStarted = false;
   const pageStyles: string[] = [];
-  function newPage() {
+  function refreshNotes() {
+    if (!content?.isConnected) return;
+    const current = content.closest('.print-page')!;
+    const ids = [...new Set([...content.querySelectorAll<HTMLElement>('[data-note-reference]')].map(el => el.dataset.noteReference!))]
+      .filter(id => noteBodies.has(id) && ![...host.querySelectorAll<HTMLElement>('.print-footnotes [data-document-note]')].some(el => el.dataset.documentNote === id && el.closest('.print-page') !== current));
+    if (footnotes.dataset.notes !== ids.join('|')) {
+      footnotes.replaceChildren(...ids.map(id => noteBodies.get(id)!.cloneNode(true))); footnotes.dataset.notes = ids.join('|');
+    }
+    const reserve = ids.length ? footnotes.getBoundingClientRect().height + 12 : 0;
+    content.style.height = `${Math.max(1, Number(content.dataset.bodyHeight) - reserve)}px`;
+  }
+  function newPage(keepBlank = false) {
+    refreshNotes();
     const [width, height] = dimensions(settings), margins = pageMargins(settings);
     const pageName = `studioSection${sectionNumber}`;
     pageStyles.push(`@page ${pageName} { size:${width}mm ${height}mm; margin:0; }`);
     style.textContent = [...new Set(pageStyles)].join('\n');
     const paper = document.createElement('section'); paper.className = 'print-page';
     paper.dataset.page = String(++pageNumber);
+    if (keepBlank) paper.dataset.keepBlank = 'true';
     const furniture = pageFurniture(settings, pageNumber, ++sectionPage === 1);
     Object.assign(paper.style, { width: `${width * PX}px`, height: `${height * PX}px`, page: pageName });
     content = document.createElement('div'); content.className = 'tiptap print-content';
     Object.assign(content.style, { left: `${margins.left * PX}px`, top: `${margins.top * PX}px`,
       width: `${(width - margins.left - margins.right) * PX}px`, height: `${(height - margins.top - margins.bottom) * PX}px` });
-    const header = document.createElement('div'); header.className = 'print-header'; header.textContent = furniture.header;
+    const header = document.createElement('div'); header.className = 'print-header document-furniture';
+    if (furniture.headerHtml) header.innerHTML = sanitizeImportedHtml(furniture.headerHtml).html; else header.textContent = furniture.header;
     const footer = document.createElement('div'); footer.className = 'print-footer';
-    const footerText = document.createElement('span'); footerText.textContent = furniture.footer; footer.append(footerText);
-    if (furniture.pageNumbers) { const number = document.createElement('span'); number.textContent = String(pageNumber); footer.append(number); }
+    const footerText = document.createElement('div'); footerText.className = 'document-furniture';
+    if (furniture.footerHtml) footerText.innerHTML = sanitizeImportedHtml(furniture.footerHtml).html; else footerText.textContent = furniture.footer;
+    footer.append(footerText);
+    for (const field of [...header.querySelectorAll('[data-page-number]'), ...footer.querySelectorAll('[data-page-number]')]) field.textContent = String(pageNumber);
+    if (furniture.pageNumbers && !header.querySelector('[data-page-number]') && !footer.querySelector('[data-page-number]')) { const number = document.createElement('span'); number.textContent = String(pageNumber); footer.append(number); }
     for (const el of [header, footer]) { el.style.left = `${margins.left * PX}px`; el.style.right = `${margins.right * PX}px`; }
     header.style.top = `${(settings.headerDistance ?? Math.max(0, margins.top / 2 - 3)) * PX}px`;
     footer.style.bottom = `${(settings.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)) * PX}px`;
-    header.style.maxHeight = `${Math.max(0, margins.top - 4) * PX}px`;
-    footer.style.maxHeight = `${Math.max(0, margins.bottom - 4) * PX}px`;
     paper.append(header, content, footer); host.append(paper);
+    const meaningful = (element: HTMLElement) => element.textContent?.trim() || element.querySelector('img,table');
+    const top = Math.max(margins.top * PX, meaningful(header) ? header.offsetTop + header.getBoundingClientRect().height + 2 : 0);
+    const bottom = Math.max(margins.bottom * PX, meaningful(footer) ? parseFloat(footer.style.bottom) + footer.getBoundingClientRect().height + 2 : 0);
+    content.style.top = `${top}px`; content.style.height = `${Math.max(1, height * PX - top - bottom)}px`;
+    content.dataset.bodyHeight = String(Math.max(1, height * PX - top - bottom));
+    footnotes = document.createElement('div'); footnotes.className = 'print-footnotes';
+    Object.assign(footnotes.style, { left: `${margins.left * PX}px`, right: `${margins.right * PX}px`, bottom: `${bottom}px` });
+    paper.append(footnotes);
   }
   function fits() {
+    refreshNotes();
     layoutWordLines(content);
     layoutTabs(content);
+    layoutColumns(content, content.getBoundingClientRect().bottom);
     const last = content.lastElementChild as HTMLElement | null;
-    return !last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5;
+    return (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
+      && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img => img.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)
+      && [...content.querySelectorAll<HTMLElement>('[data-column-count]')].every(group => group.scrollWidth <= group.clientWidth + 1);
   }
   function scaleOversized(element: HTMLElement) {
     const available = content.getBoundingClientRect().bottom - element.getBoundingClientRect().top;
@@ -160,9 +198,37 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
   }
   function append(element: HTMLElement) {
     if (element.hasAttribute('data-section-page')) {
-      settings = JSON.parse(element.getAttribute('data-section-page')!); sectionNumber++; sectionPage = 0; newPage(); return;
+      const next = JSON.parse(element.getAttribute('data-section-page')!) as PageSettings;
+      const sameSize = dimensions(settings).join(',') === dimensions(next).join(',');
+      settings = next; sectionNumber++; sectionPage = 0;
+      if (next.breakType === 'continuous' && sameSize) { sectionPage = 1; return; }
+      const meaningful = content.textContent?.trim() || content.querySelector('img,table,[data-note-reference]');
+      if (!meaningful) { content.closest('.print-page')!.remove(); pageNumber--; }
+      if (next.breakType === 'oddPage' || next.breakType === 'evenPage') {
+        const target = next.breakType === 'oddPage' ? 1 : 0;
+        if ((pageNumber + 1) % 2 !== target) { newPage(true); sectionPage = 0; }
+      }
+      newPage(true); sectionJustStarted = true; return;
     }
-    if (element.hasAttribute('data-page-break')) { newPage(); return; }
+    if (element.hasAttribute('data-page-break')) {
+      if (sectionJustStarted && !content.textContent?.trim() && !content.querySelector('img,table')) { sectionJustStarted = false; return; }
+      newPage(true); return;
+    }
+    if (element.hasAttribute('data-section-content')) { for (const child of [...element.children]) append(child as HTMLElement); return; }
+    if (element.hasAttribute('data-column-count')) {
+      content.append(element); if (fits()) return;
+      const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(element.textContent || '')].map(s => s.index).slice(1);
+      element.remove(); let low = 0, high = offsets.length - 1, best = 0;
+      while (low <= high) {
+        const mid = (low + high) >> 1, [head] = splitText(element, offsets[mid]); content.append(head);
+        if (fits()) { best = offsets[mid]; low = mid + 1; } else high = mid - 1;
+        head.remove();
+      }
+      if (best) { const [head, tail] = splitText(element, best); content.append(head); fits(); newPage(); append(tail); return; }
+      if (content.children.length) { newPage(); append(element); return; }
+      content.append(element); fits(); scaleOversized(element); return;
+    }
+    if (element.textContent?.trim() || element.querySelector('img,table')) sectionJustStarted = false;
     const table = element.matches('table') ? element : element.querySelector(':scope > table');
     if (table) { appendTable(table as HTMLTableElement); return; }
     if (element.matches('ul,ol,blockquote')) {
@@ -213,6 +279,17 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
     await Promise.all([...source.querySelectorAll('img')].map(img => img.decode().catch(() => {})));
     newPage();
     for (const child of [...source.children]) append(child as HTMLElement);
+    refreshNotes();
+    // Empty trailing paragraphs can spill onto an automatically created sheet.
+    // Keep intentional page/section breaks and parity sheets, but do not print
+    // an extra blank sheet produced only by those trailing line boxes.
+    let last = host.querySelector<HTMLElement>('.print-page:last-child');
+    while (pageNumber > 1 && last && !last.dataset.keepBlank && !last.querySelector('.print-content')?.textContent?.trim()
+      && !last.querySelector('.print-content img,.print-content table,.print-content hr,.print-footnotes [data-document-note]')) {
+      last.remove(); pageNumber--; last = host.querySelector<HTMLElement>('.print-page:last-child');
+    }
+    for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="NUMPAGES"]')) field.textContent = String(pageNumber);
+    for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="PAGE"]')) field.textContent = field.closest<HTMLElement>('.print-page')!.dataset.page!;
     return { element: host, pages: pageNumber, warnings: [...warnings], dispose: () => host.remove() };
   } catch (error) { host.remove(); throw error; }
 }

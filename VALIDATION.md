@@ -1,5 +1,10 @@
 # Word Studio 검증
 
+## 2026-10-19 1.2.9 공식 DOCX 샘플 수정 (미배포)
+
+공식 샘플 20개를 재검증해 열기·DOCX 왕복·서식 텍스트/링크 보존·표 폭·머리글 충돌·미리보기/PDF 일치 검사를 모두 통과했습니다. 브라우저 59개, 네이티브 3개, 패키징한 Mac 앱의 편집·복구·PDF 시험도 통과했습니다. 자세한 수정 내역·20개별 쪽수·재현 방법·정밀 조판 한계는 [OFFICIAL_SAMPLE_FIXES.md](OFFICIAL_SAMPLE_FIXES.md)에 기록했습니다. 공개 배포는 1.2.8을 유지합니다.
+
+
 ## 2026-10-18 1.2.8 Mac·Windows·Linux 릴리즈 검증
 
 - 최신 Git의 `b1a4edd`를 받아 Mac 탭 정렬의 글꼴 측정과 플랫폼별 저장 단축키 시험을 보완했습니다. 최종 앱 코드/CI 기준은 `44c9bac`입니다. [GitHub Actions](https://github.com/beaur8-prog/word-studio/actions/runs/39124850890)의 Windows·Ubuntu 22.04·Ubuntu 24.04 작업이 모두 통과했습니다.

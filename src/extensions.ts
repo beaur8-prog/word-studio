@@ -1,5 +1,7 @@
 import { Node, Extension, Mark } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
+import Underline from '@tiptap/extension-underline';
+import Strike from '@tiptap/extension-strike';
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import TextAlign from "@tiptap/extension-text-align";
 import { TableKit } from "@tiptap/extension-table";
@@ -15,6 +17,10 @@ import { ImportedFormat, StudioTableView } from './imported-format';
 import { DocumentTab, DocumentTabs } from './document-tabs';
 import { WordLineMetrics } from './word-line-metrics';
 import { WordOverlap } from './word-overlap';
+import { DocumentBookmark } from './document-anchors';
+import { NoteReference, DocumentNote, DocumentField, ColumnGroup, SectionContent } from './document-stories';
+import { DocumentSymbol } from './document-symbols';
+import { ColumnLayout } from './column-layout';
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { getSchema } from '@tiptap/core';
 
@@ -69,7 +75,10 @@ const ParagraphFormat = Extension.create({
 export const editorExtensions = [
   StarterKit.configure({
     link: { openOnClick: false, protocols: ["https", "http", "mailto"] },
+    underline: false, strike: false,
   }),
+  Underline.extend({ parseHTML() { return [...(this.parent?.() || []), { style: 'text-decoration-line', consuming: false, getAttrs: value => String(value).includes('underline') ? {} : false }]; } }),
+  Strike.extend({ parseHTML() { return [...(this.parent?.() || []), { style: 'text-decoration-line', consuming: false, getAttrs: value => String(value).includes('line-through') ? {} : false }]; } }),
   TextStyleKit,
   TextAlign.configure({ types: ["heading", "paragraph"] }),
   TableKit.configure({
@@ -82,6 +91,9 @@ export const editorExtensions = [
   BlockImage.configure({ allowBase64: true }),
   InlineImage,
   DocumentTab,
+  DocumentBookmark,
+  NoteReference, DocumentNote, DocumentField, ColumnGroup, SectionContent,
+  DocumentSymbol,
   WordOverlap,
   DocumentTabs,
   Highlight.configure({ multicolor: true }),
@@ -94,6 +106,7 @@ export const editorExtensions = [
   ParagraphFormat,
   ImportedFormat,
   WordLineMetrics,
+  ColumnLayout,
   Pagination,
 ];
 
