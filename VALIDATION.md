@@ -1,5 +1,24 @@
 # Word Studio 검증
 
+## 2026-10-18 1.2.8 Mac·Windows·Linux 릴리즈 검증
+
+- 최신 Git의 `b1a4edd`를 받아 Mac 탭 정렬의 글꼴 측정과 플랫폼별 저장 단축키 시험을 보완했습니다. 최종 앱 코드/CI 기준은 `44c9bac`입니다. [GitHub Actions](https://github.com/beaur8-prog/word-studio/actions/runs/39124850890)의 Windows·Ubuntu 22.04·Ubuntu 24.04 작업이 모두 통과했습니다.
+- Mac·Windows·Ubuntu 22.04에서 브라우저 시험 42개씩, 네이티브 시험 3개씩을 통과했습니다. 네이티브 시험은 복구 저장과 설치 글꼴 컬렉션의 윤곽선 추출·손상 데이터 거부를 포함합니다.
+- Mac에서 Chromium의 computed font shorthand가 빈 문자열이 되어 탭 뒤 글자를 다른 글꼴로 측정하던 문제를 수정했습니다. 글꼴 속성을 개별 복사하며 오른쪽/가운데 탭의 편집·입력 후 정렬·미리보기·DOCX 왕복 시험을 통과했습니다. 페이지 간격용 숨김 행은 실제 앱 시험의 문서 행 개수에서 제외합니다.
+- Windows Setup과 같은 Linux DEB의 Ubuntu 22.04·24.04 설치·실제 앱 실행·재설치·제거·문서/복구 데이터 보존이 통과했습니다. 설치된 실행 파일·ASAR 해시, 앱 버전 1.2.8, 앱 등록·바로 가기/desktop 파일도 확인했습니다.
+- 실제 배포 앱은 표 우클릭·행 높이, 자동 복구 실패 보호, 사본 저장 후 전환, PDF 출력과 렌더러 샌드박스를 확인했습니다. 렌더러 오류는 모든 환경에서 0개입니다.
+
+| 환경 | 미리보기 / PDF | PDF 바이트 | 증거 |
+| --- | --- | ---: | --- |
+| Mac arm64 | 7 / 7쪽 | 78,853 | `.cache/desktop-smoke-5JsYIN/result.json` |
+| Windows x64 | 8 / 8쪽 | 41,729 | `.cache/release-1.2.8-windows-evidence/` |
+| Ubuntu 22.04 x64 | 8 / 8쪽 | 62,011 | `.cache/release-1.2.8-linux-22-evidence/` |
+| Ubuntu 24.04 x64 | 7 / 7쪽 | 81,994 | `.cache/release-1.2.8-linux-24-evidence/` |
+
+- Mac ZIP은 CRC, 재추출 후 버전·`codesign --verify --deep --strict`, 시험한 앱과 ASAR 일치를 검사했습니다. Mac은 로컬 ad-hoc 서명이며 Apple Developer ID 서명·공증을 받지 않았고 Windows는 미서명입니다. 배포 파일과 사용 안내에 SHA-256을 제공합니다.
+- 아래 Word 비교 기록은 Windows에서 수행한 문서별 검증입니다. 이번 Mac/Linux 시험은 합성 회귀 시험과 실제 패키지 검증이며 개인 문서나 Word 비교 화면을 업로드하지 않았습니다. 운영체제의 설치 글꼴에 따라 줄바꿈·쪽수가 달라질 수 있습니다.
+- Linux GUI 시험은 Xvfb/X11입니다. Wayland·실물 프린터·Intel Mac·Windows ARM64·Linux ARM64는 별도로 검증하지 않았습니다.
+
 ## 2026-10-18 1.2.8 추가 계약서 두 문서 비교
 
 - 같은 폴더의 오피스텔 계약서와 보증 미가입 동의서를 실제 Microsoft Word에서 열고 PDF로 출력하여 Windows 앱과 비교했습니다. 원본 파일은 변경하지 않았습니다.

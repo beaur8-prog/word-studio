@@ -22,7 +22,7 @@ npm start
 npm run package:win
 ```
 
-Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.2.4-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
+Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.2.8-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
 
 `npm run package:win:dir`은 앱 폴더만, `npm run package:win:setup`은 이미 만든 앱 폴더로 설치 파일만 생성합니다. 설치 파일 빌드와 실제 설치·재설치·제거 시험은 Windows GitHub Actions에서 수행합니다. 빌드 설정은 [electron-builder.config.cjs](electron-builder.config.cjs), 격리된 CI 시험은 [scripts/test-windows-installer.ps1](scripts/test-windows-installer.ps1)에 있습니다. NSIS 옵션은 [electron-builder 공식 문서](https://www.electron.build/docs/nsis/)를 따릅니다. 설치·재설치·제거는 `%APPDATA%\Word Studio` 복구 데이터와 사용자가 저장한 문서를 지우지 않습니다.
 
@@ -35,9 +35,16 @@ npm ci
 npm run package:linux
 ```
 
-Linux x64에서 `release/linux/Word-Studio-1.2.4-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
+Linux x64에서 `release/linux/Word-Studio-1.2.8-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
 
-사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.2.4-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
+사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.2.8-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
+
+## 1.2.8 DOCX 표와 페이지 배치 개선
+
+- 병합 셀의 좁은 격자, 백분율 음영·이중선·최소 행 높이와 중첩 표의 페이지 이동을 보완했습니다. 빈 부동 프레임 앵커가 빈 뒷장을 만들던 문제를 수정했습니다.
+- 한글 줄간격·자간·공백을 보존하고 단순 EQ 겹침 필드의 원 안 글자 표시를 지원합니다. Windows에 설치된 돋움·굴림 계열의 윤곽선을 사용하며 Microsoft 글꼴 파일을 배포하지 않습니다.
+- 1.2.6의 인라인 그림·탭·머리글/바닥글·복잡한 표 가져오기 개선과 1.2.5의 양식 배치 수정도 포함합니다. Mac의 오른쪽·가운데 탭 글꼴 측정 오류도 수정했습니다.
+- [버전별 변경·설치 안내](USER_GUIDE.md), [Word 사용 사례와 호환성 차이](WORD_USE_CASES.md), [검증 기록](VALIDATION.md)을 참고하세요. 운영체제마다 설치된 글꼴이 달라 쪽수와 줄바꿈은 달라질 수 있습니다.
 
 ## 1.2.5 DOCX 양식 배치 보정
 
@@ -96,7 +103,7 @@ Ctrl+N 새 문서, Ctrl+O 열기, Ctrl+S 파일 저장, Ctrl+P 인쇄, Ctrl+F �
 
 편집 화면의 페이지 배치는 블록 단위의 근사치입니다. **최종 출력 페이지는 인쇄 미리보기에서 확인하세요.** 서로 다른 구역의 용지 설정도 출력 미리보기에 적용됩니다. 한 페이지보다 큰 병합 셀 묶음·목록 항목·그림은 잘리지 않게 축소하며 미리보기에 안내를 표시합니다. Word와 동일한 조판 알고리즘이나 완전한 WYSIWYG 편집을 제공하지는 않습니다.
 
-DOCX 가져오기에는 Mammoth를 사용합니다. 모든 글꼴·스타일 속성, 도형·텍스트 상자, 첫 장/짝수 장 전용 머리글, 복잡한 필드, 변경 내용 추적, 매크로와 수식을 완전히 재현하지 않습니다. 연속·홀수·짝수 구역 나눔은 새 페이지 구역으로 정규화합니다. 메모 작성자·답글 계층은 현재 모델에서 유지하지 않습니다. 변환 문서는 원본과 별도로 검토하세요.
+DOCX 가져오기에는 Mammoth를 사용합니다. 모든 글꼴·스타일 속성, 도형·텍스트 상자, 머리글·바닥글 내부의 복잡한 개체·서식과 필드, 변경 내용 추적, 매크로와 수식을 완전히 재현하지 않습니다. 연속·홀수·짝수 구역 나눔은 새 페이지 구역으로 정규화합니다. 메모 작성자·답글 계층은 현재 모델에서 유지하지 않습니다. 변환 문서는 원본과 별도로 검토하세요.
 
 DOCX의 머리글·바닥글 참조가 생략된 구역은 이전 구역의 같은 종류를 상속합니다. 빈 머리글·바닥글을 명시한 구역은 빈 상태를 유지합니다. 가져온 결과는 구역별 값으로 보관되며, Word의 ‘이전과 연결’ 편집 토글은 아직 제공하지 않습니다.
 
