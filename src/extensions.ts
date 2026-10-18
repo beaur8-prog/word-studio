@@ -21,6 +21,7 @@ import { DocumentBookmark } from './document-anchors';
 import { NoteReference, DocumentNote, DocumentField, ColumnGroup, SectionContent } from './document-stories';
 import { DocumentSymbol } from './document-symbols';
 import { ColumnLayout } from './column-layout';
+import { FloatingLayout } from './floating-layout';
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { getSchema } from '@tiptap/core';
 
@@ -107,6 +108,7 @@ export const editorExtensions = [
   ImportedFormat,
   WordLineMetrics,
   ColumnLayout,
+  FloatingLayout,
   Pagination,
 ];
 

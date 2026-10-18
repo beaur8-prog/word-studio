@@ -123,9 +123,10 @@ async function run() {
       await fs.rename(recoveryBackup, recoveryDirectory);
     }
     await expect(window.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
+    const layoutFlow = await require('./layout-desktop-smoke.cjs')(app, window, directory);
     assert.deepEqual(errors, []);
     const report = { passed: true, packaged: Boolean(packaged), platform: process.platform, tableContextMenu: true, tableRowResize: true,
-      previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length,
+      layoutFlow, previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length,
       failedRecoveryProtected: true, savedCopyVerified: true, rendererSandboxed, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report, null, 2));

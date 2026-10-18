@@ -3,6 +3,7 @@ import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns } from './column-layout';
+import { applyFloatingLayout } from './floating-layout';
 
 export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
 const PX = 96 / 25.4;
@@ -106,6 +107,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
     layoutWordLines(content);
     layoutTabs(content);
     layoutColumns(content, content.getBoundingClientRect().bottom);
+    applyFloatingLayout(content);
     const last = content.lastElementChild as HTMLElement | null;
     return (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
       && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img => img.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)

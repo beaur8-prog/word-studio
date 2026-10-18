@@ -2,6 +2,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import type { Node as PMNode } from '@tiptap/pm/model';
+import { imageFloating } from './image-floating';
 
 const key = new PluginKey('studioPagination');
 type Piece = { pos: number; end: number; top: number; height: number; columns?: number; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[] };
@@ -22,6 +23,12 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
     const dom = view.nodeDOM(pos) as HTMLElement | null;
     if (!dom?.getBoundingClientRect) return;
     const box = rect(dom);
+    // Absolute floating pictures still occupy paper. Include their extent so
+    // a short anchor near the bottom moves with its picture to the next page.
+    for (const img of dom.querySelectorAll<HTMLElement>('img[data-image-floating]')) {
+      if (imageFloating(img.dataset.imageFloating)?.wrap?.type === 0) continue;
+      const picture = rect(img); box.height = Math.max(box.height, picture.top + picture.height - box.top);
+    }
     if (node.type.name === 'documentNote' && node.attrs.kind === 'footnote') return;
     if (node.type.name === 'pageBreak' || node.type.name === 'sectionBreak') {
       let breakType = '';

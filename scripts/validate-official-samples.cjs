@@ -12,6 +12,43 @@ const SAMPLES_DIR = path.join(OUT_DIR, 'samples');
 const SCREENSHOTS_DIR = path.join(OUT_DIR, 'screenshots');
 const PDF_DIR = path.join(OUT_DIR, 'pdfs');
 
+// Independent rendered-ink check for floating pictures. Probe actual glyph
+// boxes, and use point-in-polygon for a tight outline's transparent region.
+function floatingMetrics(root) {
+  const images=[...root.querySelectorAll('img[data-image-floating]')].filter(img=>!img.closest('.document-furniture,.paper-backgrounds,.section-papers'));
+  if(!images.length)return [];
+  const glyphs=[],walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+  while(walker.nextNode()){
+    const node=walker.currentNode;
+    if(node.parentElement.closest('[data-flow-widget],.document-furniture,.paper-backgrounds,.section-papers'))continue;
+    for(let i=0;i<node.textContent.length;i++){
+      if(!node.textContent[i].trim())continue;
+      const range=document.createRange();range.setStart(node,i);range.setEnd(node,i+1);
+      const r=range.getBoundingClientRect();if(r.width)glyphs.push(r);
+    }
+  }
+  const inside=(x,y,polygon)=>{
+    let hit=false;
+    for(let i=0,j=polygon.length-1;i<polygon.length;j=i++){
+      const a=polygon[i],b=polygon[j];
+      if((a[1]>y)!==(b[1]>y)&&x<(b[0]-a[0])*(y-a[1])/(b[1]-a[1])+a[0])hit=!hit;
+    }
+    return hit;
+  };
+  return images.map(img=>{
+    const g=JSON.parse(img.dataset.imageFloating),r=img.getBoundingClientRect(),lines=new Map();let overlap=0;
+    if(g.wrap.type!==0)for(const glyph of glyphs){
+      if(glyph.bottom<=r.top+.5||glyph.top>=r.bottom-.5)continue;
+      const key=Math.round(glyph.top),line=lines.get(key)||{left:false,right:false};
+      if(glyph.right<=r.left+.5)line.left=true;
+      else if(glyph.left>=r.right-.5)line.right=true;
+      else if(!g.polygon||![2,4].includes(g.wrap.type)||inside(((glyph.left+glyph.right)/2-r.left)/r.width,((glyph.top+glyph.bottom)/2-r.top)/r.height,g.polygon))overlap++;
+      lines.set(key,line);
+    }
+    return {wrap:g.wrap.type,bothSideLines:[...lines.values()].filter(line=>line.left&&line.right).length,overlap};
+  });
+}
+
 function countMatches(str, regex) {
   if (!str) return 0;
   const m = str.match(regex);
@@ -321,6 +358,7 @@ async function main() {
         };
       });
 
+      editorMetrics.floating = await page.locator('.document-stack .tiptap').evaluate(floatingMetrics);
       await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `${item.id}-editor.png`) });
 
       // Switch to Print Preview
@@ -333,7 +371,7 @@ async function main() {
         const pages = [...document.querySelectorAll('.print-page')];
         return {
           pageCount: pages.length,
-          scaledItemsWarning: document.body.textContent?.includes('축소') || false,
+          scaledItemsWarning: document.querySelector('.preview-warning')?.textContent?.includes('축소') || false,
           pages: pages.map((p, idx) => {
             const rect = p.getBoundingClientRect();
             const content = p.querySelector('.print-content');
@@ -359,6 +397,7 @@ async function main() {
         };
       });
 
+      previewMetrics.floating = await page.locator('.print-layout').evaluate(floatingMetrics);
       await page.screenshot({ path: path.join(SCREENSHOTS_DIR, `${item.id}-preview.png`) });
 
       // Export PDF via Playwright print emulation (same print tree as Electron printToPDF)
@@ -385,6 +424,8 @@ async function main() {
         consoleErrors,
       };
       record.passed = record.sourceHashMatches && programmatic.ok && !programmatic.validationError && programmatic.roundtripOk && programmatic.semanticEqual
+        && editorMetrics.floating.every(p=>p.overlap===0) && previewMetrics.floating.every(p=>p.overlap===0)
+        && (item.id!=='20-lo-tight-wrap'||editorMetrics.floating.some(p=>p.bothSideLines>0)&&previewMetrics.floating.some(p=>p.bothSideLines>0))
         && !pageErrors.length && editorMetrics.overflowingTablesCount === 0 && previewMetrics.pageCount === pdfPageCount
         && previewMetrics.pages.every(p=>!p.overlapsHeader && !p.columnOverflow && (!p.empty || p.intentionalBlank));
       results.push(record);

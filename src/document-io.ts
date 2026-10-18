@@ -49,7 +49,7 @@ import { overlapParts } from './word-overlap';
 import { rowHeight, MAX_ROW_HEIGHT } from './table-row-resize';
 import { storyHtml, documentNotes, attachDocumentNotes, structureDocxSections } from './docx-stories';
 import { parseDocumentHtml } from './extensions';
-import { imageFloating } from './image-floating';
+import { imageFloating, restoreImageGeometry, type ImageGeometryRecord } from './image-floating';
 import type { PageSettings, StudioDocument } from "./types";
 
 export interface ImportResult {
@@ -623,7 +623,7 @@ export async function importFile(file: File): Promise<ImportResult> {
     "DOCX는 편집 가능한 본문으로 변환됩니다. 원본의 세밀한 글꼴·배치·페이지 나눔은 달라질 수 있습니다.",
   ];
   if (elements(body, "drawing").some((n) => elements(n, "anchor").length))
-    warnings.push("떠 있는 그림의 둘러싸기와 위치를 가져옵니다. 중앙 그림 양쪽의 텍스트 흐름과 복잡한 윤곽은 Word와 다를 수 있습니다.");
+    warnings.push("떠 있는 그림의 위치·양쪽 텍스트 흐름·원본 다각형 윤곽을 가져옵니다.");
   if (elements(body, "ins").length || elements(body, "del").length)
     warnings.push(
       "변경 내용 추적은 최종 본문으로 가져옵니다. 검토 이력은 보존하지 않습니다.",
@@ -849,6 +849,7 @@ function paragraphOptions(node: JSONContent): IParagraphOptions {
 async function imageRun(
   node: JSONContent,
   availablePixels: number,
+  geometries: Map<string, ImageGeometryRecord>,
 ): Promise<ImageRun> {
   const src = node.attrs?.src;
   if (!validImage(src))
@@ -889,13 +890,16 @@ async function imageRun(
   const scale = Math.min(1, availablePixels / width, 950 / height);
   width = Math.max(1, Math.round(width * scale));
   height = Math.max(1, Math.round(height * scale));
+  const floating = imageFloating(node.attrs?.floating), name = String(node.attrs?.title || '그림');
+  const geometryId = floating?.polygon ? `wsFloat_${crypto.randomUUID()}` : undefined;
+  if (geometryId) geometries.set(geometryId, { name, geometry: floating! });
   return new ImageRun({
     type: type as "png" | "jpg" | "gif" | "bmp",
     data,
     transformation: { width, height },
-    ...(imageFloating(node.attrs?.floating) ? { floating: imageFloating(node.attrs?.floating) } : {}),
+    ...(floating ? { floating } : {}),
     altText: {
-      name: String(node.attrs?.title || "그림"),
+      name: geometryId || name,
       title: String(node.attrs?.title || ""),
       description: String(node.attrs?.alt || ""),
     },
@@ -905,6 +909,7 @@ async function imageRun(
 export async function exportDocx(document: StudioDocument): Promise<Blob> {
   validateDocument(document);
   const page = document.page;
+  const geometries = new Map<string, ImageGeometryRecord>();
   const mmToTwip = (mm: number) => Math.round((mm * 1440) / 25.4);
   const portraitWidth = page.size === "Letter" ? 215.9 : 210;
   const portraitHeight = page.size === "Letter" ? 279.4 : 297;
@@ -980,7 +985,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         runs.push(field);
       }
       else if (node.type === "image" || node.type === "inlineImage")
-        runs.push(await imageRun(node, contentWidth / 15));
+        runs.push(await imageRun(node, contentWidth / 15, geometries));
     }
     return runs;
   };
@@ -1030,7 +1035,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       } else if (node.type === "image")
         output.push(
           new Paragraph({
-            children: [await imageRun(node, contentWidth / 15)],
+            children: [await imageRun(node, contentWidth / 15, geometries)],
             alignment: alignment(node.attrs?.textAlign),
           }),
         );
@@ -1268,20 +1273,23 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     sections,
   });
   const blob = await Packer.toBlob(docx);
-  if (!document.comments.length) return blob;
+  if (!document.comments.length && !geometries.size) return blob;
   // docx 9.12 emits resolution metadata only for replies. Standalone comments
   // need the same standard OOXML part; use its generated paragraph IDs.
   const zip = await JSZip.loadAsync(await blob.arrayBuffer());
-  const commentsXml = xml(await zip.file('word/comments.xml')!.async('string'));
-  const extended = document.comments.map((comment, index) => {
-    const el = elements(commentsXml, 'comment').find(c => attr(c, 'id') === String(index));
-    const paragraph = el && elements(el, 'p').at(-1);
-    const paraId = paragraph && Array.from(paragraph.attributes).find(a => a.localName === 'paraId')?.value;
-    return paraId ? `<w15:commentEx w15:paraId="${paraId}" w15:done="${comment.resolved ? 1 : 0}"/>` : '';
+  await restoreImageGeometry(zip, geometries);
+  if (document.comments.length) {
+    const commentsXml = xml(await zip.file('word/comments.xml')!.async('string'));
+    const extended = document.comments.map((comment, index) => {
+      const el = elements(commentsXml, 'comment').find(c => attr(c, 'id') === String(index));
+      const paragraph = el && elements(el, 'p').at(-1);
+      const paraId = paragraph && Array.from(paragraph.attributes).find(a => a.localName === 'paraId')?.value;
+      return paraId ? `<w15:commentEx w15:paraId="${paraId}" w15:done="${comment.resolved ? 1 : 0}"/>` : '';
   }).join('');
   zip.file('word/commentsExtended.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w15:commentsEx xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml">${extended}</w15:commentsEx>`);
   const relsPath = 'word/_rels/document.xml.rels';
   zip.file(relsPath, (await zip.file(relsPath)!.async('string')).replace('</Relationships>', '<Relationship Id="rIdStudioCommentsExtended" Type="http://schemas.microsoft.com/office/2011/relationships/commentsExtended" Target="commentsExtended.xml"/></Relationships>'));
   zip.file('[Content_Types].xml', (await zip.file('[Content_Types].xml')!.async('string')).replace('</Types>', '<Override PartName="/word/commentsExtended.xml" ContentType="application/vnd.ms-word.commentsExtended+xml"/></Types>'));
+  }
   return zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }

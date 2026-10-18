@@ -193,15 +193,15 @@ test('portrait and landscape sections use their own editor widths and preview pa
 });
 
 test('floating VML retains wrapping and stays on one page with surrounding text', async ({ page }) => {
-  const floating = pict.replace('width:222.75pt', 'position:absolute;margin-left:120.75pt;margin-top:26.9pt;width:222.75pt').replace('</v:shape>', '<w10:wrap xmlns:w10="urn:schemas-microsoft-com:office:word" type="tight"/></v:shape>');
+  const floating = pict.replace('<v:shape ', '<v:shape wrapcoords="0 0 21600 21600 0 21600" ').replace('width:222.75pt', 'position:absolute;margin-left:120.75pt;margin-top:26.9pt;width:222.75pt').replace('</v:shape>', '<w10:wrap xmlns:w10="urn:schemas-microsoft-com:office:word" type="tight"/></v:shape>');
   const result = await convert(page, await fixture(`<w:p><w:r><w:t>Before</w:t>${floating}<w:t>After</w:t></w:r></w:p>` + p('Surrounding text '.repeat(120)), margins, {
     'word/_rels/document.xml.rels': rels(relationship('image','image','media/pixel.png')), 'word/media/pixel.png': pixel,
   }));
   for (const doc of [result.doc,result.again]) {
     const image = nodes(doc.content,'inlineImage')[0]; const layout = JSON.parse(image.attrs.floating);
-    expect(layout.wrap.type).toBe(2); expect(layout.horizontalPosition.offset).toBe(1533525);
+    expect(layout.wrap.type).toBe(2); expect(layout.horizontalPosition.offset).toBe(1533525); expect(layout.polygon).toEqual([[0,0],[1,1],[0,1]]);
   }
-  await open(page,result.doc); await expect(page.locator('.tiptap img[src]')).toHaveCSS('float','right');
+  await open(page,result.doc); await expect(page.locator('.tiptap img[src]')).toHaveCSS('position','absolute');
   await preview(page); await expect(page.locator('.print-page')).toHaveCount(1);
 });
 

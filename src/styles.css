@@ -1938,3 +1938,4 @@ button:hover:not(:disabled) {
 .section-header, .section-footer { position: absolute; }
 .document-columns { column-fill: balance; }
 @media print { body.studio-printing .print-header { display: block !important; } }
+.document-columns::before { content: ''; display: block; column-span: all; height: var(--column-prefix, 0px); }

@@ -22,7 +22,7 @@ npm start
 npm run package:win
 ```
 
-Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.2.9-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
+Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.2.10-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
 
 `npm run package:win:dir`은 앱 폴더만, `npm run package:win:setup`은 이미 만든 앱 폴더로 설치 파일만 생성합니다. 설치 파일 빌드와 실제 설치·재설치·제거 시험은 Windows GitHub Actions에서 수행합니다. 빌드 설정은 [electron-builder.config.cjs](electron-builder.config.cjs), 격리된 CI 시험은 [scripts/test-windows-installer.ps1](scripts/test-windows-installer.ps1)에 있습니다. NSIS 옵션은 [electron-builder 공식 문서](https://www.electron.build/docs/nsis/)를 따릅니다. 설치·재설치·제거는 `%APPDATA%\Word Studio` 복구 데이터와 사용자가 저장한 문서를 지우지 않습니다.
 
@@ -35,13 +35,13 @@ npm ci
 npm run package:linux
 ```
 
-Linux x64에서 `release/linux/Word-Studio-1.2.9-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
+Linux x64에서 `release/linux/Word-Studio-1.2.10-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
 
-사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.2.9-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
+사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.2.10-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
 
-## 1.2.9 공식 DOCX 샘플 호환 수정 (소스·로컬 빌드)
+## 1.2.10 공식 DOCX 샘플 호환 수정 (소스·로컬 빌드)
 
-공식 샘플 20개에서 발견한 링크·표·상속 서식·번호 목록·VML 그림·구역 나눔 오류를 수정했습니다. 머리글/바닥글 안의 그림과 표, 각주/미주, 다단, 기호 글꼴과 구역별 편집 용지 폭도 보존합니다. [수정·재검증 기록](OFFICIAL_SAMPLE_FIXES.md)을 참고하세요. 현재 공개 다운로드는 1.2.8이며, 1.2.9의 공개 릴리즈와 리토스 게시에는 별도 배포 요청이 필요합니다.
+공식 샘플 20개에서 발견한 링크·표·상속 서식·번호 목록·VML 그림·구역 나눔 오류를 수정했습니다. 긴 다단 문서는 편집 화면에서도 다음 종이로 이어지며, 중앙 그림의 양쪽 공간과 원본 다각형 윤곽을 따라 텍스트를 배치합니다. 머리글/바닥글 안의 그림과 표, 각주/미주, 다단, 기호 글꼴과 구역별 편집 용지 폭도 보존합니다. [수정·재검증 기록](OFFICIAL_SAMPLE_FIXES.md)을 참고하세요. 현재 공개 다운로드는 1.2.8이며, 1.2.10의 공개 릴리즈와 리토스 게시에는 별도 배포 요청이 필요합니다.
 
 ## 1.2.8 DOCX 표와 페이지 배치 개선
 
