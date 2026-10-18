@@ -182,6 +182,7 @@ Get-FileHash .\Word-Studio-1.2.3-windows-x64-setup.exe -Algorithm SHA256
 ## 11. 이번 배포의 확인 결과
 
 - Mac과 Windows의 브라우저 기능 시험 25개, 복구 저장 시험을 통과했습니다.
+- Windows Setup의 새 설치·바로 가기·앱 등록·재설치·제거와 문서·복구 데이터 보존을 확인했습니다.
 - 양쪽 운영체제에서 실제 패키징한 앱으로 표 서식·행 높이·저장 실패 보호·사본 저장·PDF 출력을 확인했습니다.
 - 시험 문서는 Mac에서 미리보기·PDF 7쪽, Windows에서 각각 8쪽으로 일치했습니다. 글꼴 환경에 따라 운영체제 간 줄바꿈·페이지 수는 달라질 수 있습니다.
-- [Windows 실행 검증 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39085757376)에서 빌드와 시험 결과를 확인할 수 있습니다. 실제 프린터 출력은 별도로 시험하지 않았습니다.
+- [Windows 실행 검증 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39090153008)에서 빌드와 시험 결과를 확인할 수 있습니다. 실제 프린터 출력은 별도로 시험하지 않았습니다.
