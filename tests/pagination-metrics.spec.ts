@@ -48,7 +48,7 @@ test('DOCX spaces, CJK tracking, line rules and padded minimum row heights survi
   await expect.poll(async () => parseFloat(await paragraphs.nth(1).evaluate(el => getComputedStyle(el).lineHeight))).toBeCloseTo(17.333, 1);
   await expect(paragraphs.nth(2)).toHaveCSS('line-height', '8px');
   // A view-only measurement must not replace the saved OOXML multiplier.
-  const download = page.waitForEvent('download'); await page.keyboard.press('Control+s');
+  const download = page.waitForEvent('download'); await page.keyboard.press('ControlOrMeta+s');
   const saved = JSON.parse(await (await import('node:fs/promises')).readFile((await (await download).path())!, 'utf8'));
   expect(Number(saved.content.content[0].attrs.lineSpacing)).toBeCloseTo(280 / 240, 4);
 });
