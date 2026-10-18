@@ -2,7 +2,7 @@
 
 ## 2026-10-19 1.2.9 공식 DOCX 샘플 수정 (미배포)
 
-공식 샘플 20개를 재검증해 열기·DOCX 왕복·서식 텍스트/링크 보존·표 폭·머리글 충돌·미리보기/PDF 일치 검사를 모두 통과했습니다. 브라우저 59개, 네이티브 3개, 패키징한 Mac 앱의 편집·복구·PDF 시험도 통과했습니다. 자세한 수정 내역·20개별 쪽수·재현 방법·정밀 조판 한계는 [OFFICIAL_SAMPLE_FIXES.md](OFFICIAL_SAMPLE_FIXES.md)에 기록했습니다. 공개 배포는 1.2.8을 유지합니다.
+공식 샘플 20개를 재검증해 열기·DOCX 왕복·서식 텍스트/링크 보존·표 폭·머리글 충돌·미리보기/PDF 일치 검사를 모두 통과했습니다. 브라우저 59개, 네이티브 4개, 패키징한 Mac 앱의 편집·복구·PDF 시험도 통과했습니다. 자세한 수정 내역·20개별 쪽수·재현 방법·정밀 조판 한계는 [OFFICIAL_SAMPLE_FIXES.md](OFFICIAL_SAMPLE_FIXES.md)에 기록했습니다. 공개 배포는 1.2.8을 유지합니다. [최종 CI](https://github.com/beaur8-prog/word-studio/actions/runs/39141339148)에서 Windows·Ubuntu 22.04의 브라우저 59개·네이티브 4개, Windows Setup 및 같은 Linux DEB의 Ubuntu 22.04·24.04 설치·실행·재설치·제거·데이터 보존을 통과했습니다. Mac 패키지 결과는 `.cache/desktop-smoke-Vz3aLZ/result.json`, 포함한 글꼴 6개 로드·기호 60개·TrueType PDF 포함 검사는 `.cache/native-symbols-pAi6QX/result.json`에 있습니다.
 
 
 ## 2026-10-18 1.2.8 Mac·Windows·Linux 릴리즈 검증
