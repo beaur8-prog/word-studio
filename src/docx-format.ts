@@ -21,6 +21,21 @@ export async function docxFormat(zip: JSZip) {
   const byId = new Map(all(styles, 'style').map(s => [val(s, 'styleId'), s]));
   const normal = all(styles, 'style').find(s => val(s, 'type') === 'paragraph' && val(s, 'default') === '1');
   const defaults = all(styles, 'docDefaults')[0];
+  const themeFile = zip.file('word/theme/theme1.xml');
+  const theme = themeFile ? new DOMParser().parseFromString(await themeFile.async('string'), 'application/xml') : undefined;
+  const settingsFile = zip.file('word/settings.xml');
+  const settings = settingsFile ? new DOMParser().parseFromString(await settingsFile.async('string'), 'application/xml') : undefined;
+  const themeLanguage = settings && val(all(settings, 'themeFontLang')[0], 'eastAsia');
+  function themeFont(value: string, language: string) {
+    const group = theme?.getElementsByTagNameNS('*', value.startsWith('major') ? 'majorFont' : 'minorFont')[0];
+    if (!group || !/^(major|minor)(Ascii|HAnsi|EastAsia|Bidi)$/.test(value)) return '';
+    const type = value.endsWith('EastAsia') ? 'ea' : value.endsWith('Bidi') ? 'cs' : 'latin';
+    const direct = child(group, type)?.getAttribute('typeface');
+    if (direct) return direct;
+    const script = /^ko/i.test(language) ? 'Hang' : /^ja/i.test(language) ? 'Jpan'
+      : /^zh-(TW|HK|MO|Hant)/i.test(language) ? 'Hant' : /^zh/i.test(language) ? 'Hans' : '';
+    return Array.from(group.children).find(el => el.localName === 'font' && el.getAttribute('script') === script)?.getAttribute('typeface') || '';
+  }
   function chain(id: string, seen = new Set<string>()): Element[] {
     if (seen.has(id) || seen.size > 30) return [];
     seen.add(id);
@@ -35,14 +50,19 @@ export async function docxFormat(zip: JSZip) {
       ...(run ? chain(val(child(child(run, 'rPr'), 'rStyle'))).map(s => child(s, 'rPr')) : []),
       run ? child(run, 'rPr') : undefined];
   }
-  function runCss(layers: (Element | undefined)[]) {
+  function runCss(layers: (Element | undefined)[], script: 'ascii' | 'eastAsia' = 'ascii') {
     const style = document.createElement('span').style;
     style.fontSize = '11pt'; style.color = '#000000';
+    const resolved: Record<string, string> = {};
+    let language = themeLanguage || '';
     for (const props of layers) {
       if (!props) continue;
+      language = val(child(props, 'lang'), 'eastAsia') || language;
       const fonts = child(props, 'rFonts');
-      const family = val(fonts, 'eastAsia') || val(fonts, 'ascii') || val(fonts, 'hAnsi');
-      if (family) style.fontFamily = family;
+      for (const key of ['ascii', 'hAnsi', 'eastAsia', 'cs']) {
+        const family = themeFont(val(fonts, `${key}Theme`), language) || val(fonts, key);
+        if (family) resolved[key] = family;
+      }
       const size = Number(val(child(props, 'sz')));
       if (size > 0) style.fontSize = `${size / 2}pt`;
       const color = child(props, 'color');
@@ -60,10 +80,24 @@ export async function docxFormat(zip: JSZip) {
       const shading = hex(val(child(props, 'shd'), 'fill'));
       if (shading) style.backgroundColor = shading;
     }
+    const family = resolved[script] || resolved.ascii || resolved.hAnsi || resolved.eastAsia;
+    if (family) style.fontFamily = family;
     return style.cssText;
   }
   return {
-    run(run: Element) { return runCss(runLayers(ancestor(run, 'p')!, run)); },
+    run(run: Element, script: 'ascii' | 'eastAsia' = 'ascii') { return runCss(runLayers(ancestor(run, 'p')!, run), script); },
+    tabs(p: Element) {
+      const stops = new Map<number, { position: number; type: string; leader: string }>();
+      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(p, 'pPr')]) {
+        for (const tab of Array.from(child(props, 'tabs')?.children ?? [])) {
+          const position = Number(val(tab, 'pos')) / 15, type = val(tab);
+          if (type === 'clear') stops.delete(position);
+          else if (['left', 'right', 'center', 'decimal'].includes(type) && Number.isFinite(position))
+            stops.set(position, { position, type, leader: val(tab, 'leader') });
+        }
+      }
+      return JSON.stringify([...stops.values()]);
+    },
     paragraph(p: Element) {
       const style = document.createElement('p').style;
       const empty = !all(p, 't').some(t => t.textContent);

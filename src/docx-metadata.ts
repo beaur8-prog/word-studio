@@ -29,7 +29,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       resolved: Boolean(paraId && resolved.has(paraId)) });
   }
   let sequence = 900000;
-  const markers = new Map<string, { kind: string; id?: string; paragraph?: Element; cell?: Element; style?: string; nextPage?: PageSettings }>();
+  const markers = new Map<string, { kind: string; id?: string; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; nextPage?: PageSettings; width?: number; height?: number }>();
   const bookmark = (name: string) => {
     const fragment = body.createDocumentFragment();
     const id = String(++sequence);
@@ -46,11 +46,21 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     markers.set(name, { kind: kind === 'commentRangeStart' ? 'start' : 'end', id });
     el.replaceWith(bookmark(name));
   }
+  for (const drawing of all(body, 'drawing')) {
+    const extent = drawing.getElementsByTagNameNS('http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing', 'extent')[0];
+    const width = Number(extent?.getAttribute('cx')) / 9525, height = Number(extent?.getAttribute('cy')) / 9525;
+    const name = `ws_marker_${sequence}`;
+    markers.set(name, { kind: 'image', ...(width > 0 && height > 0 && width <= 10000 && height <= 10000 ? { width, height } : {}) });
+    drawing.before(bookmark(name));
+  }
+  for (const tab of all(body, 'tab').filter(el => el.parentElement?.localName === 'r')) {
+    const name = `ws_marker_${sequence}`; markers.set(name, { kind: 'tab' }); tab.replaceWith(bookmark(name));
+  }
   for (const run of all(body, 'r')) {
     const style = format.run(run);
     if (!style) continue;
     const start = `ws_marker_${sequence}`;
-    markers.set(start, { kind: 'runStart', style }); run.before(bookmark(start));
+    markers.set(start, { kind: 'runStart', style, eastAsianStyle: format.run(run, 'eastAsia') }); run.before(bookmark(start));
     const end = `ws_marker_${sequence}`;
     markers.set(end, { kind: 'runEnd' }); run.after(bookmark(end));
   }
@@ -75,6 +85,19 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     decorate(html: string) {
       const template = document.createElement('template'); template.innerHTML = html;
       const sizedTables = new Set<HTMLTableElement>();
+      let pendingImage: (typeof markers extends Map<string, infer T> ? T : never) | undefined;
+      for (const el of template.content.querySelectorAll('a[id],img')) {
+        if (el instanceof HTMLAnchorElement) {
+          const marker = markers.get(el.id);
+          if (marker?.kind === 'image') pendingImage = marker;
+        } else if (pendingImage) {
+          el.setAttribute('data-inline-image', 'true');
+          if (pendingImage.width && pendingImage.height) {
+            el.setAttribute('width', String(pendingImage.width)); el.setAttribute('height', String(pendingImage.height));
+          }
+          pendingImage = undefined;
+        }
+      }
       // Attach paragraph properties before deleting marker anchors.
       for (const anchor of template.content.querySelectorAll('a[id]')) {
         const marker = markers.get(anchor.id);
@@ -99,6 +122,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
+        const tabs = format.tabs(marker.paragraph);
+        if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
         if (cell && marker.cell && !all(marker.cell, 't').some(t => t.textContent) && !all(marker.cell, 'tbl').length) {
           for (const property of ['font-family', 'font-size', 'color']) cell.style.setProperty(property, p.style.getPropertyValue(property));
         }
@@ -114,22 +139,34 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       }
       const active = new Set<string>();
       let activeStyle = '';
+      let eastAsianStyle = '';
       const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
       const items: Node[] = []; while (walker.nextNode()) items.push(walker.currentNode);
       for (const item of items) {
         if (item instanceof HTMLAnchorElement && markers.has(item.id)) {
           const marker = markers.get(item.id)!;
           if (marker.kind === 'pageBreak') continue;
+          if (marker.kind === 'tab') {
+            const tab = document.createElement('span'); tab.setAttribute('data-docx-tab', 'true'); tab.textContent = '\t';
+            if (activeStyle) tab.style.cssText = activeStyle;
+            item.replaceWith(tab); continue;
+          }
           if (marker.kind === 'start') active.add(marker.id!);
           if (marker.kind === 'end') active.delete(marker.id!);
-          if (marker.kind === 'runStart') activeStyle = marker.style || '';
-          if (marker.kind === 'runEnd') activeStyle = '';
+          if (marker.kind === 'runStart') { activeStyle = marker.style || ''; eastAsianStyle = marker.eastAsianStyle || activeStyle; }
+          if (marker.kind === 'runEnd') { activeStyle = ''; eastAsianStyle = ''; }
           item.remove();
         } else if (item.nodeType === Node.TEXT_NODE && (active.size || activeStyle) && item.textContent) {
-          const span = document.createElement('span');
-          if (active.size) span.setAttribute('data-comment-ids', [...active].join(' '));
-          if (activeStyle) span.style.cssText = activeStyle;
-          item.parentNode!.replaceChild(span, item); span.append(item);
+          const fragment = document.createDocumentFragment();
+          const segments = activeStyle !== eastAsianStyle
+            ? item.textContent.match(/[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]+|[^\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]+/gu) ?? [] : [item.textContent];
+          for (const text of segments) {
+            const span = document.createElement('span');
+            if (active.size) span.setAttribute('data-comment-ids', [...active].join(' '));
+            span.style.cssText = /^[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/u.test(text) ? eastAsianStyle : activeStyle;
+            span.textContent = text; fragment.append(span);
+          }
+          item.parentNode!.replaceChild(fragment, item);
           for (const id of active) { const comment = comments.find(c => c.id === id); if (comment) comment.quote += item.textContent; }
         }
       }

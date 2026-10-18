@@ -1,4 +1,5 @@
-import { pageMargins, type PageSettings } from './types';
+import { pageMargins, pageFurniture, type PageSettings } from './types';
+import { layoutTabs } from './document-tabs';
 
 export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
 const PX = 96 / 25.4;
@@ -33,6 +34,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
   const warnings = new Set<string>();
   let settings = initialPage, pageNumber = 0, content: HTMLElement;
   let sectionNumber = 0;
+  let sectionPage = 0;
   const pageStyles: string[] = [];
   function newPage() {
     const [width, height] = dimensions(settings), margins = pageMargins(settings);
@@ -41,22 +43,24 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
     style.textContent = [...new Set(pageStyles)].join('\n');
     const paper = document.createElement('section'); paper.className = 'print-page';
     paper.dataset.page = String(++pageNumber);
+    const furniture = pageFurniture(settings, pageNumber, ++sectionPage === 1);
     Object.assign(paper.style, { width: `${width * PX}px`, height: `${height * PX}px`, page: pageName });
     content = document.createElement('div'); content.className = 'tiptap print-content';
     Object.assign(content.style, { left: `${margins.left * PX}px`, top: `${margins.top * PX}px`,
       width: `${(width - margins.left - margins.right) * PX}px`, height: `${(height - margins.top - margins.bottom) * PX}px` });
-    const header = document.createElement('div'); header.className = 'print-header'; header.textContent = settings.header;
+    const header = document.createElement('div'); header.className = 'print-header'; header.textContent = furniture.header;
     const footer = document.createElement('div'); footer.className = 'print-footer';
-    const footerText = document.createElement('span'); footerText.textContent = settings.footer; footer.append(footerText);
-    if (settings.pageNumbers) { const number = document.createElement('span'); number.textContent = String(pageNumber); footer.append(number); }
+    const footerText = document.createElement('span'); footerText.textContent = furniture.footer; footer.append(footerText);
+    if (furniture.pageNumbers) { const number = document.createElement('span'); number.textContent = String(pageNumber); footer.append(number); }
     for (const el of [header, footer]) { el.style.left = `${margins.left * PX}px`; el.style.right = `${margins.right * PX}px`; }
-    header.style.top = `${Math.max(0, margins.top / 2 - 3) * PX}px`;
-    footer.style.bottom = `${Math.max(0, margins.bottom / 2 - 3) * PX}px`;
+    header.style.top = `${(settings.headerDistance ?? Math.max(0, margins.top / 2 - 3)) * PX}px`;
+    footer.style.bottom = `${(settings.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)) * PX}px`;
     header.style.maxHeight = `${Math.max(0, margins.top - 4) * PX}px`;
     footer.style.maxHeight = `${Math.max(0, margins.bottom - 4) * PX}px`;
     paper.append(header, content, footer); host.append(paper);
   }
   function fits() {
+    layoutTabs(content);
     const last = content.lastElementChild as HTMLElement | null;
     return !last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5;
   }
@@ -143,7 +147,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
   }
   function append(element: HTMLElement) {
     if (element.hasAttribute('data-section-page')) {
-      settings = JSON.parse(element.getAttribute('data-section-page')!); sectionNumber++; newPage(); return;
+      settings = JSON.parse(element.getAttribute('data-section-page')!); sectionNumber++; sectionPage = 0; newPage(); return;
     }
     if (element.hasAttribute('data-page-break')) { newPage(); return; }
     const table = element.matches('table') ? element : element.querySelector(':scope > table');

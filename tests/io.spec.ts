@@ -343,6 +343,9 @@ test("DOCX export contains formatted text, lists, tables, image, page breaks and
     header: "내 머리글",
     footer: "내 바닥글",
     pageNumbers: true,
+    differentFirstPage: false, differentOddEven: false, gutterTop: false,
+    gutter: 0, headerDistance: 6.35, footerDistance: 6.35,
+    firstHeader: '', firstFooter: '', evenHeader: '내 머리글', evenFooter: '내 바닥글', evenPageNumbers: true,
   });
   expect(result.imported.warnings.length).toBeGreaterThan(0);
 });

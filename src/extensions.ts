@@ -3,7 +3,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { TextStyleKit } from "@tiptap/extension-text-style";
 import TextAlign from "@tiptap/extension-text-align";
 import { TableKit } from "@tiptap/extension-table";
-import Image from "@tiptap/extension-image";
+import { BlockImage, InlineImage } from './document-image';
 import Highlight from "@tiptap/extension-highlight";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
@@ -12,6 +12,7 @@ import { CellAppearance } from './table-format';
 import { TableRowResize } from './table-row-resize';
 import { Pagination } from './pagination';
 import { ImportedFormat, StudioTableView } from './imported-format';
+import { DocumentTab, DocumentTabs } from './document-tabs';
 
 export const PageBreak = Node.create({
   name: "pageBreak",
@@ -72,7 +73,10 @@ export const editorExtensions = [
   }),
   CellAppearance,
   TableRowResize,
-  Image.configure({ allowBase64: true }),
+  BlockImage.configure({ allowBase64: true }),
+  InlineImage,
+  DocumentTab,
+  DocumentTabs,
   Highlight.configure({ multicolor: true }),
   Subscript,
   Superscript,

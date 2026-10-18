@@ -42,7 +42,7 @@ test('DOCX style inheritance, paragraph marks, table grid and spacing survive ed
   expect(first.attrs.fontSize).toBeNull();
   expect(first.attrs.textColor).toBeNull();
   expect(first.content[0].attrs.paragraphSize).toBe('4pt');
-  expect(first.content[1].content[0].marks[0].attrs).toMatchObject({ fontSize: '10pt', color: 'rgb(0, 0, 0)', fontFamily: '"Malgun Gothic"' });
+  expect(first.content[1].content[0].marks[0].attrs).toMatchObject({ fontSize: '10pt', color: 'rgb(0, 0, 0)', fontFamily: 'Arial' });
   expect(first.content[1].attrs).toMatchObject({ spaceBefore: '4px', spaceAfter: '6.66667px', indent: 8, rightIndent: '4px', firstLineIndent: '-2px' });
   expect(second.content[0].content[0].marks[0].attrs).toMatchObject({ fontSize: '9pt', color: 'rgb(0, 128, 0)', letterSpacing: '-0.25pt' });
   expect(first.attrs).toMatchObject({ colwidth: [120], paddingTop: '2px', paddingLeft: '6px' });

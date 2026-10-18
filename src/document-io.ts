@@ -27,6 +27,7 @@ import {
   WidthType,
   VerticalAlignTable,
   HeightRule,
+  Tab,
 } from "docx";
 import type {
   IParagraphOptions,
@@ -35,8 +36,10 @@ import type {
   ParagraphChild,
   ITableCellBorders,
 } from "docx";
-import { defaultPage, pageMargins } from "./types";
+import { defaultPage, pageMargins, basePageMargins } from "./types";
 import { prepareDocxMetadata } from './docx-metadata';
+import { normalizeDocxTables } from './docx-table-grid';
+import { parseTabStops } from './document-tabs';
 import { rowHeight, MAX_ROW_HEIGHT } from './table-row-resize';
 import type { PageSettings, StudioDocument } from "./types";
 
@@ -52,7 +55,7 @@ const MAX_INFLATED_BYTES = 100 * 1024 * 1024;
 const RASTER_DATA =
   /^data:image\/(png|jpe?g|gif|webp|bmp);base64,([A-Za-z0-9+/=\s]+)$/i;
 const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|#)/i;
-const INLINE = new Set(["text", "hardBreak"]);
+const INLINE = new Set(["text", "hardBreak", "inlineImage", "documentTab"]);
 const BLOCKS = new Set([
   "paragraph",
   "heading",
@@ -145,7 +148,9 @@ export function validateDocument(input: unknown): StudioDocument {
   if (!object(page)) fail("용지 설정이 없습니다.");
   keysOnly(
     page,
-    ["size", "orientation", "margin", "margins", "header", "footer", "pageNumbers"],
+    ["size", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
+      'differentFirstPage', 'differentOddEven', 'firstHeader', 'firstFooter', 'evenHeader', 'evenFooter',
+      'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop'],
     "용지 설정",
   );
   if (
@@ -162,6 +167,12 @@ export function validateDocument(input: unknown): StudioDocument {
     keysOnly(page.margins, ['top', 'right', 'bottom', 'left'], '방향별 여백');
     if (['top', 'right', 'bottom', 'left'].some(k => !finite((page.margins as Record<string, unknown>)[k], 0, 75))) fail('방향별 여백이 올바르지 않습니다.');
   }
+  for (const key of ['differentFirstPage', 'differentOddEven', 'firstPageNumbers', 'evenPageNumbers', 'gutterTop'])
+    if (page[key] !== undefined && typeof page[key] !== 'boolean') fail('용지 옵션이 올바르지 않습니다.');
+  for (const key of ['firstHeader', 'firstFooter', 'evenHeader', 'evenFooter'])
+    if (page[key] !== undefined && !boundedString(page[key], 10000)) fail('머리글·바닥글이 올바르지 않습니다.');
+  for (const key of ['headerDistance', 'footerDistance', 'gutter'])
+    if (page[key] !== undefined && !finite(page[key], 0, 75)) fail('용지 여백이 올바르지 않습니다.');
   if (!Array.isArray(input.comments) || input.comments.length > 10000)
     fail("검토 메모 목록이 올바르지 않습니다.");
   const ids = new Set<string>();
@@ -252,7 +263,7 @@ export function validateDocument(input: unknown): StudioDocument {
       validateDocument({ format: 'word-studio', version: 1, title: '', updatedAt: new Date().toISOString(), page: sectionPage,
         comments: [], content: { type: 'doc', content: [{ type: 'paragraph' }] } });
     }
-    if (type === "image" && !validImage(attrs?.src))
+    if ((type === "image" || type === "inlineImage") && !validImage(attrs?.src))
       fail("문서 그림은 PNG, JPG, GIF, BMP 또는 WebP 데이터여야 합니다.");
     if (
       type === "heading" &&
@@ -311,6 +322,8 @@ export function validateDocument(input: unknown): StudioDocument {
       "pageBreak",
       "sectionBreak",
       "image",
+      "inlineImage",
+      "documentTab",
     ].includes(type);
     if (value.content !== undefined && (!Array.isArray(value.content) || leaf))
       fail("본문 자식 요소가 올바르지 않습니다.");
@@ -430,6 +443,8 @@ export function sanitizeImportedHtml(source: string): {
       "data-page-break",
       "data-section-page",
       "data-comment-ids",
+      "data-inline-image",
+      "data-docx-tab", "data-tab-stops",
     ],
     ALLOW_DATA_ATTR: false,
   });
@@ -585,6 +600,16 @@ async function readDocxPage(
   )
     warnings.push("지원하지 않는 용지 크기를 A4로 표시합니다.");
   const margin = elements(section, "pgMar")[0];
+  const enabled = (el: Element | undefined) => !!el && !['0', 'false', 'off'].includes(attr(el, 'val') || '');
+  page.differentFirstPage = enabled(elements(section, 'titlePg')[0]);
+  const settingsFile = zip.file('word/settings.xml');
+  const settings = settingsFile ? xml(await settingsFile.async('string')) : undefined;
+  page.differentOddEven = !!settings && enabled(elements(settings, 'evenAndOddHeaders')[0]);
+  page.gutterTop = !!settings && enabled(elements(settings, 'gutterAtTop')[0]);
+  for (const [source, destination] of [['header', 'headerDistance'], ['footer', 'footerDistance'], ['gutter', 'gutter']] as const) {
+    const value = attr(margin, source);
+    if (value !== null && Number(value) >= 0 && Number(value) <= 4252) page[destination] = Number(value) * 25.4 / 1440;
+  }
   const margins = ["top", "right", "bottom", "left"].map((key) =>
     Number(attr(margin, key)),
   );
@@ -607,8 +632,8 @@ async function readDocxPage(
       for (const ref of elements(prior, `${kind}Reference`))
         inherited.set(attr(ref, 'type') || 'default', ref);
     }
-    const refs = [...inherited.values()];
-    const ref = refs.find((r) => attr(r, "type") === "default") ?? refs[0];
+    for (const type of ['default', 'first', 'even'] as const) {
+    const ref = inherited.get(type);
     if (!ref) continue;
     const id =
       ref.getAttributeNS(
@@ -627,7 +652,8 @@ async function readDocxPage(
     );
     if (!part) continue;
     const parsed = xml(await part.async("string"));
-    page[kind] = textOf(parsed).slice(0, 10000);
+    const key = type === 'default' ? kind : `${type}${kind === 'header' ? 'Header' : 'Footer'}` as 'firstHeader' | 'firstFooter' | 'evenHeader' | 'evenFooter';
+    page[key] = textOf(parsed).slice(0, 10000);
     if (
       elements(parsed, "instrText").some((n) =>
         /\bPAGE\b/i.test(n.textContent || ""),
@@ -636,11 +662,8 @@ async function readDocxPage(
         /\bPAGE\b/i.test(attr(n, "instr") || ""),
       )
     )
-      page.pageNumbers = true;
-    if (refs.length > 1)
-      warnings.push(
-        "첫 페이지와 짝수 페이지 머리글·바닥글을 기본 내용으로 통합했습니다.",
-      );
+      page[type === 'default' ? 'pageNumbers' : type === 'first' ? 'firstPageNumbers' : 'evenPageNumbers'] = true;
+    }
   }
   return page;
 }
@@ -724,6 +747,8 @@ export async function importFile(file: File): Promise<ImportResult> {
       "수식, OLE 개체 또는 도형은 완전히 변환되지 않을 수 있습니다.",
     );
   const doc = makeDocument(file.name);
+  const repairedTables = normalizeDocxTables(body);
+  if (repairedTables) warnings.push(`생략된 표 격자 또는 가로 병합 ${repairedTables}개를 편집 가능한 셀로 보완했습니다.`);
   const sections = elements(body, 'sectPr');
   const pages = await Promise.all(sections.map(s => readDocxPage(zip, body, warnings, s)));
   doc.page = pages[0] ?? { ...defaultPage };
@@ -894,6 +919,8 @@ function paragraphOptions(node: JSONContent): IParagraphOptions {
   const exact = typeof lineHeight === 'string' && /(?:pt|px)$/.test(lineHeight);
   return {
     alignment: alignment(node.attrs?.textAlign),
+    tabStops: parseTabStops(node.attrs?.tabStops).map(stop => ({ position: Math.round(stop.position * 15), type: stop.type,
+      ...(['dot', 'hyphen', 'underscore'].includes(stop.leader || '') ? { leader: stop.leader } : {}) })),
     indent: {
       ...(Number.isFinite(indent) ? { left: Math.round(indent * 15) } : {}),
       ...(Number.isFinite(right) ? { right: Math.round(right * 15) } : {}),
@@ -1019,7 +1046,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         }
       } else if (node.type === "hardBreak")
         runs.push(new TextRun({ break: 1 }));
-      else if (node.type === "image")
+      else if (node.type === 'documentTab') runs.push(new TextRun({ children: [new Tab()] }));
+      else if (node.type === "image" || node.type === "inlineImage")
         runs.push(await imageRun(node, contentWidth / 15));
     }
     return runs;
@@ -1223,32 +1251,18 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const margins = pageMargins(page);
   contentWidth = mmToTwip((page.orientation === 'landscape' ? portraitHeight : portraitWidth) - margins.left - margins.right);
   const children = await blocks(group.nodes);
-  const footerChildren: Paragraph[] = [];
-  if (page.footer)
-    footerChildren.push(
-      new Paragraph({
-        text: page.footer,
-        alignment: AlignmentType.CENTER,
-        run: { size: 18, color: "697386" },
-      }),
-    );
-  if (page.pageNumbers)
-    footerChildren.push(
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({
-            children: [PageNumber.CURRENT],
-            size: 18,
-            color: "697386",
-          }),
-        ],
-      }),
-    );
+  const footer = (text: string, numbers: boolean) => new Footer({ children: [
+    new Paragraph({ text, alignment: AlignmentType.CENTER, run: { size: 18, color: '697386' } }),
+    ...(numbers ? [new Paragraph({ alignment: AlignmentType.CENTER,
+      children: [new TextRun({ children: [PageNumber.CURRENT], size: 18, color: '697386' })] })] : []),
+  ] });
+  const header = (text: string) => new Header({ children: [new Paragraph({ text, run: { size: 18, color: '697386' } })] });
+  const baseMargins = basePageMargins(page);
   sections.push(
       {
         children: children.length ? children : [new Paragraph("")],
         properties: {
+          titlePage: page.differentFirstPage,
           page: {
             size: {
               width: mmToTwip(portraitWidth),
@@ -1259,28 +1273,21 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
                   : PageOrientation.PORTRAIT,
             },
             margin: {
-              top: mmToTwip(margins.top),
-              right: mmToTwip(margins.right),
-              bottom: mmToTwip(margins.bottom),
-              left: mmToTwip(margins.left),
-              header: 360,
-              footer: 360,
+              top: mmToTwip(baseMargins.top + (page.gutterTop ? page.gutter ?? 0 : 0)),
+              right: mmToTwip(baseMargins.right),
+              bottom: mmToTwip(baseMargins.bottom),
+              left: mmToTwip(baseMargins.left),
+              gutter: mmToTwip(page.gutterTop ? 0 : page.gutter ?? 0),
+              header: mmToTwip(page.headerDistance ?? 6.35),
+              footer: mmToTwip(page.footerDistance ?? 6.35),
             },
           },
         },
-        ...{
-              headers: {
-                default: new Header({
-                  children: [
-                    new Paragraph({
-                      text: page.header,
-                      run: { size: 18, color: "697386" },
-                    }),
-                  ],
-                }),
-              },
-            },
-        footers: { default: new Footer({ children: footerChildren.length ? footerChildren : [new Paragraph('')] }) },
+        headers: { default: header(page.header),
+          first: header(page.firstHeader ?? ''), even: header(page.differentOddEven ? page.evenHeader ?? '' : page.header) },
+        footers: { default: footer(page.footer, page.pageNumbers),
+          first: footer(page.firstFooter ?? '', page.firstPageNumbers ?? false),
+          even: footer(page.differentOddEven ? page.evenFooter ?? '' : page.footer, page.differentOddEven ? page.evenPageNumbers ?? false : page.pageNumbers) },
       },
   );
   }
@@ -1288,6 +1295,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     title: document.title,
     creator: 'Word Studio',
     description: 'Created with Word Studio',
+    evenAndOddHeaderAndFooters: groups.some(group => group.page.differentOddEven),
     numbering: { config: numbering },
     comments: { children: document.comments.map((comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: 'Word Studio', date: new Date(comment.createdAt),
       resolved: comment.resolved, children: comment.text.split('\n').map(text => new Paragraph(text)) })) },

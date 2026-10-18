@@ -65,7 +65,7 @@ import {
 } from "lucide-react";
 import { editorExtensions } from "./extensions";
 import { TableContextMenu } from './TableContextMenu';
-import { defaultPage, pageMargins } from "./types";
+import { defaultPage, pageMargins, pageFurniture } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
 import type { StudioDocument, PageSettings, Comment } from "./types";
@@ -1984,21 +1984,21 @@ export default function App() {
                         style={{
                           left: margins.left * 96 / 25.4,
                           right: margins.right * 96 / 25.4,
-                          top: Math.max(12, margin / 2 - 8),
+                          top: page.headerDistance !== undefined ? page.headerDistance * 96 / 25.4 : Math.max(12, margin / 2 - 8),
                         }}
                       >
-                        {page.header}
+                        {pageFurniture(page, i + 1).header}
                       </span>
                       <div
                         className="paper-footer"
                         style={{
                           left: margins.left * 96 / 25.4,
                           right: margins.right * 96 / 25.4,
-                          bottom: Math.max(12, margins.bottom * 96 / 25.4 / 2 - 8),
+                          bottom: page.footerDistance !== undefined ? page.footerDistance * 96 / 25.4 : Math.max(12, margins.bottom * 96 / 25.4 / 2 - 8),
                         }}
                       >
-                        <span>{page.footer}</span>
-                        {page.pageNumbers && <span>{i + 1}</span>}
+                        <span>{pageFurniture(page, i + 1).footer}</span>
+                        {pageFurniture(page, i + 1).pageNumbers && <span>{i + 1}</span>}
                       </div>
                     </div>
                   ))}
@@ -2470,6 +2470,24 @@ export default function App() {
                   />
                   페이지 번호 표시
                 </label>
+                {(['first', 'even'] as const).map(kind => {
+                  const first = kind === 'first', enabled = first ? page.differentFirstPage : page.differentOddEven;
+                  const label = first ? '첫 페이지' : '짝수 페이지';
+                  return <div key={kind}>
+                    <label className="checkbox-label"><input type="checkbox" checked={!!enabled}
+                      onChange={e => setPageValue(first ? { differentFirstPage: e.target.checked } : { differentOddEven: e.target.checked })} />
+                      {first ? '첫 페이지 다르게 지정' : '홀수·짝수 페이지 다르게 지정'}
+                    </label>
+                    {enabled && <>
+                      <label className="dialog-field">{label} 머리글<input aria-label={`${label} 머리글`} value={page[`${kind}Header`] ?? ''}
+                        onChange={e => setPageValue({ [`${kind}Header`]: e.target.value })} /></label>
+                      <label className="dialog-field">{label} 바닥글<input aria-label={`${label} 바닥글`} value={page[`${kind}Footer`] ?? ''}
+                        onChange={e => setPageValue({ [`${kind}Footer`]: e.target.value })} /></label>
+                      <label className="checkbox-label"><input type="checkbox" checked={page[`${kind}PageNumbers`] ?? false}
+                        onChange={e => setPageValue({ [`${kind}PageNumbers`]: e.target.checked })} />{label} 페이지 번호 표시</label>
+                    </>}
+                  </div>;
+                })}
                 <div className="dialog-actions">
                   <button className="primary" onClick={() => setModal(null)}>
                     완료
