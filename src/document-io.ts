@@ -597,7 +597,14 @@ async function readDocxPage(
   if (!relFile) return page;
   const rels = xml(await relFile.async("string"));
   for (const kind of ["header", "footer"] as const) {
-    const refs = elements(section, `${kind}Reference`);
+    // Each header/footer type is linked independently. Missing references
+    // inherit; an explicit reference to an empty part breaks that link.
+    const inherited = new Map<string, Element>();
+    for (const prior of sections.slice(0, sections.indexOf(section) + 1)) {
+      for (const ref of elements(prior, `${kind}Reference`))
+        inherited.set(attr(ref, 'type') || 'default', ref);
+    }
+    const refs = [...inherited.values()];
     const ref = refs.find((r) => attr(r, "type") === "default") ?? refs[0];
     if (!ref) continue;
     const id =

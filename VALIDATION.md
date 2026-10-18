@@ -1,6 +1,44 @@
 # Word Studio 1.2.1 검증
 
-2026-10-18, Windows x64 / Chrome / Electron 42.11.15.
+## 2026-10-18 최신 Git 코드의 macOS 기능 시험
+
+GitHub `main`의 `c7af392`(1.2.1)를 내려받아 기존 로컬 문서 전환·복구 저장 보호·DOCX 구역 상속 수정과 Mac 패키징을 유지한 상태로 검사했습니다. 갱신 전 로컬 변경은 Git stash에 보관했습니다.
+
+- `npm run build`와 네이티브 복구 저장 테스트 1개 통과.
+- 브라우저 테스트 25개 전체 통과. 새 표 테스트의 실행 취소·다시 실행·저장 단축키를 `ControlOrMeta`로 바꿔 Windows와 Mac에서 각 플랫폼의 키를 사용하도록 했습니다. 첫 실행의 5개 실패는 Windows 전용 `Control+z`를 보낸 테스트에서 발생했고, 수정 후 전부 통과했습니다.
+- 여러 셀 우클릭 서식, 공유 테두리, 병합·분할, 주변 셀 보존, 클립보드 fixture 붙여넣기, 행 높이 드래그·취소·자동 높이·실행 취소, 200% 확대, 읽기 모드, HTML·DOCX·자체 파일 왕복을 확인했습니다.
+- `npm run package:mac`으로 만든 실제 1.2.1 앱도 격리된 프로필에서 검증했습니다. 표 메뉴·행 높이·저장 실패 보호·사본 저장 후 문서 전환 통과, 미리보기 7쪽과 PDF 7쪽 일치, PDF 78,791바이트, 렌더러 오류 0개.
+- 로그: `.cache/latest-browser-tests-mac.log`, `.cache/latest-native-tests.log`, `.cache/latest-packaged-test.log`. 실제 앱의 화면·PDF·결과 JSON: `.cache/desktop-smoke-EpHD1n/`.
+
+이번 실행 환경은 macOS arm64 / Chrome / Electron 42.11.15입니다. Windows 실행과 실제 프린터 출력은 재검사하지 않았습니다.
+
+## 2026-10-18 1.1.0 macOS 앱 아이콘·패키징 검증
+
+- Windows와 같은 원본 아이콘으로 macOS PNG·ICNS를 생성하고 개발 실행의 Dock 아이콘에도 적용했습니다.
+- `npm run package:mac`으로 앱 이름·번들 ID·아이콘·Helper 실행 파일·ASAR 무결성 정보를 설정한 `Word Studio.app`을 생성했습니다. 로컬 ad-hoc 서명과 `codesign --verify --deep --strict` 검사를 통과했습니다.
+- 패키징한 앱의 데스크톱 검증 통과: 미리보기 7쪽 / PDF 7쪽, PDF 68,240바이트, 복구 저장 실패 보호와 사본 저장 후 전환 정상, 렌더러 오류 0개. 결과는 `.cache/desktop-smoke-sL26F6/result.json`에 있습니다.
+
+## 2026-10-18 1.1.0 문서 전환·DOCX 수정 검증
+
+macOS arm64 / Chrome / Electron 42.11.15에서 검증했습니다. Microsoft Word 앱과 직접 비교한 결과는 아닙니다.
+
+- TypeScript 검사와 프로덕션 빌드, 네이티브 복구 저장 테스트 통과.
+- 브라우저 테스트 16개 통과. 기존 테스트의 선택·이동 단축키를 플랫폼에 맞추고, 비동기 문서 전환과 편집기 포커스 완료를 기다리도록 보정했습니다.
+- 문서 A → B → 실행 취소/다시 실행, 새 문서 생성 후 이력 초기화, 같은 문서를 파일로 저장한 후 실행 취소 유지.
+- 복구 저장 실패 시 원래 문서 유지, 취소/Esc, 명시적 폐기, 파일 저장 취소·실패·성공 분기, 저장 도중 추가 편집의 마지막 저장.
+- 5개 DOCX 구역의 머리글·바닥글·페이지 번호 상속, 명시적인 빈 내용과 그 이후 상속, 용지 설정, 재내보내기 후 보존.
+- 데스크톱 검증은 격리된 테스트 프로필에서 실제 파일시스템 오류와 IPC를 사용합니다. 문서 전환을 취소하거나 파일 저장 대화상자를 취소하면 편집 내용이 유지되고, 별도 `.wordstudio` 파일 저장 성공 후에만 다음 문서로 전환하는지 확인합니다.
+- 실제 Electron 검증 통과: 미리보기 7쪽 / PDF 7쪽, PDF 68,240바이트, 렌더러 오류 0개. Windows 포터블 배포본과 실제 프린터 출력은 이번 수정에서 다시 검증하지 않았습니다.
+
+UX 참고 자료는 Microsoft 공식 안내입니다. Word는 자동 복구와 명시적 파일 저장을 구분하며, 저장 후에도 실행 취소를 지원합니다. 이 앱의 단일 문서 창에 맞춰 저장 실패 시 사본 저장·명시적 폐기·취소를 제공했습니다.
+
+- [파일 저장과 자동 복구](https://support.microsoft.com/en-us/word/save-a-file-in-office-for-mac)
+- [실행 취소·다시 실행](https://support.microsoft.com/en-us/office/foundations-experiences/undo-redo-or-repeat-an-action)
+- [머리글·바닥글의 이전 구역 연결](https://support.microsoft.com/en-gb/word/link-to-previous)
+
+## 저장소에 기록된 Windows 1.2.1 검증
+
+2026-10-18, Windows x64 / Chrome / Electron 42.11.15. 이 Mac에서 재실행한 결과는 아닙니다.
 
 - TypeScript 검사와 프로덕션 빌드.
 - 브라우저 테스트 19개: 기존 편집·서식·실행 취소·찾기, 자동 복구, 표·메모, 용지 방향, 자체 파일 왕복, 다중 페이지 흐름, 리본·테마·이미지, HTML 정리, DOCX 기본 변환에 아래 표 회귀 검사를 추가했습니다.

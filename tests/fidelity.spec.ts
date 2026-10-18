@@ -83,13 +83,14 @@ test('same-titled documents keep separate recovery records and comment anchors m
   await page.keyboard.press('Control+n');
   await page.getByRole('button', { name: /빈 문서/ }).click();
   const edit = page.locator('.tiptap');
+  await expect(edit).toHaveText('');
   await edit.fill('위치를 유지하는 한글 메모');
-  await page.keyboard.press('Control+a');
+  await page.keyboard.press('ControlOrMeta+a');
   await page.getByRole('button', { name: '검토', exact: true }).click();
   await page.getByRole('button', { name: '새 메모', exact: true }).click();
   await page.getByRole('textbox', { name: '메모 내용' }).fill('검토');
   await page.getByRole('button', { name: '메모 추가', exact: true }).click();
   await expect(edit.locator('[data-comment-ids]')).toHaveText('위치를 유지하는 한글 메모');
-  await edit.click(); await page.keyboard.press('Control+Home'); await page.keyboard.insertText('앞 문장. ');
+  await edit.click(); await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowUp' : 'Control+Home'); await page.keyboard.insertText('앞 문장. ');
   await expect(edit.locator('[data-comment-ids]')).toContainText('위치를 유지하는 한글 메모');
 });

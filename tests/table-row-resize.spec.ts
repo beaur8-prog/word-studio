@@ -33,11 +33,11 @@ test('horizontal dragging preserves selection, records one undo and persists to 
   await expect(page.locator('.selectedCell')).toHaveCount(4);
   await expect(page.locator('.tiptap')).toContainText('제목 A제목 B내용 A내용 B마지막 A마지막 B');
   const style = await rows.first().getAttribute('style');
-  await page.keyboard.press('Control+z');
+  await page.keyboard.press('ControlOrMeta+z');
   await expect.poll(() => height(rows.first())).toBeCloseTo(original, 0);
-  await page.keyboard.press('Control+y');
+  await page.keyboard.press('ControlOrMeta+y');
   await expect(rows.first()).toHaveAttribute('style', style!);
-  const download = page.waitForEvent('download'); await page.keyboard.press('Control+s');
+  const download = page.waitForEvent('download'); await page.keyboard.press('ControlOrMeta+s');
   await page.locator('input[type=file]').first().setInputFiles((await (await download).path())!);
   await expect(rows.first()).toHaveAttribute('style', style!);
   await page.reload();
@@ -65,7 +65,7 @@ test('Escape cancels a preview without losing a stored height; double click rese
   await expect(first).not.toHaveAttribute('style', /height/);
   await expect.poll(() => height(first)).toBeLessThan(before - 40);
   // The editor selection remains where it was before the gesture.
-  await page.locator('.tiptap').focus(); await page.keyboard.press('Control+z');
+  await page.locator('.tiptap').focus(); await page.keyboard.press('ControlOrMeta+z');
   await expect(first).toHaveAttribute('style', style!);
   await drag(page, cell, -120);
   const contained = await cell.evaluate(el => el.querySelector('p')!.getBoundingClientRect().bottom <= el.getBoundingClientRect().bottom);

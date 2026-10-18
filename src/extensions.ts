@@ -67,6 +67,7 @@ export const Pagination = Extension.create({
   addProseMirrorPlugins() {
     let scheduled = 0;
     let lastSignature = "";
+    let lastDocument: unknown;
     return [
       new Plugin({
         key: paginationKey,
@@ -143,8 +144,9 @@ export const Pagination = Extension.create({
                 new CustomEvent("pagecount", { bubbles: true, detail: pages }),
               );
               const signature = `${h}:${m}:${bottom}:${view.state.doc.content.size}:${sizes.join(",")}`;
-              if (signature !== lastSignature) {
+              if (signature !== lastSignature || lastDocument !== view.state.doc) {
                 lastSignature = signature;
+                lastDocument = view.state.doc;
                 view.dispatch(
                   view.state.tr
                     .setMeta(

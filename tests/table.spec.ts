@@ -52,7 +52,7 @@ test('multi-cell context formatting preserves the range, undo, file roundtrip an
   await menu.getByRole('button', { name: '테두리 없음', exact: true }).click();
   await expect(cells.nth(0)).toHaveCSS('border-top-style', 'none');
   await expect(cells.nth(2)).toHaveCSS('border-left-style', 'none');
-  await page.keyboard.press('Escape'); await page.keyboard.press('Control+z');
+  await page.keyboard.press('Escape'); await page.keyboard.press('ControlOrMeta+z');
   await expect(cells.nth(0)).toHaveCSS('border-top-style', 'double');
   await expect(cells.nth(0)).toHaveCSS('background-color', 'rgb(255, 242, 204)');
   await cells.nth(1).click({ button: 'right' });
@@ -60,10 +60,10 @@ test('multi-cell context formatting preserves the range, undo, file roundtrip an
   await menu.getByRole('button', { name: '선택한 셀 서식 지우기', exact: true }).click();
   await expect(cells.nth(1)).toHaveCSS('border-right-width', '1px');
   await expect(cells.nth(2)).toHaveCSS('border-left-width', '1px');
-  await page.keyboard.press('Escape'); await page.keyboard.press('Control+z');
+  await page.keyboard.press('Escape'); await page.keyboard.press('ControlOrMeta+z');
   await expect(cells.nth(1)).toHaveCSS('border-right-style', 'double');
   await expect(cells.nth(0)).toHaveCSS('background-color', 'rgb(255, 242, 204)');
-  const download = page.waitForEvent('download'); await page.keyboard.press('Control+s');
+  const download = page.waitForEvent('download'); await page.keyboard.press('ControlOrMeta+s');
   const saved = await (await download).path();
   await page.locator('input[type=file]').first().setInputFiles(saved!);
   await expect(cells.nth(0)).toHaveCSS('border-top-style', 'double');
@@ -124,7 +124,7 @@ test('context table actions, keyboard opening, outside targeting and read mode',
   await page.keyboard.press('Shift+F10');
   await menu.getByRole('button', { name: '아래에 행 삽입', exact: true }).click();
   await expect(page.locator('.tiptap tr')).toHaveCount(4);
-  await page.keyboard.press('Control+z');
+  await page.keyboard.press('ControlOrMeta+z');
   await expect(page.locator('.tiptap tr')).toHaveCount(3);
   await page.getByRole('button', { name: '보기', exact: true }).click();
   await page.getByRole('button', { name: '읽기 모드', exact: true }).click();
@@ -178,8 +178,8 @@ test('splitting ordinary cells preserves neighbours and empty-cell font defaults
   for (const text of ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3']) await expect(page.locator('.tiptap td').getByText(text, { exact: true })).toHaveCount(1);
   await expect(page.locator('.tiptap td').filter({ hasText: 'C1' })).toHaveAttribute('rowspan', '2');
   await expect(page.locator('.tiptap td').filter({ hasText: 'A3' })).toHaveAttribute('colspan', '2');
-  await page.keyboard.press('Control+z'); await expect(page.locator('.tiptap td')).toHaveCount(9);
-  await page.keyboard.press('Control+y'); await expect(page.locator('.tiptap td')).toHaveCount(21);
+  await page.keyboard.press('ControlOrMeta+z'); await expect(page.locator('.tiptap td')).toHaveCount(9);
+  await page.keyboard.press('ControlOrMeta+y'); await expect(page.locator('.tiptap td')).toHaveCount(21);
   const empty = page.locator('.tiptap td').filter({ hasText: /^$/ }).first();
   await empty.click({ button: 'right' });
   await menu.getByRole('tab', { name: '글자·셀 서식', exact: true }).click();

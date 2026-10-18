@@ -32,6 +32,9 @@ async function launch() {
   if (!fs.existsSync(path.join(root, 'electron', 'WordStudio.ico'))) {
     await require('./create-icon.cjs').createWindowsIcon(path.join(root, 'electron'));
   }
+  if (process.platform === 'darwin' && !fs.existsSync(path.join(root, 'electron', 'WordStudio.png'))) {
+    await require('./create-icon.cjs').createMacIcon(path.join(root, 'electron'));
+  }
   const extraArgs = process.argv.slice(2).filter(argument => argument !== '--dev');
   const child = spawn(executable, [root, ...extraArgs], { cwd: root, stdio: 'inherit', env, windowsHide: true });
   child.on('error', error => { console.error(error.message); process.exitCode = 1; });

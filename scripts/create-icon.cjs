@@ -2,6 +2,7 @@
 
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
 const dependencyPaths = [root, path.dirname(root), path.join(path.dirname(root), 'slide-studio')];
 
@@ -48,7 +49,27 @@ async function createWindowsIcon(destination) {
   return icon;
 }
 
-module.exports = { createWindowsIcon };
+async function createMacIcon(destination) {
+  const sharp = require(require.resolve('sharp', { paths: dependencyPaths }));
+  await fs.mkdir(destination, { recursive: true });
+  const iconset = await fs.mkdtemp(path.join(destination, '.WordStudio-'));
+  const directory = iconset + '.iconset';
+  await fs.rename(iconset, directory);
+  try {
+    for (const size of [16, 32, 128, 256, 512]) {
+      for (const scale of [1, 2]) {
+        await sharp(Buffer.from(ICON_SVG)).resize(size * scale, size * scale).png()
+          .toFile(path.join(directory, `icon_${size}x${size}${scale === 2 ? '@2x' : ''}.png`));
+      }
+    }
+    await fs.copyFile(path.join(directory, 'icon_512x512@2x.png'), path.join(destination, 'WordStudio.png'));
+    const icon = path.join(destination, 'WordStudio.icns');
+    execFileSync('/usr/bin/iconutil', ['-c', 'icns', directory, '-o', icon]);
+    return icon;
+  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+}
+
+module.exports = { createWindowsIcon, createMacIcon };
 if (require.main === module) createWindowsIcon(path.resolve(process.argv[2] || path.join(root, 'electron')))
   .then(filename => console.log(filename))
   .catch(error => { console.error(error.message); process.exitCode = 1; });

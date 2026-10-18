@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
+import { EditorState } from '@tiptap/pm/state';
 import {
   Save,
   Undo2,
@@ -95,6 +96,38 @@ function readInitial() {
   } catch {
     return blank("시작하기", sample);
   }
+}
+// Timestamps change on render; compare only the editable document state.
+function documentContents(doc: StudioDocument) {
+  const { updatedAt, ...contents } = doc;
+  return JSON.stringify(contents);
+}
+
+function SaveFailureDialog({ title, onSave, onDiscard, onCancel }: {
+  title: string; onSave(): Promise<boolean>; onDiscard(): void; onCancel(): void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => { ref.current?.showModal(); }, []);
+  return <dialog ref={ref} className="dialog save-failure-dialog" aria-labelledby="save-failure-title"
+    onCancel={event => { event.preventDefault(); if (!saving) onCancel(); }}>
+    <h2 id="save-failure-title">현재 문서를 저장하지 못했습니다</h2>
+    <p>‘{title}’의 최신 변경 내용을 이 PC에 보관하지 못했습니다. 다른 문서를 열기 전에 파일로 저장할 수 있습니다.</p>
+    <p className="muted">저장하지 않고 계속하면 저장되지 않은 변경 내용을 잃을 수 있습니다.</p>
+    {error && <p role="alert">{error}</p>}
+    <div className="dialog-actions">
+      <button autoFocus disabled={saving} onClick={onCancel}>취소</button>
+      <button disabled={saving} onClick={onDiscard}>저장하지 않고 계속</button>
+      <button className="primary" disabled={saving} onClick={async () => {
+        setSaving(true);
+        setError('');
+        try {
+          if (!await onSave()) setError('파일 저장을 완료하지 못했습니다. 다시 저장하거나 취소를 선택하세요.');
+        } finally { setSaving(false); }
+      }}>{saving ? '저장 중…' : '파일로 저장 후 계속'}</button>
+    </div>
+  </dialog>;
 }
 function FontSizeInput({
   value,
@@ -315,6 +348,8 @@ export default function App() {
     [tableRows, setTableRows] = useState(3),
     [tableCols, setTableCols] = useState(3);
   const [printPreview, setPrintPreview] = useState<PrintLayout | null>(null);
+  const [failedTransition, setFailedTransition] = useState<StudioDocument | null>(null);
+  const transitioning = useRef(false);
   const outputLayout = useRef<PrintLayout | null>(null);
   const fileInput = useRef<HTMLInputElement>(null),
     imageInput = useRef<HTMLInputElement>(null),
@@ -369,7 +404,9 @@ export default function App() {
           pendingRecovery.current = false;
           setSaved("이 PC에 저장됨");
         }
-      }).catch(() => { setSaved("자동 저장 실패 · 파일로 저장하세요"); });
+      }).catch(() => {
+        if (epoch === recoveryEpoch.current) setSaved("자동 저장 실패 · 파일로 저장하세요");
+      });
     }, 600);
     return () => clearTimeout(id);
   }, [documentId, title, page, comments, revision]);
@@ -409,30 +446,63 @@ export default function App() {
       );
   }, [page, editor]);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
-  const preserve = () => {
-    void saveRecovery(structuredClone(currentRef.current)).catch(() => notify('이전 문서의 복구본 저장에 실패했습니다.'));
-  };
-  const loadDoc = (doc: StudioDocument, html?: string) => {
-    preserve();
+  const activateDocument = (doc: StudioDocument) => {
+    if (!editor) return;
+    // A new EditorState resets history and selection plugins together. Merely
+    // excluding setContent from history would leave the old undo/redo branches.
+    editor.view.updateState(EditorState.create({
+      schema: editor.schema, doc: editor.schema.nodeFromJSON(doc.content), plugins: editor.state.plugins,
+    }));
+    ++recoveryEpoch.current;
+    pendingRecovery.current = true;
+    outputLayout.current?.dispose(); outputLayout.current = null;
+    document.body.classList.remove('studio-printing'); setPrintPreview(null);
+    setFailedTransition(null);
+    transitioning.current = false;
     setDocumentId(doc.id || crypto.randomUUID());
     setTitle(doc.title);
     setPage(doc.page);
     setComments(doc.comments);
-    editor?.commands.setContent(html ?? doc.content);
+    setRevision(value => value + 1);
     setModal(null);
     setFileMenu(false);
     setQuery("");
     setReadOnly(false);
     setPages(1);
+    setCurrentPage(1);
     workspaceRef.current?.scrollTo({ top: 0 });
     notify("문서를 열었습니다");
+  };
+  const loadDoc = async (doc: StudioDocument, html?: string) => {
+    if (!editor || transitioning.current) return false;
+    const next = validateDocument({ ...doc, content: html === undefined ? doc.content : generateJSON(html, editorExtensions) });
+    // Parse before replacing anything, including the current undo history.
+    editor.schema.nodeFromJSON(next.content).check();
+    transitioning.current = true;
+    try {
+      // Users can keep editing while disk I/O is pending. Flush a fresh snapshot
+      // if the document changed during the write, then switch without an await.
+      let snapshot: StudioDocument;
+      do {
+        snapshot = structuredClone(currentRef.current);
+        await saveRecovery(snapshot);
+      } while (documentContents(snapshot) !== documentContents(currentRef.current));
+      activateDocument(next);
+      return true;
+    } catch {
+      pendingRecovery.current = true;
+      setSaved('자동 저장 실패 · 파일로 저장하세요');
+      setModal(null); setFileMenu(false); setCommand(false);
+      setFailedTransition(next);
+      return false;
+    }
   };
   const readFile = async (file: File) => {
     setBusy(true);
     try {
       const result = await importFile(file);
-      loadDoc(result.document, result.html);
-      if (result.warnings.length) notify(result.warnings.join(" "));
+      const loaded = await loadDoc(result.document, result.html);
+      if (loaded && result.warnings.length) notify(result.warnings.join(" "));
     } catch (e) {
       notify(
         `파일을 열지 못했습니다: ${e instanceof Error ? e.message : String(e)}`,
@@ -454,8 +524,8 @@ export default function App() {
   };
   const save = async (
     extension: "wordstudio" | "docx" | "html" | "txt" = "wordstudio",
-  ) => {
-    if (!editor) return;
+  ): Promise<boolean> => {
+    if (!editor) return false;
     setBusy(true);
     setFileMenu(false);
     try {
@@ -486,7 +556,7 @@ export default function App() {
             data: new Uint8Array(await blob.arrayBuffer()),
           }))
         )
-          return;
+          return false;
       } else download(blob, name);
       notify(
         `${extension === "wordstudio" ? "문서" : extension.toUpperCase()} 파일을 저장했습니다` +
@@ -494,8 +564,10 @@ export default function App() {
             ? ` · ${DOCX_EXPORT_NOTICE}`
             : ""),
       );
+      return true;
     } catch (e) {
       notify(`저장 실패: ${e instanceof Error ? e.message : String(e)}`);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -573,6 +645,7 @@ export default function App() {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return;
+      if (document.querySelector('.save-failure-dialog[open]')) return;
       if (e.key === "Escape") {
         setModal(null);
         setCommand(false);
@@ -600,6 +673,7 @@ export default function App() {
     };
     window.addEventListener("keydown", key);
     const off = window.wordDesktop?.onMenu((a) => {
+      if (document.querySelector('.save-failure-dialog[open]')) return;
       const map: Record<string, string> = {
         new: "새 문서",
         open: "파일 열기",
@@ -2171,14 +2245,14 @@ export default function App() {
               <h3>최근 작업한 문서</h3>
               {readPreviousVersions().find(d => d.id === documentId) && <button className="recent-document" onClick={() => {
                 const previous = readPreviousVersions().find(d => d.id === documentId);
-                if (previous) loadDoc({ ...previous, id: crypto.randomUUID(), title: `${previous.title} · 복원본` });
+                if (previous) void loadDoc({ ...previous, id: crypto.randomUUID(), title: `${previous.title} · 복원본` });
               }}>이 문서의 이전 정상 버전을 복사해 열기</button>}
               {history.length ? (
                 history.map((d, i) => (
                   <button
                     className="recent-document"
                     key={i}
-                    onClick={() => loadDoc(d)}
+                    onClick={() => { void loadDoc(d); }}
                   >
                     <FileText size={22} />
                     <span>
@@ -2285,7 +2359,7 @@ export default function App() {
                       className="template-card"
                       key={t.name}
                       onClick={() =>
-                        loadDoc(blank(i === 0 ? "문서1" : t.name, t.html))
+                        void loadDoc(blank(i === 0 ? "문서1" : t.name, t.html))
                       }
                     >
                       <div className="template-preview">
@@ -2495,6 +2569,15 @@ export default function App() {
           </section>
         </div>
       )}
+      {failedTransition && <SaveFailureDialog title={title}
+        onCancel={() => { setFailedTransition(null); transitioning.current = false; }}
+        onDiscard={() => activateDocument(failedTransition)}
+        onSave={async () => {
+          const contents = documentContents(currentRef.current);
+          if (!await save() || contents !== documentContents(currentRef.current)) return false;
+          activateDocument(failedTransition);
+          return true;
+        }} />}
       {toast && (
         <div className="toast" role="status">
           <CheckCircle2 size={17} />

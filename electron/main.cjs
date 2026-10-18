@@ -340,6 +340,7 @@ else {
     }
   });
   app.whenReady().then(async () => {
+    if (process.platform === 'darwin') app.dock.setIcon(path.join(__dirname, 'WordStudio.png'));
     app.setAboutPanelOptions({ applicationName: PRODUCT_NAME, applicationVersion: app.getVersion(),
       copyright: 'An independent document editor. Not affiliated with Microsoft.' });
     hardenSession(); installIPC(); installMenu();

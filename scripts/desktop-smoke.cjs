@@ -9,8 +9,10 @@ const root = path.resolve(__dirname, '..');
 async function run() {
   const directory = await fs.mkdtemp(path.join(root, '.cache', 'desktop-smoke-'));
   const packaged = process.env.WORD_STUDIO_EXECUTABLE;
+  const suffix = process.platform === 'darwin' ? 'Electron.app/Contents/MacOS/Electron'
+    : process.platform === 'win32' ? 'electron.exe' : 'electron';
   const binary = packaged || [root, path.dirname(root), path.join(path.dirname(root), 'slide-studio')]
-    .map(dir => path.join(dir, 'node_modules/electron/dist/electron.exe')).find(file => fsSync.existsSync(file));
+    .map(dir => path.join(dir, 'node_modules/electron/dist', suffix)).find(file => fsSync.existsSync(file));
   if (!binary) throw new Error('Install Electron before running the desktop smoke test.');
   const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.WORD_STUDIO_DEV;
   const app = await electron.launch({ executablePath: binary, args: [...(packaged ? [] : [root]), `--user-data-dir=${path.join(directory, 'profile')}`], env });
@@ -27,7 +29,7 @@ async function run() {
       dialog.showSaveDialog = async () => ({ canceled: false, filePath: paths.pdf });
     }, { fixture, pdf });
     await window.locator('.tiptap').waitFor();
-    await window.keyboard.press('Control+o');
+    await window.keyboard.press('ControlOrMeta+o');
     await expect(window.locator('.tiptap table tr')).toHaveCount(81);
     await expect(window.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
     const recovery = await window.evaluate(() => window.wordDesktop.readRecovery());
@@ -76,8 +78,48 @@ async function run() {
     assert.equal(await window.locator('.print-layout').count(), 0);
     const isolation = await window.evaluate(() => ({ node: typeof window.require, bridge: typeof window.wordDesktop.saveRecovery, paste: typeof window.wordDesktop.paste }));
     assert.deepEqual(isolation, { node: 'undefined', bridge: 'function', paste: 'function' });
+
+    // Exercise real IPC and filesystem errors, using only this run's profile.
+    const recoveryDirectory = path.join(directory, 'profile', 'recovery');
+    const recoveryBackup = path.join(directory, 'recovery-before-fault');
+    const nextFixture = path.join(directory, 'next.txt');
+    const savedCopy = path.join(directory, 'preserved.wordstudio');
+    await fs.writeFile(nextFixture, 'NEXT DOCUMENT');
+    await fs.rename(recoveryDirectory, recoveryBackup);
+    await fs.writeFile(recoveryDirectory, 'Deliberately block recovery writes in this test profile.');
+    try {
+      await window.locator('.document-stack .tiptap').fill('UNSAVED DESKTOP EDIT');
+      await expect(window.getByText('자동 저장 실패 · 파일로 저장하세요', { exact: true })).toBeVisible();
+      await app.evaluate(({ dialog }, filename) => {
+        dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filename] });
+        dialog.showSaveDialog = async () => ({ canceled: true });
+      }, nextFixture);
+      const warning = window.getByRole('dialog', { name: '현재 문서를 저장하지 못했습니다' });
+      await window.keyboard.press('ControlOrMeta+o');
+      await expect(warning).toBeVisible();
+      await warning.getByRole('button', { name: '취소', exact: true }).click();
+      await expect(window.locator('.document-stack .tiptap')).toHaveText('UNSAVED DESKTOP EDIT');
+      await window.keyboard.press('ControlOrMeta+o');
+      await warning.getByRole('button', { name: '파일로 저장 후 계속' }).click();
+      await expect(warning.getByRole('alert')).toBeVisible();
+      await expect(window.locator('.document-stack .tiptap')).toHaveText('UNSAVED DESKTOP EDIT');
+      await app.evaluate(({ dialog }, filename) => {
+        dialog.showSaveDialog = async () => ({ canceled: false, filePath: filename });
+      }, savedCopy);
+      await warning.getByRole('button', { name: '파일로 저장 후 계속' }).click();
+      await expect(window.locator('.document-stack .tiptap')).toHaveText('NEXT DOCUMENT');
+      const copy = JSON.parse(await fs.readFile(savedCopy, 'utf8'));
+      assert.ok(JSON.stringify(copy.content).includes('UNSAVED DESKTOP EDIT'));
+      await expect(window.getByRole('button', { name: '실행 취소 (Ctrl+Z)', exact: true })).toBeDisabled();
+    } finally {
+      await fs.unlink(recoveryDirectory);
+      await fs.rename(recoveryBackup, recoveryDirectory);
+    }
+    await expect(window.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
     assert.deepEqual(errors, []);
-    const report = { passed: true, packaged: Boolean(packaged), tableContextMenu: true, tableRowResize: true, previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length, rendererErrors: errors, directory };
+    const report = { passed: true, packaged: Boolean(packaged), platform: process.platform, tableContextMenu: true, tableRowResize: true,
+      previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length,
+      failedRecoveryProtected: true, savedCopyVerified: true, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report, null, 2));
   } finally { await app.close(); }

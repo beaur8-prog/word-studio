@@ -19,7 +19,7 @@ test("editing, formatting, undo, search/replace, and automatic restore", async (
   const edit = page.locator(".tiptap");
   await edit.click();
   await page.keyboard.type("Hello Studio");
-  await page.keyboard.press("Control+a");
+  await page.keyboard.press("ControlOrMeta+a");
   await page
     .getByRole("button", { name: "굵게 (Ctrl+B)", exact: true })
     .click();
@@ -132,12 +132,13 @@ test("multi-page flow and explicit page breaks keep text inside page margins", a
   });
   expect(violation).toEqual([]);
   await page.locator(".tiptap").click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End");
   await page.getByRole("button", { name: "삽입", exact: true }).click();
   await page
     .getByRole("button", { name: "페이지 나누기", exact: true })
     .click();
   await expect(page.locator(".page-break")).toHaveCount(1);
+  await expect(page.locator(".tiptap")).toBeFocused();
   await page.keyboard.type("Next page");
   await expect(page.locator(".tiptap")).toContainText("Next page");
 });
@@ -173,7 +174,7 @@ test("all ribbons, light theme, navigation, read mode and image insertion render
     "true",
   );
   await page.locator(".tiptap").click();
-  await page.keyboard.press("Control+End");
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+ArrowDown" : "Control+End");
   await page
     .locator("input[type=file]")
     .nth(1)

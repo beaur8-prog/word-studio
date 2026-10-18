@@ -1366,6 +1366,9 @@ button:hover:not(:disabled) {
   color: var(--chrome-secondary);
   margin-top: 6px;
 }
+.save-failure-dialog { color: var(--chrome-text); background: var(--chrome-surface); border: 1px solid var(--chrome-border); max-width: min(600px, calc(100vw - 40px)); }
+.save-failure-dialog::backdrop { background: #0009; }
+.save-failure-dialog .dialog-actions { flex-wrap: wrap; }
 .modal-overlay {
   position: fixed;
   inset: 0;
