@@ -18,6 +18,8 @@ async function run() {
   const app = await electron.launch({ executablePath: binary, args: [...(packaged ? [] : [root]), `--user-data-dir=${path.join(directory, 'profile')}`], env });
   try {
     const window = await app.firstWindow();
+    const rendererSandboxed = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox);
+    assert.equal(rendererSandboxed, true, 'Packaged apps must keep the renderer sandbox enabled.');
     // Hosted Windows runners can have a 1024px display, where the responsive
     // ribbon intentionally hides the save label. Keep this desktop scenario
     // at the same viewport as the browser suite on every host.
@@ -123,7 +125,7 @@ async function run() {
     assert.deepEqual(errors, []);
     const report = { passed: true, packaged: Boolean(packaged), platform: process.platform, tableContextMenu: true, tableRowResize: true,
       previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length,
-      failedRecoveryProtected: true, savedCopyVerified: true, rendererErrors: errors, directory };
+      failedRecoveryProtected: true, savedCopyVerified: true, rendererSandboxed, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report, null, 2));
   } finally { await app.close(); }

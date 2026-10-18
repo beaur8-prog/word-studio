@@ -10,6 +10,76 @@ permissions:
   contents: read
 
 jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Prepare Linux desktop test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb fonts-noto-cjk desktop-file-utils
+          npx playwright install --with-deps chromium
+      - run: npm run test:native
+      - run: npm test -- --reporter=line
+        env:
+          PLAYWRIGHT_CHANNEL: chromium
+      - run: npm run package:linux
+      - name: Test installed Debian package and data preservation
+        run: xvfb-run -a npm run test:linux-package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: word-studio-linux-release
+          path: |
+            release/linux/Word-Studio-*-linux-x64.deb
+            release/linux/BUILD-linux-x64.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-22-test-evidence
+          include-hidden-files: true
+          path: |
+            .cache/linux-package-test.json
+            .cache/desktop-smoke-*/result.json
+            .cache/desktop-smoke-*/*.png
+            .cache/desktop-smoke-*/*.pdf
+            test-results/
+  linux-24:
+    needs: linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb fonts-noto-cjk desktop-file-utils
+      - uses: actions/download-artifact@v4
+        with:
+          name: word-studio-linux-release
+          path: release/linux
+      - name: Test the same Debian package on Ubuntu 24.04
+        run: xvfb-run -a npm run test:linux-package
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-24-test-evidence
+          include-hidden-files: true
+          path: |
+            .cache/linux-package-test.json
+            .cache/desktop-smoke-*/result.json
+            .cache/desktop-smoke-*/*.png
+            .cache/desktop-smoke-*/*.pdf
   windows:
     runs-on: windows-latest
     timeout-minutes: 20

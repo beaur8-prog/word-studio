@@ -69,7 +69,15 @@ async function createMacIcon(destination) {
   } finally { await fs.rm(directory, { recursive: true, force: true }); }
 }
 
-module.exports = { createWindowsIcon, createMacIcon };
+async function createLinuxIcon(destination) {
+  const sharp = require(require.resolve('sharp', { paths: dependencyPaths }));
+  await fs.mkdir(destination, { recursive: true });
+  const icon = path.join(destination, '512x512.png');
+  await sharp(Buffer.from(ICON_SVG)).resize(512, 512).png().toFile(icon);
+  return icon;
+}
+
+module.exports = { createWindowsIcon, createMacIcon, createLinuxIcon };
 if (require.main === module) createWindowsIcon(path.resolve(process.argv[2] || path.join(root, 'electron')))
   .then(filename => console.log(filename))
   .catch(error => { console.error(error.message); process.exitCode = 1; });
