@@ -1,8 +1,8 @@
 # Word Studio
 
-Windows·macOS용 로컬 문서 편집기입니다. 한국어 리본, 서식 편집, 표·그림·메모, DOCX 변환과 PDF 출력을 제공합니다. Microsoft Word의 화면과 배포 파일 구조를 관찰해 독립적으로 구현했습니다.
+Windows·macOS·Linux용 로컬 문서 편집기입니다. 한국어 리본, 서식 편집, 표·그림·메모, DOCX 변환과 PDF 출력을 제공합니다. Microsoft Word의 화면과 배포 파일 구조를 관찰해 독립적으로 구현했습니다.
 
-일반 사용자는 [최신 릴리즈](https://github.com/beaur8-prog/word-studio/releases/latest)에서 앱을 내려받으세요. [다운로드·설치·사용 안내와 버전별 변경 내역](USER_GUIDE.md)에 Mac과 Windows의 설치, 실행, 업데이트 방법을 정리했습니다.
+일반 사용자는 [최신 릴리즈](https://github.com/beaur8-prog/word-studio/releases/latest)에서 앱을 내려받으세요. [다운로드·설치·사용 안내와 버전별 변경 내역](USER_GUIDE.md)에 Mac·Windows·Linux의 설치, 실행, 업데이트 방법을 정리했습니다.
 
 > **첫 설치·실행 시 운영체제의 보안 경고가 나타날 수 있습니다.** Mac 배포본은 Apple Developer ID 서명·공증을 받지 않았고, Windows 설치 파일과 앱은 코드 서명을 받지 않았습니다. Mac에서는 개발자 확인 또는 실행 차단 안내가, Windows에서는 SmartScreen 또는 알 수 없는 게시자 경고가 나타날 수 있습니다. 경고 문구와 실행 허용 여부는 운영체제 버전·보안 설정·조직 정책에 따라 다릅니다. 자세한 내용은 [설치·실행 안내](USER_GUIDE.md)를 참고하세요.
 
@@ -22,11 +22,22 @@ npm start
 npm run package:win
 ```
 
-Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.2.3-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
+Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.2.4-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
 
 `npm run package:win:dir`은 앱 폴더만, `npm run package:win:setup`은 이미 만든 앱 폴더로 설치 파일만 생성합니다. 설치 파일 빌드와 실제 설치·재설치·제거 시험은 Windows GitHub Actions에서 수행합니다. 빌드 설정은 [electron-builder.config.cjs](electron-builder.config.cjs), 격리된 CI 시험은 [scripts/test-windows-installer.ps1](scripts/test-windows-installer.ps1)에 있습니다. NSIS 옵션은 [electron-builder 공식 문서](https://www.electron.build/docs/nsis/)를 따릅니다. 설치·재설치·제거는 `%APPDATA%\Word Studio` 복구 데이터와 사용자가 저장한 문서를 지우지 않습니다.
 
 Mac에서는 `npm run package:mac`으로 기존 파란 문서·연필 아이콘을 적용한 `Word Studio.app`을 만듭니다. 검증된 앱은 `~/Library/Caches/WordStudioBuild/Word Studio.app`, 배포 ZIP은 `release/Word-Studio-mac-arm64.zip`(Intel Mac은 `x64`)에 생성됩니다. 앱을 응용 프로그램 폴더에 복사해 실행할 수 있습니다. 이 빌드는 로컬 사용을 위한 임시 서명이며 Apple 공증은 포함하지 않습니다. `npm start` 개발 실행에서도 같은 Dock 아이콘을 사용합니다.
+
+## Linux 패키징
+
+```sh
+npm ci
+npm run package:linux
+```
+
+Linux x64에서 `release/linux/Word-Studio-1.2.4-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
+
+사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.2.4-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
 
 ## 1.2.1 표 행 높이
 

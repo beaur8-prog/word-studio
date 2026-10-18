@@ -1,6 +1,6 @@
 # Word Studio 다운로드 및 사용 안내
 
-**현재 배포 버전: 1.2.3 · 2026년 10월 18일**
+**현재 배포 버전: 1.2.4 · 2026년 10월 18일**
 
 Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DOCX와 PDF로 내보내는 로컬 문서 편집기입니다. 설치 후에는 Microsoft Word, Node.js, 계정 또는 인터넷 연결 없이 문서를 작성할 수 있습니다. Microsoft와 관련 없는 독립 앱이며 Word의 모든 기능을 지원하지는 않습니다.
 
@@ -17,10 +17,11 @@ Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DO
 
 | 컴퓨터 | 배포 파일 | 설치 방식 |
 | --- | --- | --- |
-| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.2.3-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.3/Word-Studio-1.2.3-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
-| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.2.3-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.3/Word-Studio-1.2.3-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
+| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.2.4-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.4/Word-Studio-1.2.4-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
+| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.2.4-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.4/Word-Studio-1.2.4-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
+| Linux · Ubuntu 22.04 / 24.04 LTS · Intel/AMD 64비트(x64) | [Word-Studio-1.2.4-linux-x64.deb](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.4/Word-Studio-1.2.4-linux-x64.deb) | apt로 설치 → 앱 메뉴 또는 word-studio 명령으로 실행 |
 
-현재 Intel Mac용과 Windows ARM64 전용 배포 파일은 제공하지 않습니다. GitHub의 **Source code** 파일은 개발용 소스이므로 일반 설치에는 위의 Mac ZIP 또는 Windows Setup을 사용하세요.
+Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 DEB 패키지입니다. 다른 Debian 계열 배포판은 라이브러리 호환성을 확인해야 합니다. Intel Mac용, Windows ARM64용, Linux ARM64용 파일은 제공하지 않습니다. GitHub의 **Source code** 파일은 개발용 소스이므로 일반 설치에는 위의 운영체제별 배포 파일을 사용하세요.
 
 ## 2. Mac 설치 및 실행
 
@@ -33,7 +34,7 @@ Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DO
 
 ## 3. Windows 설치 및 실행
 
-1. **Word-Studio-1.2.3-windows-x64-setup.exe**를 다운로드하고 두 번 클릭합니다. 압축을 풀 필요가 없습니다.
+1. **Word-Studio-1.2.4-windows-x64-setup.exe**를 다운로드하고 두 번 클릭합니다. 압축을 풀 필요가 없습니다.
 2. 언어를 선택하고 설치 마법사를 진행합니다. **현재 사용자용** 설치가 기본이며, 필요하면 설치 경로를 바꿀 수 있습니다.
 3. **설치**를 누르고 완료될 때까지 기다립니다. **Word Studio 실행**을 선택한 채로 **마침**을 누르면 앱이 열립니다.
 4. 이후에는 시작 메뉴 또는 바탕 화면의 **Word Studio** 바로 가기로 실행합니다.
@@ -46,19 +47,45 @@ Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DO
 
 Windows 배포 파일은 코드 서명을 받지 않았습니다. SmartScreen 등의 경고가 나타나면 이 릴리즈의 파일명과 SHA-256을 확인하고, 출처를 신뢰할 때에만 해당 파일의 실행 여부를 결정하세요. 회사·학교 PC의 정책으로 차단되는 경우 관리자에게 문의하세요. SmartScreen의 경고 동작은 [Microsoft 공식 안내](https://learn.microsoft.com/ko-kr/windows/apps/package-and-deploy/smartscreen-reputation)를 참고하세요.
 
-## 4. 첫 문서 작성과 저장
+## 4. Linux 설치 및 실행
 
-1. **파일 → 새 문서**에서 빈 문서를 선택합니다. 단축키는 Mac `⌘N`, Windows `Ctrl+N`입니다.
+DEB 패키지는 **Intel/AMD 64비트(amd64/x86_64)** 데스크톱용입니다. Ubuntu 22.04·24.04 LTS에서 설치와 실행을 검증했습니다.
+
+1. **Word-Studio-1.2.4-linux-x64.deb**를 다운로드합니다.
+2. 터미널에서 다운로드한 파일이 있는 폴더로 이동하고 다음 명령으로 설치합니다.
+
+```sh
+sudo apt install ./Word-Studio-1.2.4-linux-x64.deb
+```
+
+3. 설치가 끝나면 앱 메뉴의 **Word Studio**를 선택하거나 일반 사용자 터미널에서 `word-studio`를 실행합니다.
+4. 첫 문서는 **파일 → 새 문서**로 시작합니다. 저장과 편집 단축키는 Windows와 같은 `Ctrl` 조합입니다.
+
+필요한 시스템 라이브러리와 권장 한글 글꼴은 apt가 내려받으므로 설치 중 인터넷 연결이 필요할 수 있습니다. 설치 후 문서 작성에는 Node.js·Microsoft Word·계정이 필요하지 않습니다. 한글이 네모로 보이면 `sudo apt install fonts-noto-cjk`로 한글 글꼴을 설치하고 앱을 다시 실행하세요.
+
+새 버전도 같은 `sudo apt install ./새로운파일.deb` 명령으로 설치합니다. 제거할 때는 아래 명령을 사용합니다.
+
+```sh
+sudo apt remove word-studio
+```
+
+직접 저장한 문서와 자동 복구 데이터는 재설치·제거 후에도 유지됩니다. 복구 데이터의 기본 위치는 `~/.config/Word Studio/recovery`이며, `XDG_CONFIG_HOME`을 지정했다면 `$XDG_CONFIG_HOME/Word Studio/recovery`에 저장됩니다.
+
+이 DEB는 배포판 공식 저장소에 등록된 패키지가 아닙니다. 설치 전 다운로드 출처와 함께 제공하는 SHA-256을 확인하세요.
+
+## 5. 첫 문서 작성과 저장
+
+1. **파일 → 새 문서**에서 빈 문서를 선택합니다. 단축키는 Mac `⌘N`, Windows·Linux `Ctrl+N`입니다.
 2. 위쪽 **문서 제목**을 바꾸고 가운데 흰 종이의 본문을 클릭해 입력합니다.
 3. **홈**에서 글꼴·크기·제목 스타일·정렬을 적용합니다.
-4. Mac `⌘S`, Windows `Ctrl+S`를 눌러 `.wordstudio` 파일로 저장합니다. 편집 상태를 보존하는 기본 형식입니다.
+4. Mac `⌘S`, Windows·Linux `Ctrl+S`를 눌러 `.wordstudio` 파일로 저장합니다. 편집 상태를 보존하는 기본 형식입니다.
 5. 다른 사람에게 전달할 때는 **내보내기**에서 **DOCX** 또는 **PDF**를 선택합니다.
 
 상단의 **이 PC에 저장됨**은 현재 컴퓨터의 자동 복구 저장 상태입니다. 별도 문서 파일 백업을 대신하지 않습니다. 작업이 끝나면 `.wordstudio` 파일을 직접 저장하세요.
 
 다른 문서를 열기 전에 복구 저장에 실패하면 **파일로 저장 후 계속 / 저장하지 않고 계속 / 취소**가 나타납니다. 취소하면 현재 문서를 유지합니다. 사본 저장을 취소하거나 저장에 실패한 경우에도 문서를 전환하지 않습니다.
 
-## 5. 주요 기능 사용법
+## 6. 주요 기능 사용법
 
 | 하고 싶은 일 | 방법 |
 | --- | --- |
@@ -76,9 +103,9 @@ Windows 배포 파일은 코드 서명을 받지 않았습니다. SmartScreen �
 
 행 높이는 내용을 자르지 않는 **최소 높이**입니다. 글자와 여백보다 작게 줄이면 내용에 필요한 높이를 유지합니다. 표 서식과 행 높이는 자체 문서·HTML·DOCX·PDF에 보존됩니다.
 
-## 6. Mac과 Windows 단축키
+## 7. Mac·Windows·Linux 단축키
 
-| 작업 | Mac | Windows |
+| 작업 | Mac | Windows·Linux |
 | --- | --- | --- |
 | 새 문서 | `⌘N` | `Ctrl+N` |
 | 열기 | `⌘O` | `Ctrl+O` |
@@ -94,12 +121,12 @@ Windows 배포 파일은 코드 서명을 받지 않았습니다. SmartScreen �
 
 Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편집 단축키는 `⌘`를 사용합니다. 기능 키 설정에 따라 `Shift+F10`에는 `Fn`도 필요할 수 있습니다.
 
-## 7. 업데이트와 데이터 보관
+## 8. 업데이트와 데이터 보관
 
 1. 중요한 문서를 `.wordstudio` 파일로 저장합니다.
 2. 저장 상태를 확인하고 Word Studio를 완전히 종료합니다.
-3. 운영체제에 맞는 새 배포 파일을 받습니다. Mac은 ZIP을 풀고, Windows는 Setup을 실행합니다.
-4. Mac은 기존 앱을 새 앱으로 교체합니다. Windows는 설치 마법사로 기존 설치를 갱신합니다. 문서와 복구 데이터는 유지됩니다.
+3. 운영체제에 맞는 새 배포 파일을 받습니다. Mac은 ZIP을 풀고, Windows는 Setup을 실행하고, Linux는 DEB를 apt로 설치합니다.
+4. Mac은 기존 앱을 새 앱으로 교체합니다. Windows는 설치 마법사로, Linux는 apt로 기존 설치를 갱신합니다. 문서와 복구 데이터는 유지됩니다.
 5. 새 앱에서 저장한 문서를 열어 확인합니다.
 
 자동 업데이트 기능은 없습니다. 새 버전은 [최신 릴리즈](https://github.com/beaur8-prog/word-studio/releases/latest)에서 확인하세요.
@@ -109,10 +136,18 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 | 직접 저장한 문서 | 저장 대화상자에서 선택한 폴더 |
 | Mac 자동 복구본 | `~/Library/Application Support/Word Studio/recovery` |
 | Windows 자동 복구본 | `%APPDATA%\Word Studio\recovery` |
+| Linux 자동 복구본 | `~/.config/Word Studio/recovery` 또는 `$XDG_CONFIG_HOME/Word Studio/recovery` |
 
 앱 파일 교체와 자동 복구 데이터는 별개입니다. 앱을 지워도 직접 저장한 문서는 그대로 남습니다. 자동 복구 폴더를 지우면 해당 복구본을 사용할 수 없으므로 백업 전에 삭제하지 마세요.
 
-## 8. 버전별 변경 내역
+## 9. 버전별 변경 내역
+
+### 1.2.4 · 2026-10-18
+
+- Linux x64 DEB 배포를 추가했습니다. Ubuntu 22.04·24.04 LTS에서 설치·실행·재설치·제거와 문서·복구 데이터 보존을 확인했습니다.
+- Linux 앱 메뉴와 전용 아이콘, `word-studio` 실행 명령을 제공합니다.
+- Linux에서도 표 편집·행 높이·저장 실패 보호·사본 저장·PDF 출력을 시험하며 렌더러 샌드박스를 유지합니다.
+- Mac·Windows 배포본도 1.2.4로 맞추고 Linux 설치·업데이트·제거·단축키 안내를 추가했습니다.
 
 ### 1.2.3 · 2026-10-18
 
@@ -151,12 +186,14 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 - DOCX의 구역별 용지·여백·방향·머리글·바닥글과 메모 위치·해결 상태를 보존합니다.
 - 파일 기반 자동 복구, 직전 정상 버전, 문서별 ID와 종료 보호를 추가했습니다.
 
-## 9. 문제 해결과 호환 범위
+## 10. 문제 해결과 호환 범위
 
 | 증상 | 확인할 내용 |
 | --- | --- |
 | Windows에서 실행되지 않음 | Setup 설치를 완료했는지 확인한 뒤 시작 메뉴의 Word Studio로 실행. 문제가 계속되면 앱을 종료하고 Setup 재실행 |
 | Mac에서 열리지 않음 | Apple Silicon용 파일인지, macOS 12 이상인지, 위의 첫 실행 안내에 해당하는지 확인 |
+| Linux에서 설치·실행되지 않음 | x64 데스크톱인지 확인하고 apt로 설치. 의존성·권한 오류 내용을 확인하며 앱은 일반 사용자로 실행 |
+| Linux에서 한글이 네모로 보임 | `sudo apt install fonts-noto-cjk`로 한글 글꼴 설치 후 앱 다시 실행 |
 | 입력·표 편집이 되지 않음 | **읽기 모드**를 해제하고 문서 본문을 클릭 |
 | 자동 저장 실패 | 디스크 공간·폴더 권한 확인 후 파일로 사본 저장. 저장 완료 전 강제 종료하지 않기 |
 | 저장 상태 표시가 보이지 않음 | 좁은 창에서는 상단 표시가 숨겨집니다. 창을 충분히 넓힌 뒤 확인 |
@@ -168,28 +205,35 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 
 검증 범위와 결과는 [VALIDATION.md](VALIDATION.md), 개발 실행 방법은 [README.md](README.md)에 기록합니다. 오류를 알릴 때는 운영체제·버전·재현 순서를 [이슈](https://github.com/beaur8-prog/word-studio/issues)에 남기고, 개인 문서 대신 민감한 내용을 제거한 예제를 사용하세요.
 
-## 10. 다운로드 파일 확인
+## 11. 다운로드 파일 확인
 
-릴리즈에 함께 제공되는 `SHA256SUMS.txt`와 다운로드한 ZIP 또는 Setup의 SHA-256을 비교할 수 있습니다.
+릴리즈에 함께 제공되는 `SHA256SUMS.txt`와 다운로드한 ZIP·Setup·DEB의 SHA-256을 비교할 수 있습니다.
 
 Mac 터미널:
 
 ```sh
-shasum -a 256 Word-Studio-1.2.3-mac-arm64.zip
+shasum -a 256 Word-Studio-1.2.4-mac-arm64.zip
 ```
 
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\Word-Studio-1.2.3-windows-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Word-Studio-1.2.4-windows-x64-setup.exe -Algorithm SHA256
+```
+
+Linux 터미널:
+
+```sh
+sha256sum Word-Studio-1.2.4-linux-x64.deb
 ```
 
 표시된 값이 `SHA256SUMS.txt`의 해당 파일 값과 일치하는지 확인하세요.
 
-## 11. 이번 배포의 확인 결과
+## 12. 이번 배포의 확인 결과
 
-- Mac과 Windows의 브라우저 기능 시험 25개, 복구 저장 시험을 통과했습니다.
-- Windows Setup의 새 설치·바로 가기·앱 등록·재설치·제거와 문서·복구 데이터 보존을 확인했습니다.
-- 양쪽 운영체제에서 실제 패키징한 앱으로 표 서식·행 높이·저장 실패 보호·사본 저장·PDF 출력을 확인했습니다.
-- 시험 문서는 Mac에서 미리보기·PDF 7쪽, Windows에서 각각 8쪽으로 일치했습니다. 글꼴 환경에 따라 운영체제 간 줄바꿈·페이지 수는 달라질 수 있습니다.
-- [Windows 실행 검증 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39090153008)에서 빌드와 시험 결과를 확인할 수 있습니다. 실제 프린터 출력은 별도로 시험하지 않았습니다.
+- Mac·Windows·Ubuntu 22.04에서 브라우저 기능 시험 25개씩과 네이티브 복구 저장 시험을 통과했습니다.
+- Linux DEB는 같은 파일을 Ubuntu 22.04·24.04 LTS x64에 설치해 버전·설치 파일 해시·앱 메뉴·실제 앱 실행·재설치·제거와 문서·복구 데이터 보존을 확인했습니다.
+- Windows Setup도 새 설치·바로 가기·앱 등록·재설치·제거와 데이터 보존을 확인했습니다.
+- 세 운영체제의 실제 배포 앱에서 표 메뉴·행 높이·저장 실패 보호·사본 저장·PDF 출력을 확인했습니다. 모든 환경에서 렌더러 샌드박스가 활성화됐고 렌더러 오류는 없었습니다.
+- 시험 문서는 Mac에서 미리보기·PDF 각각 7쪽, Windows와 Ubuntu 22.04에서 각각 8쪽으로 일치했습니다. 글꼴 환경에 따라 운영체제 간 페이지 수는 달라질 수 있습니다.
+- [Windows·Linux 실행 검증 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39106259062)에서 빌드와 시험 결과를 확인할 수 있습니다. Linux GUI 자동 시험은 Xvfb의 X11 환경을 사용했습니다. Wayland와 실제 프린터 출력은 별도로 시험하지 않았습니다.

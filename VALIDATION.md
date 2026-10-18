@@ -1,4 +1,17 @@
-# Word Studio 1.2.3 검증
+# Word Studio 1.2.4 검증
+
+## 2026-10-18 1.2.4 Linux 배포 검증
+
+- [GitHub Actions](https://github.com/beaur8-prog/word-studio/actions/runs/39106259062)의 `linux`(Ubuntu 22.04), `linux-24`(Ubuntu 24.04), `windows` 작업이 모두 통과했습니다. 최종 앱 코드는 `006a8ba`입니다.
+- Mac·Windows·Ubuntu 22.04에서 브라우저 기능 시험 25개씩과 네이티브 복구 저장 시험 1개씩이 통과했습니다.
+- Linux DEB는 Ubuntu 22.04에서 생성한 같은 파일을 Ubuntu 22.04·24.04 x64에 설치했습니다. 설치된 실행 파일/ASAR가 빌드 시점의 SHA-256과 일치하고 앱 버전이 1.2.4인지 확인했습니다. Linux 실행 파일은 ELF입니다.
+- Linux 앱 메뉴의 desktop 파일을 `desktop-file-validate`로 검사하고 전용 아이콘 연결, `StartupWMClass`, `word-studio` 실행 명령을 확인했습니다. 실제 설치된 앱에서 표 메뉴·행 높이·복구 실패 보호·사본 저장·PDF 출력을 시험했습니다.
+- Linux의 같은 DEB 재설치와 패키지 제거를 확인했으며 앱 실행 파일·바로 가기는 정리되고 설치 전 만든 사용자 문서와 복구 파일은 원래 내용으로 남았습니다.
+- Ubuntu 22.04 실제 앱: 미리보기 8쪽 / PDF 8쪽, PDF 46,369바이트, 렌더러 오류 0개. 결과는 `.cache/release-1.2.4-linux-22-evidence/`에 있습니다. Ubuntu 24.04 설치·실행 결과는 `.cache/release-1.2.4-linux-24-evidence/`에 있습니다.
+- Windows 1.2.4 Setup의 설치·재설치·제거·데이터 보존과 설치된 앱 검증이 통과했습니다. 미리보기 8쪽 / PDF 8쪽, PDF 41,533바이트, 렌더러 오류 0개.
+- Mac 최종 1.2.4 앱도 통과했습니다. 미리보기 7쪽 / PDF 7쪽, PDF 78,791바이트, 렌더러 오류 0개. 결과는 `.cache/desktop-smoke-Mqij1Q/result.json`에 있습니다. 배포 ZIP은 CRC, 재추출 후 버전과 `codesign --verify --deep --strict`를 확인했습니다.
+- 모든 실제 앱 시험에서 `sandbox: true` 렌더러 설정을 확인했으며 Linux 실행에 `--no-sandbox`를 추가하지 않았습니다.
+- Linux GUI 자동 시험은 Xvfb/X11 환경입니다. Wayland와 실제 프린터 출력, Linux ARM64, RPM·AppImage 패키지는 이번 배포에서 검증하지 않았습니다.
 
 ## 2026-10-18 1.2.3 Windows Setup 검증
 
