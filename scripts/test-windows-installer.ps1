@@ -75,8 +75,16 @@ try {
   $uninstaller = @(Get-ChildItem $installDir -Filter '*Uninstall*.exe')
   if ($uninstaller.Count -ne 1) { throw 'Expected exactly one uninstaller.' }
   Run-Installer $uninstaller[0].FullName @('/S', '/currentuser')
+  # NSIS runs its uninstaller from a temporary child process. The original
+  # process can exit before shortcut and registry cleanup has finished.
   $deadline = (Get-Date).AddSeconds(30)
-  while ((Test-Path $executable) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
+  do {
+    $leftoverFiles = @(@($executable, $desktopLink, $startLink) | Where-Object { Test-Path $_ })
+    $remaining = @(Get-ItemProperty 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/*' |
+      Where-Object { $_.PSObject.Properties['DisplayName'] -and $_.DisplayName -eq 'Word Studio' })
+    if ($leftoverFiles.Count -eq 0 -and $remaining.Count -eq 0) { break }
+    Start-Sleep -Milliseconds 250
+  } while ((Get-Date) -lt $deadline)
   foreach ($file in @($executable, $desktopLink, $startLink)) {
     if (Test-Path $file) { throw "Uninstall left an application file or shortcut: $file" }
   }
