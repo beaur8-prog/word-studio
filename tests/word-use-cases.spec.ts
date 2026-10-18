@@ -189,6 +189,9 @@ test('header dialog creates and edits independent first and even page content', 
   await page.getByRole('textbox', { name: '짝수 페이지 머리글', exact: true }).fill('Even');
   await page.getByRole('button', { name: '완료', exact: true }).click();
   await expect(page.locator('.paper-header').first()).toHaveText('Cover');
+  // Rendering a header is immediate; recovery is deliberately debounced.
+  // Reload only after persistence completes, as in the lifecycle tests.
+  await expect(page.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.locator('.paper-header').first()).toHaveText('Cover');
 });
