@@ -24,22 +24,14 @@ jobs:
       - run: npm run test:native
       - run: npm test -- --reporter=line
       - run: npm run package:win
-      - name: Test the Windows application
+      - name: Test Windows setup, installed application, reinstall and uninstall
         shell: pwsh
-        run: |
-          $env:WORD_STUDIO_EXECUTABLE = Join-Path $pwd 'release/windows/Word Studio/Word Studio.exe'
-          npm run test:desktop
-          exit $LASTEXITCODE
-      - name: Archive Windows application
-        shell: pwsh
-        run: |
-          $version = (Get-Content package.json | ConvertFrom-Json).version
-          Compress-Archive -Path 'release/windows/Word Studio' -DestinationPath "release/Word-Studio-$version-windows-x64.zip"
+        run: ./scripts/test-windows-installer.ps1
       - uses: actions/upload-artifact@v4
         with:
           name: word-studio-windows-release
           path: |
-            release/Word-Studio-*-windows-x64.zip
+            release/installer/Word-Studio-*-windows-x64-setup.exe
             release/windows/BUILD-win-x64.json
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
@@ -49,6 +41,7 @@ jobs:
           include-hidden-files: true
           path: |
             .cache/desktop-smoke-*/result.json
+            .cache/installer-test.json
             .cache/desktop-smoke-*/*.png
             .cache/desktop-smoke-*/*.pdf
             test-results/

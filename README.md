@@ -20,7 +20,9 @@ npm start
 npm run package:win
 ```
 
-Windows x64 포터블 폴더를 `release/windows/Word Studio`에 생성합니다. 공식 Electron 런타임 다운로드와 체크섬 검증을 수행합니다. 실행 중인 이전 배포본은 종료한 뒤 다시 패키징하세요. 실행 파일만 옮기지 말고 폴더 전체를 이동해야 합니다. 배포본 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
+Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.2.3-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
+
+`npm run package:win:dir`은 앱 폴더만, `npm run package:win:setup`은 이미 만든 앱 폴더로 설치 파일만 생성합니다. 설치 파일 빌드와 실제 설치·재설치·제거 시험은 Windows GitHub Actions에서 수행합니다. 빌드 설정은 [electron-builder.config.cjs](electron-builder.config.cjs), 격리된 CI 시험은 [scripts/test-windows-installer.ps1](scripts/test-windows-installer.ps1)에 있습니다. NSIS 옵션은 [electron-builder 공식 문서](https://www.electron.build/docs/nsis/)를 따릅니다. 설치·재설치·제거는 `%APPDATA%\Word Studio` 복구 데이터와 사용자가 저장한 문서를 지우지 않습니다.
 
 Mac에서는 `npm run package:mac`으로 기존 파란 문서·연필 아이콘을 적용한 `Word Studio.app`을 만듭니다. 검증된 앱은 `~/Library/Caches/WordStudioBuild/Word Studio.app`, 배포 ZIP은 `release/Word-Studio-mac-arm64.zip`(Intel Mac은 `x64`)에 생성됩니다. 앱을 응용 프로그램 폴더에 복사해 실행할 수 있습니다. 이 빌드는 로컬 사용을 위한 임시 서명이며 Apple 공증은 포함하지 않습니다. `npm start` 개발 실행에서도 같은 Dock 아이콘을 사용합니다.
 

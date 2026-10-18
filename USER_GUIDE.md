@@ -1,19 +1,19 @@
 # Word Studio 다운로드 및 사용 안내
 
-**현재 배포 버전: 1.2.2 · 2026년 10월 18일**
+**현재 배포 버전: 1.2.3 · 2026년 10월 18일**
 
 Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DOCX와 PDF로 내보내는 로컬 문서 편집기입니다. 설치 후에는 Microsoft Word, Node.js, 계정 또는 인터넷 연결 없이 문서를 작성할 수 있습니다. Microsoft와 관련 없는 독립 앱이며 Word의 모든 기능을 지원하지는 않습니다.
 
 ## 1. 다운로드
 
-[최신 릴리즈 페이지](https://github.com/beaur8-prog/word-studio/releases/latest)에서 운영체제에 맞는 ZIP 파일을 받으세요.
+[최신 릴리즈 페이지](https://github.com/beaur8-prog/word-studio/releases/latest)에서 운영체제에 맞는 설치 파일을 받으세요.
 
 | 컴퓨터 | 배포 파일 | 설치 방식 |
 | --- | --- | --- |
-| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.2.2-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.2/Word-Studio-1.2.2-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
-| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.2.2-windows-x64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.2/Word-Studio-1.2.2-windows-x64.zip) | 압축을 풀고 폴더 안의 EXE 실행 |
+| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.2.3-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.3/Word-Studio-1.2.3-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
+| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.2.3-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.3/Word-Studio-1.2.3-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
 
-현재 Intel Mac용과 Windows ARM64 전용 배포 파일은 제공하지 않습니다. GitHub의 **Source code** 파일은 개발용 소스이므로 일반 설치에는 위의 앱 ZIP을 사용하세요.
+현재 Intel Mac용과 Windows ARM64 전용 배포 파일은 제공하지 않습니다. GitHub의 **Source code** 파일은 개발용 소스이므로 일반 설치에는 위의 Mac ZIP 또는 Windows Setup을 사용하세요.
 
 ## 2. Mac 설치 및 실행
 
@@ -26,13 +26,16 @@ Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DO
 
 ## 3. Windows 설치 및 실행
 
-1. Windows용 ZIP을 다운로드합니다.
-2. ZIP을 오른쪽 클릭하고 **모두 압축 풀기**를 선택합니다. ZIP 안에서 바로 실행하지 마세요.
-3. 풀린 **Word Studio** 폴더 전체를 문서 폴더나 원하는 앱 보관 위치로 옮깁니다.
-4. 폴더 안의 **Word Studio.exe**를 실행합니다.
-5. 자주 사용한다면 EXE의 바로 가기를 바탕 화면에 만드세요.
+1. **Word-Studio-1.2.3-windows-x64-setup.exe**를 다운로드하고 두 번 클릭합니다. 압축을 풀 필요가 없습니다.
+2. 언어를 선택하고 설치 마법사를 진행합니다. **현재 사용자용** 설치가 기본이며, 필요하면 설치 경로를 바꿀 수 있습니다.
+3. **설치**를 누르고 완료될 때까지 기다립니다. **Word Studio 실행**을 선택한 채로 **마침**을 누르면 앱이 열립니다.
+4. 이후에는 시작 메뉴 또는 바탕 화면의 **Word Studio** 바로 가기로 실행합니다.
 
-별도의 설치 마법사와 관리자 권한이 필요 없는 포터블 배포본입니다. `resources`, `locales`, DLL 파일을 포함한 **폴더 전체**를 함께 보관해야 합니다. EXE만 옮기면 실행되지 않습니다.
+설치 파일에는 앱 실행에 필요한 모든 파일이 들어 있어 설치 중 별도 다운로드가 필요 없습니다. 현재 사용자용 기본 경로는 `%LOCALAPPDATA%\Programs\Word Studio`입니다. 모든 사용자용 또는 권한이 필요한 경로를 선택하면 관리자 승인이 필요할 수 있습니다.
+
+제거하려면 **설정 → 앱 → 설치된 앱 → Word Studio → 제거**를 사용하세요. 제거해도 직접 저장한 문서와 `%APPDATA%\Word Studio`의 복구 데이터는 유지됩니다.
+
+기존 ZIP 배포본을 사용했다면 문서를 저장하고 이전 앱을 완전히 종료한 뒤 Setup을 실행하세요. 기존 자동 복구 경로는 그대로 사용합니다. 설치된 앱이 정상 실행되는 것을 확인한 뒤 이전 포터블 폴더와 바로 가기를 정리할 수 있습니다.
 
 Windows 배포 파일은 코드 서명을 받지 않았습니다. SmartScreen 등의 경고가 나타나면 이 릴리즈의 파일명과 SHA-256을 확인하고, 출처를 신뢰할 때에만 해당 파일의 실행 여부를 결정하세요. 회사·학교 PC의 정책으로 차단되는 경우 관리자에게 문의하세요.
 
@@ -88,8 +91,8 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 
 1. 중요한 문서를 `.wordstudio` 파일로 저장합니다.
 2. 저장 상태를 확인하고 Word Studio를 완전히 종료합니다.
-3. 새 ZIP을 받아 압축을 풉니다.
-4. Mac은 기존 앱을 새 앱으로 교체합니다. Windows는 새 폴더를 사용하고 바로 가기 대상을 새 EXE로 바꿉니다. 서로 다른 버전의 DLL을 섞지 마세요.
+3. 운영체제에 맞는 새 배포 파일을 받습니다. Mac은 ZIP을 풀고, Windows는 Setup을 실행합니다.
+4. Mac은 기존 앱을 새 앱으로 교체합니다. Windows는 설치 마법사로 기존 설치를 갱신합니다. 문서와 복구 데이터는 유지됩니다.
 5. 새 앱에서 저장한 문서를 열어 확인합니다.
 
 자동 업데이트 기능은 없습니다. 새 버전은 [최신 릴리즈](https://github.com/beaur8-prog/word-studio/releases/latest)에서 확인하세요.
@@ -103,6 +106,14 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 앱 파일 교체와 자동 복구 데이터는 별개입니다. 앱을 지워도 직접 저장한 문서는 그대로 남습니다. 자동 복구 폴더를 지우면 해당 복구본을 사용할 수 없으므로 백업 전에 삭제하지 마세요.
 
 ## 8. 버전별 변경 내역
+
+### 1.2.3 · 2026-10-18
+
+- Windows 배포를 ZIP 포터블에서 `setup.exe` 설치 마법사로 변경했습니다.
+- 한국어·영어 설치 화면, 설치 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 Windows 앱 제거를 지원합니다.
+- 설치 갱신과 제거 시 직접 저장한 문서와 자동 복구 데이터를 유지합니다.
+- Windows 설치·재설치·제거 및 설치된 앱의 편집·PDF 기능을 자동 검증합니다.
+- Mac은 기존 ZIP 설치 방식을 유지하며 앱 버전을 1.2.3으로 맞췄습니다.
 
 ### 1.2.2 · 2026-10-18
 
@@ -137,7 +148,7 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 
 | 증상 | 확인할 내용 |
 | --- | --- |
-| Windows에서 실행되지 않음 | ZIP을 완전히 풀었는지, EXE와 `resources`·DLL이 같은 폴더에 있는지 확인 |
+| Windows에서 실행되지 않음 | Setup 설치를 완료했는지 확인한 뒤 시작 메뉴의 Word Studio로 실행. 문제가 계속되면 앱을 종료하고 Setup 재실행 |
 | Mac에서 열리지 않음 | Apple Silicon용 파일인지, macOS 12 이상인지, 위의 첫 실행 안내에 해당하는지 확인 |
 | 입력·표 편집이 되지 않음 | **읽기 모드**를 해제하고 문서 본문을 클릭 |
 | 자동 저장 실패 | 디스크 공간·폴더 권한 확인 후 파일로 사본 저장. 저장 완료 전 강제 종료하지 않기 |
@@ -152,18 +163,18 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 
 ## 10. 다운로드 파일 확인
 
-릴리즈에 함께 제공되는 `SHA256SUMS.txt`와 다운로드한 ZIP의 SHA-256을 비교할 수 있습니다.
+릴리즈에 함께 제공되는 `SHA256SUMS.txt`와 다운로드한 ZIP 또는 Setup의 SHA-256을 비교할 수 있습니다.
 
 Mac 터미널:
 
 ```sh
-shasum -a 256 Word-Studio-1.2.2-mac-arm64.zip
+shasum -a 256 Word-Studio-1.2.3-mac-arm64.zip
 ```
 
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\Word-Studio-1.2.2-windows-x64.zip -Algorithm SHA256
+Get-FileHash .\Word-Studio-1.2.3-windows-x64-setup.exe -Algorithm SHA256
 ```
 
 표시된 값이 `SHA256SUMS.txt`의 해당 파일 값과 일치하는지 확인하세요.
