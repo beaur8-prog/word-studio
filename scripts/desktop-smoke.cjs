@@ -36,12 +36,11 @@ async function run() {
     }, { fixture, pdf });
     await window.locator('.tiptap').waitFor();
     await window.keyboard.press('ControlOrMeta+o');
-    // Pagination inserts aria-hidden spacer rows; count document rows only.
-    await expect(window.locator('.tiptap table tr:not(.pagination-gap)')).toHaveCount(81);
+    await expect(window.locator('.tiptap table tr')).toHaveCount(81);
     await expect(window.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
     const recovery = await window.evaluate(() => window.wordDesktop.readRecovery());
     assert.ok(recovery.some(record => JSON.parse(record.current).title === 'long-document'));
-    const cells = window.locator('.tiptap tr:not(.pagination-gap) > td,.tiptap tr:not(.pagination-gap) > th');
+    const cells = window.locator('.tiptap td,.tiptap th');
     await cells.nth(0).click(); await cells.nth(3).click({ modifiers: ['Shift'] });
     await expect(window.locator('.tiptap .selectedCell')).toHaveCount(4);
     await cells.nth(1).click({ button: 'right' });
