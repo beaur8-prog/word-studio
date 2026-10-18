@@ -3,6 +3,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 const metrics = new Map<string, number>();
+const legacyKorean = /^(돋움체?|굴림체?|Dotum(?:Che)?|Gulim(?:Che)?)$/i;
 function singleLine(style: CSSStyleDeclaration) {
   const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
   if (metrics.has(font)) return metrics.get(font)!;
@@ -12,7 +13,7 @@ function singleLine(style: CSSStyleDeclaration) {
   // Apply this measured font profile only to imported OOXML auto/minimum
   // spacing; exact spacing and ordinary authored HTML remain unchanged.
   const family = style.fontFamily.split(',')[0].replace(/["']/g, '').trim();
-  if (/^(돋움체?|굴림체?|Dotum(?:Che)?|Gulim(?:Che)?)$/i.test(family)) {
+  if (legacyKorean.test(family)) {
     const height = parseFloat(style.fontSize) * 1.3;
     metrics.set(font, height); return height;
   }
@@ -31,7 +32,15 @@ export function wordLineHeight(paragraph: HTMLElement) {
   if (!rule || !source || rule === 'exact') return null;
   let normal = singleLine(getComputedStyle(paragraph));
   for (const run of paragraph.querySelectorAll<HTMLElement>('span,strong,em,b,i,sub,sup')) {
-    if (run.textContent?.trim()) normal = Math.max(normal, singleLine(getComputedStyle(run)));
+    if (run.textContent?.trim()) {
+      const style = getComputedStyle(run);
+      normal = Math.max(normal, singleLine(style));
+      // The halfwidth middle dot is absent from the legacy Korean faces.
+      // Word's Noto Sans KR fallback expands the line even though the run
+      // still declares DotumChe (9 pt / 249-auto measures ~19.3 px).
+      if (run.textContent.includes('\uff65') && legacyKorean.test(style.fontFamily.split(',')[0].replace(/["']/g, '').trim()))
+        normal = Math.max(normal, parseFloat(style.fontSize) * 1.55);
+    }
   }
   const value = parseFloat(source);
   if (!Number.isFinite(value) || value <= 0) return null;

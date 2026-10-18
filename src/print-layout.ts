@@ -142,6 +142,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
       group.forEach(row => part.body.append(row));
       const split = () => {
         if (group.length !== 1 || group[0].cells.length !== 1 || group[0].cells[0].rowSpan !== 1) return;
+        if (!group[0].querySelector('table') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
         const tail = splitElement(group[0], content.getBoundingClientRect().bottom);
         if (tail) rows.splice(end, 0, tail as HTMLTableRowElement);
       };

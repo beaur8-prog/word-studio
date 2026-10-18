@@ -1,11 +1,16 @@
 import type JSZip from 'jszip';
 import type { Comment, PageSettings } from './types';
 import { W, all, val, child, ancestor, docxFormat, decorateCell } from './docx-format';
+import { overlapInstruction } from './word-overlap';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
   const format = await docxFormat(zip);
+  // An empty legacy floating-frame anchor has no inline line box. Treating
+  // it as an ordinary paragraph after its table creates a spurious page.
+  for (const p of all(body, 'p')) if (child(child(p, 'pPr'), 'framePr') && !ancestor(p, 'tc') &&
+    Array.from(p.children).every(c => c.localName === 'pPr')) p.remove();
   const comments: Comment[] = [];
   const idMap = new Map<string, string>();
   const commentFile = zip.file('word/comments.xml');
@@ -29,7 +34,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       resolved: Boolean(paraId && resolved.has(paraId)) });
   }
   let sequence = 900000;
-  const markers = new Map<string, { kind: string; id?: string; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; nextPage?: PageSettings; width?: number; height?: number }>();
+  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; nextPage?: PageSettings; width?: number; height?: number }>();
   const bookmark = (name: string) => {
     const fragment = body.createDocumentFragment();
     const id = String(++sequence);
@@ -39,6 +44,25 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     fragment.append(start, end);
     return fragment;
   };
+  for (const p of all(body, 'p')) {
+    let field: Element[] = [], depth = 0;
+    const replace = (elements: Element[], instruction: string) => {
+      const parts = overlapInstruction(instruction); if (!parts.length) return;
+      const name = `ws_marker_${sequence}`;
+      const run = elements.flatMap(el => el.localName === 'r' ? [el] : all(el, 'r'))
+        .find(r => all(r, 'instrText').some(t => t.textContent?.trim()) || all(r, 't').length);
+      markers.set(name, { kind: 'overlap', parts, style: run ? format.run(run, 'eastAsia') : '' });
+      elements[0].before(bookmark(name)); elements.forEach(el => el.remove());
+    };
+    for (const el of Array.from(p.children)) {
+      if (el.localName === 'fldSimple') { replace([el], val(el, 'instr')); continue; }
+      const kinds = all(el, 'fldChar').map(f => val(f, 'fldCharType'));
+      if (kinds.includes('begin')) { if (!depth) field = []; depth++; }
+      if (depth) field.push(el);
+      if (kinds.includes('end') && depth && --depth === 0)
+        replace(field, field.flatMap(e => all(e, 'instrText')).map(e => e.textContent).join(''));
+    }
+  }
   for (const kind of ['commentRangeStart', 'commentRangeEnd']) for (const el of all(body, kind)) {
     const id = idMap.get(val(el, 'id'));
     if (!id) continue;
@@ -143,7 +167,16 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           const row = table.rows[index], exact = val(property, 'hRule') === 'exact';
           const padding = exact ? 0 : Math.max(0, ...[...row.cells].map(cell =>
             (parseFloat(cell.style.paddingTop) || 0) + (parseFloat(cell.style.paddingBottom) || 0)));
-          row.style.height = `${height / 15 + padding}px`;
+          const border = exact ? 0 : Math.max(0, ...Array.from(source.children).filter(c => c.localName === 'tc').map(c => {
+            const probe = document.createElement('td'); decorateCell(probe, c);
+            const merge = child(child(c, 'tcPr'), 'vMerge');
+            const sides = merge && val(merge) !== 'restart' ? ['Top', 'Bottom'] : merge ? [] : ['Bottom'];
+            return Math.max(0, ...sides.map(side => {
+              const width = probe.style.getPropertyValue(`border-${side.toLowerCase()}-width`);
+              return (parseFloat(width) || 0) * (width.endsWith('pt') ? 4 / 3 : 1);
+            }));
+          }));
+          row.style.height = `${height / 15 + padding + border}px`;
           row.dataset.wordRowRule = exact ? 'exact' : 'atLeast';
         });
       }
@@ -156,6 +189,11 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         if (item instanceof HTMLAnchorElement && markers.has(item.id)) {
           const marker = markers.get(item.id)!;
           if (marker.kind === 'pageBreak') continue;
+          if (marker.kind === 'overlap') {
+            const span = document.createElement('span'); span.dataset.wordOverlap = JSON.stringify(marker.parts);
+            span.style.cssText = marker.style || ''; span.textContent = marker.parts!.join('');
+            item.replaceWith(span); continue;
+          }
           if (marker.kind === 'tab') {
             const tab = document.createElement('span'); tab.setAttribute('data-docx-tab', 'true'); tab.textContent = '\t';
             if (activeStyle) tab.style.cssText = activeStyle;

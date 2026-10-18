@@ -14,6 +14,7 @@ import { Pagination } from './pagination';
 import { ImportedFormat, StudioTableView } from './imported-format';
 import { DocumentTab, DocumentTabs } from './document-tabs';
 import { WordLineMetrics } from './word-line-metrics';
+import { WordOverlap } from './word-overlap';
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { getSchema } from '@tiptap/core';
 
@@ -72,13 +73,16 @@ export const editorExtensions = [
   TextStyleKit,
   TextAlign.configure({ types: ["heading", "paragraph"] }),
   TableKit.configure({
-    table: { resizable: true, allowTableNodeSelection: true, View: StudioTableView },
+    // Imported merged tables can contain 1–2 px grid subdivisions. Clamping
+    // those invisible grid columns to 25 px expands the whole table.
+    table: { resizable: true, cellMinWidth: 1, allowTableNodeSelection: true, View: StudioTableView },
   }),
   CellAppearance,
   TableRowResize,
   BlockImage.configure({ allowBase64: true }),
   InlineImage,
   DocumentTab,
+  WordOverlap,
   DocumentTabs,
   Highlight.configure({ multicolor: true }),
   Subscript,

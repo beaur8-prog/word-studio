@@ -28,6 +28,7 @@ import {
   VerticalAlignTable,
   HeightRule,
   Tab,
+  SimpleField,
 } from "docx";
 import type {
   IParagraphOptions,
@@ -40,6 +41,7 @@ import { defaultPage, pageMargins, basePageMargins } from "./types";
 import { prepareDocxMetadata } from './docx-metadata';
 import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
+import { overlapParts } from './word-overlap';
 import { rowHeight, MAX_ROW_HEIGHT } from './table-row-resize';
 import type { PageSettings, StudioDocument } from "./types";
 
@@ -55,7 +57,7 @@ const MAX_INFLATED_BYTES = 100 * 1024 * 1024;
 const RASTER_DATA =
   /^data:image\/(png|jpe?g|gif|webp|bmp);base64,([A-Za-z0-9+/=\s]+)$/i;
 const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|#)/i;
-const INLINE = new Set(["text", "hardBreak", "inlineImage", "documentTab"]);
+const INLINE = new Set(["text", "hardBreak", "inlineImage", "documentTab", "wordOverlap"]);
 const BLOCKS = new Set([
   "paragraph",
   "heading",
@@ -254,6 +256,7 @@ export function validateDocument(input: unknown): StudioDocument {
       }
     }
     const attrs = value.attrs as Record<string, unknown> | undefined;
+    if (type === 'wordOverlap' && !overlapParts(attrs?.parts).length) fail('겹친 글자 형식이 올바르지 않습니다.');
     if (type === 'tableRow' && attrs?.rowHeight != null && !rowHeight(attrs.rowHeight))
       fail(`표 행 높이는 0보다 크고 ${MAX_ROW_HEIGHT}px 이하여야 합니다.`);
     if (type === 'sectionBreak') {
@@ -324,6 +327,7 @@ export function validateDocument(input: unknown): StudioDocument {
       "image",
       "inlineImage",
       "documentTab",
+      "wordOverlap",
     ].includes(type);
     if (value.content !== undefined && (!Array.isArray(value.content) || leaf))
       fail("본문 자식 요소가 올바르지 않습니다.");
@@ -447,6 +451,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-docx-tab", "data-tab-stops",
       "data-word-line-rule", "data-word-line",
       "data-word-row-rule",
+      "data-word-overlap",
     ],
     ALLOW_DATA_ATTR: false,
   });
@@ -828,7 +833,7 @@ function cellBorders(attrs: Record<string, unknown> = {}): ITableCellBorders {
     const styles = { solid: BorderStyle.SINGLE, dashed: BorderStyle.DASHED, dotted: BorderStyle.DOTTED, double: BorderStyle.DOUBLE };
     return [side, {
       style: ['none', 'hidden'].includes(css.borderStyle) ? BorderStyle.NIL : styles[css.borderStyle as keyof typeof styles] ?? BorderStyle.SINGLE,
-      size: Math.max(0, Math.round((fontPoints(css.borderWidth) ?? .75) * 8)), color: rgb(css.borderColor) ?? 'C6CED8',
+      size: Math.max(0, Math.round((fontPoints(css.borderWidth) ?? .75) * 8 / (css.borderStyle === 'double' ? 3 : 1))), color: rgb(css.borderColor) ?? 'C6CED8',
     }];
   }));
 }
@@ -1049,6 +1054,12 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       } else if (node.type === "hardBreak")
         runs.push(new TextRun({ break: 1 }));
       else if (node.type === 'documentTab') runs.push(new TextRun({ children: [new Tab()] }));
+      else if (node.type === 'wordOverlap') {
+        const parts = overlapParts(node.attrs?.parts);
+        const field = new SimpleField(`EQ \\o\\ac(${parts.join(',')})`);
+        field.addChildElement(new TextRun({ ...runOptions(node), text: parts.join('') }));
+        runs.push(field);
+      }
       else if (node.type === "image" || node.type === "inlineImage")
         runs.push(await imageRun(node, contentWidth / 15));
     }
@@ -1187,8 +1198,22 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               1,
               Math.floor((columnWidths[i] * contentWidth) / total),
             );
+        let continuations: { remaining: number; attrs: Record<string, unknown> }[] = [];
+        const borderPixels = (attrs: Record<string, unknown>, side: string) => {
+          const css = globalThis.document.createElement('span').style;
+          css.border = String(attrs[`border${side}`] ?? '1px solid #c6ced8');
+          return ['none', 'hidden'].includes(css.borderStyle) ? 0 : (fontPoints(css.borderWidth) ?? .75) * 4 / 3;
+        };
         for (const row of node.content ?? []) {
           const cells: TableCell[] = [];
+          // Subtract the same border reserve Word adds to minimum heights,
+          // including continuation cells materialized by the DOCX writer.
+          const rowBorder = Math.max(0,
+            ...continuations.flatMap(c => ['Top', 'Bottom'].map(side => borderPixels(c.attrs, side))),
+            ...(row.content ?? []).filter(c => Number(c.attrs?.rowspan || 1) === 1).map(c => borderPixels(c.attrs ?? {}, 'Bottom')));
+          continuations = continuations.map(c => ({ ...c, remaining: c.remaining - 1 })).filter(c => c.remaining > 0);
+          for (const cell of row.content ?? []) if (Number(cell.attrs?.rowspan) > 1)
+            continuations.push({ remaining: Number(cell.attrs!.rowspan) - 1, attrs: cell.attrs ?? {} });
           const rowPadding = Math.max(0, ...(row.content ?? []).map(cell => ['Top', 'Bottom'].reduce((sum, side) => {
             const padding = parseFloat(cell.attrs?.[`padding${side}`]);
             return sum + (Number.isFinite(padding) ? Math.max(0, padding) : 8);
@@ -1225,7 +1250,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           rows.push(
             new TableRow({
               children: cells,
-              ...(rowHeight(row.attrs?.rowHeight) ? { height: { value: Math.max(1, Math.round((row.attrs!.rowHeight - (row.attrs?.wordRowRule === 'exact' ? 0 : rowPadding)) * 15)), rule: row.attrs?.wordRowRule === 'exact' ? HeightRule.EXACT : HeightRule.ATLEAST } } : {}),
+              ...(rowHeight(row.attrs?.rowHeight) ? { height: { value: Math.max(1, Math.round((row.attrs!.rowHeight - (row.attrs?.wordRowRule === 'exact' ? 0 : rowPadding + rowBorder)) * 15)), rule: row.attrs?.wordRowRule === 'exact' ? HeightRule.EXACT : HeightRule.ATLEAST } } : {}),
               ...((row.content?.length ?? 0) > 0 && (row.content ?? []).every(
                 (cell) => cell.type === "tableHeader",
               ) ? { tableHeader: true } : {}),

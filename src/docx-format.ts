@@ -161,7 +161,15 @@ export function decorateCell(cell: HTMLElement, source: Element) {
   const offset = cells.slice(0, cells.indexOf(source)).reduce((n, c) => n + span(c), Number(val(child(child(row, 'trPr'), 'gridBefore'))) || 0);
   const widths = grid.slice(offset, offset + span(source));
   if (widths.length === span(source) && widths.every(n => n > 0)) cell.setAttribute('colwidth', widths.map(n => Math.max(1, Math.round(n))).join(','));
-  const fill = hex(val(child(props, 'shd'), 'fill'));
+  const shading = child(props, 'shd');
+  let fill = hex(val(shading, 'fill'));
+  const percentage = val(shading).match(/^pct(\d+(?:\.\d+)?)$/);
+  if (percentage) {
+    const foreground = hex(val(shading, 'color')) || '#000000', background = fill || '#ffffff';
+    const ratio = Math.min(100, Number(percentage[1])) / 100;
+    fill = '#' + [1, 3, 5].map(i => Math.round(parseInt(foreground.slice(i, i + 2), 16) * ratio +
+      parseInt(background.slice(i, i + 2), 16) * (1 - ratio)).toString(16).padStart(2, '0')).join('');
+  }
   cell.style.backgroundColor = fill || 'transparent';
   const vertical = val(child(props, 'vAlign'));
   cell.style.verticalAlign = vertical === 'center' ? 'middle' : vertical === 'bottom' ? 'bottom' : 'top';
@@ -173,7 +181,9 @@ export function decorateCell(cell: HTMLElement, source: Element) {
       ?? child(inheritedBorders, edge ? side : ['top', 'bottom'].includes(side) ? 'insideH' : 'insideV');
     const styles: Record<string, string> = { single: 'solid', dashed: 'dashed', dashSmallGap: 'dashed', dotted: 'dotted', double: 'double', nil: 'none', none: 'none' };
     const kind = border ? styles[val(border)] ?? 'solid' : 'none';
-    const width = Number(val(border, 'sz')) / 8 || .75;
+    // OOXML double sz describes each stroke; CSS includes both strokes and
+    // the intervening gap in its total border width.
+    const width = (Number(val(border, 'sz')) / 8 || .75) * (kind === 'double' ? 3 : 1);
     cell.style.setProperty(`border-${side}`, `${kind === 'none' ? 0 : width}pt ${kind} ${hex(val(border, 'color')) || '#000000'}`);
     const alternate = side === 'left' ? 'start' : side === 'right' ? 'end' : side;
     const margin = child(margins, side) ?? child(margins, alternate) ?? child(inheritedMargins, side) ?? child(inheritedMargins, alternate);

@@ -814,6 +814,9 @@ button:hover:not(:disabled) {
 .tiptap p[style*="line-height"], .tiptap h1[style*="line-height"], .tiptap h2[style*="line-height"], .tiptap h3[style*="line-height"] {
   min-height: 0;
 }
+.tiptap [data-word-line-rule] { letter-spacing: normal; }
+.word-overlap { display: inline-grid; vertical-align: baseline; text-indent: 0; }
+.word-overlap > span { grid-area: 1 / 1; align-self: center; justify-self: center; }
 .tiptap p:empty::after { content: '\200b'; }
 .tiptap .selectedCell:after {
   background: #4b89c52c;
@@ -1895,6 +1898,8 @@ button:hover:not(:disabled) {
   body.studio-printing .print-page { margin: 0 !important; box-shadow: none !important; break-after: page; break-inside: avoid; }
   body.studio-printing .print-page:last-child { break-after: auto; }
   body.studio-printing .print-content { position: absolute !important; padding: 0 !important; }
+  /* Positioned cells paint their fill over collapsed borders in Chromium PDF. */
+  body.studio-printing .print-content td, body.studio-printing .print-content th { position: static !important; }
   body.studio-printing .print-content p, body.studio-printing .print-content h1, body.studio-printing .print-content h2, body.studio-printing .print-content h3 { orphans: 1; widows: 1; break-after: auto; }
   body.studio-printing .print-header, body.studio-printing .print-footer { display: flex !important; }
 }
