@@ -114,11 +114,15 @@ async function analyzeOoxml(buffer) {
     underlineStyles: [...new Set([...docXml.matchAll(/<w:u\s+w:val="([^"]+)"/g)].map(m => m[1]))],
   };
 
+  let tableDepth = 0, nestedTables = 0;
+  for (const match of docXml.matchAll(/<(\/?)w:tbl\b[^>]*>/g)) {
+    if (match[1]) tableDepth--; else { if (tableDepth) nestedTables++; tableDepth++; }
+  }
   return {
     bodyTextLength: extractXmlText(docXml).length,
     paragraphCount: countMatches(docXml, /<w:p\b/g),
     tableCount: countMatches(docXml, /<w:tbl\b/g),
-    nestedTableCount: countMatches(docXml, /<w:tc\b[\s\S]*?<w:tbl\b/g),
+    nestedTableCount: nestedTables,
     gridSpanCount: countMatches(docXml, /<w:gridSpan\b/g),
     vMergeCount: countMatches(docXml, /<w:vMerge\b/g),
     hMergeCount: countMatches(docXml, /<w:hMerge\b/g),
@@ -369,6 +373,7 @@ async function main() {
       const record = {
         id: item.id,
         sha256: createHash('sha256').update(buffer).digest('hex'),
+        sourceHashMatches: !item.sha256 || createHash('sha256').update(buffer).digest('hex') === item.sha256,
         source: item.source,
         desc: item.desc,
         ooxml,
@@ -379,7 +384,7 @@ async function main() {
         pageErrors,
         consoleErrors,
       };
-      record.passed = programmatic.ok && !programmatic.validationError && programmatic.roundtripOk && programmatic.semanticEqual
+      record.passed = record.sourceHashMatches && programmatic.ok && !programmatic.validationError && programmatic.roundtripOk && programmatic.semanticEqual
         && !pageErrors.length && editorMetrics.overflowingTablesCount === 0 && previewMetrics.pageCount === pdfPageCount
         && previewMetrics.pages.every(p=>!p.overlapsHeader && !p.columnOverflow && (!p.empty || p.intentionalBlank));
       results.push(record);
@@ -395,7 +400,8 @@ async function main() {
   if (results.some(r=>!r.passed)) process.exitCode = 1;
 }
 
-main().catch(err => {
+module.exports = { analyzeOoxml };
+if (require.main === module) main().catch(err => {
   console.error(err);
   process.exit(1);
 });

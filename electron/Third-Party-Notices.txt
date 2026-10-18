@@ -25,3 +25,11 @@ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
 CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+Noto fonts (unmodified upstream font files)
+Source: https://github.com/google/fonts/tree/47d54ca1ebb14fd864695f1d39dc734f39017c33
+Noto Sans Symbols 2, Noto Sans Symbols, Noto Sans Math, Noto Sans Mono, Noto Sans Devanagari, Noto Emoji.
+Licensed under the SIL Open Font License, Version 1.1.
+Complete copyright and license notices are in electron/licenses/*-OFL.txt.
+Source paths and SHA-256 checksums are in src/assets/fonts/SOURCES.json.

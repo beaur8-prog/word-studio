@@ -1,3 +1,10 @@
+@font-face { font-family: "Studio Symbols 2"; src: url("./assets/fonts/NotoSansSymbols2-Regular.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Studio Symbols"; src: url("./assets/fonts/NotoSansSymbols.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Studio Math"; src: url("./assets/fonts/NotoSansMath-Regular.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Studio Text"; src: url("./assets/fonts/NotoSansMono.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Studio Devanagari"; src: url("./assets/fonts/NotoSansDevanagari.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+@font-face { font-family: "Studio Emoji"; src: url("./assets/fonts/NotoEmoji.ttf") format("truetype"); font-style: normal; font-weight: 100 900; font-display: swap; }
+
 :root {
   font-family: "Segoe UI", "Malgun Gothic", sans-serif;
   color: #efefef;
@@ -1912,7 +1919,7 @@ button:hover:not(:disabled) {
 .document-furniture p { margin: 0; }
 .document-furniture img { max-width: 100%; object-fit: contain; }
 .document-furniture table, .print-footnotes table { margin: 0; border-collapse: collapse; table-layout: fixed; max-width: 100%; }
-.document-symbol { font-family: 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Noto Sans Symbols', sans-serif; }
+.document-symbol { font-family: 'Studio Symbols 2', 'Studio Symbols', 'Studio Math', 'Studio Text', 'Studio Devanagari', 'Studio Emoji', 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Noto Sans Symbols', sans-serif; }
 .note-reference { font-size: .75em; vertical-align: super; cursor: pointer; color: #2864a8; }
 .document-note { border-top: 1px solid #88929b; margin: 14px 0 4px; padding: 5px 0 0; font-size: 10pt; }
 .document-note::before { content: attr(data-note-label) '. '; font-size: 10pt; }

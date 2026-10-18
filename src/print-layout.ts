@@ -275,6 +275,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
     scaleOversized(element);
   }
   try {
+    if (source.querySelector('[data-symbol-font]')) await Promise.all(['Studio Symbols 2','Studio Symbols','Studio Math','Studio Text','Studio Devanagari','Studio Emoji'].map(font => document.fonts.load(`12px "${font}"`)));
     await document.fonts.ready;
     await Promise.all([...source.querySelectorAll('img')].map(img => img.decode().catch(() => {})));
     newPage();
