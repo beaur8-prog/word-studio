@@ -18,6 +18,10 @@ async function run() {
   const app = await electron.launch({ executablePath: binary, args: [...(packaged ? [] : [root]), `--user-data-dir=${path.join(directory, 'profile')}`], env });
   try {
     const window = await app.firstWindow();
+    // Hosted Windows runners can have a 1024px display, where the responsive
+    // ribbon intentionally hides the save label. Keep this desktop scenario
+    // at the same viewport as the browser suite on every host.
+    await window.setViewportSize({ width: 1440, height: 1000 });
     const errors = []; window.on('pageerror', error => errors.push(error.message));
     const fixture = path.join(directory, 'long-document.html');
     const pdf = path.join(directory, 'preview.pdf');
