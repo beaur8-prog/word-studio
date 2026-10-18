@@ -1,4 +1,12 @@
-# Word Studio 1.2.1 검증
+# Word Studio 1.2.2 검증
+
+## 2026-10-18 1.2.2 Mac·Windows 릴리즈 검증
+
+- Mac: macOS 15.7.7 arm64에서 실제 패키징한 1.2.2 앱의 표 메뉴·행 높이·복구 실패 보호·사본 저장 후 전환을 검증했습니다. 미리보기 7쪽 / PDF 7쪽, PDF 78,791바이트, 렌더러 오류 0개. 결과는 `.cache/desktop-smoke-9IrimF/result.json`에 있습니다.
+- Windows: [GitHub Actions 검증 실행](https://github.com/beaur8-prog/word-studio/actions/runs/39085757376)에서 빌드, 네이티브 복구 테스트 1개, 브라우저 테스트 25개가 통과했습니다. 실제 포터블 EXE도 표 메뉴·행 높이·복구 실패 보호·사본 저장을 통과했으며 미리보기 8쪽 / PDF 8쪽, PDF 41,533바이트, 렌더러 오류 0개입니다.
+- 첫 Windows CI 실행은 화면 폭이 좁아 반응형 레이아웃에서 저장 상태 표시가 숨겨지며 중단됐습니다. 데스크톱 시험의 뷰포트를 1440×1000으로 고정한 후 통과했습니다.
+- 공개 Windows ZIP은 위 Windows 환경에서 만든 검증된 배포본을 사용합니다. Mac ZIP은 압축 검사 후 다시 풀어 앱 버전과 `codesign --verify --deep --strict`를 확인했습니다. 배포 파일에는 SHA-256 체크섬을 제공합니다.
+- Mac과 Windows의 글꼴 환경이 달라 시험 문서의 페이지 수는 서로 다릅니다. 각 환경에서 자체 미리보기와 PDF의 페이지 수가 일치하는지 검사한 결과입니다. 실제 프린터 출력, Intel Mac과 Windows ARM64 전용 빌드는 이번 릴리즈에서 검증하지 않았습니다.
 
 ## 2026-10-18 최신 Git 코드의 macOS 기능 시험
 
