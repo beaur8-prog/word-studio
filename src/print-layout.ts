@@ -68,10 +68,47 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
       warnings.add('한 페이지보다 큰 그림·병합 셀 묶음은 잘리지 않도록 축소했습니다.');
     }
   }
+  // Split editable form rows at paragraph or nested-table row boundaries. A
+  // large single cell must not shrink all its text just to fit one sheet.
+  function splitElement(element: HTMLElement, boundary: number, depth = 0): HTMLElement | null {
+    if (depth > 30) return null;
+    if (element.matches('p,h1,h2,h3,h4,h5,h6') && (element.textContent?.length ?? 0) > 1) {
+      const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(element.textContent!)].map(s => s.index).slice(1);
+      let low = 0, high = offsets.length - 1, best = 0;
+      const marker = document.createComment('split'); element.replaceWith(marker);
+      while (low <= high) {
+        const mid = (low + high) >> 1, [head] = splitText(element, offsets[mid]); marker.before(head);
+        if (head.getBoundingClientRect().bottom <= boundary + .5) { best = offsets[mid]; low = mid + 1; } else high = mid - 1;
+        head.remove();
+      }
+      marker.replaceWith(element);
+      if (!best) return null;
+      const [head, tail] = splitText(element, best); element.replaceChildren(...head.childNodes); element.style.marginBottom = '0'; return tail;
+    }
+    if (element.matches('tr') && (element as HTMLTableRowElement).cells.length !== 1) return null;
+    if (element.matches('table')) {
+      const table = element as HTMLTableElement;
+      if ([...table.rows].some(row => [...row.cells].some(cell => cell.rowSpan > 1))) return null;
+    }
+    const children = [...element.children] as HTMLElement[];
+    const style = getComputedStyle(element);
+    const innerBoundary = boundary - (parseFloat(style.paddingBottom) || 0) - (parseFloat(style.borderBottomWidth) || 0);
+    const index = children.findIndex(child => !child.matches('colgroup') && child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0) > innerBoundary + .5);
+    if (index < 0) return null;
+    const child = children[index], tail = element.cloneNode(false) as HTMLElement;
+    const childTail = splitElement(child, innerBoundary - (parseFloat(getComputedStyle(child).marginBottom) || 0), depth + 1);
+    if (childTail) tail.append(childTail);
+    else if (index === 0 || children.slice(0, index).every(c => c.matches('colgroup'))) return null;
+    else tail.append(child);
+    children.slice(index + 1).forEach(c => tail.append(c));
+    if (element.matches('table')) element.querySelectorAll(':scope > colgroup').forEach(c => tail.prepend(c.cloneNode(true)));
+    if (element.matches('tr')) { element.style.removeProperty('height'); tail.style.removeProperty('height'); }
+    return tail;
+  }
   function appendTable(table: HTMLTableElement) {
     const rows = Array.from(table.rows);
     const headers: HTMLTableRowElement[] = [];
-    while (rows.length && [...rows[0].cells].every(cell => cell.tagName === 'TH')) headers.push(rows.shift()!);
+    while (rows.length && rows[0].cells.length > 0 && [...rows[0].cells].every(cell => cell.tagName === 'TH')) headers.push(rows.shift()!);
     const shell = () => {
       const next = table.cloneNode(false) as HTMLTableElement;
       table.querySelectorAll(':scope > colgroup').forEach(el => next.append(el.cloneNode(true)));
@@ -87,11 +124,18 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
       for (let j = i; j < end; j++) for (const cell of rows[j].cells) end = Math.min(rows.length, Math.max(end, j + cell.rowSpan));
       const group = rows.slice(i, end).map(row => row.cloneNode(true) as HTMLTableRowElement);
       group.forEach(row => part.body.append(row));
+      const split = () => {
+        if (group.length !== 1 || group[0].cells.length !== 1 || group[0].cells[0].rowSpan !== 1) return;
+        const tail = splitElement(group[0], content.getBoundingClientRect().bottom);
+        if (tail) rows.splice(end, 0, tail as HTMLTableRowElement);
+      };
+      if (!fits()) split();
       if (!fits() && (bodyRows > 0 || content.children.length > 1)) {
         group.forEach(row => row.remove());
         if (!bodyRows) part.table.remove();
         newPage(); part = shell(); bodyRows = 0;
         group.forEach(row => part.body.append(row));
+        if (!fits()) split();
       }
       if (!fits()) scaleOversized(part.table);
       bodyRows += group.length; i = end;

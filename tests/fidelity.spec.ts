@@ -31,8 +31,8 @@ test('DOCX roundtrip preserves section margins, anchored comments and resolved s
   expect(result.comments[0]).toMatchObject({ text: '이 문장을 검토했습니다.', quote: '같은 문장', resolved: true });
   expect(result.secondComments[0].quote).toBe('같은 문장');
   const paragraphs = result.content.content.filter((n: { type: string }) => n.type === 'paragraph');
-  expect(paragraphs[0].content[0].marks ?? []).toHaveLength(0);
-  expect(paragraphs[1].content[0].marks[0].type).toBe('commentAnchor');
+  expect((paragraphs[0].content[0].marks ?? []).filter((m: { type: string }) => m.type === 'commentAnchor')).toHaveLength(0);
+  expect(paragraphs[1].content[0].marks.some((m: { type: string }) => m.type === 'commentAnchor')).toBe(true);
   const section = result.content.content.find((n: { type: string }) => n.type === 'sectionBreak');
   expect(JSON.parse(section.attrs.page)).toMatchObject({ size: 'Letter', orientation: 'landscape', header: '둘째 구역' });
 });

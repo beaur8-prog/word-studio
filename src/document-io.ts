@@ -403,6 +403,7 @@ export function sanitizeImportedHtml(source: string): {
       "code",
       "hr",
       "table",
+      "colgroup", "col",
       "thead",
       "tbody",
       "tfoot",
@@ -420,6 +421,7 @@ export function sanitizeImportedHtml(source: string): {
       "width",
       "height",
       "colspan",
+      "colwidth",
       "rowspan",
       "start",
       "data-type",
@@ -464,6 +466,7 @@ export function sanitizeImportedHtml(source: string): {
     "text-align",
     "line-height",
     "margin-left",
+    "margin-right", "margin-top", "margin-bottom", "text-indent", "letter-spacing",
     "vertical-align",
     "white-space",
     "width",
@@ -857,6 +860,8 @@ function runOptions(node: JSONContent): IRunOptions {
         if (color) options.color = color;
         const background = rgb(mark.attrs?.backgroundColor);
         if (background) options.shading = { fill: background };
+        const tracking = Number.parseFloat(mark.attrs?.letterSpacing);
+        if (Number.isFinite(tracking)) options.characterSpacing = Math.round(tracking * (String(mark.attrs?.letterSpacing).endsWith('pt') ? 20 : 15));
         break;
       }
     }
@@ -884,14 +889,24 @@ function paragraphOptions(node: JSONContent): IParagraphOptions {
       .find((m) => m.type === "textStyle")?.attrs?.lineHeight;
   const line = Number.parseFloat(lineHeight);
   const indent = Number(node.attrs?.indent);
+  const right = Number.parseFloat(node.attrs?.rightIndent), first = Number.parseFloat(node.attrs?.firstLineIndent);
+  const before = Number.parseFloat(node.attrs?.spaceBefore), after = Number.parseFloat(node.attrs?.spaceAfter);
+  const exact = typeof lineHeight === 'string' && /(?:pt|px)$/.test(lineHeight);
   return {
     alignment: alignment(node.attrs?.textAlign),
-    ...(Number.isFinite(indent) && indent > 0
-      ? { indent: { left: Math.round(indent * 15) } }
-      : {}),
+    indent: {
+      ...(Number.isFinite(indent) ? { left: Math.round(indent * 15) } : {}),
+      ...(Number.isFinite(right) ? { right: Math.round(right * 15) } : {}),
+      ...(Number.isFinite(first) ? first < 0 ? { hanging: Math.round(-first * 15) } : { firstLine: Math.round(first * 15) } : {}),
+    },
+    run: { ...runOptions({ type: 'text', marks: [{ type: 'textStyle', attrs: {
+      fontFamily: node.attrs?.paragraphFont, fontSize: node.attrs?.paragraphSize, color: node.attrs?.paragraphColor,
+    } }] }), text: undefined },
     spacing: {
-      after: 120,
-      ...(Number.isFinite(line) && line > 0 && line < 5
+      after: Number.isFinite(after) ? Math.round(after * 15) : 120,
+      ...(Number.isFinite(before) ? { before: Math.round(before * 15) } : {}),
+      ...(exact && Number.isFinite(line) && line > 0 ? { line: Math.round(line * (lineHeight.endsWith('pt') ? 20 : 15)), lineRule: LineRuleType.EXACT } : {}),
+      ...(!exact && Number.isFinite(line) && line > 0 && line < 10
         ? { line: Math.round(line * 240), lineRule: LineRuleType.AUTO }
         : {}),
     },
@@ -1038,7 +1053,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           new Paragraph({
             ...paragraphOptions(node),
             children: await inline(node.content ?? []),
-            ...(context.cellRun ? { run: context.cellRun } : {}),
+            ...(context.cellRun ? { run: { ...context.cellRun, ...paragraphOptions(node).run } } : {}),
             ...(node.type === "heading"
               ? { heading: headings[(node.attrs?.level ?? 1) - 1] }
               : {}),
@@ -1186,7 +1201,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         output.push(
           new Table({
             rows,
-            width: { size: contentWidth, type: WidthType.DXA },
+            width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+            ...(node.attrs?.tableIndent ? { indent: { size: Math.round(Number.parseFloat(node.attrs.tableIndent) * 15) || 0, type: WidthType.DXA } } : {}),
             columnWidths,
           }),
         );

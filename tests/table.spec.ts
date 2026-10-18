@@ -163,7 +163,10 @@ test('DOCX preserves direct cell borders, fill, padding and run fonts through tw
   const cells = result.content.content[0].content[0].content;
   expect(cells[0].type).toBe('tableCell');
   expect(cells[1].type).toBe('tableCell');
-  expect(cells[1].content[0].content[0].marks ?? []).toHaveLength(0);
+  // Imported document defaults are now explicit; the neighbour must still
+  // retain its own default font instead of inheriting the first cell's style.
+  expect(cells[1].content[0].content[0].marks.find((m: { type: string }) => m.type === 'textStyle').attrs)
+    .toMatchObject({ fontSize: '11pt', color: 'rgb(0, 0, 0)' });
 });
 
 test('splitting ordinary cells preserves neighbours and empty-cell font defaults', async ({ page }) => {

@@ -334,7 +334,7 @@ test("DOCX export contains formatted text, lists, tables, image, page breaks and
   expect(result.imported.html).toContain("테스트 제목");
   expect(result.imported.html).toContain("굵은 본문");
   expect(result.imported.html).toContain("<strong>");
-  expect(result.imported.html).toContain("<table>");
+  expect(result.imported.html).toMatch(/<table[\s>]/);
   expect(result.imported.html).toContain("data:image/png;base64,");
   expect(result.imported.document.page).toEqual({
     size: "Letter",

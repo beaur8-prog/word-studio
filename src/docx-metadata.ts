@@ -1,67 +1,11 @@
 import type JSZip from 'jszip';
 import type { Comment, PageSettings } from './types';
-const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-const all = (root: Element | Document, tag: string) => Array.from(root.getElementsByTagNameNS(W, tag));
-const val = (el: Element | undefined, key = 'val') => el?.getAttributeNS(W, key) ?? '';
+import { W, all, val, child, ancestor, docxFormat, decorateCell } from './docx-format';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
-const child = (root: Element | undefined, name: string) => root && Array.from(root.children).find(el => el.localName === name);
-const hex = (value: string) => /^[\da-f]{6}$/i.test(value) ? `#${value}` : '';
-function ancestor(element: Element, name: string): Element | null {
-  let parent = element.parentElement;
-  while (parent && parent.localName !== name) parent = parent.parentElement;
-  return parent;
-}
-
-function decorateCell(cell: HTMLElement, source: Element) {
-  const paragraphProps = child(all(source, 'p')[0], 'pPr');
-  if (paragraphProps) {
-    const defaults = document.createElement('span').style;
-    defaults.cssText = runStyle(paragraphProps);
-    for (const property of ['font-family', 'font-size', 'color']) {
-      if (defaults.getPropertyValue(property)) cell.style.setProperty(property, defaults.getPropertyValue(property));
-    }
-  }
-  const props = child(source, 'tcPr');
-  if (!props) return;
-  const fill = hex(val(child(props, 'shd'), 'fill'));
-  if (fill) cell.style.backgroundColor = fill;
-  else if (val(child(props, 'shd'), 'fill') === 'auto') cell.style.backgroundColor = 'transparent';
-  const vertical = val(child(props, 'vAlign'));
-  if (['top', 'center', 'bottom'].includes(vertical)) cell.style.verticalAlign = vertical === 'center' ? 'middle' : vertical;
-  const borders = child(props, 'tcBorders'), margins = child(props, 'tcMar');
-  for (const side of ['top', 'right', 'bottom', 'left']) {
-    const border = child(borders, side) ?? child(borders, side === 'left' ? 'start' : side === 'right' ? 'end' : side);
-    const kind = val(border);
-    if (border) {
-      const styles: Record<string, string> = { single: 'solid', dashed: 'dashed', dashSmallGap: 'dashed', dotted: 'dotted', double: 'double', nil: 'none', none: 'none' };
-      const width = Number(val(border, 'sz')) / 8 || .75;
-      cell.style.setProperty(`border-${side}`, `${styles[kind] === 'none' ? 0 : width}pt ${styles[kind] ?? 'solid'} ${hex(val(border, 'color')) || '#000000'}`);
-    }
-    const margin = child(margins, side) ?? child(margins, side === 'left' ? 'start' : side === 'right' ? 'end' : side);
-    if (margin && val(margin, 'type') === 'dxa') cell.style.setProperty(`padding-${side}`, `${Number(val(margin, 'w')) / 15}px`);
-  }
-}
-
-function runStyle(run: Element): string {
-  const props = child(run, 'rPr');
-  if (!props) return '';
-  const style = document.createElement('span').style;
-  const color = hex(val(child(props, 'color')));
-  if (color) style.color = color;
-  const font = child(props, 'rFonts');
-  const family = val(font, 'eastAsia') || val(font, 'ascii') || val(font, 'hAnsi');
-  if (family) style.fontFamily = family;
-  const size = Number(val(child(props, 'sz')));
-  if (size > 0) style.fontSize = `${size / 2}pt`;
-  const highlight = val(child(props, 'highlight'));
-  if (highlight && highlight !== 'none') style.backgroundColor = highlight;
-  const shading = hex(val(child(props, 'shd'), 'fill'));
-  if (shading) style.backgroundColor = shading;
-  return style.cssText;
-}
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
+  const format = await docxFormat(zip);
   const comments: Comment[] = [];
   const idMap = new Map<string, string>();
   const commentFile = zip.file('word/comments.xml');
@@ -103,12 +47,16 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     el.replaceWith(bookmark(name));
   }
   for (const run of all(body, 'r')) {
-    const style = runStyle(run);
+    const style = format.run(run);
     if (!style) continue;
     const start = `ws_marker_${sequence}`;
     markers.set(start, { kind: 'runStart', style }); run.before(bookmark(start));
     const end = `ws_marker_${sequence}`;
     markers.set(end, { kind: 'runEnd' }); run.after(bookmark(end));
+  }
+  for (const br of all(body, 'br').filter(el => val(el, 'type') === 'page')) {
+    const name = `ws_marker_${sequence}`;
+    markers.set(name, { kind: 'pageBreak' }); br.replaceWith(bookmark(name));
   }
   let section = 0;
   for (const paragraph of all(body, 'p')) {
@@ -139,6 +87,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           const sourceTable = ancestor(marker.cell, 'tbl'), table = cell.closest('table');
           if (sourceTable && table && !sizedTables.has(table)) {
             sizedTables.add(table);
+            table.style.marginLeft = `${Number(val(child(child(sourceTable, 'tblPr'), 'tblInd'), 'w')) / 15}px`;
+            table.style.marginBottom = '0px';
             const rows = all(sourceTable, 'tr').filter(row => ancestor(row, 'tbl') === sourceTable);
             // Vertical merges can leave an HTML row without any paragraph
             // anchors. Table row order still matches the source, including these rows.
@@ -148,15 +98,13 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             });
           }
         }
-        const props = all(marker.paragraph, 'pPr')[0];
-        if (props) {
-          const align = val(all(props, 'jc')[0]);
-          if (['left', 'right', 'center', 'both'].includes(align)) p.style.textAlign = align === 'both' ? 'justify' : align;
-          const indent = Number(val(all(props, 'ind')[0], 'left'));
-          if (indent > 0) p.style.marginLeft = `${indent / 15}px`;
-          const spacing = all(props, 'spacing')[0];
-          const line = Number(val(spacing, 'line'));
-          if (line > 0 && (!val(spacing, 'lineRule') || val(spacing, 'lineRule') === 'auto')) p.style.lineHeight = String(line / 240);
+        p.style.cssText = format.paragraph(marker.paragraph);
+        if (cell && marker.cell && !all(marker.cell, 't').some(t => t.textContent) && !all(marker.cell, 'tbl').length) {
+          for (const property of ['font-family', 'font-size', 'color']) cell.style.setProperty(property, p.style.getPropertyValue(property));
+        }
+        const breakBefore = child(child(marker.paragraph, 'pPr'), 'pageBreakBefore');
+        if (breakBefore && !['0', 'false', 'off'].includes(val(breakBefore))) {
+          const pageBreak = document.createElement('div'); pageBreak.setAttribute('data-page-break', 'true'); p.before(pageBreak);
         }
         if (marker.nextPage) {
           const sectionBreak = document.createElement('div');
@@ -171,6 +119,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       for (const item of items) {
         if (item instanceof HTMLAnchorElement && markers.has(item.id)) {
           const marker = markers.get(item.id)!;
+          if (marker.kind === 'pageBreak') continue;
           if (marker.kind === 'start') active.add(marker.id!);
           if (marker.kind === 'end') active.delete(marker.id!);
           if (marker.kind === 'runStart') activeStyle = marker.style || '';
@@ -183,6 +132,17 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           item.parentNode!.replaceChild(span, item); span.append(item);
           for (const id of active) { const comment = comments.find(c => c.id === id); if (comment) comment.quote += item.textContent; }
         }
+      }
+      for (const anchor of template.content.querySelectorAll('a[id]')) {
+        if (markers.get(anchor.id)?.kind !== 'pageBreak') continue;
+        const p = anchor.closest('p,h1,h2,h3,h4,h5,h6');
+        if (!p) { anchor.remove(); continue; }
+        const range = document.createRange(); range.selectNodeContents(p); range.setStartAfter(anchor);
+        const after = p.cloneNode(false); after.appendChild(range.extractContents()); anchor.remove();
+        const pageBreak = document.createElement('div'); pageBreak.setAttribute('data-page-break', 'true');
+        p.after(pageBreak);
+        if (after.textContent || (after as Element).querySelector('img,br')) pageBreak.after(after);
+        if (!p.textContent && !p.querySelector('img,br')) p.remove();
       }
       return template.innerHTML;
     },
