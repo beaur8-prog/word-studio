@@ -11,6 +11,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { CellAppearance } from './table-format';
+import { TableRowResize } from './table-row-resize';
 
 export const PageBreak = Node.create({
   name: "pageBreak",
@@ -83,6 +84,7 @@ export const Pagination = Extension.create({
             scheduled = requestAnimationFrame(() => {
               if (!view.dom.isConnected) return;
               if (view.composing) return;
+              if (view.dom.classList.contains('table-row-resizing')) return;
               const sheet = view.dom.closest(
                 ".document-stack",
               ) as HTMLElement | null;
@@ -183,6 +185,7 @@ export const editorExtensions = [
     table: { resizable: true, allowTableNodeSelection: true },
   }),
   CellAppearance,
+  TableRowResize,
   Image.configure({ allowBase64: true }),
   Highlight.configure({ multicolor: true }),
   Subscript,

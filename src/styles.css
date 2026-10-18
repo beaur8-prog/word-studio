@@ -829,6 +829,18 @@ button:hover:not(:disabled) {
 .resize-cursor {
   cursor: col-resize;
 }
+.tiptap.row-resize-cursor, body.table-row-resizing, body.table-row-resizing * {
+  cursor: row-resize !important;
+}
+.tiptap tr.row-height-preview { height: var(--row-preview-height) !important; }
+.table-row-resize-guide {
+  position: fixed; z-index: 250; border-top: 2px solid #4b92db; pointer-events: none;
+}
+.table-row-resize-guide span {
+  position: absolute; right: 0; bottom: 5px; padding: 3px 7px; border-radius: 4px;
+  color: #fff; background: #2464a4; font: 11px/1.4 sans-serif; white-space: nowrap;
+}
+@media print { .table-row-resize-guide { display: none !important; } }
 .tiptap img {
   display: block;
   max-width: 100%;

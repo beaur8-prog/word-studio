@@ -257,7 +257,10 @@ export function divideSelectedCells(editor: Editor, rows: number, columns: numbe
   }
   const newTable = table.type.create(table.attrs, output.map((cells, row) => {
     const originalRow = rowEdges.findIndex((edge, index) => index < rowEdges.length - 1 && edge <= row && rowEdges[index + 1] > row);
-    return editor.schema.nodes.tableRow.create(table.child(originalRow).attrs, cells.sort((a, b) => a.column - b.column).map(c => c.node));
+    const attrs = table.child(originalRow).attrs;
+    return editor.schema.nodes.tableRow.create({ ...attrs,
+      rowHeight: attrs.rowHeight ? attrs.rowHeight / (rowEdges[originalRow + 1] - rowEdges[originalRow]) : null,
+    }, cells.sort((a, b) => a.column - b.column).map(c => c.node));
   }));
   const nextMap = TableMap.get(newTable);
   if (nextMap.problems?.length) return false;

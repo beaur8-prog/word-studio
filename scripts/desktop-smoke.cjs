@@ -46,11 +46,24 @@ async function run() {
     await expect(cells.first()).toHaveCSS('border-top-style', 'dashed');
     await window.screenshot({ path: path.join(directory, 'table-menu.png') });
     await window.keyboard.press('Escape');
+    const firstRow = window.locator('.tiptap tr').first();
+    const rowBounds = await firstRow.boundingBox(), cellBounds = await cells.first().boundingBox();
+    const edgeX = cellBounds.x + cellBounds.width / 2, edgeY = cellBounds.y + cellBounds.height - 1;
+    await window.mouse.move(edgeX, edgeY);
+    await expect(window.locator('.tiptap')).toHaveClass(/row-resize-cursor/);
+    await window.mouse.down(); await window.mouse.move(edgeX, edgeY + 40, { steps: 6 });
+    await expect(firstRow).toHaveClass(/row-height-preview/);
+    await window.screenshot({ path: path.join(directory, 'row-height-drag.png') });
+    await window.mouse.up();
+    await expect.poll(async () => (await firstRow.boundingBox()).height).toBeCloseTo(rowBounds.height + 40, 0);
+    const rowStyle = await firstRow.getAttribute('style');
+    assert.match(rowStyle, /height: \d+px/);
     await window.getByRole('button', { name: '보기', exact: true }).click();
     await window.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
     await expect(window.locator('.print-page').first()).toBeVisible();
     await expect(window.locator('.print-layout th').first()).toHaveCSS('background-color', 'rgb(226, 239, 217)');
     await expect(window.locator('.print-layout th').first()).toHaveCSS('border-top-style', 'dashed');
+    await expect(window.locator('.print-layout tr').first()).toHaveAttribute('style', rowStyle);
     const previewPages = await window.locator('.print-page').count();
     await window.screenshot({ path: path.join(directory, 'preview.png') });
     await window.getByRole('button', { name: 'PDF 저장', exact: true }).click();
@@ -64,7 +77,7 @@ async function run() {
     const isolation = await window.evaluate(() => ({ node: typeof window.require, bridge: typeof window.wordDesktop.saveRecovery, paste: typeof window.wordDesktop.paste }));
     assert.deepEqual(isolation, { node: 'undefined', bridge: 'function', paste: 'function' });
     assert.deepEqual(errors, []);
-    const report = { passed: true, packaged: Boolean(packaged), tableContextMenu: true, previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length, rendererErrors: errors, directory };
+    const report = { passed: true, packaged: Boolean(packaged), tableContextMenu: true, tableRowResize: true, previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report, null, 2));
   } finally { await app.close(); }

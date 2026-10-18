@@ -26,6 +26,7 @@ import {
   UnderlineType,
   WidthType,
   VerticalAlignTable,
+  HeightRule,
 } from "docx";
 import type {
   IParagraphOptions,
@@ -36,6 +37,7 @@ import type {
 } from "docx";
 import { defaultPage, pageMargins } from "./types";
 import { prepareDocxMetadata } from './docx-metadata';
+import { rowHeight, MAX_ROW_HEIGHT } from './table-row-resize';
 import type { PageSettings, StudioDocument } from "./types";
 
 export interface ImportResult {
@@ -241,6 +243,8 @@ export function validateDocument(input: unknown): StudioDocument {
       }
     }
     const attrs = value.attrs as Record<string, unknown> | undefined;
+    if (type === 'tableRow' && attrs?.rowHeight != null && !rowHeight(attrs.rowHeight))
+      fail(`표 행 높이는 0보다 크고 ${MAX_ROW_HEIGHT}px 이하여야 합니다.`);
     if (type === 'sectionBreak') {
       if (parent !== 'doc') fail('구역 나누기는 문서의 최상위에 있어야 합니다.');
       if (typeof attrs?.page !== 'string' || attrs.page.length > 10000) fail('구역 설정이 올바르지 않습니다.');
@@ -318,7 +322,6 @@ export function validateDocument(input: unknown): StudioDocument {
         "orderedList",
         "listItem",
         "table",
-        "tableRow",
         "tableCell",
         "tableHeader",
         "blockquote",
@@ -332,6 +335,32 @@ export function validateDocument(input: unknown): StudioDocument {
     )
       fail("목록 항목에는 첫 문단이 필요합니다.");
     children.forEach((child) => walk(child, type, depth + 1));
+    if (type === 'table') {
+      // Empty rows are valid only when covered completely by earlier rowspans.
+      // Validate the grid rather than rejecting all empty rows after a merge.
+      const remaining: number[] = [];
+      let width = 0;
+      for (const row of children as JSONContent[]) {
+        let column = 0;
+        for (const cell of row.content ?? []) {
+          while ((remaining[column] ?? 0) > 0) column++;
+          const span = Number(cell.attrs?.colspan) || 1;
+          if (column + span > 1000) fail('표의 열 수가 너무 많습니다.');
+          for (let i = 0; i < span; i++) {
+            if ((remaining[column + i] ?? 0) > 0) fail('표의 병합 셀이 겹칩니다.');
+            remaining[column + i] = Number(cell.attrs?.rowspan) || 1;
+          }
+          column += span;
+        }
+        width ||= remaining.length;
+        if (!width || remaining.length !== width) fail('표 행의 열 수가 일치하지 않습니다.');
+        for (let i = 0; i < width; i++) {
+          if (!(remaining[i] > 0)) fail('표 행에 채워지지 않은 셀이 있습니다.');
+          remaining[i]--;
+        }
+      }
+      if (remaining.some(value => value > 0)) fail('병합 셀이 표의 마지막 행을 벗어납니다.');
+    }
   };
   walk(input.content, null, 0);
   return input as unknown as StudioDocument;
@@ -1140,7 +1169,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           rows.push(
             new TableRow({
               children: cells,
-              ...((row.content ?? []).every(
+              ...(rowHeight(row.attrs?.rowHeight) ? { height: { value: Math.round(row.attrs!.rowHeight * 15), rule: HeightRule.ATLEAST } } : {}),
+              ...((row.content?.length ?? 0) > 0 && (row.content ?? []).every(
                 (cell) => cell.type === "tableHeader",
               ) ? { tableHeader: true } : {}),
             }),

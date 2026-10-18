@@ -6,6 +6,11 @@ const val = (el: Element | undefined, key = 'val') => el?.getAttributeNS(W, key)
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
 const child = (root: Element | undefined, name: string) => root && Array.from(root.children).find(el => el.localName === name);
 const hex = (value: string) => /^[\da-f]{6}$/i.test(value) ? `#${value}` : '';
+function ancestor(element: Element, name: string): Element | null {
+  let parent = element.parentElement;
+  while (parent && parent.localName !== name) parent = parent.parentElement;
+  return parent;
+}
 
 function decorateCell(cell: HTMLElement, source: Element) {
   const paragraphProps = child(all(source, 'p')[0], 'pPr');
@@ -121,6 +126,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     buffer: await zip.generateAsync({ type: 'arraybuffer' }), comments,
     decorate(html: string) {
       const template = document.createElement('template'); template.innerHTML = html;
+      const sizedTables = new Set<HTMLTableElement>();
       // Attach paragraph properties before deleting marker anchors.
       for (const anchor of template.content.querySelectorAll('a[id]')) {
         const marker = markers.get(anchor.id);
@@ -128,7 +134,20 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const p = anchor.closest<HTMLElement>('p,h1,h2,h3,h4,h5,h6,li');
         if (!p || !marker.paragraph) continue;
         const cell = p.closest<HTMLElement>('td,th');
-        if (cell && marker.cell) decorateCell(cell, marker.cell);
+        if (cell && marker.cell) {
+          decorateCell(cell, marker.cell);
+          const sourceTable = ancestor(marker.cell, 'tbl'), table = cell.closest('table');
+          if (sourceTable && table && !sizedTables.has(table)) {
+            sizedTables.add(table);
+            const rows = all(sourceTable, 'tr').filter(row => ancestor(row, 'tbl') === sourceTable);
+            // Vertical merges can leave an HTML row without any paragraph
+            // anchors. Table row order still matches the source, including these rows.
+            if (rows.length === table.rows.length) rows.forEach((source, index) => {
+              const property = child(child(source, 'trPr'), 'trHeight'), height = Number(val(property));
+              if (height > 0 && val(property, 'hRule') !== 'auto') table.rows[index].style.height = `${height / 15}px`;
+            });
+          }
+        }
         const props = all(marker.paragraph, 'pPr')[0];
         if (props) {
           const align = val(all(props, 'jc')[0]);
