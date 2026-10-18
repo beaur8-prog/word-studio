@@ -63,6 +63,8 @@ export const TableRowResize = Extension.create({
         parseHTML: readHeight,
         renderHTML: attrs => rowHeight(attrs.rowHeight) ? { style: `height:${attrs.rowHeight}px` } : {},
       },
+      wordRowRule: { default: null, parseHTML: el => el.getAttribute('data-word-row-rule'),
+        renderHTML: a => a.wordRowRule === 'exact' ? { 'data-word-row-rule': 'exact' } : {} },
     } }];
   },
   addProseMirrorPlugins() {
@@ -105,7 +107,7 @@ export const TableRowResize = Extension.create({
       let tr = view.state.tr.setMeta(resizeKey, null).setMeta('addToHistory', false);
       const node = view.state.doc.nodeAt(current.pos);
       if (commit && view.editable && view.state.doc === current.doc && node?.type.name === 'tableRow' && Math.abs(current.height - current.startHeight) >= 1) {
-        tr = closeHistory(tr.setNodeMarkup(current.pos, null, { ...node.attrs, rowHeight: current.height }).setMeta('addToHistory', true));
+        tr = closeHistory(tr.setNodeMarkup(current.pos, null, { ...node.attrs, rowHeight: current.height, wordRowRule: null }).setMeta('addToHistory', true));
       }
       view.dispatch(tr);
     };
@@ -180,7 +182,7 @@ export const TableRowResize = Extension.create({
             if (!hit) return false;
             event.preventDefault();
             const node = current.state.doc.nodeAt(hit.pos)!;
-            if (node.attrs.rowHeight != null) current.dispatch(closeHistory(current.state.tr.setNodeMarkup(hit.pos, null, { ...node.attrs, rowHeight: null })));
+            if (node.attrs.rowHeight != null) current.dispatch(closeHistory(current.state.tr.setNodeMarkup(hit.pos, null, { ...node.attrs, rowHeight: null, wordRowRule: null })));
             hide();
             return true;
           },

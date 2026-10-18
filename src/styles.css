@@ -717,6 +717,7 @@ button:hover:not(:disabled) {
   margin-left: auto;
 }
 .tiptap {
+  font-synthesis: weight style;
   position: relative;
   outline: 0 !important;
   padding: var(--page-padding, var(--page-margin));
@@ -725,6 +726,7 @@ button:hover:not(:disabled) {
   font-size: 11pt;
   line-height: 1.65;
   overflow-wrap: break-word;
+  white-space: pre-wrap;
   color: #242932;
   caret-color: #2864a8;
 }

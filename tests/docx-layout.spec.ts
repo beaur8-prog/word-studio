@@ -56,6 +56,9 @@ test('DOCX style inheritance, paragraph marks, table grid and spacing survive ed
   await page.locator('input[type=file]').first().setInputFiles({ name: 'layout.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(result.doc)) });
   await expect(page.locator('.tiptap table').first()).toHaveCSS('width', '420px');
   await expect(page.locator('.tiptap p').filter({ hasText: 'Readable body' }).locator('span')).toHaveCSS('font-size', '13.3333px');
+  await page.getByRole('button', { name: '보기', exact: true }).click();
+  await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+  await expect(page.locator('.print-content table').first()).toHaveCSS('width', '420px');
 });
 
 test('nested form rows paginate in editor and print without shrinking or losing text', async ({ page }) => {

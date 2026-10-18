@@ -25,6 +25,7 @@ export async function docxFormat(zip: JSZip) {
   const theme = themeFile ? new DOMParser().parseFromString(await themeFile.async('string'), 'application/xml') : undefined;
   const settingsFile = zip.file('word/settings.xml');
   const settings = settingsFile ? new DOMParser().parseFromString(await settingsFile.async('string'), 'application/xml') : undefined;
+  const balanceWidths = settings && all(settings, 'balanceSingleByteDoubleByteWidth')[0];
   const themeLanguage = settings && val(all(settings, 'themeFontLang')[0], 'eastAsia');
   function themeFont(value: string, language: string) {
     const group = theme?.getElementsByTagNameNS('*', value.startsWith('major') ? 'majorFont' : 'minorFont')[0];
@@ -68,7 +69,10 @@ export async function docxFormat(zip: JSZip) {
       const color = child(props, 'color');
       if (color) style.color = hex(val(color)) || '#000000';
       const spacing = child(props, 'spacing');
-      if (spacing) style.letterSpacing = `${Number(val(spacing)) / 20}pt`;
+      // Word's legacy fullwidth balancing applies tracking twice to CJK
+      // characters. Flatten the compatibility setting into run formatting.
+      if (spacing) style.letterSpacing = `${Number(val(spacing)) / 20 *
+        (script === 'eastAsia' && balanceWidths && on(balanceWidths) ? 2 : 1)}pt`;
       for (const [tag, property, enabled, disabled] of [
         ['b', 'font-weight', 'bold', 'normal'], ['i', 'font-style', 'italic', 'normal'],
       ]) {
@@ -85,6 +89,14 @@ export async function docxFormat(zip: JSZip) {
     return style.cssText;
   }
   return {
+    lineRule(p: Element) {
+      let rule = 'auto';
+      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(p, 'pPr')]) {
+        const spacing = child(props, 'spacing');
+        if (val(spacing, 'line')) rule = val(spacing, 'lineRule') || 'auto';
+      }
+      return rule;
+    },
     run(run: Element, script: 'ascii' | 'eastAsia' = 'ascii') { return runCss(runLayers(ancestor(run, 'p')!, run), script); },
     tabs(p: Element) {
       const stops = new Map<number, { position: number; type: string; leader: string }>();
@@ -102,6 +114,17 @@ export async function docxFormat(zip: JSZip) {
       const style = document.createElement('p').style;
       const empty = !all(p, 't').some(t => t.textContent);
       style.cssText = runCss([...runLayers(p), ...(empty ? [child(child(p, 'pPr'), 'rPr')] : [])]);
+      // A non-empty paragraph's line strut follows its text. An unused style
+      // font (often a missing legacy font) must not enlarge every line box.
+      if (!empty) {
+        let largest = 0;
+        for (const run of all(p, 'r').filter(r => all(r, 't').some(t => t.textContent))) {
+          const actual = document.createElement('span').style;
+          actual.cssText = runCss(runLayers(p, run), /[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af]/u.test(run.textContent || '') ? 'eastAsia' : 'ascii');
+          const size = parseFloat(actual.fontSize);
+          if (size > largest) { largest = size; style.fontSize = actual.fontSize; style.fontFamily = actual.fontFamily; }
+        }
+      }
       style.marginTop = '0px'; style.marginBottom = '0px'; style.lineHeight = 'normal';
       for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(p, 'pPr')]) {
         if (!props) continue;

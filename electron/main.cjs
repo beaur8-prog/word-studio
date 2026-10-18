@@ -6,6 +6,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { fileURLToPath } = require('node:url');
 const { createRecoveryStore } = require('./recovery.cjs');
+const { installedOutlineFonts } = require('./outline-fonts.cjs');
 
 const PRODUCT_NAME = 'Word Studio';
 const DEV_URL = 'http://127.0.0.1:5191';
@@ -180,6 +181,7 @@ function installIPC() {
     // the editor's existing sanitization path. No general clipboard API is exposed.
     event.sender.paste();
   });
+  ipcMain.handle('word-studio:outline-fonts', event => { requireTrustedSender(event); return installedOutlineFonts(); });
   ipcMain.handle('word-studio:read-recovery', event => { requireTrustedSender(event); return recovery.list(); });
   ipcMain.handle('word-studio:save-recovery', (event, serialized) => { requireTrustedSender(event); return recovery.save(serialized); });
   ipcMain.on('word-studio:set-theme', (event, theme) => {

@@ -37,7 +37,9 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const first = rect(rows[i].dom), last = rect(rows[end - 1].dom);
       const height = last.top + last.height - first.top;
       const row = rows[i];
-      if (height > usableHeight && end === i + 1 && row.node.childCount === 1) {
+      let containsTable = false;
+      if (row.node.childCount === 1) row.node.firstChild!.forEach(block => { if (block.type.name === 'table') containsTable = true; });
+      if ((height > usableHeight || containsTable) && end === i + 1 && row.node.childCount === 1) {
         const cell = row.node.firstChild!;
         cell.forEach((block, offset) => walk(block, row.pos + 2 + offset));
       } else {

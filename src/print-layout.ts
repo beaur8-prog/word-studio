@@ -1,5 +1,6 @@
 import { pageMargins, pageFurniture, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
+import { layoutWordLines } from './word-line-metrics';
 
 export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
 const PX = 96 / 25.4;
@@ -31,6 +32,13 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
   document.body.append(host);
   const style = document.createElement('style'); host.append(style);
   const source = document.createElement('div'); source.innerHTML = html;
+  // The editable table NodeView fixes the width from colgroup; static HTML
+  // must do the same or nested tables stretch to the whole printable width.
+  for (const table of source.querySelectorAll('table')) {
+    const columns = [...table.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')];
+    if (columns.length && columns.every(c => /^\d+(?:\.\d+)?px$/.test(c.style.width)))
+      table.style.width = `${columns.reduce((sum, c) => sum + parseFloat(c.style.width), 0)}px`;
+  }
   const warnings = new Set<string>();
   let settings = initialPage, pageNumber = 0, content: HTMLElement;
   let sectionNumber = 0;
@@ -60,6 +68,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
     paper.append(header, content, footer); host.append(paper);
   }
   function fits() {
+    layoutWordLines(content);
     layoutTabs(content);
     const last = content.lastElementChild as HTMLElement | null;
     return !last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5;
@@ -92,6 +101,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
     if (element.matches('tr') && (element as HTMLTableRowElement).cells.length !== 1) return null;
     if (element.matches('table')) {
       const table = element as HTMLTableElement;
+      // A nested form table that fits a sheet moves as a unit. Splitting its
+      // cell paragraphs merely to fill the preceding sheet changes the form.
+      if (table.rows.length === 1 && table.getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return null;
       if ([...table.rows].some(row => [...row.cells].some(cell => cell.rowSpan > 1))) return null;
     }
     const children = [...element.children] as HTMLElement[];

@@ -63,7 +63,7 @@ import {
   Heading1,
   CalendarDays,
 } from "lucide-react";
-import { editorExtensions } from "./extensions";
+import { editorExtensions, parseDocumentHtml } from "./extensions";
 import { TableContextMenu } from './TableContextMenu';
 import { defaultPage, pageMargins, pageFurniture } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
@@ -475,7 +475,7 @@ export default function App() {
   };
   const loadDoc = async (doc: StudioDocument, html?: string) => {
     if (!editor || transitioning.current) return false;
-    const next = validateDocument({ ...doc, content: html === undefined ? doc.content : generateJSON(html, editorExtensions) });
+    const next = validateDocument({ ...doc, content: html === undefined ? doc.content : parseDocumentHtml(html) });
     // Parse before replacing anything, including the current undo history.
     editor.schema.nodeFromJSON(next.content).check();
     transitioning.current = true;
@@ -1194,7 +1194,7 @@ export default function App() {
                                 editor.isActive("heading")
                                   ? "heading"
                                   : "paragraph",
-                                { lineSpacing: n },
+                                { lineSpacing: n, wordLineRule: editor.getAttributes(editor.isActive('heading') ? 'heading' : 'paragraph').wordLineRule ? 'auto' : null },
                               )
                               .run()
                           }
@@ -1580,7 +1580,7 @@ export default function App() {
                             editor.isActive("heading")
                               ? "heading"
                               : "paragraph",
-                            { lineSpacing: e.target.value },
+                            { lineSpacing: e.target.value, wordLineRule: editor.getAttributes(editor.isActive('heading') ? 'heading' : 'paragraph').wordLineRule ? 'auto' : null },
                           )
                           .run()
                       }

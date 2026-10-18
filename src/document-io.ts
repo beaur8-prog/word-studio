@@ -445,6 +445,8 @@ export function sanitizeImportedHtml(source: string): {
       "data-comment-ids",
       "data-inline-image",
       "data-docx-tab", "data-tab-stops",
+      "data-word-line-rule", "data-word-line",
+      "data-word-row-rule",
     ],
     ALLOW_DATA_ATTR: false,
   });
@@ -932,7 +934,7 @@ function paragraphOptions(node: JSONContent): IParagraphOptions {
     spacing: {
       after: Number.isFinite(after) ? Math.round(after * 15) : 120,
       ...(Number.isFinite(before) ? { before: Math.round(before * 15) } : {}),
-      ...(exact && Number.isFinite(line) && line > 0 ? { line: Math.round(line * (lineHeight.endsWith('pt') ? 20 : 15)), lineRule: LineRuleType.EXACT } : {}),
+      ...(exact && Number.isFinite(line) && line > 0 ? { line: Math.round(line * (lineHeight.endsWith('pt') ? 20 : 15)), lineRule: node.attrs?.wordLineRule === 'atLeast' ? LineRuleType.AT_LEAST : LineRuleType.EXACT } : {}),
       ...(!exact && Number.isFinite(line) && line > 0 && line < 10
         ? { line: Math.round(line * 240), lineRule: LineRuleType.AUTO }
         : {}),
@@ -1187,6 +1189,10 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             );
         for (const row of node.content ?? []) {
           const cells: TableCell[] = [];
+          const rowPadding = Math.max(0, ...(row.content ?? []).map(cell => ['Top', 'Bottom'].reduce((sum, side) => {
+            const padding = parseFloat(cell.attrs?.[`padding${side}`]);
+            return sum + (Number.isFinite(padding) ? Math.max(0, padding) : 8);
+          }, 0)));
           for (const cell of row.content ?? []) {
             const children = await blocks(inheritCellText(cell.content ?? [], cell.attrs), {
               cellRun: runOptions({ type: 'text', marks: [{ type: 'textStyle', attrs: {
@@ -1219,7 +1225,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           rows.push(
             new TableRow({
               children: cells,
-              ...(rowHeight(row.attrs?.rowHeight) ? { height: { value: Math.round(row.attrs!.rowHeight * 15), rule: HeightRule.ATLEAST } } : {}),
+              ...(rowHeight(row.attrs?.rowHeight) ? { height: { value: Math.max(1, Math.round((row.attrs!.rowHeight - (row.attrs?.wordRowRule === 'exact' ? 0 : rowPadding)) * 15)), rule: row.attrs?.wordRowRule === 'exact' ? HeightRule.EXACT : HeightRule.ATLEAST } } : {}),
               ...((row.content?.length ?? 0) > 0 && (row.content ?? []).every(
                 (cell) => cell.type === "tableHeader",
               ) ? { tableHeader: true } : {}),

@@ -4,6 +4,7 @@ declare global {
     wordDesktop?: {
       paste?: () => Promise<void>;
       platform: string;
+      outlineFonts?: () => Promise<{ families: string[]; data: Uint8Array }[]>;
       readRecovery(): Promise<{ current: string; previous?: string; savedAt: string }[]>;
       saveRecovery(serialized: string): Promise<boolean>;
       saveFile(payload: {

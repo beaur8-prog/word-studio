@@ -1,6 +1,6 @@
 {
   "name": "word-studio",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -15,7 +15,7 @@
     "package:mac": "npm run build && node scripts/package-mac.cjs",
     "package:linux": "npm run build && node scripts/package-linux.cjs",
     "test": "playwright test",
-    "test:native": "node --test tests/recovery.test.cjs",
+    "test:native": "node --test tests/*.test.cjs",
     "test:desktop": "node scripts/desktop-smoke.cjs",
     "test:linux-package": "node scripts/test-linux-package.cjs"
   },

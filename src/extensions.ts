@@ -13,6 +13,9 @@ import { TableRowResize } from './table-row-resize';
 import { Pagination } from './pagination';
 import { ImportedFormat, StudioTableView } from './imported-format';
 import { DocumentTab, DocumentTabs } from './document-tabs';
+import { WordLineMetrics } from './word-line-metrics';
+import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
+import { getSchema } from '@tiptap/core';
 
 export const PageBreak = Node.create({
   name: "pageBreak",
@@ -47,7 +50,7 @@ const ParagraphFormat = Extension.create({
         attributes: {
           indent: {
             default: 0,
-            parseHTML: (e) => parseInt(e.style.marginLeft) || 0,
+            parseHTML: (e) => parseFloat(e.style.marginLeft) || 0,
             renderHTML: (a) =>
               a.indent ? { style: `margin-left:${a.indent}px` } : {},
           },
@@ -86,5 +89,11 @@ export const editorExtensions = [
   CommentAnchor,
   ParagraphFormat,
   ImportedFormat,
+  WordLineMetrics,
   Pagination,
 ];
+
+export function parseDocumentHtml(html: string) {
+  const root = document.createElement('div'); root.innerHTML = html;
+  return ProseMirrorDOMParser.fromSchema(getSchema(editorExtensions)).parse(root, { preserveWhitespace: true }).toJSON();
+}

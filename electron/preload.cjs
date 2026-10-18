@@ -5,6 +5,7 @@ const MENU_ACTIONS = new Set(['new', 'open', 'save', 'save-as', 'export-docx', '
 
 contextBridge.exposeInMainWorld('wordDesktop', Object.freeze({
   platform: process.platform,
+  outlineFonts: () => ipcRenderer.invoke('word-studio:outline-fonts'),
   readRecovery: () => ipcRenderer.invoke('word-studio:read-recovery'),
   saveRecovery: serialized => ipcRenderer.invoke('word-studio:save-recovery', serialized),
   saveFile: payload => ipcRenderer.invoke('word-studio:save-file', payload),

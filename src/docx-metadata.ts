@@ -84,7 +84,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     buffer: await zip.generateAsync({ type: 'arraybuffer' }), comments,
     decorate(html: string) {
       const template = document.createElement('template'); template.innerHTML = html;
-      const sizedTables = new Set<HTMLTableElement>();
+      const sizedTables = new Map<HTMLTableElement, Element>();
       let pendingImage: (typeof markers extends Map<string, infer T> ? T : never) | undefined;
       for (const el of template.content.querySelectorAll('a[id],img')) {
         if (el instanceof HTMLAnchorElement) {
@@ -109,19 +109,13 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           decorateCell(cell, marker.cell);
           const sourceTable = ancestor(marker.cell, 'tbl'), table = cell.closest('table');
           if (sourceTable && table && !sizedTables.has(table)) {
-            sizedTables.add(table);
+            sizedTables.set(table, sourceTable);
             table.style.marginLeft = `${Number(val(child(child(sourceTable, 'tblPr'), 'tblInd'), 'w')) / 15}px`;
             table.style.marginBottom = '0px';
-            const rows = all(sourceTable, 'tr').filter(row => ancestor(row, 'tbl') === sourceTable);
-            // Vertical merges can leave an HTML row without any paragraph
-            // anchors. Table row order still matches the source, including these rows.
-            if (rows.length === table.rows.length) rows.forEach((source, index) => {
-              const property = child(child(source, 'trPr'), 'trHeight'), height = Number(val(property));
-              if (height > 0 && val(property, 'hRule') !== 'auto') table.rows[index].style.height = `${height / 15}px`;
-            });
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
+        p.setAttribute('data-word-line-rule', format.lineRule(marker.paragraph));
         const tabs = format.tabs(marker.paragraph);
         if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
         if (cell && marker.cell && !all(marker.cell, 't').some(t => t.textContent) && !all(marker.cell, 'tbl').length) {
@@ -136,6 +130,22 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           sectionBreak.setAttribute('data-section-page', JSON.stringify(marker.nextPage));
           p.after(sectionBreak);
         }
+      }
+      // Word's minimum row height reserves the cell's top/bottom margins in
+      // addition to the requested text height; HTML tr height includes them.
+      // Wait until every cell has its formatting before measuring that reserve.
+      for (const [table, sourceTable] of sizedTables) {
+        const rows = all(sourceTable, 'tr').filter(row => ancestor(row, 'tbl') === sourceTable);
+        if (rows.length !== table.rows.length) continue;
+        rows.forEach((source, index) => {
+          const property = child(child(source, 'trPr'), 'trHeight'), height = Number(val(property));
+          if (height <= 0 || val(property, 'hRule') === 'auto') return;
+          const row = table.rows[index], exact = val(property, 'hRule') === 'exact';
+          const padding = exact ? 0 : Math.max(0, ...[...row.cells].map(cell =>
+            (parseFloat(cell.style.paddingTop) || 0) + (parseFloat(cell.style.paddingBottom) || 0)));
+          row.style.height = `${height / 15 + padding}px`;
+          row.dataset.wordRowRule = exact ? 'exact' : 'atLeast';
+        });
       }
       const active = new Set<string>();
       let activeStyle = '';
