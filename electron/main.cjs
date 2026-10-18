@@ -285,7 +285,8 @@ function hardenSession() {
 async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1540, height: 1000, minWidth: 1080, minHeight: 720, title: PRODUCT_NAME,
-    icon: path.join(__dirname, 'WordStudio.ico'), backgroundColor: CHROME_THEMES[chromeTheme].color, show: false,
+    icon: path.join(__dirname, process.platform === 'linux' ? 'WordStudio.png' : 'WordStudio.ico'),
+    backgroundColor: CHROME_THEMES[chromeTheme].color, show: false,
     autoHideMenuBar: process.platform === 'win32',
     ...(process.platform === 'win32' ? { titleBarStyle: 'hidden', titleBarOverlay: CHROME_THEMES[chromeTheme] } : {}),
     webPreferences: {

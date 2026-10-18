@@ -41,7 +41,7 @@ async function run() {
     const archive = path.join(app, 'resources/app.asar');
     const packed = JSON.parse(asar.extractFile(archive, 'package.json'));
     if (packed.version !== manifest.version || packed.desktopName !== 'local.wordstudio.app') throw new Error('Linux app metadata mismatch.');
-    for (const name of ['dist/index.html', 'electron/main.cjs', 'electron/preload.cjs']) asar.extractFile(archive, name);
+    for (const name of ['dist/index.html', 'electron/main.cjs', 'electron/preload.cjs', 'electron/WordStudio.png']) asar.extractFile(archive, name);
     const metadata = {
       product: 'Word Studio', version: manifest.version, platform: 'linux', architecture: 'x64',
       format: 'deb', signing: 'unsigned local Debian package', electronVersion: manifest.devDependencies.electron,
