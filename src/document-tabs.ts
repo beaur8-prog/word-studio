@@ -36,8 +36,16 @@ export function layoutTabs(root: HTMLElement) {
         const range = document.createRange(); range.selectNodeContents(paragraph); range.setStartAfter(tab);
         if (end) range.setEndBefore(end);
         const measure = document.createElement('span');
+        // Chromium can return an empty font shorthand for a mixed computed
+        // style. Copy longhands so measurement uses the paragraph's typeface.
         Object.assign(measure.style, { position: 'fixed', left: '-10000px', visibility: 'hidden', whiteSpace: 'pre', width: 'max-content', textIndent: '0',
-          font: paragraphStyle.font, letterSpacing: paragraphStyle.letterSpacing });
+          fontFamily: paragraphStyle.fontFamily, fontSize: paragraphStyle.fontSize,
+          fontWeight: paragraphStyle.fontWeight, fontStyle: paragraphStyle.fontStyle,
+          fontStretch: paragraphStyle.fontStretch, fontVariant: paragraphStyle.fontVariant,
+          fontKerning: paragraphStyle.fontKerning, fontFeatureSettings: paragraphStyle.fontFeatureSettings,
+          fontVariationSettings: paragraphStyle.fontVariationSettings,
+          letterSpacing: paragraphStyle.letterSpacing, wordSpacing: paragraphStyle.wordSpacing,
+          textTransform: paragraphStyle.textTransform });
         measure.append(range.cloneContents());
         if (stop.type === 'decimal') measure.textContent = measure.textContent?.split(/[.,]/)[0] ?? '';
         // Measuring inside the editor would trigger ProseMirror's DOM observer
