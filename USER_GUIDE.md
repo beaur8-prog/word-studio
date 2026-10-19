@@ -289,10 +289,10 @@ sha256sum Word-Studio-1.2.11-linux-x64.deb
 
 ## 12. 이번 배포의 확인 결과
 
-- Mac·Windows·Ubuntu 22.04에서 브라우저 기능 시험 각각 72개와 네이티브 시험 각각 4개를 통과했습니다. 공식 DOCX 샘플 20개를 열고 왕복 저장했으며 미리보기와 PDF 총 57쪽이 일치했습니다.
+- Mac·Windows·Ubuntu 22.04에서 브라우저 기능 시험 각각 81개와 네이티브 시험 각각 4개를 통과했습니다. 공식 DOCX 샘플 20개를 열고 왕복 저장했으며 미리보기와 PDF 총 57쪽이 일치했습니다.
 - Linux DEB는 같은 파일을 Ubuntu 22.04·24.04 LTS x64에 설치해 버전·설치 파일 해시·앱 메뉴·실제 앱 실행·재설치·제거와 문서·복구 데이터 보존을 확인했습니다.
 - Windows Setup도 새 설치·바로 가기·앱 등록·재설치·제거와 데이터 보존을 확인했습니다.
 - 패키징한 Mac 앱과 설치된 Windows·Ubuntu 22.04·24.04 앱에서 표 메뉴·행 높이·저장 실패 보호·사본 저장·PDF 출력을 확인했습니다. 긴 다단은 편집/미리보기/PDF 모두 4쪽, 중앙 그림은 모두 1쪽이며 양쪽 텍스트 8줄에 그림과 겹치는 글자는 없었습니다. 모든 환경에서 렌더러 샌드박스가 활성화됐고 렌더러 오류는 없었습니다.
 - Mac ZIP은 압축 CRC, 재추출 후 앱 버전 1.2.11, 로컬 ad-hoc 서명 무결성과 시험한 앱의 ASAR 일치를 확인했습니다. Mac은 Developer ID 서명·공증을 받지 않았고 Windows 배포 파일은 미서명입니다.
-- [Windows·Linux 실행 검증 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39174737429)에서 빌드와 시험 결과를 확인할 수 있습니다. Linux GUI 자동 시험은 Xvfb의 X11 환경을 사용했습니다. Wayland와 실제 프린터 출력은 별도로 시험하지 않았습니다.
+- [Windows·Linux 실행 검증 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39189219721)에서 빌드와 시험 결과를 확인할 수 있습니다. Linux GUI 자동 시험은 Xvfb의 X11 환경을 사용했습니다. Wayland와 실제 프린터 출력은 별도로 시험하지 않았습니다.
 - Windows의 Word와 비교한 문서별 결과는 이전 항목과 [상세 검증 기록](VALIDATION.md)을 참고하세요. 해당 결과가 모든 문서 또는 Mac·Linux의 글꼴 환경에서도 같은 페이지 배치를 보장하지는 않습니다.

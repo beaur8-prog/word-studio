@@ -1,13 +1,16 @@
 # Word Studio 검증
 
-## 2026-10-19 1.2.11 Studio 앱 간 표 복사 (소스·로컬, 미배포)
+## 2026-10-19 1.2.11 Studio 앱 간 표 복사 및 배포
 
 - Sheet Studio 0.7.10·Word Studio 1.2.11·Slide Studio 1.6.1의 실제 OS 클립보드로 **여섯 방향**을 확인합니다. 표 전체 선택·홈 복사와 홈 붙여넣기를 사용하며 격리된 시험 프로필로 사용자 문서를 보호합니다. 소스 실행과 패키징한 Mac arm64 앱 모두 통과했습니다.
 - Word는 기존 ProseMirror HTML 복사를 유지하고 표만 선택했을 때 인용된 TSV를 함께 보냅니다. 병합 칸의 빈 값, 셀 안의 줄바꿈·탭·따옴표와 일반 문단 복사의 보존을 검사합니다. HTML 수신은 표 확장으로 편집 가능한 표가 되며 실행 취소 한 번으로 되돌립니다.
 - 잘못된 병합으로 선택 본문이 바뀌던 현상을 재현한 뒤 파싱 전에 거부했습니다. 표 HTML 10 MB 제한은 한글을 포함한 UTF-8 바이트로 계산합니다. 홈과 표 메뉴의 비동기 읽기는 문서·선택·포커스·읽기 모드 변경 후 적용하지 않습니다.
 - 최종 브라우저 **81개**, 네이티브 **4개**, 타입 검사·빌드 통과. 교환 회귀 시험 9개는 HTML 수신·TSV 송신·기존 표 선택·실행 취소, 잘못된 병합·한도, 지연 읽기 취소와 일반 텍스트 대체 경로를 검사합니다.
 - 세 앱의 패키징 파일과 소스의 `dist/`·`electron/` 파일을 비교했습니다. 통합 로그는 Sheet 저장소의 `.package/studio-clipboard-six-directions-source.log`, `.package/studio-clipboard-six-directions-packaged.log`, 화면은 `test-results/suite-clipboard-*.png`입니다. 종료 시 표준 텍스트·HTML·RTF·이미지를 한 번에 복원합니다.
-- 실제 앱 간 클립보드 시험은 macOS arm64에서 수행했습니다. Windows·Linux 및 Microsoft Office와의 실제 교환은 이 검사에 포함하지 않습니다. 공개 릴리즈와 리토스는 별도 배포 요청 전까지 1.2.10을 유지합니다.
+- 실제 앱 간 클립보드 시험은 macOS arm64에서 수행했습니다. Windows·Linux 및 Microsoft Office와의 실제 교환은 이 검사에 포함하지 않습니다. Mac ZIP·Windows Setup·Linux DEB를 1.2.11로 배포합니다.
+
+- [릴리즈 CI](https://github.com/beaur8-prog/word-studio/actions/runs/39189219721)의 Windows·Ubuntu 22.04·24.04 작업이 모두 통과했습니다. Windows와 Ubuntu 22.04의 브라우저 시험 81개·네이티브 시험 4개, Windows Setup과 동일 Linux DEB의 실제 설치·앱 실행·재설치·제거·사용자 데이터 보존을 확인했습니다.
+- 최종 Mac ZIP을 별도 폴더에 재추출해 서명 무결성과 실제 앱을 확인했습니다. 표 메뉴·행 높이·저장 실패 보호·사본 저장·PDF, 다단 편집/미리보기/PDF 4쪽 일치, 그림 양쪽 흐름 8줄·겹침 0개, 렌더러 샌드박스와 오류 0개를 확인했습니다. 결과는 `.cache/desktop-smoke-wqbisG/result.json`입니다.
 
 ## 2026-10-19 1.2.10 공식 샘플·레이아웃 수정 및 배포
 
