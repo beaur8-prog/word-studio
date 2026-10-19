@@ -1,6 +1,6 @@
 # Word Studio 다운로드 및 사용 안내
 
-**현재 배포 버전: 1.2.8 · 2026년 10월 18일**
+**현재 배포 버전: 1.2.10 · 2026년 10월 19일**
 
 Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DOCX와 PDF로 내보내는 로컬 문서 편집기입니다. 설치 후에는 Microsoft Word, Node.js, 계정 또는 인터넷 연결 없이 문서를 작성할 수 있습니다. Microsoft와 관련 없는 독립 앱이며 Word의 모든 기능을 지원하지는 않습니다.
 
@@ -17,9 +17,9 @@ Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DO
 
 | 컴퓨터 | 배포 파일 | 설치 방식 |
 | --- | --- | --- |
-| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.2.8-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.8/Word-Studio-1.2.8-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
-| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.2.8-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.8/Word-Studio-1.2.8-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
-| Linux · Ubuntu 22.04 / 24.04 LTS · Intel/AMD 64비트(x64) | [Word-Studio-1.2.8-linux-x64.deb](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.8/Word-Studio-1.2.8-linux-x64.deb) | apt로 설치 → 앱 메뉴 또는 word-studio 명령으로 실행 |
+| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.2.10-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.10/Word-Studio-1.2.10-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
+| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.2.10-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.10/Word-Studio-1.2.10-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
+| Linux · Ubuntu 22.04 / 24.04 LTS · Intel/AMD 64비트(x64) | [Word-Studio-1.2.10-linux-x64.deb](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.10/Word-Studio-1.2.10-linux-x64.deb) | apt로 설치 → 앱 메뉴 또는 word-studio 명령으로 실행 |
 
 Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 DEB 패키지입니다. 다른 Debian 계열 배포판은 라이브러리 호환성을 확인해야 합니다. Intel Mac용, Windows ARM64용, Linux ARM64용 파일은 제공하지 않습니다. GitHub의 **Source code** 파일은 개발용 소스이므로 일반 설치에는 위의 운영체제별 배포 파일을 사용하세요.
 
@@ -34,7 +34,7 @@ Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 D
 
 ## 3. Windows 설치 및 실행
 
-1. **Word-Studio-1.2.8-windows-x64-setup.exe**를 다운로드합니다. 다운로드 중 브라우저에서 **위험한 파일** 또는 **PC에 손상을 줄 수 있음**과 같은 경고가 뜰 수 있습니다. 경고 문구는 브라우저에 따라 다릅니다. 이 페이지의 다운로드 링크인지 확인하고, 출처를 신뢰할 때에만 다운로드를 계속하세요.
+1. **Word-Studio-1.2.10-windows-x64-setup.exe**를 다운로드합니다. 다운로드 중 브라우저에서 **위험한 파일** 또는 **PC에 손상을 줄 수 있음**과 같은 경고가 뜰 수 있습니다. 경고 문구는 브라우저에 따라 다릅니다. 이 페이지의 다운로드 링크인지 확인하고, 출처를 신뢰할 때에만 다운로드를 계속하세요.
 2. 받은 Setup 파일의 파일명과 함께 제공하는 SHA-256을 확인한 뒤 두 번 클릭합니다. 압축을 풀 필요가 없습니다.
 3. **‘Windows의 PC 보호’** 화면이 나타나면 **‘추가 정보’**를 누른 다음, 표시되는 앱이 받은 Setup 파일인지 확인하고 **‘실행’**을 누릅니다. 영어 Windows에서는 **More info → Run anyway**입니다.
 4. 언어를 선택하고 설치 마법사를 진행합니다. **현재 사용자용** 설치가 기본이며, 필요하면 설치 경로를 바꿀 수 있습니다.
@@ -53,11 +53,11 @@ Windows 배포 파일은 코드 서명을 받지 않았습니다. SmartScreen은
 
 DEB 패키지는 **Intel/AMD 64비트(amd64/x86_64)** 데스크톱용입니다. Ubuntu 22.04·24.04 LTS에서 설치와 실행을 검증했습니다.
 
-1. **Word-Studio-1.2.8-linux-x64.deb**를 다운로드합니다.
+1. **Word-Studio-1.2.10-linux-x64.deb**를 다운로드합니다.
 2. 터미널에서 다운로드한 파일이 있는 폴더로 이동하고 다음 명령으로 설치합니다.
 
 ```sh
-sudo apt install ./Word-Studio-1.2.8-linux-x64.deb
+sudo apt install ./Word-Studio-1.2.10-linux-x64.deb
 ```
 
 3. 설치가 끝나면 앱 메뉴의 **Word Studio**를 선택하거나 일반 사용자 터미널에서 `word-studio`를 실행합니다.
@@ -144,13 +144,13 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 
 ## 9. 버전별 변경 내역
 
-### 1.2.10 · 2026-10-19 · 다단과 그림 둘러싸기 수정 (소스·로컬 빌드)
+### 1.2.10 · 2026-10-19 · 공식 샘플 호환과 레이아웃 수정
 
 - 긴 다단을 오른쪽 화면 밖으로 넘기던 문제를 수정했습니다. 앞의 일반 문단 아래 남은 공간부터 왼쪽 단→오른쪽 단→다음 페이지로 흐릅니다. 균등 배치 옵션과 편집·실행 취소를 유지합니다.
 - 중앙 그림의 왼쪽과 오른쪽에 같은 줄의 글자를 배치하며, Tight/Through의 원본 다각형 윤곽을 읽고 DOCX 재저장 시 보존합니다.
 - 큰 글자·굵은 글자, 오른쪽/가운데 정렬, 200% 확대, 다단 안의 그림과 구역별 용지·여백을 반영합니다. 페이지 아래쪽에 들어가지 않는 그림은 앵커 문단과 함께 다음 장으로 이동합니다.
 - 본문 문단을 쪼개거나 공백 문자를 저장하지 않습니다. 양쪽 둘러싸기와 다단을 실제 Mac 앱·미리보기·PDF에서도 검사합니다.
-- **공개 다운로드와 리토스 페이지는 1.2.8을 유지합니다.** 변경된 소스·설치 앱과 공개 배포본은 구분되며, 배포 요청 때 공개 파일을 갱신합니다. [검증 기록](OFFICIAL_SAMPLE_FIXES.md)을 참고하세요.
+- 1.2.9의 공식 DOCX 샘플 호환 수정도 포함합니다. Mac ZIP·Windows Setup·Linux DEB를 1.2.10으로 제공합니다. [검증 기록](OFFICIAL_SAMPLE_FIXES.md)을 참고하세요.
 
 ### 1.2.9 · 2026-10-19 · 공식 샘플 호환 수정 (소스·로컬 빌드)
 
@@ -158,7 +158,7 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 - 번호 목록의 연속 번호·단계별 형식·문단 들여쓰기·탭, VML 그림 크기·문단 위치·둘러싸기 정보를 가져오고 다시 저장합니다.
 - 머리글/바닥글의 그림·표·서식과 본문 충돌을 수정하고, 각주·미주 전용 영역, 다단, 구역 나눔 유형과 구역별 편집 폭을 추가했습니다.
 - 기호 글꼴을 Unicode로 표시하면서 원본 글꼴·문자 코드를 저장하고, 메모 작성자·이니셜·서식을 보존합니다. 공개 라이선스의 Noto 대체 글꼴을 앱에 포함해 기호를 오프라인에서도 표시합니다.
-- [20개 샘플 및 회귀 시험 결과와 남은 정밀 조판 차이](OFFICIAL_SAMPLE_FIXES.md)를 확인하세요. **현재 공개 다운로드는 1.2.8입니다.** 이 변경은 아직 리토스와 GitHub Releases에 게시하지 않았습니다.
+- [20개 샘플 및 회귀 시험 결과와 남은 정밀 조판 차이](OFFICIAL_SAMPLE_FIXES.md)를 확인하세요. 1.2.9는 별도로 공개하지 않았으며 이 수정은 1.2.10 배포본에 포함됩니다.
 - 이전에 변환하며 잃은 원본 정보는 자동 복원되지 않습니다. 수정 중인 문서는 사본으로 저장한 뒤 원본 DOCX를 다시 여세요.
 
 ### 1.2.8 · 2026-10-18 · 표와 페이지 배치 개선
@@ -252,7 +252,7 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 | 다른 컴퓨터에서 글꼴·줄바꿈이 다름 | 설치된 글꼴 차이 확인. 모양을 고정해 전달하려면 PDF 사용 |
 | DOCX의 일부 내용이 달라짐 | 변환 범위 확인 후 원본과 별도로 검토. 원본 파일은 보관 |
 
-1.2.10 소스·로컬 앱은 다단의 페이지 흐름, 중앙 부동 그림의 양쪽 둘러싸기, 원본 다각형 윤곽, 머리글/바닥글의 표·그림·서식을 처리합니다. 도형·텍스트 상자, 변경 내용 추적, 매크로·수식, 모든 Word 스타일과 복잡한 필드의 완전한 재현은 지원하지 않습니다. 구멍이 있는 복잡한 둘러싸기 윤곽과 Word 고유의 정밀 글꼴 조판에는 차이가 남습니다. 표 스타일 갤러리·대각선 테두리·자유로운 선 그리기와 고정 높이로 내용 자르기도 제공하지 않습니다.
+1.2.10 앱은 다단의 페이지 흐름, 중앙 부동 그림의 양쪽 둘러싸기, 원본 다각형 윤곽, 머리글/바닥글의 표·그림·서식을 처리합니다. 도형·텍스트 상자, 변경 내용 추적, 매크로·수식, 모든 Word 스타일과 복잡한 필드의 완전한 재현은 지원하지 않습니다. 구멍이 있는 복잡한 둘러싸기 윤곽과 Word 고유의 정밀 글꼴 조판에는 차이가 남습니다. 표 스타일 갤러리·대각선 테두리·자유로운 선 그리기와 고정 높이로 내용 자르기도 제공하지 않습니다.
 
 검증 범위와 결과는 [VALIDATION.md](VALIDATION.md), 개발 실행 방법은 [README.md](README.md)에 기록합니다. 오류를 알릴 때는 운영체제·버전·재현 순서를 [이슈](https://github.com/beaur8-prog/word-studio/issues)에 남기고, 개인 문서 대신 민감한 내용을 제거한 예제를 사용하세요.
 
@@ -263,29 +263,29 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 Mac 터미널:
 
 ```sh
-shasum -a 256 Word-Studio-1.2.8-mac-arm64.zip
+shasum -a 256 Word-Studio-1.2.10-mac-arm64.zip
 ```
 
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\Word-Studio-1.2.8-windows-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Word-Studio-1.2.10-windows-x64-setup.exe -Algorithm SHA256
 ```
 
 Linux 터미널:
 
 ```sh
-sha256sum Word-Studio-1.2.8-linux-x64.deb
+sha256sum Word-Studio-1.2.10-linux-x64.deb
 ```
 
 표시된 값이 `SHA256SUMS.txt`의 해당 파일 값과 일치하는지 확인하세요.
 
 ## 12. 이번 배포의 확인 결과
 
-- Mac·Windows·Ubuntu 22.04에서 브라우저 기능 시험 42개씩과 네이티브 시험 3개씩을 통과했습니다. DOCX 서식·표·탭·이미지·한글 줄간격·페이지 배치, 자동 복구와 글꼴 처리의 회귀 시험을 포함합니다.
+- Mac·Windows·Ubuntu 22.04에서 브라우저 기능 시험 각각 72개와 네이티브 시험 각각 4개를 통과했습니다. 공식 DOCX 샘플 20개를 열고 왕복 저장했으며 미리보기와 PDF 총 57쪽이 일치했습니다.
 - Linux DEB는 같은 파일을 Ubuntu 22.04·24.04 LTS x64에 설치해 버전·설치 파일 해시·앱 메뉴·실제 앱 실행·재설치·제거와 문서·복구 데이터 보존을 확인했습니다.
 - Windows Setup도 새 설치·바로 가기·앱 등록·재설치·제거와 데이터 보존을 확인했습니다.
-- 세 운영체제의 실제 배포 앱에서 표 메뉴·행 높이·저장 실패 보호·사본 저장·PDF 출력을 확인했습니다. 모든 환경에서 렌더러 샌드박스가 활성화됐고 렌더러 오류는 없었습니다. 각 환경의 미리보기와 PDF 페이지 수가 일치했습니다.
-- Mac ZIP은 압축 CRC, 재추출 후 앱 버전 1.2.8, 로컬 ad-hoc 서명 무결성과 시험한 앱의 ASAR 일치를 확인했습니다. Mac은 Developer ID 서명·공증을 받지 않았고 Windows 배포 파일은 미서명입니다.
-- [Windows·Linux 실행 검증 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39124850890)에서 빌드와 시험 결과를 확인할 수 있습니다. Linux GUI 자동 시험은 Xvfb의 X11 환경을 사용했습니다. Wayland와 실제 프린터 출력은 별도로 시험하지 않았습니다.
+- 패키징한 Mac 앱과 설치된 Windows·Ubuntu 22.04·24.04 앱에서 표 메뉴·행 높이·저장 실패 보호·사본 저장·PDF 출력을 확인했습니다. 긴 다단은 편집/미리보기/PDF 모두 4쪽, 중앙 그림은 모두 1쪽이며 양쪽 텍스트 8줄에 그림과 겹치는 글자는 없었습니다. 모든 환경에서 렌더러 샌드박스가 활성화됐고 렌더러 오류는 없었습니다.
+- Mac ZIP은 압축 CRC, 재추출 후 앱 버전 1.2.10, 로컬 ad-hoc 서명 무결성과 시험한 앱의 ASAR 일치를 확인했습니다. Mac은 Developer ID 서명·공증을 받지 않았고 Windows 배포 파일은 미서명입니다.
+- [Windows·Linux 실행 검증 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39174737429)에서 빌드와 시험 결과를 확인할 수 있습니다. Linux GUI 자동 시험은 Xvfb의 X11 환경을 사용했습니다. Wayland와 실제 프린터 출력은 별도로 시험하지 않았습니다.
 - Windows의 Word와 비교한 문서별 결과는 이전 항목과 [상세 검증 기록](VALIDATION.md)을 참고하세요. 해당 결과가 모든 문서 또는 Mac·Linux의 글꼴 환경에서도 같은 페이지 배치를 보장하지는 않습니다.

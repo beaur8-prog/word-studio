@@ -2,7 +2,7 @@
 
 2026-10-19, macOS arm64 / Chrome / Electron 42.11.15. 사용자 제공 `analysis/official-sample-validation/README.md`와 상세 문제 보고서를 먼저 읽고 같은 원본 20개를 검사했다. 원본 보고서·파일은 보존하고 새 화면 40장·PDF 20개·측정 JSON은 `analysis/official-sample-validation/after-layout/` (1.2.9 결과는 `after/`)에 저장했다. 이 디렉터리는 Git에서 제외되며 원본 DOCX를 저장소에 재배포하지 않는다.
 
-이번 버전은 소스와 로컬 앱 수정본이다. 공개 GitHub Release와 리토스 공유 페이지는 아직 1.2.8을 유지한다.
+이 수정은 Mac ZIP·Windows Setup·Linux DEB 1.2.10 배포본에 포함된다. [다운로드·설치 안내](USER_GUIDE.md)와 기존 리토스 공유 페이지에서 받을 수 있다.
 
 ## 1.2.10에서 마저 수정한 레이아웃
 

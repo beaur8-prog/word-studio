@@ -1,18 +1,18 @@
 # Word Studio 검증
 
-## 2026-10-19 1.2.10 레이아웃 수정 (미배포)
+## 2026-10-19 1.2.10 공식 샘플·레이아웃 수정 및 배포
 
 - 긴 다단의 오른쪽 넘침을 제거하고 앞 문단 아래 남은 공간→왼쪽 단→오른쪽 단→다음 페이지로 이어 배치합니다. 중앙 그림 양쪽에 같은 줄의 글자를 배치하고, Tight/Through의 원본 다각형 점을 가져오고 DOCX로 보존합니다.
 - 브라우저 **72개**, 네이티브 **4개**, 타입 검사·빌드 통과. 레이아웃 시험 13개는 균등/비균등 다단, 여백 안 문자 위치, 다음 장에서 편집·실행 취소, 굵기/크기/정렬, 200% 확대, 다음 문단의 흐름, 저장 데이터 불변, DOCX 2회 왕복, 다단 안의 그림, 가로/세로 구역과 페이지 경계를 검사합니다.
 - 공식 샘플 **20/20**, 미리보기·PDF **총 57쪽** 일치. 부동 그림과 실제 글자 상자의 겹침도 추가 검사합니다. `20-lo-tight-wrap`은 편집·출력 모두 양쪽 흐름 **8줄**, 겹치는 글자 **0개**입니다. 원본과 이전 증거를 보존하고 새 결과를 `analysis/official-sample-validation/after-layout/`에 저장했습니다.
 - 실제 Mac 1.2.10 앱: 기존 편집·표·복구·PDF 시험 7/7쪽, 긴 다단 4/4/4쪽(편집/미리보기/PDF), 중앙 그림 1/1/1쪽과 양쪽 흐름 8줄·겹침 0개, 렌더러 오류 0개. 격리 프로필 결과 `.cache/desktop-smoke-a1rbN0/result.json`.
 - [최종 CI](https://github.com/beaur8-prog/word-studio/actions/runs/39174737429) (`302ac4e`): Windows와 Ubuntu 22.04에서 브라우저 시험 각각 **72개**, 네이티브 시험 각각 **4개** 통과. 설치된 Windows·Ubuntu 22.04·Ubuntu 24.04 앱에서 다단 **4/4/4쪽**, 중앙 그림 **1/1/1쪽**, 양쪽 흐름 **8줄·겹침 0개**를 확인했습니다. 세 환경 모두 기존 데스크톱 시험, 설치·실행·재설치·제거, 사용자 데이터 보존, 렌더러 샌드박스와 오류 0개를 확인했습니다. 결과 JSON은 CI의 `windows-test-evidence`, `linux-22-test-evidence`, `linux-24-test-evidence` 아티팩트에 있습니다.
-- 공개 GitHub Release와 리토스 페이지는 **1.2.8 유지**. 상세 구현·한계·샘플별 결과는 [OFFICIAL_SAMPLE_FIXES.md](OFFICIAL_SAMPLE_FIXES.md)에 기록했습니다.
+- GitHub Release와 기존 리토스 공유 페이지에 Mac ZIP·Windows Setup·Linux DEB 1.2.10을 제공합니다. 상세 구현·한계·샘플별 결과는 [OFFICIAL_SAMPLE_FIXES.md](OFFICIAL_SAMPLE_FIXES.md)에 기록했습니다.
 
 
 ## 2026-10-19 1.2.9 공식 DOCX 샘플 수정 (미배포)
 
-공식 샘플 20개를 재검증해 열기·DOCX 왕복·서식 텍스트/링크 보존·표 폭·머리글 충돌·미리보기/PDF 일치 검사를 모두 통과했습니다. 브라우저 59개, 네이티브 4개, 패키징한 Mac 앱의 편집·복구·PDF 시험도 통과했습니다. 자세한 수정 내역·20개별 쪽수·재현 방법·정밀 조판 한계는 [OFFICIAL_SAMPLE_FIXES.md](OFFICIAL_SAMPLE_FIXES.md)에 기록했습니다. 공개 배포는 1.2.8을 유지합니다. [최종 CI](https://github.com/beaur8-prog/word-studio/actions/runs/39141339148)에서 Windows·Ubuntu 22.04의 브라우저 59개·네이티브 4개, Windows Setup 및 같은 Linux DEB의 Ubuntu 22.04·24.04 설치·실행·재설치·제거·데이터 보존을 통과했습니다. Mac 패키지 결과는 `.cache/desktop-smoke-Vz3aLZ/result.json`, 포함한 글꼴 6개 로드·기호 60개·TrueType PDF 포함 검사는 `.cache/native-symbols-pAi6QX/result.json`에 있습니다.
+공식 샘플 20개를 재검증해 열기·DOCX 왕복·서식 텍스트/링크 보존·표 폭·머리글 충돌·미리보기/PDF 일치 검사를 모두 통과했습니다. 브라우저 59개, 네이티브 4개, 패키징한 Mac 앱의 편집·복구·PDF 시험도 통과했습니다. 자세한 수정 내역·20개별 쪽수·재현 방법·정밀 조판 한계는 [OFFICIAL_SAMPLE_FIXES.md](OFFICIAL_SAMPLE_FIXES.md)에 기록했습니다. 1.2.9는 별도로 공개하지 않았고 이 수정은 1.2.10 배포본에 포함했습니다. [당시 CI](https://github.com/beaur8-prog/word-studio/actions/runs/39141339148)에서 Windows·Ubuntu 22.04의 브라우저 59개·네이티브 4개, Windows Setup 및 같은 Linux DEB의 Ubuntu 22.04·24.04 설치·실행·재설치·제거·데이터 보존을 통과했습니다. Mac 패키지 결과는 `.cache/desktop-smoke-Vz3aLZ/result.json`, 포함한 글꼴 6개 로드·기호 60개·TrueType PDF 포함 검사는 `.cache/native-symbols-pAi6QX/result.json`에 있습니다.
 
 
 ## 2026-10-18 1.2.8 Mac·Windows·Linux 릴리즈 검증
