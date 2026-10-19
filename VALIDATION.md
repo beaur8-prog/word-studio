@@ -6,6 +6,7 @@
 - 브라우저 **72개**, 네이티브 **4개**, 타입 검사·빌드 통과. 레이아웃 시험 13개는 균등/비균등 다단, 여백 안 문자 위치, 다음 장에서 편집·실행 취소, 굵기/크기/정렬, 200% 확대, 다음 문단의 흐름, 저장 데이터 불변, DOCX 2회 왕복, 다단 안의 그림, 가로/세로 구역과 페이지 경계를 검사합니다.
 - 공식 샘플 **20/20**, 미리보기·PDF **총 57쪽** 일치. 부동 그림과 실제 글자 상자의 겹침도 추가 검사합니다. `20-lo-tight-wrap`은 편집·출력 모두 양쪽 흐름 **8줄**, 겹치는 글자 **0개**입니다. 원본과 이전 증거를 보존하고 새 결과를 `analysis/official-sample-validation/after-layout/`에 저장했습니다.
 - 실제 Mac 1.2.10 앱: 기존 편집·표·복구·PDF 시험 7/7쪽, 긴 다단 4/4/4쪽(편집/미리보기/PDF), 중앙 그림 1/1/1쪽과 양쪽 흐름 8줄·겹침 0개, 렌더러 오류 0개. 격리 프로필 결과 `.cache/desktop-smoke-a1rbN0/result.json`.
+- [최종 CI](https://github.com/beaur8-prog/word-studio/actions/runs/39174737429) (`302ac4e`): Windows와 Ubuntu 22.04에서 브라우저 시험 각각 **72개**, 네이티브 시험 각각 **4개** 통과. 설치된 Windows·Ubuntu 22.04·Ubuntu 24.04 앱에서 다단 **4/4/4쪽**, 중앙 그림 **1/1/1쪽**, 양쪽 흐름 **8줄·겹침 0개**를 확인했습니다. 세 환경 모두 기존 데스크톱 시험, 설치·실행·재설치·제거, 사용자 데이터 보존, 렌더러 샌드박스와 오류 0개를 확인했습니다. 결과 JSON은 CI의 `windows-test-evidence`, `linux-22-test-evidence`, `linux-24-test-evidence` 아티팩트에 있습니다.
 - 공개 GitHub Release와 리토스 페이지는 **1.2.8 유지**. 상세 구현·한계·샘플별 결과는 [OFFICIAL_SAMPLE_FIXES.md](OFFICIAL_SAMPLE_FIXES.md)에 기록했습니다.
 
 
