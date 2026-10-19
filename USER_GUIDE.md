@@ -149,7 +149,7 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 - Sheet Studio 0.7.10과 Slide Studio 1.6.1에서 복사한 표를 홈·표 메뉴 붙여넣기 또는 ⌘V/Ctrl+V로 받아 셀을 편집할 수 있습니다. 표의 서식·병합·열 너비·줄바꿈과 표시값을 유지합니다.
 - 반대로 보내려면 표 안에서 우클릭 → **표 편집 → 표 전체 선택** 후 복사합니다. HTML과 함께 셀 구분용 TSV를 보내며, 줄바꿈·탭·따옴표도 인용해 보존합니다. 수식은 Sheet의 현재 표시값으로 전달됩니다.
 - 클립보드를 기다리는 동안 문서·선택·포커스나 읽기 상태가 바뀌면 취소합니다. 잘못된 병합, 10 MB를 넘는 UTF-8 표 HTML, 100,000셀을 넘는 표는 기존 본문을 바꾸기 전에 거부합니다.
-- 이번 변경은 소스·로컬 앱에 적용하며 공개 다운로드는 1.2.10입니다. [사용법과 개발 문서](https://github.com/beaur8-prog/sheet-studio/blob/main/docs/STUDIO-CLIPBOARD.md)를 참고하세요.
+- 세 앱을 Sheet 0.7.10·Word 1.2.11·Slide 1.6.1로 함께 업데이트하세요. Slide에서 가져온 표가 용지보다 넓으면 Word에서 열 너비를 조절하세요. [사용법과 개발 문서](https://github.com/beaur8-prog/sheet-studio/blob/main/docs/STUDIO-CLIPBOARD.md)를 참고하세요.
 
 ### 1.2.10 · 2026-10-19 · 공식 샘플 호환과 레이아웃 수정
 
@@ -259,7 +259,7 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 | 다른 컴퓨터에서 글꼴·줄바꿈이 다름 | 설치된 글꼴 차이 확인. 모양을 고정해 전달하려면 PDF 사용 |
 | DOCX의 일부 내용이 달라짐 | 변환 범위 확인 후 원본과 별도로 검토. 원본 파일은 보관 |
 
-1.2.10 앱은 다단의 페이지 흐름, 중앙 부동 그림의 양쪽 둘러싸기, 원본 다각형 윤곽, 머리글/바닥글의 표·그림·서식을 처리합니다. 도형·텍스트 상자, 변경 내용 추적, 매크로·수식, 모든 Word 스타일과 복잡한 필드의 완전한 재현은 지원하지 않습니다. 구멍이 있는 복잡한 둘러싸기 윤곽과 Word 고유의 정밀 글꼴 조판에는 차이가 남습니다. 표 스타일 갤러리·대각선 테두리·자유로운 선 그리기와 고정 높이로 내용 자르기도 제공하지 않습니다.
+1.2.11 앱은 다단의 페이지 흐름, 중앙 부동 그림의 양쪽 둘러싸기, 원본 다각형 윤곽, 머리글/바닥글의 표·그림·서식을 처리합니다. 도형·텍스트 상자, 변경 내용 추적, 매크로·수식, 모든 Word 스타일과 복잡한 필드의 완전한 재현은 지원하지 않습니다. 구멍이 있는 복잡한 둘러싸기 윤곽과 Word 고유의 정밀 글꼴 조판에는 차이가 남습니다. 표 스타일 갤러리·대각선 테두리·자유로운 선 그리기와 고정 높이로 내용 자르기도 제공하지 않습니다.
 
 검증 범위와 결과는 [VALIDATION.md](VALIDATION.md), 개발 실행 방법은 [README.md](README.md)에 기록합니다. 오류를 알릴 때는 운영체제·버전·재현 순서를 [이슈](https://github.com/beaur8-prog/word-studio/issues)에 남기고, 개인 문서 대신 민감한 내용을 제거한 예제를 사용하세요.
 
@@ -270,19 +270,19 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 Mac 터미널:
 
 ```sh
-shasum -a 256 Word-Studio-1.2.10-mac-arm64.zip
+shasum -a 256 Word-Studio-1.2.11-mac-arm64.zip
 ```
 
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\Word-Studio-1.2.10-windows-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Word-Studio-1.2.11-windows-x64-setup.exe -Algorithm SHA256
 ```
 
 Linux 터미널:
 
 ```sh
-sha256sum Word-Studio-1.2.10-linux-x64.deb
+sha256sum Word-Studio-1.2.11-linux-x64.deb
 ```
 
 표시된 값이 `SHA256SUMS.txt`의 해당 파일 값과 일치하는지 확인하세요.
@@ -293,6 +293,6 @@ sha256sum Word-Studio-1.2.10-linux-x64.deb
 - Linux DEB는 같은 파일을 Ubuntu 22.04·24.04 LTS x64에 설치해 버전·설치 파일 해시·앱 메뉴·실제 앱 실행·재설치·제거와 문서·복구 데이터 보존을 확인했습니다.
 - Windows Setup도 새 설치·바로 가기·앱 등록·재설치·제거와 데이터 보존을 확인했습니다.
 - 패키징한 Mac 앱과 설치된 Windows·Ubuntu 22.04·24.04 앱에서 표 메뉴·행 높이·저장 실패 보호·사본 저장·PDF 출력을 확인했습니다. 긴 다단은 편집/미리보기/PDF 모두 4쪽, 중앙 그림은 모두 1쪽이며 양쪽 텍스트 8줄에 그림과 겹치는 글자는 없었습니다. 모든 환경에서 렌더러 샌드박스가 활성화됐고 렌더러 오류는 없었습니다.
-- Mac ZIP은 압축 CRC, 재추출 후 앱 버전 1.2.10, 로컬 ad-hoc 서명 무결성과 시험한 앱의 ASAR 일치를 확인했습니다. Mac은 Developer ID 서명·공증을 받지 않았고 Windows 배포 파일은 미서명입니다.
+- Mac ZIP은 압축 CRC, 재추출 후 앱 버전 1.2.11, 로컬 ad-hoc 서명 무결성과 시험한 앱의 ASAR 일치를 확인했습니다. Mac은 Developer ID 서명·공증을 받지 않았고 Windows 배포 파일은 미서명입니다.
 - [Windows·Linux 실행 검증 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39174737429)에서 빌드와 시험 결과를 확인할 수 있습니다. Linux GUI 자동 시험은 Xvfb의 X11 환경을 사용했습니다. Wayland와 실제 프린터 출력은 별도로 시험하지 않았습니다.
 - Windows의 Word와 비교한 문서별 결과는 이전 항목과 [상세 검증 기록](VALIDATION.md)을 참고하세요. 해당 결과가 모든 문서 또는 Mac·Linux의 글꼴 환경에서도 같은 페이지 배치를 보장하지는 않습니다.
