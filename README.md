@@ -132,4 +132,4 @@ WWLIB 전체 분석이나 Word의 내부 편집·조판 알고리즘 복원은 �
 
 ## Studio 앱 간 표 복사 (1.2.11 소스·로컬, 미배포)
 
-Sheet Studio 0.7.10의 표를 홈 붙여넣기 또는 Ctrl+V/⌘V로 받아 셀을 편집할 수 있습니다. 표를 복사하면 다른 Studio 앱으로도 보낼 수 있습니다. [사용법·교환 형식·각 앱 구현 및 제한](https://github.com/beaur8-prog/sheet-studio/blob/main/docs/STUDIO-CLIPBOARD.md)을 확인하세요.
+Sheet Studio 0.7.10과 Slide Studio 1.6.1의 표를 홈·표 메뉴 붙여넣기 또는 Ctrl+V/⌘V로 받아 셀을 편집할 수 있습니다. 표 전체를 선택해 복사하면 두 앱으로도 보낼 수 있습니다. 병합·색·글꼴·줄바꿈·표시값을 교환하며, 잘못된 병합이나 한도를 넘는 표는 현재 본문을 바꾸기 전에 거부합니다. [사용법·교환 형식·각 앱 구현 및 제한](https://github.com/beaur8-prog/sheet-studio/blob/main/docs/STUDIO-CLIPBOARD.md)을 확인하세요.

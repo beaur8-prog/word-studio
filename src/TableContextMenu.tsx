@@ -4,7 +4,7 @@ import type { Editor } from '@tiptap/core';
 import { closeHistory } from '@tiptap/pm/history';
 import { deleteCellSelection } from '@tiptap/pm/tables';
 import { AlignLeft, AlignCenter, AlignRight, AlignJustify, Bold, Italic, Underline, Strikethrough, X, Copy, Scissors, ClipboardPaste } from 'lucide-react';
-import { sanitizeImportedHtml } from './document-io';
+import { pasteClipboard } from './clipboard';
 import {
   selectedCells, selectContextCell, setCellStyles, formatCellText, cellTextValue,
   allCellsHaveMark, toggleCellMark, setCellHighlight, formatCellParagraphs, clearCellFormatting,
@@ -131,21 +131,8 @@ export function TableContextMenu({ editor, readOnly, notify }: { editor: Editor;
     setPoint(null);
   };
   const paste = async () => {
-    const { doc, selection } = editor.state;
     restoreFocus();
-    try {
-      if (window.wordDesktop?.paste) { await window.wordDesktop.paste(); return; }
-      const items = await navigator.clipboard.read();
-      let html = '', text = '';
-      for (const item of items) {
-        if (item.types.includes('text/html')) html = await (await item.getType('text/html')).text();
-        else if (item.types.includes('text/plain')) text = await (await item.getType('text/plain')).text();
-      }
-      if (editor.state.doc !== doc || !editor.state.selection.eq(selection)) { notify('선택이 바뀌었습니다. 붙여넣을 셀을 다시 선택해 주세요.'); return; }
-      if (html) editor.view.pasteHTML(sanitizeImportedHtml(html).html);
-      else if (text) editor.view.pasteText(text);
-      else notify('클립보드에 붙여넣을 글이나 표가 없습니다.');
-    } catch { notify('문서에서 Ctrl+V로 붙여넣으세요.'); }
+    await pasteClipboard(editor, notify);
   };
   const label = { color: '글자 색', backgroundColor: '셀 배경', highlight: '형광펜' }[colorTarget];
   return createPortal(<div ref={root} className="table-context-menu" role="dialog" aria-label="표 셀 편집" style={{ left: point.x, top: point.y }}

@@ -66,6 +66,7 @@ import {
 } from "lucide-react";
 import { editorExtensions, parseDocumentHtml } from "./extensions";
 import { TableContextMenu } from './TableContextMenu';
+import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
 import { defaultPage, pageMargins, pageFurniture } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
@@ -376,6 +377,19 @@ export default function App() {
     },
     editorProps: {
       attributes: { "aria-label": "문서 편집 영역", spellcheck: "false" },
+      clipboardTextSerializer: tableClipboardText,
+      handleDOMEvents: {
+        paste: (_view, event) => {
+          const html = event.clipboardData?.getData('text/html');
+          if (!html) return false;
+          try { clipboardHtml(html); return false; }
+          catch (error) {
+            event.preventDefault();
+            notify(error instanceof Error ? error.message : '표를 붙여넣지 못했습니다.');
+            return true;
+          }
+        },
+      },
       transformPastedHTML: (html) => sanitizeImportedHtml(html).html,
     },
   });
@@ -939,25 +953,7 @@ export default function App() {
                 <Tool
                   label="붙여넣기"
                   icon={<ClipboardPaste size={26} />}
-                  onClick={async () => {
-                    const { doc, selection } = editor.state;
-                    editor.view.focus();
-                    try {
-                      if (window.wordDesktop?.paste) { await window.wordDesktop.paste(); return; }
-                      const items = await navigator.clipboard.read();
-                      let html = "", text = "";
-                      for (const item of items) {
-                        if (item.types.includes("text/html")) html = await (await item.getType("text/html")).text();
-                        if (item.types.includes("text/plain")) text = await (await item.getType("text/plain")).text();
-                      }
-                      if (editor.state.doc !== doc || !editor.state.selection.eq(selection)) { notify("삽입 위치가 바뀌었습니다. 다시 붙여넣으세요."); return; }
-                      if (html) editor.view.pasteHTML(sanitizeImportedHtml(html).html);
-                      else if (text) editor.view.pasteText(text);
-                      editor.view.focus();
-                    } catch {
-                      notify("문서에서 Ctrl+V로 붙여넣으세요");
-                    }
-                  }}
+                  onClick={() => { void pasteClipboard(editor, notify); }}
                 />
                 <div className="tools-stack">
                   <button
