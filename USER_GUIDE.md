@@ -1,6 +1,6 @@
 # Word Studio 다운로드 및 사용 안내
 
-**현재 배포 버전: 1.2.10 · 2026년 10월 19일**
+**현재 배포 버전: 1.2.11 · 2026년 10월 19일**
 
 Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DOCX와 PDF로 내보내는 로컬 문서 편집기입니다. 설치 후에는 Microsoft Word, Node.js, 계정 또는 인터넷 연결 없이 문서를 작성할 수 있습니다. Microsoft와 관련 없는 독립 앱이며 Word의 모든 기능을 지원하지는 않습니다.
 
@@ -17,9 +17,9 @@ Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DO
 
 | 컴퓨터 | 배포 파일 | 설치 방식 |
 | --- | --- | --- |
-| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.2.10-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.10/Word-Studio-1.2.10-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
-| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.2.10-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.10/Word-Studio-1.2.10-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
-| Linux · Ubuntu 22.04 / 24.04 LTS · Intel/AMD 64비트(x64) | [Word-Studio-1.2.10-linux-x64.deb](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.10/Word-Studio-1.2.10-linux-x64.deb) | apt로 설치 → 앱 메뉴 또는 word-studio 명령으로 실행 |
+| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.2.11-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.11/Word-Studio-1.2.11-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
+| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.2.11-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.11/Word-Studio-1.2.11-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
+| Linux · Ubuntu 22.04 / 24.04 LTS · Intel/AMD 64비트(x64) | [Word-Studio-1.2.11-linux-x64.deb](https://github.com/beaur8-prog/word-studio/releases/download/v1.2.11/Word-Studio-1.2.11-linux-x64.deb) | apt로 설치 → 앱 메뉴 또는 word-studio 명령으로 실행 |
 
 Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 DEB 패키지입니다. 다른 Debian 계열 배포판은 라이브러리 호환성을 확인해야 합니다. Intel Mac용, Windows ARM64용, Linux ARM64용 파일은 제공하지 않습니다. GitHub의 **Source code** 파일은 개발용 소스이므로 일반 설치에는 위의 운영체제별 배포 파일을 사용하세요.
 
@@ -34,7 +34,7 @@ Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 D
 
 ## 3. Windows 설치 및 실행
 
-1. **Word-Studio-1.2.10-windows-x64-setup.exe**를 다운로드합니다. 다운로드 중 브라우저에서 **위험한 파일** 또는 **PC에 손상을 줄 수 있음**과 같은 경고가 뜰 수 있습니다. 경고 문구는 브라우저에 따라 다릅니다. 이 페이지의 다운로드 링크인지 확인하고, 출처를 신뢰할 때에만 다운로드를 계속하세요.
+1. **Word-Studio-1.2.11-windows-x64-setup.exe**를 다운로드합니다. 다운로드 중 브라우저에서 **위험한 파일** 또는 **PC에 손상을 줄 수 있음**과 같은 경고가 뜰 수 있습니다. 경고 문구는 브라우저에 따라 다릅니다. 이 페이지의 다운로드 링크인지 확인하고, 출처를 신뢰할 때에만 다운로드를 계속하세요.
 2. 받은 Setup 파일의 파일명과 함께 제공하는 SHA-256을 확인한 뒤 두 번 클릭합니다. 압축을 풀 필요가 없습니다.
 3. **‘Windows의 PC 보호’** 화면이 나타나면 **‘추가 정보’**를 누른 다음, 표시되는 앱이 받은 Setup 파일인지 확인하고 **‘실행’**을 누릅니다. 영어 Windows에서는 **More info → Run anyway**입니다.
 4. 언어를 선택하고 설치 마법사를 진행합니다. **현재 사용자용** 설치가 기본이며, 필요하면 설치 경로를 바꿀 수 있습니다.
@@ -53,11 +53,11 @@ Windows 배포 파일은 코드 서명을 받지 않았습니다. SmartScreen은
 
 DEB 패키지는 **Intel/AMD 64비트(amd64/x86_64)** 데스크톱용입니다. Ubuntu 22.04·24.04 LTS에서 설치와 실행을 검증했습니다.
 
-1. **Word-Studio-1.2.10-linux-x64.deb**를 다운로드합니다.
+1. **Word-Studio-1.2.11-linux-x64.deb**를 다운로드합니다.
 2. 터미널에서 다운로드한 파일이 있는 폴더로 이동하고 다음 명령으로 설치합니다.
 
 ```sh
-sudo apt install ./Word-Studio-1.2.10-linux-x64.deb
+sudo apt install ./Word-Studio-1.2.11-linux-x64.deb
 ```
 
 3. 설치가 끝나면 앱 메뉴의 **Word Studio**를 선택하거나 일반 사용자 터미널에서 `word-studio`를 실행합니다.
@@ -144,7 +144,7 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 
 ## 9. 버전별 변경 내역
 
-### 1.2.11 · 로컬·소스 변경, 미배포
+### 1.2.11 · 2026-10-19 · Studio 표 교환
 
 - Sheet Studio 0.7.10과 Slide Studio 1.6.1에서 복사한 표를 홈·표 메뉴 붙여넣기 또는 ⌘V/Ctrl+V로 받아 셀을 편집할 수 있습니다. 표의 서식·병합·열 너비·줄바꿈과 표시값을 유지합니다.
 - 반대로 보내려면 표 안에서 우클릭 → **표 편집 → 표 전체 선택** 후 복사합니다. HTML과 함께 셀 구분용 TSV를 보내며, 줄바꿈·탭·따옴표도 인용해 보존합니다. 수식은 Sheet의 현재 표시값으로 전달됩니다.
