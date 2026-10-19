@@ -940,19 +940,20 @@ export default function App() {
                   label="붙여넣기"
                   icon={<ClipboardPaste size={26} />}
                   onClick={async () => {
+                    const { doc, selection } = editor.state;
+                    editor.view.focus();
                     try {
-                      editor
-                        .chain()
-                        .focus()
-                        .insertContent(
-                          (await navigator.clipboard.readText())
-                            .split("\n")
-                            .map((t) => ({
-                              type: "paragraph",
-                              content: t ? [{ type: "text", text: t }] : [],
-                            })),
-                        )
-                        .run();
+                      if (window.wordDesktop?.paste) { await window.wordDesktop.paste(); return; }
+                      const items = await navigator.clipboard.read();
+                      let html = "", text = "";
+                      for (const item of items) {
+                        if (item.types.includes("text/html")) html = await (await item.getType("text/html")).text();
+                        if (item.types.includes("text/plain")) text = await (await item.getType("text/plain")).text();
+                      }
+                      if (editor.state.doc !== doc || !editor.state.selection.eq(selection)) { notify("삽입 위치가 바뀌었습니다. 다시 붙여넣으세요."); return; }
+                      if (html) editor.view.pasteHTML(sanitizeImportedHtml(html).html);
+                      else if (text) editor.view.pasteText(text);
+                      editor.view.focus();
                     } catch {
                       notify("문서에서 Ctrl+V로 붙여넣으세요");
                     }

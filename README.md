@@ -129,3 +129,7 @@ REA/Ghidra로 Word 실행 파일의 시작 함수 3개와 WWLIB의 진입점·�
 WWLIB 전체 분석이나 Word의 내부 편집·조판 알고리즘 복원은 완료하지 않았습니다. 원본 실행 파일, DLL, 디컴파일 결과, 사용자 문서와 로컬 조사 자료는 이 저장소에 포함하지 않습니다. 앱 코드와 종이·연필 아이콘은 독립적으로 작성했습니다.
 
 기반 편집기는 [Tiptap](https://tiptap.dev/), DOCX 생성은 [docx](https://docx.js.org/), 가져오기는 [Mammoth](https://github.com/mwilliamson/mammoth.js)를 사용합니다. Microsoft와 관련 없는 독립 앱입니다.
+
+## Studio 앱 간 표 복사 (1.2.11 소스·로컬, 미배포)
+
+Sheet Studio 0.7.10의 표를 홈 붙여넣기 또는 Ctrl+V/⌘V로 받아 셀을 편집할 수 있습니다. 표를 복사하면 다른 Studio 앱으로도 보낼 수 있습니다. [사용법·교환 형식·각 앱 구현 및 제한](https://github.com/beaur8-prog/sheet-studio/blob/main/docs/STUDIO-CLIPBOARD.md)을 확인하세요.
