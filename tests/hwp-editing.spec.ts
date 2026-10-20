@@ -28,7 +28,9 @@ async function editFile(page: Page, file: string, timeout = 15000) {
   const notice = reader.getByRole('region', { name: '한글 편집 변환 안내' });
   await expect(notice).toBeVisible({ timeout });
   await notice.getByRole('button', { name: '편집본 만들기', exact: true }).click();
-  await expect(reader).not.toBeVisible();
+  // Opening the editable document now yields to paint its progress. Large inputs
+  // need the same explicit budget here as conversion and the editor title below.
+  await expect(reader).not.toBeVisible({ timeout });
   await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue(path.basename(file).replace(/\.(hwp|hwpx)$/i, ''), { timeout });
 }
 async function prepareExport(page: Page, format: 'hwp' | 'hwpx', timeout = 60000) {
