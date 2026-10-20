@@ -1,8 +1,8 @@
-# HWP/HWPX 읽기 검증
+# HWP/HWPX 읽기·편집·변환 검증
 
-2026-10-20 · Word Studio 1.3.1 배포 검증 기록. Mac ZIP·Windows Setup·Linux DEB에 HWP 읽기·페이지 분할 및 HWPX manifest 경로 수정이 포함됩니다. 1.3.0의 검증 이력도 아래에 보존합니다.
+2026-10-20 · Word Studio 1.4.0 배포 검증 기록. Mac ZIP·Windows Setup·Linux DEB에 한글 편집·형식 전환과 기존 읽기·페이지 분할·HWPX manifest 경로 수정이 포함됩니다. 1.3.x 원본 보기 검증 이력도 아래에 보존합니다.
 
-## 1.4.0 편집·변환 개발 빌드 (미배포)
+## 1.4.0 편집·변환
 
 원본 보기에서 **Word 화면에서 편집 → 편집본 만들기**로 기존 Word 편집기를 사용합니다. 본문·기본 글자/문단 서식·표 병합·그림·용지/여백을 가져오며, 변환 전에 실제 Word 인쇄 쪽 수를 계산해 원본 보기와 비교합니다. 원본은 따로 보관하며 편집 중 **파일 → 한글 원본 보기**로 다시 확인할 수 있습니다. 이전 Word 문서의 복구 저장 실패 시 전환을 취소할 수 있습니다.
 
@@ -28,7 +28,17 @@ HWP 저장의 쪽 수 차이가 큰 국어발전계획과 개체 위치가 바�
 
 회귀 검사는 [단위 시험](tests/hwp-editing.test.cjs), [브라우저 편집/변환 시험](tests/hwp-editing.spec.ts), [설치 앱 시험](scripts/hwp-editing-desktop-smoke.cjs)에 있습니다. 실제 HWP/HWPX 시그니처, Unicode/이모지·정렬·글자 서식, 병합/중첩 표, 그림, 용지와 여백, 수동 페이지 나누기, DOCX 양방향 교환, 취소/쓰기 실패/복구 실패 시 원문 보존을 확인합니다. 공개 샘플 시험은 `HWP_EDITING_PUBLIC_SAMPLES=1 npx playwright test tests/hwp-editing.spec.ts`로 실행하며 샘플 파일은 재배포하지 않습니다. Mac 프로덕션 앱에서 한글 저장 메뉴·네이티브 파일 필터·저장 취소·HWP/HWPX 재열기도 통과했습니다.
 
-최종 소스 `122ad23a750aa05ff747d5383d494ded67eea3fb`의 [교차 플랫폼 검증](https://github.com/beaur8-prog/word-studio/actions/runs/39384292326)이 통과했습니다. Mac arm64·Windows x64·Ubuntu 22.04에서 기능 시험 95개와 단위 시험 17개를 확인했습니다. Windows Setup은 설치·재설치·제거와 문서 보존, HWP/HWPX 저장 메뉴·필터·저장 취소·재열기를 통과했습니다. Linux DEB도 Ubuntu 22.04·24.04에서 같은 설치 파일로 동일한 설치·문서 보존·한글 편집 검사를 통과했습니다. 24.04에서는 같은 DEB의 실제 앱을 검사하며 브라우저/단위 시험을 중복 실행하지 않습니다. Mac 앱의 임시 서명 검증도 통과했습니다. 공개 릴리스·리토스는 1.3.1을 유지합니다.
+최종 소스 `122ad23a750aa05ff747d5383d494ded67eea3fb`의 [교차 플랫폼 검증](https://github.com/beaur8-prog/word-studio/actions/runs/39384292326)이 통과했습니다. Mac arm64·Windows x64·Ubuntu 22.04에서 기능 시험 95개와 단위 시험 17개를 확인했습니다. Windows Setup은 설치·재설치·제거와 문서 보존, HWP/HWPX 저장 메뉴·필터·저장 취소·재열기를 통과했습니다. Linux DEB도 Ubuntu 22.04·24.04에서 같은 설치 파일로 동일한 설치·문서 보존·한글 편집 검사를 통과했습니다. 24.04에서는 같은 DEB의 실제 앱을 검사하며 브라우저/단위 시험을 중복 실행하지 않습니다. Mac 앱의 임시 서명 검증도 통과했습니다. 이 검증 빌드를 1.4.0으로 배포합니다.
+
+### 1.4.0 배포 파일
+
+Windows Setup·Linux DEB는 위 성공한 CI의 산출물을 그대로 사용합니다. Mac ZIP은 새 캐시 폴더에 재추출해 버전 1.4.0·압축 CRC·ad-hoc 서명을 확인했습니다. 시험한 앱과 재추출한 앱의 ASAR SHA-256은 모두 `2eb1beed93cdbbf4b95e88bf702803ef5236012e90f67e112d59d2d77cbedd47`입니다. 배포 준비·다운로드 대조 기록은 로컬 `.cache/word-release-1.4.0/`에 보관합니다.
+
+| 파일 | SHA-256 |
+| --- | --- |
+| `Word-Studio-1.4.0-windows-x64-setup.exe` | `62a8ecd074de70437cc625aa0e572efc5ca8d46189a96ef609c1495dd9f8a975` |
+| `Word-Studio-1.4.0-mac-arm64.zip` | `5ce61ce09b7cb678ddbd1b74a952b6d5f32643755d38af45345e7905a4a33dd2` |
+| `Word-Studio-1.4.0-linux-x64.deb` | `0772ecd19878518af491addaac8ee470ecb517aa7ee26b1bd2b31bdae0899fa6` |
 
 ## 구현과 사용
 
