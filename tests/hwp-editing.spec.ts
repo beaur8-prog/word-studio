@@ -69,14 +69,17 @@ test('canceling conversion keeps the current document, and recovery failure does
     (window as any).wordDesktop = { platform: 'test', readRecovery: async () => [], setTheme: () => {}, onMenu: () => () => {},
       saveRecovery: async () => { if ((window as any).diskFail) throw Error('disk full'); return true; } };
   });
-  await page.goto('/'); await page.locator('.tiptap').fill('KEEP EDITS BEFORE CONVERSION');
+  await page.goto('/'); await page.locator('.tiptap').fill('PREVIOUS SAVED DOCUMENT');
+  await expect(page.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
+  await page.evaluate(() => { (window as any).diskFail = true; });
+  await page.locator('.tiptap').fill('KEEP EDITS BEFORE CONVERSION');
+  await expect(page.getByText('자동 저장 실패 · 파일로 저장하세요', { exact: true })).toBeVisible();
   await page.locator('input[type=file]').first().setInputFiles(path.resolve('tests/fixtures/hwp/manifest-relative.hwpx'));
   const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true });
   await reader.getByRole('button', { name: 'Word 화면에서 편집', exact: true }).click();
   await reader.getByRole('button', { name: '원본 보기로 돌아가기', exact: true }).click();
   await expect(reader.getByRole('region', { name: '한글 편집 변환 안내' })).not.toBeVisible();
   await reader.getByRole('button', { name: 'Word 화면에서 편집', exact: true }).click();
-  await page.evaluate(() => { (window as any).diskFail = true; });
   await reader.getByRole('button', { name: '편집본 만들기', exact: true }).click();
   const failure = page.getByRole('dialog', { name: '현재 문서를 저장하지 못했습니다' });
   await expect(failure).toBeVisible();
