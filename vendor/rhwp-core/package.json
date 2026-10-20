@@ -1,7 +1,7 @@
 {
   "name": "@rhwp/core",
-  "version": "0.8.7-wordstudio.1",
-  "description": "RHWP 0.8.7 with Word Studio bounded table pagination fixes",
+  "version": "0.8.7-wordstudio.2",
+  "description": "RHWP 0.8.7 with Word Studio pagination and HWPX manifest path fixes",
   "type": "module",
   "main": "rhwp.js",
   "types": "rhwp.d.ts",

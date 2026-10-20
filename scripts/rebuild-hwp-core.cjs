@@ -16,8 +16,10 @@ async function main() {
   run('git', ['clone', '--filter=blob:none', '--no-checkout', 'https://github.com/edwardkim/rhwp.git', source], root);
   run('git', ['sparse-checkout', 'set', 'src', 'crates', 'bindings', 'scripts', 'mydocs/manual', 'mydocs/tech/tools/vendor/saved']);
   run('git', ['checkout', '--detach', revision]);
-  run('git', ['apply', '--check', path.join(destination, 'pagination.patch')]);
-  run('git', ['apply', path.join(destination, 'pagination.patch')]);
+  for (const patch of ['pagination.patch', 'manifest-paths.patch']) {
+    run('git', ['apply', '--check', path.join(destination, patch)]);
+    run('git', ['apply', path.join(destination, patch)]);
+  }
   run('bash', ['scripts/wasm-pack-locked.sh', '--target', 'web', '--out-dir', 'word-studio-pkg', '--mode', 'normal']);
   const files = ['rhwp.js', 'rhwp.d.ts', 'rhwp_bg.wasm', 'rhwp_bg.wasm.d.ts'];
   for (const file of files) await fs.copyFile(path.join(source, 'word-studio-pkg', file), path.join(destination, file));

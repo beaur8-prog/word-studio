@@ -1,0 +1,93 @@
+diff --git a/src/parser/hwpx/mod.rs b/src/parser/hwpx/mod.rs
+index 7045507..96d8c55 100644
+--- a/src/parser/hwpx/mod.rs
++++ b/src/parser/hwpx/mod.rs
+@@ -452,7 +452,26 @@ pub fn parse_hwpx(data: &[u8]) -> Result<Document, HwpxError> {
+         "Contents/content.hpf".to_string(),
+         content_xml.clone().into_bytes(),
+     ));
+-    let package_info = content::parse_content_hpf(&content_xml)?;
++    let mut package_info = content::parse_content_hpf(&content_xml)?;
++    // Manifest hrefs are OPF-relative paths, not necessarily ZIP-root names.
++    // Normalize once so section parsing, master pages and lazy binary loading
++    // all consume the same archive paths. External links are left untouched.
++    for href in &mut package_info.section_files {
++        *href = reader.resolve_manifest_path("Contents/content.hpf", href)?;
++    }
++    for files in &mut package_info.section_master_page_files {
++        for href in files {
++            *href = reader.resolve_manifest_path("Contents/content.hpf", href)?;
++        }
++    }
++    for item in &mut package_info.master_page_items {
++        item.href = reader.resolve_manifest_path("Contents/content.hpf", &item.href)?;
++    }
++    for item in &mut package_info.bin_data_items {
++        if item.is_embedded || is_internal_ole_package_item(item) {
++            item.href = reader.resolve_manifest_path("Contents/content.hpf", &item.href)?;
++        }
++    }
+ 
+     // 3. header.xml → DocInfo, DocProperties
+     let header_xml = reader.read_file("Contents/header.xml")?;
+diff --git a/src/parser/hwpx/reader.rs b/src/parser/hwpx/reader.rs
+index 35cf5de..3237f58 100644
+--- a/src/parser/hwpx/reader.rs
++++ b/src/parser/hwpx/reader.rs
+@@ -104,6 +104,56 @@ impl HwpxReader {
+         })
+     }
+ 
++    /// Resolve a manifest path relative to the OPF's directory. Hancom also
++    /// writes archive-root paths (Contents/section0.xml, BinData/image1.png),
++    /// so retain those when the OPF-relative entry does not exist. Prefer the
++    /// OPF-relative entry if both exist; never select a root-level decoy first.
++    /// Resolution only inspects the ZIP index and does not decompress entries.
++    pub(super) fn resolve_manifest_path(
++        &mut self,
++        manifest: &str,
++        href: &str,
++    ) -> Result<String, HwpxError> {
++        fn normalize(path: &str) -> Option<String> {
++            if path.starts_with('/') || path.contains(['\\', ':', '\0']) {
++                return None;
++            }
++            let mut parts = Vec::new();
++            for part in path.split('/') {
++                match part {
++                    "" | "." => {}
++                    ".." => {
++                        parts.pop()?;
++                    }
++                    _ => parts.push(part),
++                }
++            }
++            (!parts.is_empty()).then(|| parts.join("/"))
++        }
++
++        let base = manifest.rsplit_once('/').map_or("", |(parent, _)| parent);
++        let path = if base.is_empty() {
++            href.to_string()
++        } else {
++            format!("{base}/{href}")
++        };
++        let relative = normalize(&path)
++            .filter(|_| !href.starts_with('/'))
++            .ok_or_else(|| {
++                HwpxError::XmlError(format!("{manifest}: invalid package path: {href}"))
++            })?;
++        if self.archive.by_name(&relative).is_ok() {
++            return Ok(relative);
++        }
++        if let Some(root) = normalize(href) {
++            if self.archive.by_name(&root).is_ok() {
++                return Ok(root);
++            }
++        }
++        // Keep the resolved path in the subsequent missing-file diagnostic.
++        Ok(relative)
++    }
++
+     /// 지정한 경로의 파일을 UTF-8 문자열로 읽는다.
+     ///
+     /// 엔트리 압축 해제 크기는 [`MAX_XML_SIZE`]로 제한된다.

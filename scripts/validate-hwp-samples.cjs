@@ -74,7 +74,7 @@ async function main() {
       await reader.getByRole('button', { name: 'HWP 읽기 닫기' }).click();
       await expect(page.locator('.tiptap')).toHaveText('HWP VALIDATION — PRESERVE THIS WORD DOCUMENT');
     }
-    const report = { engine: '@rhwp/core 0.8.7-wordstudio.1', browser: await browser.version(), results, rendererErrors: errors, externalRequests: network };
+    const report = { engine: '@rhwp/core ' + require('../vendor/rhwp-core/package.json').version, browser: await browser.version(), results, rendererErrors: errors, externalRequests: network };
     await fs.writeFile(path.join(directory, 'studio-results.json'), JSON.stringify(report, null, 2) + '\n');
     if (errors.length || network.length) throw Error('Renderer error or unexpected external request');
   } finally { await browser.close(); }

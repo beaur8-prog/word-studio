@@ -6,6 +6,15 @@ Source and exact upstream revision: see the matching entry in `tests/hwp-samples
 
 RHWP copyright (c) 2025-2026 Edward Kim. MIT license: https://github.com/edwardkim/rhwp/blob/main/LICENSE
 
+`manifest-relative.hwpx` uses the same style shell with two synthetic paragraphs
+on A4 paper. Its container points to `Contents/content.hpf`; the manifest uses
+`href="section0.xml"` and the only section is `Contents/section0.xml`. There is
+no root-level section copy. Scripts, previews and the table are removed, and
+version.xml identifies it as a Word Studio synthetic fixture. It tests package
+path resolution, independently of page-layout changes. The Node tests generate
+root-path controls, a conflicting root copy, subdirectories and missing/unsafe
+paths from this fixture.
+
 `landscape-pagination.hwpx` reuses the same synthetic style/section shell, with
 landscape A4, a repeated two-column header, and 24 numbered table rows alternating
 6,000/6,750 HWP units (80/90 px). Header height is 3,000 units. Page margins are

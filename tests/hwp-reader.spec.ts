@@ -1,6 +1,24 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 
+test('OPF-relative HWPX sections open, find text and preserve the current Word document', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.locator('.tiptap').fill('KEEP AFTER RELATIVE HWPX');
+  await page.locator('input[type=file]').first().setInputFiles(path.resolve('tests/fixtures/hwp/manifest-relative.hwpx'));
+  const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true });
+  await expect(reader.getByTestId('hwp-page-count')).toHaveText('/ 1');
+  await expect.poll(() => reader.getByTestId('hwp-page').textContent().then(text => text?.replace(/\s/g, ''))).toContain('첫번째문단:HWPX상대경로검증');
+  await expect.poll(() => reader.getByTestId('hwp-page').textContent().then(text => text?.replace(/\s/g, ''))).toContain('두번째문단:WordStudio');
+  await reader.getByLabel('HWP 문서에서 찾기').fill('두 번째 문단');
+  await reader.getByRole('button', { name: '다음 찾기' }).click();
+  await expect(reader.getByRole('status').last()).toContainText('1쪽에서 찾았습니다');
+  await reader.getByRole('button', { name: 'HWP 읽기 닫기' }).click();
+  await expect(page.locator('.tiptap')).toHaveText('KEEP AFTER RELATIVE HWPX');
+  expect(errors).toEqual([]);
+});
+
 test('landscape table page breaks keep the final row and preserve the Word document', async ({ page }) => {
   await page.goto('/');
   await page.locator('.tiptap').fill('KEEP AFTER LANDSCAPE PAGINATION');
