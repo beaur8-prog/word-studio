@@ -6,6 +6,7 @@ import { layoutColumns } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
 
 export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
+export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
 const PX = 96 / 25.4;
 const dimensions = (p: PageSettings) => {
   const size = p.size === 'Letter' ? [215.9, 279.4] : [210, 297];
@@ -32,7 +33,9 @@ function splitText(element: HTMLElement, offset: number): [HTMLElement, HTMLElem
 }
 
 /** Build one measured page tree used unchanged by preview, PDF and native printing. */
-export async function createPrintLayout(html: string, initialPage: PageSettings): Promise<PrintLayout> {
+export async function createPrintLayout(html: string, initialPage: PageSettings, onProgress?: (value: PrintLayoutProgress) => void, signal?: AbortSignal): Promise<PrintLayout> {
+  signal?.throwIfAborted();
+  if (onProgress) { onProgress({ label: '쪽 배치를 준비하는 중…' }); await new Promise(resolve => setTimeout(resolve, 24)); signal?.throwIfAborted(); }
   const host = document.createElement('div');
   host.className = 'print-layout measuring';
   host.setAttribute('aria-label', '인쇄 미리보기 문서');
@@ -277,11 +280,27 @@ export async function createPrintLayout(html: string, initialPage: PageSettings)
     scaleOversized(element);
   }
   try {
+    onProgress?.({ label: '문서의 글꼴을 준비하는 중…' });
     if (source.querySelector('[data-symbol-font]')) await Promise.all(['Studio Symbols 2','Studio Symbols','Studio Math','Studio Text','Studio Devanagari','Studio Emoji'].map(font => document.fonts.load(`12px "${font}"`)));
     await document.fonts.ready;
-    await Promise.all([...source.querySelectorAll('img')].map(img => img.decode().catch(() => {})));
+    signal?.throwIfAborted();
+    const images = [...source.querySelectorAll('img')]; let decoded = 0;
+    if (images.length) onProgress?.({ label: '쪽 배치에 사용할 그림을 준비하는 중…', completed: 0, total: images.length, unit: '개' });
+    await Promise.all(images.map(async img => {
+      await img.decode().catch(() => {});
+      if (!signal?.aborted) onProgress?.({ label: '쪽 배치에 사용할 그림을 준비하는 중…', completed: ++decoded, total: images.length, unit: '개' });
+    }));
+    signal?.throwIfAborted();
     newPage();
-    for (const child of [...source.children]) append(child as HTMLElement);
+    const children = [...source.children]; let processed = 0, yieldedAt = performance.now();
+    for (const child of children) {
+      if (onProgress && (child.tagName === 'TABLE' || performance.now() - yieldedAt >= 32)) {
+        onProgress(child.tagName === 'TABLE' ? { label: '표의 쪽 배치를 계산하는 중…' } : { label: 'Word 쪽 배치를 계산하는 중…', completed: processed, total: children.length, unit: '항목' });
+        await new Promise(resolve => setTimeout(resolve, 0)); signal?.throwIfAborted(); yieldedAt = performance.now();
+      }
+      append(child as HTMLElement); processed++;
+      onProgress?.({ label: 'Word 쪽 배치를 계산하는 중…', completed: processed, total: children.length, unit: '항목' });
+    }
     refreshNotes();
     // Empty trailing paragraphs can spill onto an automatically created sheet.
     // Keep intentional page/section breaks and parity sheets, but do not print

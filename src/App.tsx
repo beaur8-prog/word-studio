@@ -69,6 +69,8 @@ import { TableContextMenu } from './TableContextMenu';
 import { HwpReader } from './hwp/HwpReader';
 import { importEditableHwp, exportEditableHwp } from './hwp/editing';
 import { HwpExportDialog, type HwpExportFile } from './hwp/ExportDialog';
+import { HwpProgressPanel } from './hwp/ProgressPanel';
+import { paintHwpProgress, type HwpOperation, type HwpProgressReporter } from './hwp/progress';
 import type { EditableHwp } from './hwp/conversion';
 import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
 import { defaultPage, pageMargins, pageFurniture } from "./types";
@@ -358,6 +360,8 @@ export default function App() {
   const [hwpFile, setHwpFile] = useState<File | null>(null);
   const [hwpOriginal, setHwpOriginal] = useState<File | null>(null);
   const [hwpExport, setHwpExport] = useState<HwpExportFile | null>(null);
+  const [hwpOperation, setHwpOperation] = useState<HwpOperation>();
+  const fileSavePending = useRef(false);
   const [failedTransition, setFailedTransition] = useState<StudioDocument | null>(null);
   const transitioning = useRef(false);
   const outputLayout = useRef<PrintLayout | null>(null);
@@ -567,15 +571,21 @@ export default function App() {
       setBusy(false);
     }
   };
-  const editHwp = async (source: EditableHwp) => {
+  const editHwp = async (source: EditableHwp, signal?: AbortSignal) => {
     if (!hwpFile) return;
+    const startedAt = Date.now();
+    const report: HwpProgressReporter = progress => setHwpOperation({ progress, startedAt });
+    setBusy(true);
     try {
       const original = hwpFile;
+      report({ label: '편집 화면에 넣을 문서와 서식을 준비하는 중…' }); await paintHwpProgress(); signal?.throwIfAborted();
       const doc = validateDocument(importEditableHwp(source, original.name));
+      report({ label: '편집 화면에 문서를 배치하는 중…' }); await paintHwpProgress(); signal?.throwIfAborted();
       // Recovery errors must remain visible after the original-view dialog closes.
       setHwpFile(null);
       if (await loadDoc(doc)) { setHwpOriginal(original); notify('한글 편집본을 열었습니다. 파일 메뉴에서 DOCX·HWP·HWPX로 내보낼 수 있습니다.'); }
-    } catch (error) { notify(`편집 변환 실패: ${error instanceof Error ? error.message : String(error)}`); }
+    } catch (error) { if (!signal?.aborted) notify(`편집 변환 실패: ${error instanceof Error ? error.message : String(error)}`); }
+    finally { setBusy(false); setHwpOperation(undefined); }
   };
   const open = async () => {
     setFileMenu(false);
@@ -591,13 +601,19 @@ export default function App() {
   const save = async (
     extension: "wordstudio" | "docx" | "html" | "txt" | "hwp" | "hwpx" = "wordstudio",
   ): Promise<boolean> => {
-    if (!editor) return false;
+    if (!editor || fileSavePending.current) return false;
+    fileSavePending.current = true;
+    const startedAt = Date.now();
+    const report: HwpProgressReporter = progress => setHwpOperation({ progress, startedAt });
     setBusy(true);
     setFileMenu(false);
     try {
+      if (extension === 'hwp' || extension === 'hwpx') {
+        report({ label: '저장할 편집본을 준비하는 중…' }); await paintHwpProgress();
+      }
       const doc = structuredClone(currentRef.current);
       if (extension === 'hwp' || extension === 'hwpx') {
-        const result = await exportEditableHwp(doc, extension);
+        const result = await exportEditableHwp(doc, extension, report);
         setHwpExport({ ...result, extension, name: `${doc.title.replace(/[<>:"/\\|?*]/g, '-') || '문서'}.${extension}` });
         return false; // The conversion review owns the subsequent native save.
       }
@@ -642,6 +658,8 @@ export default function App() {
       notify(`저장 실패: ${e instanceof Error ? e.message : String(e)}`);
       return false;
     } finally {
+      fileSavePending.current = false;
+      if (extension === 'hwp' || extension === 'hwpx') setHwpOperation(undefined);
       setBusy(false);
     }
   };
@@ -2710,7 +2728,9 @@ export default function App() {
           </button>
         </div>
       )}
-      {busy && <div className="busy-indicator">문서를 처리하고 있습니다…</div>}
+      {(busy || hwpOperation) && <div className={`busy-indicator ${hwpOperation ? 'hwp-progress-floating' : ''}`}>
+        {hwpOperation ? <HwpProgressPanel operation={hwpOperation} /> : '문서를 처리하고 있습니다…'}
+      </div>}
     </div>
   );
 }

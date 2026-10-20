@@ -35,3 +35,14 @@
 .hwp-conversion-dialog { width: min(640px, 90vw); max-height: 85vh; overflow: auto; border: 1px solid var(--chrome-border); border-radius: 12px; padding: 24px; background: var(--chrome-surface); color: var(--chrome-text); }
 .hwp-conversion-dialog::backdrop { background: #0008; }
 .hwp-conversion-dialog button, .hwp-conversion-panel button { margin: 8px 8px 0 0; padding: 8px 16px; cursor: pointer; }
+.hwp-progress-panel { flex-shrink: 0; padding: 16px 24px; color: var(--chrome-text); background: var(--chrome-surface); border-bottom: 1px solid var(--chrome-border); cursor: progress; }
+.hwp-progress-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.hwp-progress-heading strong { font-size: 13px; }
+.hwp-progress-heading > small { margin-left: auto; flex-shrink: 0; font-size: 11px; color: var(--chrome-secondary); font-variant-numeric: tabular-nums; }
+.hwp-progress-panel progress { display: block; width: 100%; height: 8px; margin: 10px 0; accent-color: var(--accent); }
+.hwp-progress-detail { font-size: 12px; color: var(--chrome-secondary); font-variant-numeric: tabular-nums; }
+.hwp-hourglass { flex-shrink: 0; color: var(--accent); will-change: transform; animation: hwp-hourglass-turn 2.4s ease-in-out infinite; }
+@keyframes hwp-hourglass-turn { 0%, 35% { transform: rotate(0deg); } 70%, 100% { transform: rotate(180deg); } }
+@media (prefers-reduced-motion: reduce) { .hwp-hourglass { animation: none; will-change: auto; } }
+.busy-indicator.hwp-progress-floating { width: min(520px, 90vw); padding: 0; border-radius: 8px; overflow: hidden; }
+.hwp-progress-floating .hwp-progress-panel { border: 0; }

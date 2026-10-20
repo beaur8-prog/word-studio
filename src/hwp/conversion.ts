@@ -1,6 +1,7 @@
 import type { HwpDocument } from '@rhwp/core';
 import type { PageSettings } from '../types';
 import documentLimits from '../../electron/document-limits.json';
+import type { HwpProgressReporter } from './progress';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -97,7 +98,8 @@ function pageSettings(doc: HwpDocument, section: number, warnings: Set<string>):
 
 /** The engine's selection HTML intentionally omits controls. Interleave their
  * HTML at the raw paragraph offsets instead of losing tables and pictures. */
-export function editableHwp(doc: HwpDocument): EditableHwp {
+export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter): EditableHwp {
+  onProgress?.({ label: '문서의 표·그림 구조를 확인하는 중…' });
   const warnings = new Set<string>();
   const controls: Control[] = JSON.parse(doc.getControls());
   const byParagraph = new Map<number, Control[]>();
@@ -109,6 +111,8 @@ export function editableHwp(doc: HwpDocument): EditableHwp {
   let globalPara = 0, size = 0;
   const append = (value: string) => { size += hwpHtmlBytes(value) + (pieces.length ? 1 : 0); checkHwpHtmlSize(size); pieces.push(value); };
   const firstPage = pageSettings(doc, 0, warnings);
+  const total = Array.from({ length: doc.getSectionCount() }, (_, section) => doc.getParagraphCount(section)).reduce((sum, count) => sum + count, 0);
+  onProgress?.({ label: '본문·표·그림을 변환하는 중…', completed: 0, total, unit: '문단' });
   for (let section = 0; section < doc.getSectionCount(); section++) {
     if (section) { const page = pageSettings(doc, section, warnings); append(`<div data-section-page="${escape(JSON.stringify(page))}"></div>`); }
     const column = JSON.parse(doc.getColumnDef(section));
@@ -128,6 +132,7 @@ export function editableHwp(doc: HwpDocument): EditableHwp {
         if (['secd', 'cold', 'head', 'foot', 'pgnp', 'pgct', 'pghd', 'nwno'].includes(c.ctrlId)) continue;
         const pos = Math.max(cursor, positions[c.controlIndex] ?? cursor);
         appendInline(inline(range(cursor, pos))); cursor = pos;
+        onProgress?.({ label: c.ctrlId === 'tbl' ? '표를 변환하는 중…' : c.ctrlId === 'gso' ? '그림·도형을 변환하는 중…' : '문서 개체를 변환하는 중…' });
         let controlHtml = fragment(doc.exportControlHtml(section, para, '[]', c.controlIndex));
         if (c.ctrlId === 'tbl') controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml);
         if (!controlHtml || /^<!--/.test(controlHtml)) {
@@ -150,8 +155,10 @@ export function editableHwp(doc: HwpDocument): EditableHwp {
       appendInline(inline(range(cursor, 0xffffffff)));
       // Keep real blank paragraphs, but avoid an extra empty paragraph after a table.
       if (content.trim() || !(byParagraph.get(globalPara) ?? []).some(c => c.ctrlId === 'tbl')) append(open + content + '</p>');
+      onProgress?.({ label: '본문·표·그림을 변환하는 중…', completed: globalPara + 1, total, unit: '문단' });
     }
   }
+  onProgress?.({ label: '변환한 본문과 그림을 정리하는 중…' });
   let html = pieces.join('\n').replace(/<!--\s*rhwp:([\s\S]*?)-->/g, () => {
     warnings.add('표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.');
     return '<span>[변환하지 못한 개체 — 원본 보기에서 확인]</span>';
@@ -190,7 +197,7 @@ export function setHwpPage(doc: HwpDocument, page: PageSettings) {
   }
 }
 
-export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageSettings, format: 'hwp' | 'hwpx') {
+export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageSettings, format: 'hwp' | 'hwpx', onProgress?: HwpProgressReporter) {
   if (typeof html !== 'string' || !html) throw new Error('저장할 편집 문서가 없습니다.');
   checkHwpHtmlSize(hwpHtmlBytes(html));
   if (!['hwp', 'hwpx'].includes(format)) throw new Error('지원하지 않는 한글 저장 형식입니다.');
@@ -203,8 +210,10 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     // The first pasted paragraph inherits the host's paragraph shape even on
     // the multi-paragraph path. Sacrifice a leading blank, then remove both
     // sentinels. The writer rebuilds section controls from the section model.
+    onProgress?.({ label: '본문·표·그림을 한글 문서로 변환하는 중…' });
     const pasted = JSON.parse(doc.pasteHtml(0, 0, 0, '<p></p>' + converted + '<p></p>'));
     if (!pasted.ok) throw new Error('문서 내용을 한글 형식으로 변환하지 못했습니다.');
+    onProgress?.({ label: '한글 문서의 쪽 나누기를 반영하는 중…' });
     const last = doc.getParagraphCount(0) - 1;
     if (last > 0 && doc.getParagraphLength(0, last) === 0) doc.deleteParagraph(0, last);
     if (doc.getParagraphCount(0) > 1) doc.deleteParagraph(0, 0);
@@ -215,12 +224,14 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
       doc.applyParaFormat(0, p, JSON.stringify({ pageBreakBefore: true }));
     }
     setHwpPage(doc, page);
+    onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {
       const report = JSON.parse(output.contentLoss());
       const bytes = output.takeBytes();
       if (bytes.byteLength > documentLimits.documentFileBytes) throw new Error(`변환한 한글 파일이 ${documentLimits.documentFileBytes / 1024 / 1024} MiB를 넘습니다.`);
       // A successful writer alone is insufficient: actually parse its result.
+      onProgress?.({ label: '변환한 한글 파일을 다시 읽어 확인하는 중…' });
       const check = new Core(bytes);
       let pages = 0;
       try { pages = check.pageCount(); if (!check.getSectionCount() || !pages) throw new Error('저장한 한글 문서를 다시 읽지 못했습니다.'); }

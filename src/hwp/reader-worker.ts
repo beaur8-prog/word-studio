@@ -3,6 +3,7 @@ import wasmUrl from '@rhwp/core/rhwp_bg.wasm?url';
 import JSZip from 'jszip';
 import { editableHwp, serializeHwp, hwpHtmlBytes } from './conversion';
 import documentLimits from '../../electron/document-limits.json';
+import type { HwpProgressReporter } from './progress';
 
 let document: HwpDocument | undefined;
 const ready = init({ module_or_path: fetch(wasmUrl).then(response => {
@@ -13,7 +14,15 @@ const scope = self as unknown as { onmessage: ((event: MessageEvent) => void) | 
 
 scope.onmessage = async ({ data }) => {
   const { id, action } = data;
+  let lastProgress = 0, lastLabel = '';
+  const progress: HwpProgressReporter = value => {
+    const now = performance.now();
+    if (value.label !== lastLabel || (value.total !== undefined && value.completed === value.total) || now - lastProgress >= 80) {
+      scope.postMessage({ id, kind: 'progress', progress: value }); lastProgress = now; lastLabel = value.label;
+    }
+  };
   try {
+    if (['open', 'editable', 'export'].includes(action)) progress({ label: '한글 문서 처리 기능을 준비하는 중…' });
     await ready;
     let result: unknown;
     const transfer: Transferable[] = [];
@@ -30,6 +39,7 @@ scope.onmessage = async ({ data }) => {
         throw new Error('HWP 5.x 문서가 아닙니다. 구형 HWP 3.x는 한글에서 HWP 5.x 또는 HWPX로 변환하세요.');
       }
       document?.free();
+      progress({ label: '문서 구조와 쪽 배치를 분석하는 중…' });
       document = new HwpDocument(bytes);
       document.setFileName(data.name);
       const info = JSON.parse(document.getDocumentInfo());
@@ -38,12 +48,13 @@ scope.onmessage = async ({ data }) => {
       const pages = Array.from({ length: count }, (_, number) => {
         const { width, height } = JSON.parse(document!.getPageInfo(number));
         if (![width, height].every(value => Number.isFinite(value) && value >= 50 && value <= 5000)) throw new Error('지원하지 않는 HWP 용지 크기입니다.');
+        progress({ label: '원본 쪽 정보를 확인하는 중…', completed: number + 1, total: count, unit: '쪽' });
         return { width, height };
       });
       result = { count, pages, fonts: info.fontsUsed ?? [], version: info.version, warnings: JSON.parse(document.getValidationWarnings()).count ?? 0 };
     } else if (action === 'export') {
       if (!(data.htmlBytes instanceof ArrayBuffer) || data.htmlBytes.byteLength > documentLimits.hwpEditableHtmlBytes) throw new Error('편집용 변환 데이터의 크기가 올바르지 않습니다.');
-      const output = serializeHwp(HwpDocument, new TextDecoder().decode(data.htmlBytes), data.page, data.format);
+      const output = serializeHwp(HwpDocument, new TextDecoder().decode(data.htmlBytes), data.page, data.format, progress);
       result = output; transfer.push(output.bytes.buffer as ArrayBuffer);
     } else {
       if (!document) throw new Error('문서를 먼저 열어 주세요.');
@@ -59,7 +70,9 @@ scope.onmessage = async ({ data }) => {
           result = { svg, text };
         }
       } else if (action === 'editable') {
-        const editable = editableHwp(document), htmlBytes = new TextEncoder().encode(editable.html).buffer;
+        const editable = editableHwp(document, progress);
+        progress({ label: '변환한 본문과 그림을 편집 화면으로 보내는 중…' });
+        const htmlBytes = new TextEncoder().encode(editable.html).buffer;
         result = { page: editable.page, warnings: editable.warnings, htmlBytes }; transfer.push(htmlBytes);
       } else if (action === 'text') {
         // The upstream source-text API omits text nested in some HWP table and

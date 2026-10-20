@@ -22,6 +22,22 @@ const setup = (async () => {
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
+test('measured conversion progress reaches the actual paragraph count without changing document content', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const doc = new HwpDocument(await fs.readFile(path.join(__dirname, 'fixtures/hwp/reader.hwp')));
+  try {
+    const baseline = editableHwp(doc), events = [];
+    const converted = editableHwp(doc, progress => events.push(progress));
+    assert.deepEqual(converted, baseline);
+    const counts = events.filter(event => event.total !== undefined);
+    const total = Array.from({ length: doc.getSectionCount() }, (_, i) => doc.getParagraphCount(i)).reduce((a, b) => a + b, 0);
+    assert.equal(counts[0].completed, 0);
+    assert.equal(counts.at(-1).completed, total);
+    assert.ok(counts.every(event => event.total === total && event.completed >= 0 && event.completed <= total));
+    assert.ok(events.some(event => event.total === undefined && /표/.test(event.label)));
+  } finally { doc.free(); }
+});
+
 for (const format of ['hwp', 'hwpx']) {
   test(`${format}: edit bridge writes real Hancom files with Unicode, formatting, merged/nested tables, image and page settings`, async () => {
     const { HwpDocument, serializeHwp, editableHwp } = await setup;

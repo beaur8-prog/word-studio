@@ -10,8 +10,10 @@ import { sanitizeImportedHtml } from '../document-html';
 import { previewEditableHwp } from './editing';
 import { HwpViewport } from './HwpViewport';
 import documentLimits from '../../electron/document-limits.json';
+import { HwpProgressPanel } from './ProgressPanel';
+import { paintHwpProgress, type HwpOperation, type HwpProgressReporter } from './progress';
 
-export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClose(): void; onOpen(): void; onEdit(source: EditableHwp): Promise<void> }) {
+export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClose(): void; onOpen(): void; onEdit(source: EditableHwp, signal?: AbortSignal): Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null), session = useRef<HwpReaderSession | null>(null);
   const currentRequest = useRef(0), cache = useRef(new Map<number, HwpPage>());
   const inFlight = useRef(new Map<number, Promise<HwpPage>>());
@@ -21,6 +23,8 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
   const [loading, setLoading] = useState(true), [exporting, setExporting] = useState(false);
   const [error, setError] = useState(''), [status, setStatus] = useState('');
   const [converting, setConverting] = useState(false), [editable, setEditable] = useState<EditableHwp>();
+  const [operation, setOperation] = useState<HwpOperation>();
+  const conversionAbort = useRef<AbortController | null>(null);
   const [query, setQuery] = useState(''), [searching, setSearching] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const exportingRef = useRef(false);
@@ -57,10 +61,12 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     cache.current.clear(); inFlight.current.clear(); setInfo(undefined); setIndex(0); setNavigation(value => ({ page: 0, id: value.id + 1 })); setError(''); setStatus(''); setLoading(true); setSearching(false);
     const reader = new HwpReaderSession(); session.current = reader;
     let active = true;
-    void reader.open(file).then(value => { if (active) setInfo(value); }).catch(reason => {
+    const startedAt = Date.now(); setConverting(false); setEditable(undefined);
+    const report: HwpProgressReporter = progress => { if (active) setOperation({ progress, startedAt }); };
+    void reader.open(file, report).then(value => { if (active) setInfo(value); }).catch(reason => {
       if (active) { setError(String(reason.message)); setLoading(false); }
-    });
-    return () => { active = false; ++currentRequest.current; reader.close(); session.current = null; document.title = previousTitle; if (previous?.isConnected) previous.focus(); };
+    }).finally(() => { if (active) setOperation(undefined); });
+    return () => { active = false; conversionAbort.current?.abort(); ++currentRequest.current; reader.close(); session.current = null; document.title = previousTitle; if (previous?.isConnected) previous.focus(); };
   }, [file]);
   const findNext = async () => {
     if (!info || !query.trim() || searching) return;
@@ -88,20 +94,34 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
   const prepareEditing = async () => {
     const reader = session.current;
     if (!reader || converting) return;
+    const controller = new AbortController(); conversionAbort.current = controller;
+    const startedAt = Date.now();
+    const report: HwpProgressReporter = progress => { if (session.current === reader && !controller.signal.aborted) setOperation({ progress, startedAt }); };
     setConverting(true); setStatus('Word 편집본을 준비하는 중…');
     try {
-      const source = await reader.editable();
+      report({ label: 'Word 편집본 변환을 시작하는 중…' });
+      const source = await reader.editable(report);
       if (session.current !== reader) return;
+      report({ label: '변환한 문서 내용을 확인하는 중…' }); await paintHwpProgress(); controller.signal.throwIfAborted();
       const clean = sanitizeImportedHtml(source.html);
-      const preview = await previewEditableHwp({ ...source, html: clean.html, warnings: [...source.warnings, ...clean.warnings] }, file.name);
+      const preview = await previewEditableHwp({ ...source, html: clean.html, warnings: [...source.warnings, ...clean.warnings] }, file.name, report, controller.signal);
       if (session.current !== reader) return;
       setEditable(preview);
       setStatus('변환 안내를 확인한 뒤 편집본을 만드세요.');
     } catch (reason) { if (session.current === reader) setStatus(`편집 변환 실패: ${String(reason)}`); }
-    finally { if (session.current === reader) setConverting(false); }
+    finally { if (session.current === reader) { setConverting(false); setOperation(undefined); } }
+  };
+  const openEditing = async () => {
+    if (!editable || converting) return;
+    const reader = session.current;
+    const controller = new AbortController(); conversionAbort.current = controller;
+    setConverting(true); setOperation({ progress: { label: '편집 화면에 문서를 배치하는 중…' }, startedAt: Date.now() });
+    try { await paintHwpProgress(); if (session.current === reader && !controller.signal.aborted) await onEdit(editable, controller.signal); }
+    catch (reason) { if (session.current === reader) setStatus(`편집 변환 실패: ${String(reason)}`); }
+    finally { if (session.current === reader) { setConverting(false); setOperation(undefined); } }
   };
   const print = async (pdf: boolean) => {
-    if (!info || exportingRef.current) return;
+    if (!info || exportingRef.current || converting) return;
     exportingRef.current = true; setExporting(true); setStatus('출력할 쪽을 준비하는 중…');
     const root = document.createElement('div'), style = document.createElement('style');
     root.className = 'print-layout hwp-print-layout';
@@ -125,12 +145,12 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     finally { root.remove(); document.body.classList.remove('studio-printing'); exportingRef.current = false; setExporting(false); }
   };
   useEffect(() => window.wordDesktop?.onMenu(action => {
-    if (exportingRef.current) return;
+    if (exportingRef.current || converting) return;
     if (action === 'open') onOpen();
     else if (action === 'print') void print(false);
     else if (action === 'export-pdf') void print(true);
     else setStatus('HWP는 읽기 전용입니다. 편집 문서로 돌아가려면 읽기 화면을 닫으세요.');
-  }), [info, file]);
+  }), [info, file, converting]);
   return <dialog ref={dialog} className="hwp-reader" aria-label="HWP 읽기" onCancel={event => { event.preventDefault(); if (!exporting) onClose(); }}
     onKeyDown={event => {
       if (!(event.ctrlKey || event.metaKey) || event.nativeEvent.isComposing) return;
@@ -147,9 +167,9 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     <header className="hwp-toolbar"><div><strong>{file.name}</strong><span>HWP/HWPX 원본 보기 · Word Studio</span></div>
       <button onClick={() => void prepareEditing()} disabled={!info || converting || exporting}>Word 화면에서 편집</button>
       <button onClick={onOpen} disabled={exporting}>다른 파일 열기</button>
-      <button onClick={copyText} disabled={!info || exporting}>텍스트 복사</button>
-      <button onClick={() => print(true)} disabled={!info || loading || exporting}>PDF 저장</button>
-      <button onClick={() => print(false)} disabled={!info || loading || exporting}>인쇄</button>
+      <button onClick={copyText} disabled={!info || exporting || converting}>텍스트 복사</button>
+      <button onClick={() => print(true)} disabled={!info || loading || exporting || converting}>PDF 저장</button>
+      <button onClick={() => print(false)} disabled={!info || loading || exporting || converting}>인쇄</button>
       <button onClick={onClose} disabled={exporting} aria-label="HWP 읽기 닫기">닫기</button>
     </header>
     <div className="hwp-controls">
@@ -166,12 +186,13 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     </div>
     <p className="hwp-notice">현재는 원본 보기입니다. ‘Word 화면에서 편집’을 누르면 본문·표·그림을 기존 편집 화면으로 가져옵니다. 설치 글꼴과 지원 범위에 따라 원본 뷰어와 배치가 다를 수 있습니다.
       {info?.warnings ? ` 원본 구조 주의 항목 ${info.warnings}개.` : ''}</p>
+    {operation && <HwpProgressPanel operation={operation} />}
     {editable && <section className="hwp-conversion-panel" aria-label="한글 편집 변환 안내">
       <h2>Word 편집본 만들기</h2><p>{HWP_CONVERSION_NOTICE}</p>
       <p><strong>쪽 수 비교: 원본 보기 {info?.count}쪽 → Word 편집본 {editable.editorPages}쪽</strong>{info?.count !== editable.editorPages ? ' · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.' : ' · 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'}</p>
       <ul>{editable.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul>
-      <button onClick={() => void onEdit(editable).catch(reason => setStatus(`편집 변환 실패: ${String(reason)}`))}>편집본 만들기</button>
-      <button onClick={() => { setEditable(undefined); setStatus('원본 보기를 계속합니다.'); }}>원본 보기로 돌아가기</button>
+      <button disabled={converting || exporting} onClick={() => void openEditing()}>편집본 만들기</button>
+      <button disabled={converting || exporting} onClick={() => { setEditable(undefined); setStatus('원본 보기를 계속합니다.'); }}>원본 보기로 돌아가기</button>
     </section>}
     {error ? <main className="hwp-viewport"><div className="hwp-error" role="alert"><strong>HWP 파일을 열지 못했습니다</strong><p>{error}</p><button onClick={onClose}>편집 문서로 돌아가기</button></div></main>
       : info ? <HwpViewport info={info} zoom={zoom} navigation={navigation} paused={converting || exporting} getPage={getPage} keepPages={keepPages} onPageChange={setIndex} onLoadingChange={setLoading} />

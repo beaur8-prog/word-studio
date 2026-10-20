@@ -6,6 +6,7 @@ import { HwpReaderSession } from './reader';
 import { checkHwpHtmlSize, hwpHtmlBytes, type EditableHwp } from './conversion';
 import { createPrintLayout } from '../print-layout';
 import { pageMargins } from '../types';
+import { paintHwpProgress, type HwpProgressReporter } from './progress';
 
 function renderedBody(root: HTMLElement, doc: StudioDocument): string {
   // HTML does not carry editor CSS. Resolve the document defaults and heading
@@ -61,17 +62,20 @@ export function importEditableHwp(source: EditableHwp, name: string): StudioDocu
     content: parseDocumentHtml(root.innerHTML), page: source.page, comments: [], updatedAt: new Date().toISOString() };
 }
 
-export async function previewEditableHwp(source: EditableHwp, name: string): Promise<EditableHwp> {
+export async function previewEditableHwp(source: EditableHwp, name: string, onProgress?: HwpProgressReporter, signal?: AbortSignal): Promise<EditableHwp> {
+  signal?.throwIfAborted();
+  if (onProgress) { onProgress({ label: 'Word 편집 형식과 서식을 준비하는 중…' }); await paintHwpProgress(); signal?.throwIfAborted(); }
   const doc = importEditableHwp(source, name);
   const html = generateHTML(doc.content, editorExtensions);
-  const layout = await createPrintLayout(html, doc.page);
+  const layout = await createPrintLayout(html, doc.page, onProgress, signal);
   try { return { ...source, html, editorPages: layout.pages, warnings: [...new Set([...source.warnings, ...layout.warnings])] }; }
   finally { layout.dispose(); }
 }
 
 /** Explicitly inventory information that the shared HTML bridge cannot carry.
  * These warnings precede the save dialog, including when the writer reports no loss. */
-export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hwpx') {
+export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hwpx', onProgress?: HwpProgressReporter) {
+  if (onProgress) { onProgress({ label: '저장할 본문과 서식을 준비하는 중…' }); await paintHwpProgress(); }
   const root = document.createElement('div');
   const source = generateHTML(doc.content, editorExtensions);
   checkHwpHtmlSize(hwpHtmlBytes(source));
@@ -87,10 +91,11 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   warn('h1,h2,h3,h4,h5,h6', '제목은 글자·문단 서식으로 저장합니다. Word 제목 수준은 유지되지 않습니다.');
   if (doc.comments.length) warnings.push(`검토 메모 ${doc.comments.length}개는 한글 파일에 저장되지 않습니다. Word Studio 백업을 함께 보관하세요.`);
   if (doc.page.differentFirstPage || doc.page.differentOddEven || doc.page.headerHtml || doc.page.footerHtml || doc.page.pageNumbers) warnings.push('머리말·꼬리말은 기본 텍스트만 저장하며 자동 쪽 번호와 첫 쪽·홀짝 구분은 유지되지 않습니다.');
-  const layout = await createPrintLayout(source, doc.page);
+  const layout = await createPrintLayout(source, doc.page, onProgress);
   let html: string;
   const wordPages = layout.pages;
   try {
+    if (onProgress) { onProgress({ label: '한글 문서의 쪽 나누기를 준비하는 중…' }); await paintHwpProgress(); }
     warnings.push(...layout.warnings);
     if (wordPages > 1) warnings.push('Word 인쇄 쪽 경계를 유지하도록 표·문단을 쪽 단위로 나누어 저장합니다. 이어진 표가 여러 표로 나뉘고 반복 머리행이 각 표에 포함될 수 있습니다.');
     // Preserve Word's measured page boundaries. Letting one enormous HTML table
@@ -107,7 +112,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   } finally { layout.dispose(); }
   const session = new HwpReaderSession();
   try {
-    const result = await session.export(html, doc.page, format);
+    const result = await session.export(html, doc.page, format, onProgress);
     warnings.push(`쪽 수 비교: Word 인쇄 ${wordPages}쪽 → ${format.toUpperCase()} 원본 보기 ${result.pages}쪽.` + (wordPages !== result.pages ? ' 쪽 배치가 달라졌습니다. 정확한 쪽 참조가 필요한 문서는 원본과 대조하세요.' : ' 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'));
     return { blob: new Blob([new Uint8Array(result.bytes)], { type: format === 'hwp' ? 'application/x-hwp' : 'application/vnd.hancom.hwpx' }), warnings: [...new Set([...warnings, ...result.warnings])] };
   } finally { session.close(); }

@@ -3,6 +3,7 @@ import type { EditableHwp } from './conversion';
 import type { PageSettings } from '../types';
 import documentLimits from '../../electron/document-limits.json';
 import { checkHwpHtmlSize, hwpHtmlBytes } from './conversion';
+import type { HwpProgressReporter } from './progress';
 
 export interface HwpPageSize { width: number; height: number }
 export interface HwpInfo { count: number; fonts: string[]; version: string; warnings: number; pages: HwpPageSize[] }
@@ -45,11 +46,14 @@ export class HwpReaderSession {
   private closed = false;
   private active?: number;
   private queue: number[] = [];
-  private pending = new Map<number, { action: string; payload: object; transfer: Transferable[]; resolve(value: unknown): void; reject(error: Error): void; timer?: ReturnType<typeof setTimeout> }>();
+  private pending = new Map<number, { action: string; payload: object; transfer: Transferable[]; onProgress?: HwpProgressReporter; resolve(value: unknown): void; reject(error: Error): void; timer?: ReturnType<typeof setTimeout> }>();
   constructor() {
     this.worker.onmessage = ({ data }) => {
       const request = this.pending.get(data.id);
       if (!request) return;
+      // Progress is not a response: keep the request, its original deadline,
+      // and the serial Worker slot until the actual result or error arrives.
+      if (data.kind === 'progress') { request.onProgress?.(data.progress); return; }
       clearTimeout(request.timer); this.pending.delete(data.id);
       if (this.active === data.id) this.active = undefined;
       if (data.error) request.reject(new Error(data.error)); else request.resolve(data.result);
@@ -73,18 +77,20 @@ export class HwpReaderSession {
       request.reject(error instanceof Error ? error : new Error(String(error))); this.dispatch();
     }
   }
-  private call<T>(action: string, payload: object = {}, transfer: Transferable[] = []): Promise<T> {
+  private call<T>(action: string, payload: object = {}, transfer: Transferable[] = [], onProgress?: HwpProgressReporter): Promise<T> {
     if (this.closed) return Promise.reject(new Error('읽기 작업이 취소됐습니다.'));
     const id = ++this.next;
     return new Promise<T>((resolve, reject) => {
-      this.pending.set(id, { action, payload, transfer, resolve: value => resolve(value as T), reject });
+      this.pending.set(id, { action, payload, transfer, onProgress, resolve: value => resolve(value as T), reject });
+      if (this.active !== undefined) onProgress?.({ label: '앞선 문서 처리가 끝나기를 기다리는 중…' });
       this.queue.push(id); this.dispatch();
     });
   }
-  async open(file: File): Promise<HwpInfo> {
+  async open(file: File, onProgress?: HwpProgressReporter): Promise<HwpInfo> {
     if (!file.size || file.size > documentLimits.documentFileBytes) throw new Error(`${documentLimits.documentFileBytes / 1024 / 1024} MiB 이하의 HWP/HWPX 문서를 선택하세요.`);
+    onProgress?.({ label: '문서 파일을 읽는 중…' });
     const bytes = await file.arrayBuffer();
-    return this.call('open', { bytes, name: file.name, extension: file.name.split('.').pop()?.toLowerCase() }, [bytes]);
+    return this.call('open', { bytes, name: file.name, extension: file.name.split('.').pop()?.toLowerCase() }, [bytes], onProgress);
   }
   discardQueuedPages(keep: ReadonlySet<number>) {
     this.queue = this.queue.filter(id => {
@@ -105,14 +111,15 @@ export class HwpReaderSession {
   }
   text(): Promise<string> { return this.call('text'); }
   pageText(index: number): Promise<string> { return this.call('pageText', { page: index }); }
-  async editable(): Promise<EditableHwp> {
-    const result = await this.call<Omit<EditableHwp, 'html'> & { htmlBytes: ArrayBuffer }>('editable');
+  async editable(onProgress?: HwpProgressReporter): Promise<EditableHwp> {
+    const result = await this.call<Omit<EditableHwp, 'html'> & { htmlBytes: ArrayBuffer }>('editable', {}, [], onProgress);
+    onProgress?.({ label: '변환한 편집 데이터를 준비하는 중…' });
     return { page: result.page, warnings: result.warnings, html: new TextDecoder().decode(result.htmlBytes) };
   }
-  export(html: string, page: PageSettings, format: 'hwp' | 'hwpx'): Promise<{ bytes: Uint8Array; pages: number; warnings: string[] }> {
+  export(html: string, page: PageSettings, format: 'hwp' | 'hwpx', onProgress?: HwpProgressReporter): Promise<{ bytes: Uint8Array; pages: number; warnings: string[] }> {
     checkHwpHtmlSize(hwpHtmlBytes(html));
     const htmlBytes = new TextEncoder().encode(html).buffer;
-    return this.call('export', { htmlBytes, page, format }, [htmlBytes]);
+    return this.call('export', { htmlBytes, page, format }, [htmlBytes], onProgress);
   }
   close(message = '읽기 작업이 취소됐습니다.') {
     if (this.closed) return;
