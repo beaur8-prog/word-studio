@@ -28,6 +28,8 @@ HWP 저장의 쪽 수 차이가 큰 국어발전계획과 개체 위치가 바�
 
 회귀 검사는 [단위 시험](tests/hwp-editing.test.cjs), [브라우저 편집/변환 시험](tests/hwp-editing.spec.ts), [설치 앱 시험](scripts/hwp-editing-desktop-smoke.cjs)에 있습니다. 실제 HWP/HWPX 시그니처, Unicode/이모지·정렬·글자 서식, 병합/중첩 표, 그림, 용지와 여백, 수동 페이지 나누기, DOCX 양방향 교환, 취소/쓰기 실패/복구 실패 시 원문 보존을 확인합니다. 공개 샘플 시험은 `HWP_EDITING_PUBLIC_SAMPLES=1 npx playwright test tests/hwp-editing.spec.ts`로 실행하며 샘플 파일은 재배포하지 않습니다. Mac 프로덕션 앱에서 한글 저장 메뉴·네이티브 파일 필터·저장 취소·HWP/HWPX 재열기도 통과했습니다.
 
+최종 소스 `122ad23a750aa05ff747d5383d494ded67eea3fb`의 [교차 플랫폼 검증](https://github.com/beaur8-prog/word-studio/actions/runs/39384292326)이 통과했습니다. Mac arm64·Windows x64·Ubuntu 22.04에서 기능 시험 95개와 단위 시험 17개를 확인했습니다. Windows Setup은 설치·재설치·제거와 문서 보존, HWP/HWPX 저장 메뉴·필터·저장 취소·재열기를 통과했습니다. Linux DEB도 Ubuntu 22.04·24.04에서 같은 설치 파일로 동일한 설치·문서 보존·한글 편집 검사를 통과했습니다. 24.04에서는 같은 DEB의 실제 앱을 검사하며 브라우저/단위 시험을 중복 실행하지 않습니다. Mac 앱의 임시 서명 검증도 통과했습니다. 공개 릴리스·리토스는 1.3.1을 유지합니다.
+
 ## 구현과 사용
 
 파일 → 파일 열기에서 HWP 5.x 또는 HWPX를 선택합니다. 읽기 전용 화면에서 쪽 이동·확대·찾기·텍스트 복사·PDF 저장·인쇄를 사용하고, 닫으면 기존 Word 문서로 돌아옵니다. HWP 원본과 Word 편집 이력은 바꾸지 않습니다.
