@@ -5,6 +5,7 @@ test-results/
 playwright-report/
 .cache/
 analysis/
+output/
 *.log
 .env
 .env.*

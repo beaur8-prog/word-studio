@@ -33,6 +33,8 @@ MIT 라이선스의 `@rhwp/core 0.8.7`을 별도 Worker에서 실행합니다. W
 
 쪽수가 같은 것이 조판 일치를 뜻하지는 않습니다. 설치 글꼴·폭·기준선, 표 행 분할·여백, 복잡한 수식과 도형에는 차이가 남습니다. 특히 163/154쪽 차이가 있는 취업규칙은 정확한 페이지 참조·제출용 출력에 원본 뷰어 확인이 필요합니다. 상세 화면 비교와 측정 자료는 재현 시 `analysis/hwp-validation/report.html`에 생성합니다.
 
+대각선 표 HWPX에서는 빨간 대각선과 색이 일부 누락됩니다. 정제 전 엔진 SVG에도 빨간 stroke가 없고 화면·인쇄 프로필의 결과가 같아, SVG 보안 필터의 손실이 아닌 해석기 측 제한으로 확인했습니다. 가는 표 테두리도 폴라리스보다 희미하며 글꼴 굵기·폭·기준선 차이가 보입니다. 현재 지원은 읽기·내용 확인용이며 원본과 동일한 조판을 보장하지 않습니다.
+
 ## 검사와 재현
 
 - 기존 브라우저 전체 86개 통과 후, SVG 자원 충돌·저장 실패 창 보호 회귀 2개를 추가해 HWP 검사 7개 통과. 네이티브 단위 시험 4개 통과.
@@ -52,6 +54,8 @@ npm run test:hwp-native
 # Mac 실제 배포 앱 검사
 WORD_STUDIO_EXECUTABLE='/path/to/Word Studio.app/Contents/MacOS/Word Studio' HWP_PUBLIC_SAMPLES=1 npm run test:hwp-native
 ```
+
+비교 자료는 로컬에만 둡니다. `polaris-results.json`과 `polaris/`의 실제 화면 캡처, `hancom-pdf/`의 48 DPI 참고본 렌더링을 `analysis/hwp-validation/`에 준비한 뒤, Pillow·numpy·reportlab·fonttools가 있는 Python으로 `scripts/compare-hwp-layout.py`를 실행하면 29쌍의 PNG·HTML·JSON과 `output/pdf/HWP-Layout-Comparison.pdf`를 만듭니다. 보고서용 Noto Sans KR 글꼴은 고정 커밋에서 받고 SHA-256을 검사합니다. 종이 영역을 잘라 방향·비율을 유지해 비교하며, 근사 먹물 영역 측정값을 호환성 정확도 점수로 해석하지 않습니다.
 
 ## 참고와 라이선스
 
