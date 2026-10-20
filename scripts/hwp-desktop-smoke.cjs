@@ -11,6 +11,7 @@ async function main() {
   const executablePath = packaged || require('electron');
   const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.WORD_STUDIO_DEV;
   const app = await electron.launch({ executablePath, args: [...(packaged ? [] : [root]), '--user-data-dir=' + path.join(directory, 'profile')], env });
+  const closeTestApp = await require('./native-smoke-lifetime.cjs')(app, 'HWP reader');
   const clipboard = await app.evaluate(({ clipboard }) => ({ text: clipboard.readText(), html: clipboard.readHTML(), rtf: clipboard.readRTF(), image: clipboard.readImage().toDataURL() }));
   try {
     const page = await app.firstWindow(), errors = [];
@@ -23,6 +24,7 @@ async function main() {
     if (process.env.HWP_LONG_SAMPLE === '1') inputs.push('analysis/hwp-validation/samples/02-work-rules.hwp');
     const reports = [];
     for (const [i, source] of inputs.entries()) {
+      console.log('HWP native check:', source);
       const fixture = path.join(root, source), pdf = path.join(directory, 'document-' + i + '.pdf');
       await app.evaluate(({ dialog, BrowserWindow }, files) => {
         dialog.showOpenDialog = async (_window, options) => {
@@ -69,9 +71,10 @@ async function main() {
     const result = { passed: true, packaged: Boolean(packaged), platform: process.platform, reports, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(result, null, 2) + '\n');
     console.log(JSON.stringify(result, null, 2));
-  } finally {
+  } catch (error) { console.error('Native HWP assertion failed:', error); throw error; }
+  finally {
     await app.evaluate(({ clipboard, nativeImage }, value) => clipboard.write({ ...value, image: nativeImage.createFromDataURL(value.image) }), clipboard);
-    await app.close();
+    await closeTestApp();
   }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

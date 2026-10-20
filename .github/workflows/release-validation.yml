@@ -5,6 +5,11 @@ on:
     branches:
       - 'codex/release-*'
   workflow_dispatch:
+    inputs:
+      native_only:
+        description: 'Only packaging/native checks; use after unchanged renderer/browser checks pass'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,6 +32,7 @@ jobs:
           npx playwright install --with-deps chromium
       - run: npm run test:native
       - run: npm test -- --reporter=line
+        if: ${{ !inputs.native_only }}
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - run: npm run package:linux
@@ -99,6 +105,7 @@ jobs:
       - run: npm run build
       - run: npm run test:native
       - run: npm test -- --reporter=line
+        if: ${{ !inputs.native_only }}
       - run: npm run package:win
       - name: Test Windows setup, installed application, reinstall and uninstall
         shell: pwsh

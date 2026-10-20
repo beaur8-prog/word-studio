@@ -16,6 +16,7 @@ async function run() {
   if (!binary) throw new Error('Install Electron before running the desktop smoke test.');
   const env = { ...process.env }; delete env.ELECTRON_RUN_AS_NODE; delete env.WORD_STUDIO_DEV;
   const app = await electron.launch({ executablePath: binary, args: [...(packaged ? [] : [root]), `--user-data-dir=${path.join(directory, 'profile')}`], env });
+  const closeTestApp = await require('./native-smoke-lifetime.cjs')(app, 'Word editor');
   try {
     const window = await app.firstWindow();
     const rendererSandboxed = await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences().sandbox);
@@ -130,6 +131,7 @@ async function run() {
       failedRecoveryProtected: true, savedCopyVerified: true, rendererSandboxed, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report, null, 2));
-  } finally { await app.close(); }
+  } catch (error) { console.error('Native editor assertion failed:', error); throw error; }
+  finally { await closeTestApp(); }
 }
 fs.mkdir(path.join(root, '.cache'), { recursive: true }).then(run).catch(error => { console.error(error); process.exitCode = 1; });
