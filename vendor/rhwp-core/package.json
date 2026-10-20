@@ -1,0 +1,45 @@
+{
+  "name": "@rhwp/core",
+  "version": "0.8.7-wordstudio.1",
+  "description": "RHWP 0.8.7 with Word Studio bounded table pagination fixes",
+  "type": "module",
+  "main": "rhwp.js",
+  "types": "rhwp.d.ts",
+  "files": [
+    "rhwp_bg.wasm",
+    "rhwp.js",
+    "rhwp.d.ts",
+    "rhwp_bg.wasm.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "hwp",
+    "hwpx",
+    "hml",
+    "hancom",
+    "hangul",
+    "\ud55c\uae00",
+    "document",
+    "parser",
+    "renderer",
+    "wasm",
+    "webassembly",
+    "rust"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edwardkim/rhwp.git"
+  },
+  "homepage": "https://edwardkim.github.io/rhwp/",
+  "bugs": {
+    "url": "https://github.com/edwardkim/rhwp/issues"
+  },
+  "funding": "https://github.com/sponsors/edwardkim",
+  "license": "MIT",
+  "author": "Edward Kim",
+  "sideEffects": [
+    "./snippets/*"
+  ],
+  "private": true
+}

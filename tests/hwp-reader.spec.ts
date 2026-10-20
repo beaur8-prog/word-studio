@@ -1,6 +1,20 @@
 import { test, expect } from '@playwright/test';
 import path from 'node:path';
 
+test('landscape table page breaks keep the final row and preserve the Word document', async ({ page }) => {
+  await page.goto('/');
+  await page.locator('.tiptap').fill('KEEP AFTER LANDSCAPE PAGINATION');
+  await page.locator('input[type=file]').first().setInputFiles(path.resolve('tests/fixtures/hwp/landscape-pagination.hwp'));
+  const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true });
+  await expect(reader.getByTestId('hwp-page-count')).toHaveText('/ 4');
+  await reader.getByLabel('HWP 쪽 번호').fill('4');
+  await expect(reader.getByTestId('hwp-page')).toHaveAttribute('aria-label', '4쪽');
+  await expect.poll(() => reader.getByTestId('hwp-page').textContent().then(text => text?.replace(/\s/g, ''))).toContain('ROW-24-COLUMN-2');
+  await expect.poll(() => reader.getByTestId('hwp-page').textContent().then(text => text?.replace(/\s/g, ''))).toContain('WordStudio');
+  await reader.getByRole('button', { name: 'HWP 읽기 닫기' }).click();
+  await expect(page.locator('.tiptap')).toHaveText('KEEP AFTER LANDSCAPE PAGINATION');
+});
+
 for (const extension of ['hwp', 'hwpx']) {
   test(`${extension} opens locally with selectable table text and preserves the Word document`, async ({ page }) => {
     const errors: string[] = [], external: string[] = [];

@@ -18,8 +18,9 @@ async function main() {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.locator('.tiptap').fill('NATIVE HWP KEEP — 기존 Word 문서');
     await expect(page.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
-    const inputs = ['tests/fixtures/hwp/reader.hwp', 'tests/fixtures/hwp/reader.hwpx'];
+    const inputs = ['tests/fixtures/hwp/reader.hwp', 'tests/fixtures/hwp/reader.hwpx', 'tests/fixtures/hwp/landscape-pagination.hwp', 'tests/fixtures/hwp/landscape-pagination.hwpx'];
     if (process.env.HWP_PUBLIC_SAMPLES === '1') inputs.push('analysis/hwp-validation/samples/01-employment-contract.hwp', 'analysis/hwp-validation/samples/03-health-duties.hwp');
+    if (process.env.HWP_LONG_SAMPLE === '1') inputs.push('analysis/hwp-validation/samples/02-work-rules.hwp');
     const reports = [];
     for (const [i, source] of inputs.entries()) {
       const fixture = path.join(root, source), pdf = path.join(directory, 'document-' + i + '.pdf');
@@ -39,6 +40,8 @@ async function main() {
       await expect(reader.getByTestId('hwp-page')).toBeVisible({ timeout: 60000 });
       await expect(reader.locator('.hwp-loading')).not.toBeVisible();
       const count = Number((await reader.getByTestId('hwp-page-count').textContent()).replace(/\D/g, ''));
+      if (source.includes('landscape-pagination')) assert.equal(count, 4);
+      if (source.includes('02-work-rules')) assert.equal(count, 163);
       await page.evaluate(() => document.fonts.ready);
       await reader.getByTestId('hwp-page').screenshot({ path: path.join(directory, 'document-' + i + '.png') });
       await reader.getByRole('button', { name: '텍스트 복사', exact: true }).click();
@@ -46,6 +49,12 @@ async function main() {
       const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
       assert.ok(copied.length > 10);
       if (i < 2) assert.ok(copied.includes('테이블 속 한글'));
+      if (source.includes('landscape-pagination')) {
+        for (let row = 1; row <= 24; row++) for (let col = 1; col <= 2; col++) {
+          const label = `ROW-${String(row).padStart(2, '0')}-COLUMN-${col}`;
+          assert.equal(copied.split(label).length - 1, 1, 'Each numbered table cell must be copied once');
+        }
+      }
       await reader.getByRole('button', { name: 'PDF 저장', exact: true }).click();
       await expect(reader.locator('.hwp-status')).toContainText('PDF를 저장했습니다', { timeout: 60000 });
       const bytes = await fs.readFile(pdf), pages = (bytes.toString('latin1').match(/\/Type\s*\/Page\b/g) || []).length;

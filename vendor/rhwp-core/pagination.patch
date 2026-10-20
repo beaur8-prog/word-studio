@@ -1,0 +1,36 @@
+diff --git a/src/renderer/layout/table_layout.rs b/src/renderer/layout/table_layout.rs
+index 5360444..52728b4 100644
+--- a/src/renderer/layout/table_layout.rs
++++ b/src/renderer/layout/table_layout.rs
+@@ -11546,8 +11546,12 @@ impl LayoutEngine {
+             .first()
+             .and_then(|p| p.line_segs.first().map(|s| s.vertical_pos))
+             .unwrap_or(-1);
++        // The first saved line includes the paragraph's before-space. That
++        // leading band is not a nonlocal cell origin: subtract only the stored,
++        // unedited paragraph lead before deciding whether frame resets apply.
++        let cell_frame_origin = self.stored_cell_initial_frame_origin_hu(cell, styles);
+         let cell_has_local_vpos_origin = cell_first_vpos == 0
+-            || (is_block_rowbreak_table && (0..=500).contains(&cell_first_vpos));
++            || (is_block_rowbreak_table && (0..=500).contains(&cell_frame_origin));
+         // [#5995] 셀 내부 vpos 사다리는 셀 콘텐츠 기준 좌표라 표 자신의 세로
+         // 오프셋과 무관하다. 저자가 남긴 미세 오프셋(30269 문단 0.136: -98HU =
+         // -0.03mm)이 `== 0` 판정으로 vpos 유닛 체계 전체를 끄면, 리셋(조각 경계)
+diff --git a/src/renderer/typeset/table/continuation/fragment/scan.rs b/src/renderer/typeset/table/continuation/fragment/scan.rs
+index 1fc1313..8a67eaa 100644
+--- a/src/renderer/typeset/table/continuation/fragment/scan.rs
++++ b/src/renderer/typeset/table/continuation/fragment/scan.rs
+@@ -86,7 +86,12 @@ impl TypesetEngine {
+         const HWPX_LANDSCAPE_ROWBREAK_WHOLE_ROW_TOLERANCE_PX: f64 = 48.0;
+         const HWPX_LANDSCAPE_ROWBREAK_SHORT_ROW_TOLERANCE_PX: f64 = 320.0;
+         const HWPX_LANDSCAPE_ROWBREAK_SHORT_ROW_MAX_HEIGHT_PX: f64 = 320.0;
+-        let landscape_rowbreak_bleed = st.layout.body_area.height < 700.0;
++        // A short body (including landscape paper) still has a finite physical
++        // frame. The row scanner already subtracts repeated headers. Allowing
++        // another 36..320px merges following-page content into this fragment,
++        // which the page clip then discards. Use the ordinary row/cell cut for
++        // every orientation; only explicit source-owned frame rules may bleed.
++        let landscape_rowbreak_bleed = false;
+         let landscape_whole_row_tolerance = if st.profile.hwpx_stored_layout() {
+             HWPX_LANDSCAPE_ROWBREAK_WHOLE_ROW_TOLERANCE_PX
+         } else {

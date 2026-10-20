@@ -127,7 +127,7 @@ report = {'date': '2026-10-20', 'version': 'Word Studio 1.3.0 (not publicly rele
 
 table_rows = [
     ('표준근로계약서 HWP', 'Polaris', 7, 7, '7쪽 비교'),
-    ('표준취업규칙 HWP', 'Polaris', 163, 154, '9쪽 차이 · 첫/마지막 쪽'),
+    ('표준취업규칙 HWP', 'Polaris', 163, 163, '154→163쪽 수정 · 전 쪽 별도 캡처'),
     ('보건소 분장사무 HWP', 'Polaris / Hancom PDF', 4, 4, '4쪽 비교'),
     ('그림 HWP', 'Polaris', 5, 5, '5쪽 비교'),
     ('수식 HWP', 'Polaris', 1, 1, '수식·기준선 비교'),
@@ -140,7 +140,7 @@ style = '''body{font:15px system-ui,sans-serif;background:#f3f5f8;color:#203047;
 body = ['<!doctype html><html lang="ko"><meta charset="utf-8"><title>HWP 레이아웃 비교</title><style>' + style + '</style>',
         '<h1>HWP/HWPX 읽기 · 레이아웃 비교</h1><p>Word Studio 1.3.0 · 2026-10-20 · 소스·로컬 검증본. 공개 배포는 하지 않았습니다.</p>',
         '<p>공개 문서 11개 열기·화면 37쪽 검사, 암호/구형 문서 1개 거부. 폴라리스 웹의 실제 화면 6종과 한컴 PDF 참고본 3종을 비교했습니다. 표·그림·수식을 읽고 PDF로 저장할 수 있습니다.</p>',
-        '<p class="warning"><b>남은 차이:</b> 긴 표준취업규칙은 폴라리스 163쪽, Studio 154쪽입니다. 대각선 표에서는 빨간 대각선·색이 일부 누락되며, 가는 표 테두리는 더 희미합니다. 같은 쪽수인 문서도 글꼴·기준선·표 분할·수식 배치가 완전히 같지는 않습니다. 제출용 인쇄와 정확한 페이지 참조는 원본 뷰어에서도 확인하세요.</p>',
+        '<p class="warning"><b>남은 차이:</b> 긴 표준취업규칙은 표 분할·셀 앞 여백 해석을 고쳐 Studio도 163쪽으로 맞췄습니다. 물리적 종이 밖의 텍스트가 있던 페이지는 17개에서 0개로 줄었고 원문 위치별 문자는 보존됩니다. 대각선 표에서는 빨간 대각선·색이 일부 누락되며, 가는 표 테두리는 더 희미합니다. 같은 쪽수인 문서도 글꼴·기준선·표 분할·수식 배치가 완전히 같지는 않습니다. 제출용 인쇄와 정확한 페이지 참조는 원본 뷰어에서도 확인하세요.</p>',
         '<table><tr><th>문서</th><th>기준</th><th>기준 쪽수</th><th>Studio 쪽수</th><th>확인</th></tr>']
 for row in table_rows:
     body.append('<tr>' + ''.join('<td>' + html.escape(str(cell)) + '</td>' for cell in row) + '</tr>')
@@ -150,7 +150,7 @@ for row in comparisons:
     encoded = base64.b64encode((BASE / row['image']).read_bytes()).decode()
     title = f"{row['file']} · {row['viewer']} {row['referencePage']}쪽 / Studio {row['studioPage']}쪽"
     body.append(f'<details><summary>{html.escape(title)}</summary><img alt="{html.escape(title)}" src="data:image/png;base64,{encoded}"><small>글자 영역(mm): 기준 {row["referenceGeometry"]["inkBoundsMm"]} / Studio {row["studioGeometry"]["inkBoundsMm"]}</small></details>')
-body.append('<h2>기능 검사</h2><p>Windows·Ubuntu 22.04에서 전체 브라우저 검사 88개, 네이티브 단위 검사 4개가 각각 통과했습니다. Mac 패키지와 Windows·Ubuntu 22.04/24.04 설치 앱에서 실제 파일 열기·전체 텍스트 복사·PDF 저장·기존 Word 문서 보존을 확인했습니다. PDF는 합성 HWP/HWPX 각각 1쪽, Mac 공개 근로계약서 7쪽, 보건소 표 4쪽으로 화면과 일치합니다.</p><p>중첩 표·글상자 내용 누락을 보완하여 긴 취업규칙의 텍스트 복사가 5,901자에서 129,913자로 늘었습니다. 파일은 기기 안에서 처리하며 테스트의 외부 요청과 렌더러 오류는 0개입니다.</p>')
+body.append('<h2>기능 검사</h2><p>Windows·Ubuntu 22.04에서 전체 브라우저 검사 88개, 네이티브 단위 검사 4개가 각각 통과했습니다. Mac 패키지와 Windows·Ubuntu 22.04/24.04 설치 앱에서 실제 파일 열기·전체 텍스트 복사·PDF 저장·기존 Word 문서 보존을 확인했습니다. PDF는 합성 HWP/HWPX 각각 1쪽, Mac 공개 근로계약서 7쪽, 보건소 표 4쪽으로 화면과 일치합니다.</p><p>중첩 표·글상자 내용 누락을 보완하여 긴 취업규칙의 텍스트 복사가 5,901자에서 130,180자로 늘었습니다. 파일은 기기 안에서 처리하며 테스트의 외부 요청과 렌더러 오류는 0개입니다.</p>')
 body.append('<h2>출처</h2><ul><li><a href="https://www.moel.go.kr/info/etc/dataroom/view.do?bbs_seq=20250300356">고용노동부 공식 파일</a></li><li><a href="https://hwp.polarisoffice.com/">폴라리스 웹 뷰어</a></li><li><a href="https://github.com/edwardkim/rhwp">RHWP 공개 샘플·해석기 (0.8.7, MIT)</a></li><li><a href="https://github.com/beaur8-prog/word-studio/blob/main/HWP_VALIDATION.md">전체 검증·제한·재현 방법</a></li></ul></html>')
 (BASE / 'report.html').write_text('\n'.join(body))
 
@@ -175,7 +175,7 @@ for row in table_rows:
     for x, value in zip(columns, row): text(x, y, str(value), 9)
 text(36, 190, '주요 차이와 해석', 13)
 for i, value in enumerate([
-    '• 긴 취업규칙은 163 / 154쪽 차이가 남습니다. 같은 쪽수도 동일한 글꼴·줄바꿈·조판을 뜻하지 않습니다.',
+    '• 긴 취업규칙은 154→163쪽으로 수정했습니다. 같은 쪽수도 동일한 글꼴·줄바꿈·조판을 뜻하지 않습니다.',
     '• 대각선 표의 빨간 선·색 일부 누락과 가는 테두리의 흐린 표시가 남아 있습니다.',
     '• 원본 HWP를 편집하지 않습니다. 기존 Word 문서를 유지하고, 읽기 화면을 닫으면 편집에 돌아갑니다.',
     '• 중첩 표·글상자 텍스트 누락과 여러 SVG 쪽의 표 잘림 자원 충돌을 보완했습니다.',
@@ -194,5 +194,33 @@ for file, viewer, number in selection:
     row = next(row for row in comparisons if row['file'] == file and row['viewer'] == viewer and row['studioPage'] == number)
     pdf.drawImage(ImageReader(str(BASE / row['image'])), 38, 22, width=W - 76, height=H - 44, preserveAspectRatio=True, anchor='c')
     pdf.showPage()
+# The pagination corpus is separately captured in full at 75%.
+pagination = ROOT / 'analysis/hwp-pagination'
+if (pagination / 'engine-audit.json').exists():
+    audit = json.loads((pagination / 'engine-audit.json').read_text())
+    text(36, H - 48, '163/154쪽 차이 수정과 검증', 22)
+    lines = [
+        '가로 표의 과도한 행 넘침 허용을 제거하고, 저장된 셀 문단 앞 여백을 좌표 원점과 구분했습니다.',
+        '문서별 쪽수 보정·확대/축소 없이 154→163쪽. 두 수정을 분리하면 162쪽 / 154쪽입니다.',
+        '전체 페이지 텍스트 높이 검사: 종이 밖으로 나간 쪽 17→0개. Mac 앱의 실제 PDF도 163쪽입니다.',
+        '원문 위치별 문자 90,934개와 해시가 전후 동일합니다. 페이지 분할로 문자를 제거하지 않았습니다.',
+        '다른 지원 공개 샘플 10개는 기존 쪽수 유지. 합성 HWP/HWPX의 잘린 행도 회귀 검사합니다.',
+        '폴라리스·앱 163쪽을 각각 캡처해 비교 쌍 생성. 앞·중간·끝 및 차이가 큰 쪽을 시각 점검했습니다.',
+        '글꼴·문단 간격·일부 마지막 줄 위치·표 하단선·쪽번호 배치 차이가 남습니다.',
+        '총 쪽수가 같아도 모든 페이지 경계와 조판이 동일한 것은 아닙니다.',
+        '검증은 로컬 및 Git 소스 변경입니다. 공개 릴리스·리토스 배포는 하지 않았습니다.',
+    ]
+    for i, value in enumerate(lines): text(36, H - 95 - i * 30, value, 11)
+    text(36, 66, '원문 문자 집합 SHA-256 (생성 쪽번호·공백·반복 머리 제외):', 9)
+    text(36, 47, audit['after']['sourceCharacterDigest'], 8)
+    pdf.showPage()
+    for number in [13, 76, 163]:
+        figure = pagination / f'comparisons/page-{number}.png'
+        if not figure.exists(): continue
+        pdf.drawImage(ImageReader(str(figure)), 24, 22, width=W - 48, height=H - 44, preserveAspectRatio=True, anchor='c')
+        pdf.showPage()
+        encoded = base64.b64encode(figure.read_bytes()).decode()
+        body.append(f'<details><summary>쪽 분할 수정 후 {number}/163쪽 비교</summary><img alt="Polaris와 수정본 {number}쪽" src="data:image/png;base64,{encoded}"></details>')
+    (BASE / 'report.html').write_text('\n'.join(body))
 pdf.save()
 print(json.dumps({'comparisons': len(comparisons), 'html': str(BASE / 'report.html'), 'pdf': str(pdf_path)}, ensure_ascii=False))

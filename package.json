@@ -24,7 +24,7 @@
   "dependencies": {
     "@fontsource/noto-sans-kr": "5.3.1",
     "@fontsource/noto-serif-kr": "5.3.1",
-    "@rhwp/core": "0.8.7",
+    "@rhwp/core": "file:vendor/rhwp-core",
     "@tiptap/extension-highlight": "3.32.0",
     "@tiptap/extension-image": "3.32.0",
     "@tiptap/extension-placeholder": "3.32.0",

@@ -43,6 +43,8 @@ async function main() {
       } else {
         await expect(reader.getByTestId('hwp-page')).toBeVisible();
         const count = Number((await reader.getByTestId('hwp-page-count').textContent()).replace(/\D/g, ''));
+        const expectedPages = { '01': 7, '02': 163, '03': 4, '04': 35, '05': 4, '06': 5, '07': 5, '08': 1, '09': 1, '10': 1, '11': 1 };
+        expect(count, sample.file + ' page count').toBe(expectedPages[sample.file.slice(0, 2)]);
         await reader.getByLabel('HWP 확대').selectOption('50');
         const pages = count <= 7 ? Array.from({ length: count }, (_, i) => i + 1) : [...new Set([1, 2, Math.min(10, count), count])];
         const rendered = [];
@@ -72,7 +74,7 @@ async function main() {
       await reader.getByRole('button', { name: 'HWP 읽기 닫기' }).click();
       await expect(page.locator('.tiptap')).toHaveText('HWP VALIDATION — PRESERVE THIS WORD DOCUMENT');
     }
-    const report = { engine: '@rhwp/core 0.8.7', browser: await browser.version(), results, rendererErrors: errors, externalRequests: network };
+    const report = { engine: '@rhwp/core 0.8.7-wordstudio.1', browser: await browser.version(), results, rendererErrors: errors, externalRequests: network };
     await fs.writeFile(path.join(directory, 'studio-results.json'), JSON.stringify(report, null, 2) + '\n');
     if (errors.length || network.length) throw Error('Renderer error or unexpected external request');
   } finally { await browser.close(); }
