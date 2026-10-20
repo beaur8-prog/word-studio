@@ -23,22 +23,13 @@ Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DO
 
 | 컴퓨터 | 배포 파일 | 설치 방식 |
 | --- | --- | --- |
-| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.3.1-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.3.1/Word-Studio-1.3.1-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
 | Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.3.1-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.3.1/Word-Studio-1.3.1-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
+| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.3.1-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.3.1/Word-Studio-1.3.1-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
 | Linux · Ubuntu 22.04 / 24.04 LTS · Intel/AMD 64비트(x64) | [Word-Studio-1.3.1-linux-x64.deb](https://github.com/beaur8-prog/word-studio/releases/download/v1.3.1/Word-Studio-1.3.1-linux-x64.deb) | apt로 설치 → 앱 메뉴 또는 word-studio 명령으로 실행 |
 
 Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 DEB 패키지입니다. 다른 Debian 계열 배포판은 라이브러리 호환성을 확인해야 합니다. Intel Mac용, Windows ARM64용, Linux ARM64용 파일은 제공하지 않습니다. GitHub의 **Source code** 파일은 개발용 소스이므로 일반 설치에는 위의 운영체제별 배포 파일을 사용하세요.
 
-## 2. Mac 설치 및 실행
-
-1. Mac용 ZIP을 다운로드하고 Finder에서 두 번 클릭해 압축을 풉니다.
-2. 나온 **Word Studio.app**을 **응용 프로그램** 폴더로 옮깁니다. 개인 계정에만 설치하려면 홈 폴더의 `Applications`를 사용해도 됩니다.
-3. 응용 프로그램 폴더에서 **Word Studio**를 실행합니다.
-4. 시작 문서가 열리면 본문을 클릭해 입력하거나 **파일 → 새 문서**로 시작합니다.
-
-이 Mac 배포본은 임시(ad-hoc) 서명을 사용하며 Apple Developer ID 서명·공증은 받지 않았습니다. 처음 실행할 때 개발자를 확인할 수 없다는 안내가 나올 수 있습니다. 이 릴리즈에서 받은 파일임을 확인하고 실행하기로 했다면 한 번 실행을 시도한 뒤 **시스템 설정 → 개인정보 보호 및 보안 → 보안 → 그래도 열기**에서 해당 앱을 확인하세요. 자세한 절차는 [Apple 공식 안내](https://support.apple.com/ko-kr/102445)를 참고하세요.
-
-## 3. Windows 설치 및 실행
+## 2. Windows 설치 및 실행
 
 1. **Word-Studio-1.3.1-windows-x64-setup.exe**를 다운로드합니다. 다운로드 중 브라우저에서 **위험한 파일** 또는 **PC에 손상을 줄 수 있음**과 같은 경고가 뜰 수 있습니다. 경고 문구는 브라우저에 따라 다릅니다. 이 페이지의 다운로드 링크인지 확인하고, 출처를 신뢰할 때에만 다운로드를 계속하세요.
 2. 받은 Setup 파일의 파일명과 함께 제공하는 SHA-256을 확인한 뒤 두 번 클릭합니다. 압축을 풀 필요가 없습니다.
@@ -54,6 +45,15 @@ Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 D
 기존 ZIP 배포본을 사용했다면 문서를 저장하고 이전 앱을 완전히 종료한 뒤 Setup을 실행하세요. 기존 자동 복구 경로는 그대로 사용합니다. 설치된 앱이 정상 실행되는 것을 확인한 뒤 이전 포터블 폴더와 바로 가기를 정리할 수 있습니다.
 
 Windows 배포 파일은 코드 서명을 받지 않았습니다. SmartScreen은 서명과 파일의 다운로드 평판을 확인하며, 브라우저도 잘 알려지지 않은 다운로드에 경고를 표시할 수 있습니다. 위 실행 절차는 출처와 파일을 확인한 뒤에 진행하세요. **‘실행’ 버튼이 없거나 회사·학교 PC의 정책으로 차단되는 경우 관리자에게 문의하세요.** 자세한 내용은 Microsoft의 [SmartScreen 평판 안내](https://learn.microsoft.com/ko-kr/windows/apps/package-and-deploy/smartscreen-reputation)와 [Edge 다운로드 경고 안내](https://support.microsoft.com/ko-kr/edge/how-can-smartscreen-help-protect-me-in-microsoft-edge)를 참고하세요.
+
+## 3. Mac 설치 및 실행
+
+1. Mac용 ZIP을 다운로드하고 Finder에서 두 번 클릭해 압축을 풉니다.
+2. 나온 **Word Studio.app**을 **응용 프로그램** 폴더로 옮깁니다. 개인 계정에만 설치하려면 홈 폴더의 `Applications`를 사용해도 됩니다.
+3. 응용 프로그램 폴더에서 **Word Studio**를 실행합니다.
+4. 시작 문서가 열리면 본문을 클릭해 입력하거나 **파일 → 새 문서**로 시작합니다.
+
+이 Mac 배포본은 임시(ad-hoc) 서명을 사용하며 Apple Developer ID 서명·공증은 받지 않았습니다. 처음 실행할 때 개발자를 확인할 수 없다는 안내가 나올 수 있습니다. 이 릴리즈에서 받은 파일임을 확인하고 실행하기로 했다면 한 번 실행을 시도한 뒤 **시스템 설정 → 개인정보 보호 및 보안 → 보안 → 그래도 열기**에서 해당 앱을 확인하세요. 자세한 절차는 [Apple 공식 안내](https://support.apple.com/ko-kr/102445)를 참고하세요.
 
 ## 4. Linux 설치 및 실행
 
