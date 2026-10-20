@@ -150,7 +150,7 @@ for row in comparisons:
     encoded = base64.b64encode((BASE / row['image']).read_bytes()).decode()
     title = f"{row['file']} · {row['viewer']} {row['referencePage']}쪽 / Studio {row['studioPage']}쪽"
     body.append(f'<details><summary>{html.escape(title)}</summary><img alt="{html.escape(title)}" src="data:image/png;base64,{encoded}"><small>글자 영역(mm): 기준 {row["referenceGeometry"]["inkBoundsMm"]} / Studio {row["studioGeometry"]["inkBoundsMm"]}</small></details>')
-body.append('<h2>기능 검사</h2><p>브라우저 전체 86개 통과 후 HWP 회귀 2개 추가, HWP 시험 7개 통과. Mac 패키지에서 실제 파일 열기·전체 텍스트 복사·PDF 저장·기존 Word 문서 보존을 확인했습니다. PDF는 합성 HWP/HWPX 각각 1쪽, 근로계약서 7쪽, 보건소 표 4쪽으로 화면과 일치합니다.</p><p>중첩 표·글상자 내용 누락을 보완하여 긴 취업규칙의 텍스트 복사가 5,901자에서 129,913자로 늘었습니다. 파일은 기기 안에서 처리하며 테스트의 외부 요청과 렌더러 오류는 0개입니다.</p>')
+body.append('<h2>기능 검사</h2><p>Windows·Ubuntu 22.04에서 전체 브라우저 검사 88개, 네이티브 단위 검사 4개가 각각 통과했습니다. Mac 패키지와 Windows·Ubuntu 22.04/24.04 설치 앱에서 실제 파일 열기·전체 텍스트 복사·PDF 저장·기존 Word 문서 보존을 확인했습니다. PDF는 합성 HWP/HWPX 각각 1쪽, Mac 공개 근로계약서 7쪽, 보건소 표 4쪽으로 화면과 일치합니다.</p><p>중첩 표·글상자 내용 누락을 보완하여 긴 취업규칙의 텍스트 복사가 5,901자에서 129,913자로 늘었습니다. 파일은 기기 안에서 처리하며 테스트의 외부 요청과 렌더러 오류는 0개입니다.</p>')
 body.append('<h2>출처</h2><ul><li><a href="https://www.moel.go.kr/info/etc/dataroom/view.do?bbs_seq=20250300356">고용노동부 공식 파일</a></li><li><a href="https://hwp.polarisoffice.com/">폴라리스 웹 뷰어</a></li><li><a href="https://github.com/edwardkim/rhwp">RHWP 공개 샘플·해석기 (0.8.7, MIT)</a></li><li><a href="https://github.com/beaur8-prog/word-studio/blob/main/HWP_VALIDATION.md">전체 검증·제한·재현 방법</a></li></ul></html>')
 (BASE / 'report.html').write_text('\n'.join(body))
 
@@ -165,7 +165,7 @@ def text(x, y, value, size=10, color='#25354c'):
 
 text(36, H - 46, 'HWP/HWPX 읽기 · 레이아웃 비교', 22)
 text(36, H - 69, 'Word Studio 1.3.0  |  2026-10-20  |  소스·로컬 검증본, 공개 배포 전', 10)
-text(36, H - 97, '공개 문서 11개 열기·화면 37쪽 검사 / 암호·구형 문서 1개 거부 / 상용 뷰어 6종 + 한컴 PDF 참고본 3종', 10)
+text(36, H - 97, '공개 문서 11개 열기·화면 37쪽 검사 / 구형 문서 1개 거부 / 폴라리스 문서 6종 + 한컴 PDF 참고본 3종', 10)
 y = H - 131
 columns = [36, 224, 418, 495, 570]
 for x, value in zip(columns, ['문서', '비교 기준', '기준 쪽수', 'Studio', '비교 범위']): text(x, y, value, 10)
@@ -180,6 +180,7 @@ for i, value in enumerate([
     '• 원본 HWP를 편집하지 않습니다. 기존 Word 문서를 유지하고, 읽기 화면을 닫으면 편집에 돌아갑니다.',
     '• 중첩 표·글상자 텍스트 누락과 여러 SVG 쪽의 표 잘림 자원 충돌을 보완했습니다.',
     '• Mac 실제 앱 PDF: 합성 HWP/HWPX 1쪽씩, 근로계약서 7쪽, 보건소 표 4쪽. 렌더러 오류 0개.',
+    '• Windows·Ubuntu: 브라우저 검사 88개씩 통과. 실제 설치 앱의 HWP/HWPX 열기·복사·PDF도 통과.',
     '• 폴라리스는 실제 서비스 화면, 한컴 PDF는 동봉 참고본입니다. 이 Mac에서 한컴 앱을 직접 실행하지 않았습니다.',
     '• 원본 전체 화면·공개 URL·SHA-256·전체 비교는 로컬 report.html 및 Git의 HWP_VALIDATION.md에 있습니다.',
 ]): text(36, 165 - i * 17, value, 9)
