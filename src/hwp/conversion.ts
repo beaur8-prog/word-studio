@@ -1,9 +1,32 @@
 import type { HwpDocument } from '@rhwp/core';
 import type { PageSettings } from '../types';
+import documentLimits from '../../electron/document-limits.json';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
-export const HWP_HTML_LIMIT = 24 * 1024 * 1024;
+// Expanded HTML includes base64 pictures, so a 21 MB image document already
+// needs about 28 MB before markup. This is separate from the source-file cap.
+export const HWP_HTML_LIMIT = documentLimits.hwpEditableHtmlBytes;
+function utf8Bytes(value: string): number {
+  // Do not allocate another document-sized buffer just to measure the Worker input.
+  let bytes = value.length;
+  for (let i = 0; i < value.length; i++) {
+    const c = value.charCodeAt(i);
+    if (c <= 0x7f) continue;
+    if (c <= 0x7ff) bytes++;
+    else {
+      bytes += 2;
+      if (c >= 0xd800 && c <= 0xdbff && i + 1 < value.length) {
+        const next = value.charCodeAt(i + 1);
+        if (next >= 0xdc00 && next <= 0xdfff) i++;
+      }
+    }
+  }
+  return bytes;
+}
+function checkHtmlSize(bytes: number) {
+  if (bytes > HWP_HTML_LIMIT) throw new Error(`편집용 변환 데이터가 ${(bytes / 1024 / 1024).toFixed(1)} MiB로 한도 ${HWP_HTML_LIMIT / 1024 / 1024} MiB를 넘습니다. 원본 파일 크기가 아니라 압축을 푼 본문·그림을 편집 형식으로 변환한 크기입니다. 그림을 줄이거나 문서를 나눠 주세요.`);
+}
 const escape = (text: string) => text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const fragment = (html: string) => html.match(/<!--StartFragment-->([\s\S]*?)<!--EndFragment-->/)?.[1].trim() ?? html;
 type Control = { list: number; para: number; controlIndex: number; ctrlId: string; userDesc: string; props: { TreatAsChar?: number } };
@@ -84,7 +107,7 @@ export function editableHwp(doc: HwpDocument): EditableHwp {
   }
   const pieces: string[] = [];
   let globalPara = 0, size = 0;
-  const append = (value: string) => { size += value.length; if (size > HWP_HTML_LIMIT) throw new Error('편집용 변환 데이터가 24MB를 넘습니다. 문서를 나눠 주세요.'); pieces.push(value); };
+  const append = (value: string) => { size += utf8Bytes(value) + (pieces.length ? 1 : 0); checkHtmlSize(size); pieces.push(value); };
   const firstPage = pageSettings(doc, 0, warnings);
   for (let section = 0; section < doc.getSectionCount(); section++) {
     if (section) { const page = pageSettings(doc, section, warnings); append(`<div data-section-page="${escape(JSON.stringify(page))}"></div>`); }
@@ -99,11 +122,12 @@ export function editableHwp(doc: HwpDocument): EditableHwp {
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';
       open = open.replace(/style="([^"]*)"/, (_, css) => `style="${css}margin-top:${Number(properties.spacingBefore) || 0}px;margin-bottom:${Number(properties.spacingAfter) || 0}px;"`);
       const inline = (html: string) => html.replace(/^<p\b[^>]*>\s*/, '').replace(/<\/p>\s*$/, '');
-      let cursor = 0, content = '';
+      let cursor = 0, content = '', contentBytes = 0;
+      const appendInline = (value: string) => { contentBytes += utf8Bytes(value); checkHtmlSize(size + contentBytes); content += value; };
       for (const c of byParagraph.get(globalPara) ?? []) {
         if (['secd', 'cold', 'head', 'foot', 'pgnp', 'pgct', 'pghd', 'nwno'].includes(c.ctrlId)) continue;
         const pos = Math.max(cursor, positions[c.controlIndex] ?? cursor);
-        content += inline(range(cursor, pos)); cursor = pos;
+        appendInline(inline(range(cursor, pos))); cursor = pos;
         let controlHtml = fragment(doc.exportControlHtml(section, para, '[]', c.controlIndex));
         if (c.ctrlId === 'tbl') controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml);
         if (!controlHtml || /^<!--/.test(controlHtml)) {
@@ -120,10 +144,10 @@ export function editableHwp(doc: HwpDocument): EditableHwp {
         }
         if (/^<(?:table|p)\b/.test(controlHtml)) {
           if (content.trim()) append(open + content + '</p>');
-          append(controlHtml); content = '';
-        } else content += controlHtml.replace(/<img /g, '<img data-inline-image="true" ');
+          append(controlHtml); content = ''; contentBytes = 0;
+        } else appendInline(controlHtml.replace(/<img /g, '<img data-inline-image="true" '));
       }
-      content += inline(range(cursor, 0xffffffff));
+      appendInline(inline(range(cursor, 0xffffffff)));
       // Keep real blank paragraphs, but avoid an extra empty paragraph after a table.
       if (content.trim() || !(byParagraph.get(globalPara) ?? []).some(c => c.ctrlId === 'tbl')) append(open + content + '</p>');
     }
@@ -145,6 +169,7 @@ export function editableHwp(doc: HwpDocument): EditableHwp {
     const font = ['font-size', 'font-family'].map(key => runCss.match(new RegExp(`(?:^|;)${key}:([^;]+)`))?.[0]).filter(Boolean).join(';');
     return `<p style="${css}${font};">${span}`;
   });
+  checkHtmlSize(utf8Bytes(html));
   warnings.add('복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요.');
   return { html: html || '<p></p>', page: firstPage, warnings: [...warnings] };
 }
@@ -166,7 +191,8 @@ export function setHwpPage(doc: HwpDocument, page: PageSettings) {
 }
 
 export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageSettings, format: 'hwp' | 'hwpx') {
-  if (typeof html !== 'string' || !html || html.length > HWP_HTML_LIMIT) throw new Error('24MB 이하의 편집 문서를 저장하세요.');
+  if (typeof html !== 'string' || !html) throw new Error('저장할 편집 문서가 없습니다.');
+  checkHtmlSize(utf8Bytes(html));
   if (!['hwp', 'hwpx'].includes(format)) throw new Error('지원하지 않는 한글 저장 형식입니다.');
   const doc = Core.createEmpty();
   try {

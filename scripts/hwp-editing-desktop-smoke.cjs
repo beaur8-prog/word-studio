@@ -14,6 +14,7 @@ async function main() {
   const close = await require('./native-smoke-lifetime.cjs')(app, 'HWP editing');
   try {
     const page = await app.firstWindow(), errors = [], reports = [];
+    let largeDocument;
     page.on('pageerror', error => errors.push(error.message));
     await page.setViewportSize({ width: 1440, height: 1000 });
     await page.locator('.tiptap').fill('NATIVE HWP EDITING — disposable test document');
@@ -59,9 +60,42 @@ async function main() {
       await expect(page.locator('.tiptap table')).toHaveCount(1);
       reports.push({ format, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex'), file });
     }
+    if (process.env.HWP_LARGE_FIXTURE_JSON) {
+      const fixture = JSON.parse(await fs.readFile(process.env.HWP_LARGE_FIXTURE_JSON, 'utf8'));
+      await open(path.resolve(fixture.files.hwp.file));
+      await expect(page.locator('.tiptap img:not(.ProseMirror-separator)')).toHaveCount(3);
+      const source = 'data:image/png;base64,' + (await fs.readFile(fixture.largeImage)).toString('base64');
+      const id = 'large-native-' + Date.now(), title = 'LARGE NATIVE STORAGE';
+      const original = path.join(directory, 'large-storage.wordstudio'), saved = path.join(directory, 'large-saved.wordstudio');
+      await fs.writeFile(original, JSON.stringify({ format: 'word-studio', version: 1, id, title, updatedAt: new Date().toISOString(), comments: [],
+        page: { size: 'A4', orientation: 'portrait', margin: 25, header: '', footer: '', pageNumbers: false },
+        content: { type: 'doc', content: [1, 2].map(() => ({ type: 'image', attrs: { src: source, width: 320, height: 875 } })) } }));
+      await app.evaluate(({ dialog }, value) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [value] }); }, original);
+      await page.keyboard.press('ControlOrMeta+o');
+      await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue(title, { timeout: 60000 });
+      await expect(page.locator('.tiptap img:not(.ProseMirror-separator)')).toHaveCount(2);
+      const profile = await app.evaluate(({ app }) => app.getPath('userData'));
+      const recovery = path.join(profile, 'recovery', id + '.json');
+      await expect.poll(async () => fs.stat(recovery).then(s => s.size).catch(() => 0), { timeout: 60000 }).toBeGreaterThan(40 * 1024 * 1024);
+      const recovered = JSON.parse(JSON.parse(await fs.readFile(recovery, 'utf8')).current);
+      const recoveredImages = recovered.content.content.filter(node => node.type === 'image');
+      assert.equal(recovered.title, title); assert.equal(recoveredImages.length, 2);
+      for (const image of recoveredImages) assert.equal(image.attrs.src, source);
+      await app.evaluate(({ dialog }, value) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: value }); }, saved);
+      await page.keyboard.press('ControlOrMeta+s');
+      await expect(page.getByText('문서 파일을 저장했습니다', { exact: true })).toBeVisible({ timeout: 60000 });
+      await expect.poll(async () => fs.stat(saved).then(s => s.size).catch(() => 0), { timeout: 60000 }).toBeGreaterThan(40 * 1024 * 1024);
+      const reopened = JSON.parse(await fs.readFile(saved, 'utf8'));
+      const savedImages = reopened.content.content.filter(node => node.type === 'image');
+      assert.equal(savedImages.length, 2);
+      for (const image of savedImages) assert.equal(image.attrs.src, source);
+      largeDocument = { version: await app.evaluate(({ app }) => app.getVersion()), sourceBytes: fixture.files.hwp.bytes,
+        importedImages: 3, individualImageBytes: (await fs.stat(fixture.largeImage)).size,
+        savedBytes: (await fs.stat(saved)).size, nativeRecovery: true, nativeOpenAndSave: true, imagesPreserved: true };
+    }
     await page.screenshot({ path: path.join(directory, 'edited-word-screen.png') });
     assert.deepEqual(errors, []);
-    const report = { passed: true, platform: process.platform, packaged: Boolean(packaged), nativeCancellation: true, nativeMenuAndFilters: true, reports, rendererErrors: errors, directory };
+    const report = { passed: true, platform: process.platform, packaged: Boolean(packaged), nativeCancellation: true, nativeMenuAndFilters: true, reports, largeDocument, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2) + '\n');
     console.log(JSON.stringify(report, null, 2));
   } finally { await close(); }

@@ -1,11 +1,14 @@
 import DOMPurify from "dompurify";
+import documentLimits from '../electron/document-limits.json';
+// Base64 expansion of one supported 40 MiB raster, plus its data-URI header.
+const MAX_IMAGE_SOURCE_LENGTH = Math.ceil(documentLimits.embeddedImageBytes / 3) * 4 + 64;
 export const RASTER_DATA =
   /^data:image\/(png|jpe?g|gif|webp|bmp);base64,([A-Za-z0-9+/=\s]+)$/i;
 const SAFE_LINK = /^(https?:\/\/|mailto:|tel:|#)/i;
 export function validImage(src: unknown): src is string {
   return (
     typeof src === "string" &&
-    src.length <= 22 * 1024 * 1024 &&
+    src.length <= MAX_IMAGE_SOURCE_LENGTH &&
     RASTER_DATA.test(src)
   );
 }

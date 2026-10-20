@@ -51,6 +51,7 @@ import { storyHtml, documentNotes, attachDocumentNotes, structureDocxSections } 
 import { parseDocumentHtml } from './extensions';
 import { imageFloating, restoreImageGeometry, type ImageGeometryRecord } from './image-floating';
 import type { PageSettings, StudioDocument } from "./types";
+import documentLimits from '../electron/document-limits.json';
 
 export interface ImportResult {
   document: StudioDocument;
@@ -560,8 +561,10 @@ async function readDocxPage(
 
 export async function importFile(file: File): Promise<ImportResult> {
   if (!file.size) fail("비어 있는 파일입니다.");
-  if (file.size > MAX_FILE_BYTES) fail("40MB 이하의 문서를 열어 주세요.");
   const extension = file.name.split(".").pop()?.toLowerCase();
+  // Base64 pictures expand when a compressed HWP/DOCX becomes editable JSON.
+  const limit = extension === 'wordstudio' ? documentLimits.studioDocumentBytes : MAX_FILE_BYTES;
+  if (file.size > limit) fail(`${extension === 'wordstudio' ? 'Word Studio 편집 파일은' : '문서는'} ${limit / 1024 / 1024} MiB 이하로 열어 주세요.`);
   if (extension === "wordstudio") {
     let parsed: unknown;
     try {

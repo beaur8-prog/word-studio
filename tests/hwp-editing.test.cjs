@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { createRequire } = require('node:module');
 const ts = require('typescript');
 const JSZip = require('jszip');
 const setup = (async () => {
@@ -11,10 +12,12 @@ const setup = (async () => {
   const { default: init, HwpDocument } = await import(pathToFileURL(path.join(directory, 'rhwp.js')).href);
   await init({ module_or_path: await fs.readFile(path.join(directory, 'rhwp_bg.wasm')) });
   // Exercise the same DOM-free conversion module used by the browser Worker.
-  const source = await fs.readFile(path.join(__dirname, '../src/hwp/conversion.ts'), 'utf8');
-  const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
-  const bridge = await import('data:text/javascript;base64,' + Buffer.from(compiled).toString('base64'));
-  return { HwpDocument, ...bridge };
+  const sourceFile = path.join(__dirname, '../src/hwp/conversion.ts');
+  const source = await fs.readFile(sourceFile, 'utf8');
+  const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
+  const bridge = { exports: {} };
+  new Function('require', 'module', 'exports', compiled)(createRequire(sourceFile), bridge, bridge.exports);
+  return { HwpDocument, ...bridge.exports };
 })();
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
@@ -89,6 +92,8 @@ test('single-paragraph style survives repeated saves without accumulating sentin
 
 test('conversion refuses oversized input and invalid format', async () => {
   const { HwpDocument, serializeHwp, HWP_HTML_LIMIT } = await setup;
-  assert.throws(() => serializeHwp(HwpDocument, 'x'.repeat(HWP_HTML_LIMIT + 1), paper, 'hwp'), /24MB/);
+  assert.throws(() => serializeHwp(HwpDocument, 'x'.repeat(HWP_HTML_LIMIT + 1), paper, 'hwp'), /변환 데이터.*100 MiB.*원본 파일 크기가 아니라/);
+  // Korean text uses three UTF-8 bytes even though String.length counts one.
+  assert.throws(() => serializeHwp(HwpDocument, '가'.repeat(Math.floor(HWP_HTML_LIMIT / 3) + 1), paper, 'hwpx'), /변환 데이터.*100 MiB/);
   assert.throws(() => serializeHwp(HwpDocument, '<p>x</p>', paper, 'exe'), /형식/);
 });

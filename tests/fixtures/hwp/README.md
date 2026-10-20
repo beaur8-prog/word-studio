@@ -1,5 +1,11 @@
 # HWP reader fixtures
 
+Large conversion fixtures are generated at test time by `tests/large-hwp-fixture.cjs`.
+Three incompressible PNGs create real ~21 MB HWP/HWPX files whose editable HTML
+exceeds the former 24 MiB cap. A separate ~21 MB PNG covers individual-picture
+retention and Word Studio backups above 40 MiB. These generated files stay in
+ignored test/cache directories and are not committed.
+
 `reader.hwp` is a synthetic text/table document created with @rhwp/core 0.8.7. `reader.hwpx` uses the format/style shell of the upstream MIT-licensed `samples/표-텍스트.hwpx`, with all document text replaced by synthetic test strings and scripts/previews removed.
 
 Source and exact upstream revision: see the matching entry in `tests/hwp-samples.json`. Other public samples are downloaded into the ignored `analysis/hwp-validation/` directory, not distributed with the app.

@@ -1,6 +1,20 @@
 import { test, expect, type Page } from '@playwright/test';
 import path from 'node:path';
 import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
+const { createLargeHwpFixture } = createRequire(import.meta.url)('./large-hwp-fixture.cjs');
+let largeFixture: Promise<any> | undefined;
+async function largeDocument() {
+  if (!largeFixture) largeFixture = fs.mkdir('.cache', { recursive: true }).then(() => fs.mkdtemp(path.resolve('.cache/hwp-large-regression-'))).then(createLargeHwpFixture);
+  return largeFixture;
+}
+
+async function editorImageHashes(page: Page) {
+  return page.locator('.tiptap').evaluate(async root => Promise.all([...root.querySelectorAll('img:not(.ProseMirror-separator)')].map(async image => {
+    const bytes = await (await fetch(image.getAttribute('src')!)).arrayBuffer();
+    return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(n => n.toString(16).padStart(2, '0')).join('');
+  })));
+}
 
 async function editFile(page: Page, file: string) {
   await page.locator('input[type=file]').first().setInputFiles(file);
@@ -61,7 +75,69 @@ for (const format of ['hwp', 'hwpx'] as const) {
     await expect(editor).toContainText('편집한 표 EDITED 2026');
     expect(errors).toEqual([]);
   });
+
+  test(`${format}: a 21 MB picture file expands past 24 MiB and still edits, saves and reopens without losing pictures`, async ({ page }, testInfo) => {
+    test.setTimeout(180000);
+    const fixture = await largeDocument(), file = fixture.files[format];
+    expect(file.bytes).toBeGreaterThan(20 * 1000 * 1000);
+    expect(file.bytes).toBeLessThan(23 * 1000 * 1000);
+    expect(fixture.htmlBytes).toBeGreaterThan(24 * 1024 * 1024);
+    const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+    await page.goto('/'); await editFile(page, file.file);
+    const editor = page.locator('.tiptap');
+    for (let i = 1; i <= 3; i++) await expect(editor).toContainText('LARGE-IMAGE-' + i);
+    expect(await editorImageHashes(page)).toEqual(fixture.imageSHA256);
+    await editor.locator('p').first().fill('EDITED LARGE DOCUMENT');
+    const saved = page.waitForEvent('download'); await page.keyboard.press('ControlOrMeta+s');
+    const savedFile = testInfo.outputPath('large-edited.wordstudio'); await (await saved).saveAs(savedFile);
+    const backup = JSON.parse(await fs.readFile(savedFile, 'utf8'));
+    backup.title = 'REOPENED LARGE BACKUP'; await fs.writeFile(savedFile, JSON.stringify(backup));
+    await page.locator('input[type=file]').first().setInputFiles(savedFile);
+    await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue('REOPENED LARGE BACKUP');
+    await expect(editor).toContainText('EDITED LARGE DOCUMENT');
+    expect(await editorImageHashes(page)).toEqual(fixture.imageSHA256);
+    const dialog = await prepareExport(page, format);
+    const output = page.waitForEvent('download'); await dialog.getByRole('button', { name: `${format.toUpperCase()} 파일 저장`, exact: true }).click();
+    const outputFile = testInfo.outputPath('large-edited.' + format); await (await output).saveAs(outputFile);
+    await editFile(page, outputFile);
+    await expect(editor).toContainText('EDITED LARGE DOCUMENT');
+    expect(await editorImageHashes(page)).toEqual(fixture.imageSHA256);
+    await page.screenshot({ path: testInfo.outputPath('large-edited.png') });
+    await fs.writeFile(testInfo.outputPath('large-result.json'), JSON.stringify({ format, sourceBytes: file.bytes, expandedHtmlBytes: fixture.htmlBytes, savedBytes: (await fs.stat(outputFile)).size, images: 3, imageSHA256: fixture.imageSHA256, rendererErrors: errors }, null, 2));
+    expect(errors).toEqual([]);
+  });
 }
+
+test('a 21 MB individual picture is retained and a Word Studio backup above 40 MiB reopens intact', async ({ page }) => {
+  test.setTimeout(90000);
+  const fixture = await largeDocument();
+  const data = 'data:image/png;base64,' + (await fs.readFile(fixture.largeImage)).toString('base64');
+  await page.goto('/');
+  const result = await page.evaluate(async src => {
+    const { sanitizeImportedHtml } = await import('/src/document-html.ts');
+    const { importEditableHwp } = await import('/src/hwp/editing.ts');
+    const { validateDocument, importFile } = await import('/src/document-io.ts');
+    const { defaultPage } = await import('/src/types.ts');
+    const clean = sanitizeImportedHtml(`<p>KEEP LARGE PICTURE</p><p><img src="${src}" width="320" height="875"></p>`);
+    const doc = validateDocument(importEditableHwp({ html: clean.html, page: defaultPage, warnings: [] }, 'picture.hwp'));
+    // Two copies exceed the former 40 MiB native-file cap, with real PNG data.
+    const image = doc.content.content!.find(node => node.type === 'image' || node.content?.some(n => n.type === 'inlineImage'))!;
+    if (!image) throw Error('Large picture was discarded');
+    doc.content.content!.push(structuredClone(image));
+    const file = new File([JSON.stringify(doc)], 'large.wordstudio');
+    const reopened = await importFile(file);
+    let images = 0, intact = true;
+    const walk = (node: any) => { if (node.type === 'image' || node.type === 'inlineImage') { images++; intact &&= node.attrs.src === src; } node.content?.forEach(walk); };
+    walk(reopened.document.content);
+    let compressedLimit = '';
+    try { await importFile(new File([new Uint8Array(41 * 1024 * 1024)], 'too-large.docx')); }
+    catch (error) { compressedLimit = String(error); }
+    return { bytes: file.size, images, intact, warnings: clean.warnings, compressedLimit };
+  }, data);
+  expect(result.bytes).toBeGreaterThan(40 * 1024 * 1024);
+  expect(result.images).toBe(2); expect(result.intact).toBe(true); expect(result.warnings).toEqual([]);
+  expect(result.compressedLimit).toContain('40 MiB');
+});
 
 test('canceling conversion keeps the current document, and recovery failure does not discard it', async ({ page }) => {
   await page.addInitScript(() => {
