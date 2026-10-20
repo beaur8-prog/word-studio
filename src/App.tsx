@@ -598,6 +598,10 @@ export default function App() {
       }
     } else fileInput.current?.click();
   };
+  const toggleFileMenu = () => {
+    setFileMenu((open) => !open);
+    if (fileMenu) editor?.commands.focus();
+  };
   const save = async (
     extension: "wordstudio" | "docx" | "html" | "txt" | "hwp" | "hwpx" = "wordstudio",
   ): Promise<boolean> => {
@@ -963,7 +967,7 @@ export default function App() {
       <nav className="tabs" aria-label="리본 메뉴">
         <button
           className={fileMenu ? "selected-tab" : ""}
-          onClick={() => setFileMenu(!fileMenu)}
+          onClick={toggleFileMenu}
         >
           파일
         </button>
@@ -1000,7 +1004,13 @@ export default function App() {
             읽기 · 문서 살펴보기
           </MenuItem>
         </Dropdown>
-        <button className="export-top" onClick={() => setFileMenu(true)}>
+        <button
+          className={fileMenu ? "export-top selected-tab" : "export-top"}
+          aria-expanded={fileMenu}
+          aria-controls="file-menu-panel"
+          title={fileMenu ? "편집 화면으로 돌아가기" : "다른 형식으로 저장"}
+          onClick={toggleFileMenu}
+        >
           <FileDown size={14} />
           내보내기
         </button>
@@ -2276,7 +2286,7 @@ export default function App() {
         }}
       />
       {fileMenu && (
-        <div className="file-backdrop" onClick={() => setFileMenu(false)}>
+        <div id="file-menu-panel" className="file-backdrop" onClick={() => setFileMenu(false)}>
           <div className="backstage" onClick={(e) => e.stopPropagation()}>
             <div className="backstage-nav">
               <button
