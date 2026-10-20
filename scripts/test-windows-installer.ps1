@@ -69,6 +69,9 @@ try {
   & node (Join-Path $root 'scripts/hwp-desktop-smoke.cjs')
   if ($LASTEXITCODE -ne 0) { throw 'Installed Windows HWP reader test failed.' }
   $report.hwpReader = $true
+  & node (Join-Path $root 'scripts/hwp-editing-desktop-smoke.cjs')
+  if ($LASTEXITCODE -ne 0) { throw 'Installed Windows HWP editing test failed.' }
+  $report.hwpEditing = $true
 
   Run-Installer $setup @('/S', '/currentuser')
   Assert-Installed

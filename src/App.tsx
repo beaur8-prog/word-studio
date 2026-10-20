@@ -67,6 +67,9 @@ import {
 import { editorExtensions, parseDocumentHtml } from "./extensions";
 import { TableContextMenu } from './TableContextMenu';
 import { HwpReader } from './hwp/HwpReader';
+import { importEditableHwp, exportEditableHwp } from './hwp/editing';
+import { HwpExportDialog, type HwpExportFile } from './hwp/ExportDialog';
+import type { EditableHwp } from './hwp/conversion';
 import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
 import { defaultPage, pageMargins, pageFurniture } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
@@ -352,6 +355,8 @@ export default function App() {
     [tableCols, setTableCols] = useState(3);
   const [printPreview, setPrintPreview] = useState<PrintLayout | null>(null);
   const [hwpFile, setHwpFile] = useState<File | null>(null);
+  const [hwpOriginal, setHwpOriginal] = useState<File | null>(null);
+  const [hwpExport, setHwpExport] = useState<HwpExportFile | null>(null);
   const [failedTransition, setFailedTransition] = useState<StudioDocument | null>(null);
   const transitioning = useRef(false);
   const outputLayout = useRef<PrintLayout | null>(null);
@@ -489,6 +494,7 @@ export default function App() {
   useEffect(() => () => clearTimeout(toastTimer.current), []);
   const activateDocument = (doc: StudioDocument) => {
     if (!editor) return;
+    setHwpOriginal(null);
     // A new EditorState resets history and selection plugins together. Merely
     // excluding setContent from history would leave the old undo/redo branches.
     editor.view.updateState(EditorState.create({
@@ -550,7 +556,7 @@ export default function App() {
     try {
       const result = await importFile(file);
       const loaded = await loadDoc(result.document, result.html);
-      if (loaded) setHwpFile(null);
+      if (loaded) { setHwpFile(null); setHwpOriginal(null); }
       if (loaded && result.warnings.length) notify(result.warnings.join(" "));
     } catch (e) {
       notify(
@@ -559,6 +565,16 @@ export default function App() {
     } finally {
       setBusy(false);
     }
+  };
+  const editHwp = async (source: EditableHwp) => {
+    if (!hwpFile) return;
+    try {
+      const original = hwpFile;
+      const doc = validateDocument(importEditableHwp(source, original.name));
+      // Recovery errors must remain visible after the original-view dialog closes.
+      setHwpFile(null);
+      if (await loadDoc(doc)) { setHwpOriginal(original); notify('한글 편집본을 열었습니다. 파일 메뉴에서 DOCX·HWP·HWPX로 내보낼 수 있습니다.'); }
+    } catch (error) { notify(`편집 변환 실패: ${error instanceof Error ? error.message : String(error)}`); }
   };
   const open = async () => {
     setFileMenu(false);
@@ -572,13 +588,18 @@ export default function App() {
     } else fileInput.current?.click();
   };
   const save = async (
-    extension: "wordstudio" | "docx" | "html" | "txt" = "wordstudio",
+    extension: "wordstudio" | "docx" | "html" | "txt" | "hwp" | "hwpx" = "wordstudio",
   ): Promise<boolean> => {
     if (!editor) return false;
     setBusy(true);
     setFileMenu(false);
     try {
-      const doc = currentRef.current;
+      const doc = structuredClone(currentRef.current);
+      if (extension === 'hwp' || extension === 'hwpx') {
+        const result = await exportEditableHwp(doc, extension);
+        setHwpExport({ ...result, extension, name: `${doc.title.replace(/[<>:"/\\|?*]/g, '-') || '문서'}.${extension}` });
+        return false; // The conversion review owns the subsequent native save.
+      }
       const blob =
         extension === "docx"
           ? await exportDocx(doc)
@@ -683,6 +704,8 @@ export default function App() {
     },
     { name: "새 메모", hint: "검토", action: addComment },
     { name: "단어 개수", hint: "통계", action: () => setModal("stats") },
+    { name: '한글 문서로 내보내기', hint: 'HWP', action: () => save('hwp') },
+    { name: '한글 표준 문서로 내보내기', hint: 'HWPX', action: () => save('hwpx') },
     {
       name: "화면 테마 전환",
       hint: theme === "dark" ? "밝게" : "어둡게",
@@ -695,6 +718,7 @@ export default function App() {
     const key = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return;
       if (document.querySelector('.hwp-reader[open]')) return;
+      if (document.querySelector('.hwp-conversion-dialog[open]')) return;
       if (document.querySelector('.save-failure-dialog[open]')) return;
       if (e.key === "Escape") {
         setModal(null);
@@ -724,6 +748,7 @@ export default function App() {
     window.addEventListener("keydown", key);
     const off = window.wordDesktop?.onMenu((a) => {
       if (document.querySelector('.hwp-reader[open]')) return;
+      if (document.querySelector('.hwp-conversion-dialog[open]')) return;
       if (document.querySelector('.save-failure-dialog[open]')) return;
       const map: Record<string, string> = {
         new: "새 문서",
@@ -731,6 +756,8 @@ export default function App() {
         save: "문서 저장",
         "save-as": "문서 저장",
         "export-docx": "Word 문서로 내보내기",
+        "export-hwp": "한글 문서로 내보내기",
+        "export-hwpx": "한글 표준 문서로 내보내기",
         "export-pdf": "PDF로 내보내기",
         print: "인쇄",
       };
@@ -2245,6 +2272,9 @@ export default function App() {
                   <small>{a.hint}</small>
                 </button>
               ))}
+              <button onClick={() => save('hwp')}>한글 문서로 내보내기 <small>HWP</small></button>
+              <button onClick={() => save('hwpx')}>한글 표준 문서로 내보내기 <small>HWPX</small></button>
+              {hwpOriginal && <button onClick={() => { setFileMenu(false); setHwpFile(hwpOriginal); }}>한글 원본 보기</button>}
               <button onClick={() => save("html")}>HTML로 내보내기</button>
               <button onClick={() => save("txt")}>텍스트로 내보내기</button>
               <button
@@ -2274,7 +2304,7 @@ export default function App() {
                 <button onClick={open}>
                   <FolderOpen size={34} />
                   <strong>파일 열기</strong>
-                  <span>DOCX · HWP/HWPX 읽기 · Word Studio · HTML · TXT</span>
+                  <span>DOCX · HWP/HWPX 보기·편집 · Word Studio · HTML · TXT</span>
                 </button>
               </div>
               <h3>최근 작업한 문서</h3>
@@ -2631,7 +2661,16 @@ export default function App() {
           activateDocument(failedTransition);
           return true;
         }} />}
-      {hwpFile && <HwpReader key={`${hwpFile.name}-${hwpFile.lastModified}`} file={hwpFile} onClose={() => setHwpFile(null)} onOpen={() => void open()} />}
+      {hwpFile && <HwpReader key={`${hwpFile.name}-${hwpFile.lastModified}`} file={hwpFile} onClose={() => setHwpFile(null)} onOpen={() => void open()} onEdit={editHwp} />}
+      {hwpExport && <HwpExportDialog file={hwpExport} onClose={() => setHwpExport(null)} onSave={async () => {
+        const file = hwpExport;
+        if (window.wordDesktop) {
+          const saved = await window.wordDesktop.saveFile({ name: file.name, extension: file.extension, data: new Uint8Array(await file.blob.arrayBuffer()) });
+          if (!saved) return false;
+        } else download(file.blob, file.name);
+        notify(`${file.extension.toUpperCase()} 파일을 저장했습니다.`);
+        return true;
+      }} />}
       {toast && (
         <div className="toast" role="status">
           <CheckCircle2 size={17} />

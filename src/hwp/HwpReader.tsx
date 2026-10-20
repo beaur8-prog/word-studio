@@ -5,14 +5,18 @@ import '@fontsource/noto-sans-kr/700.css';
 import '@fontsource/noto-serif-kr/400.css';
 import '@fontsource/noto-serif-kr/700.css';
 import './reader.css';
+import { HWP_CONVERSION_NOTICE, type EditableHwp } from './conversion';
+import { sanitizeImportedHtml } from '../document-html';
+import { previewEditableHwp } from './editing';
 
-export function HwpReader({ file, onClose, onOpen }: { file: File; onClose(): void; onOpen(): void }) {
+export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClose(): void; onOpen(): void; onEdit(source: EditableHwp): Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null), session = useRef<HwpReaderSession | null>(null);
   const currentRequest = useRef(0), cache = useRef(new Map<number, HwpPage>());
   const [info, setInfo] = useState<HwpInfo>(), [page, setPage] = useState<HwpPage>();
   const [index, setIndex] = useState(0), [zoom, setZoom] = useState(85);
   const [loading, setLoading] = useState(true), [exporting, setExporting] = useState(false);
   const [error, setError] = useState(''), [status, setStatus] = useState('');
+  const [converting, setConverting] = useState(false), [editable, setEditable] = useState<EditableHwp>();
   const [query, setQuery] = useState(''), [searching, setSearching] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
   const viewport = useRef<HTMLElement>(null);
@@ -68,6 +72,21 @@ export function HwpReader({ file, onClose, onOpen }: { file: File; onClose(): vo
     } }
     catch { setStatus('텍스트를 선택한 뒤 ⌘C / Ctrl+C로 복사하세요.'); }
   };
+  const prepareEditing = async () => {
+    const reader = session.current;
+    if (!reader || converting) return;
+    setConverting(true); setStatus('Word 편집본을 준비하는 중…');
+    try {
+      const source = await reader.editable();
+      if (session.current !== reader) return;
+      const clean = sanitizeImportedHtml(source.html);
+      const preview = await previewEditableHwp({ ...source, html: clean.html, warnings: [...source.warnings, ...clean.warnings] }, file.name);
+      if (session.current !== reader) return;
+      setEditable(preview);
+      setStatus('변환 안내를 확인한 뒤 편집본을 만드세요.');
+    } catch (reason) { if (session.current === reader) setStatus(`편집 변환 실패: ${String(reason)}`); }
+    finally { if (session.current === reader) setConverting(false); }
+  };
   const print = async (pdf: boolean) => {
     if (!info || exportingRef.current) return;
     exportingRef.current = true; setExporting(true); setStatus('출력할 쪽을 준비하는 중…');
@@ -112,7 +131,8 @@ export function HwpReader({ file, onClose, onOpen }: { file: File; onClose(): vo
         else setStatus('HWP는 읽기 전용입니다. 원본 파일은 변경되지 않습니다.');
       }
     }}>
-    <header className="hwp-toolbar"><div><strong>{file.name}</strong><span>HWP/HWPX 읽기 전용 · Word Studio</span></div>
+    <header className="hwp-toolbar"><div><strong>{file.name}</strong><span>HWP/HWPX 원본 보기 · Word Studio</span></div>
+      <button onClick={() => void prepareEditing()} disabled={!info || converting || exporting}>Word 화면에서 편집</button>
       <button onClick={onOpen} disabled={exporting}>다른 파일 열기</button>
       <button onClick={copyText} disabled={!info || exporting}>텍스트 복사</button>
       <button onClick={() => print(true)} disabled={!info || loading || exporting}>PDF 저장</button>
@@ -131,8 +151,15 @@ export function HwpReader({ file, onClose, onOpen }: { file: File; onClose(): vo
       <form onSubmit={event => { event.preventDefault(); void findNext(); }}><input ref={searchInput} aria-label="HWP 문서에서 찾기" value={query} onChange={event => setQuery(event.target.value)} placeholder="문서에서 찾기" />
         <button disabled={!info || exporting || searching || !query.trim()}>다음 찾기</button></form>
     </div>
-    <p className="hwp-notice">이 기기에서 읽으며 원본과 편집 중인 Word 문서는 바꾸지 않습니다. 설치 글꼴과 지원 범위에 따라 원본 뷰어와 배치가 다를 수 있습니다.
+    <p className="hwp-notice">현재는 원본 보기입니다. ‘Word 화면에서 편집’을 누르면 본문·표·그림을 기존 편집 화면으로 가져옵니다. 설치 글꼴과 지원 범위에 따라 원본 뷰어와 배치가 다를 수 있습니다.
       {info?.warnings ? ` 원본 구조 주의 항목 ${info.warnings}개.` : ''}</p>
+    {editable && <section className="hwp-conversion-panel" aria-label="한글 편집 변환 안내">
+      <h2>Word 편집본 만들기</h2><p>{HWP_CONVERSION_NOTICE}</p>
+      <p><strong>쪽 수 비교: 원본 보기 {info?.count}쪽 → Word 편집본 {editable.editorPages}쪽</strong>{info?.count !== editable.editorPages ? ' · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.' : ' · 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'}</p>
+      <ul>{editable.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul>
+      <button onClick={() => void onEdit(editable).catch(reason => setStatus(`편집 변환 실패: ${String(reason)}`))}>편집본 만들기</button>
+      <button onClick={() => { setEditable(undefined); setStatus('원본 보기를 계속합니다.'); }}>원본 보기로 돌아가기</button>
+    </section>}
     <main ref={viewport} className="hwp-viewport" aria-busy={loading || exporting}>
       {error ? <div className="hwp-error" role="alert"><strong>HWP 파일을 열지 못했습니다</strong><p>{error}</p><button onClick={onClose}>편집 문서로 돌아가기</button></div>
         : page && <div className="hwp-sheet-space" style={{ width: page.width * zoom / 100, height: page.height * zoom / 100 }}>

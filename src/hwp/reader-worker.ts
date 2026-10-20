@@ -1,6 +1,7 @@
 import init, { HwpDocument } from '@rhwp/core';
 import wasmUrl from '@rhwp/core/rhwp_bg.wasm?url';
 import JSZip from 'jszip';
+import { editableHwp, serializeHwp } from './conversion';
 
 let document: HwpDocument | undefined;
 const ready = init({ module_or_path: fetch(wasmUrl).then(response => {
@@ -33,6 +34,8 @@ scope.onmessage = async ({ data }) => {
       const count = document.pageCount();
       if (!count || count > 1000) throw new Error('1,000쪽 이하의 문서를 선택하세요.');
       result = { count, fonts: info.fontsUsed ?? [], version: info.version, warnings: JSON.parse(document.getValidationWarnings()).count ?? 0 };
+    } else if (action === 'export') {
+      result = serializeHwp(HwpDocument, data.html, data.page, data.format);
     } else {
       if (!document) throw new Error('문서를 먼저 열어 주세요.');
       if (action === 'page') {
@@ -42,6 +45,8 @@ scope.onmessage = async ({ data }) => {
         if (svg.length > 12 * 1024 * 1024) throw new Error('이 쪽의 그림·도형 데이터가 너무 큽니다.');
         const layout = JSON.parse(document.getPageTextLayout(page));
         result = { svg, text: (layout.runs ?? []).map((run: { text: string }) => run.text).join('\n') };
+      } else if (action === 'editable') {
+        result = editableHwp(document);
       } else if (action === 'text') {
         // The upstream source-text API omits text nested in some HWP table and
         // textbox controls. Copy the same layout runs that the reader paints.

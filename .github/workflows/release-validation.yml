@@ -53,6 +53,8 @@ jobs:
           path: |
             .cache/linux-package-test.json
             .cache/hwp-native-*/result.json
+            .cache/hwp-editing-native-*/result.json
+            .cache/hwp-editing-native-*/*.png
             .cache/hwp-native-*/*.png
             .cache/hwp-native-*/*.pdf
             .cache/desktop-smoke-*/result.json
@@ -87,6 +89,8 @@ jobs:
           path: |
             .cache/linux-package-test.json
             .cache/hwp-native-*/result.json
+            .cache/hwp-editing-native-*/result.json
+            .cache/hwp-editing-native-*/*.png
             .cache/hwp-native-*/*.png
             .cache/hwp-native-*/*.pdf
             .cache/desktop-smoke-*/result.json
@@ -126,6 +130,8 @@ jobs:
             .cache/desktop-smoke-*/result.json
             .cache/installer-test.json
             .cache/hwp-native-*/result.json
+            .cache/hwp-editing-native-*/result.json
+            .cache/hwp-editing-native-*/*.png
             .cache/hwp-native-*/*.png
             .cache/hwp-native-*/*.pdf
             .cache/desktop-smoke-*/*.png

@@ -1,4 +1,6 @@
 import DOMPurify from 'dompurify';
+import type { EditableHwp } from './conversion';
+import type { PageSettings } from '../types';
 
 export interface HwpInfo { count: number; fonts: string[]; version: string; warnings: number }
 export interface HwpPage { svg: string; text: string; width: number; height: number }
@@ -67,6 +69,10 @@ export class HwpReaderSession {
     return { ...page, ...safeHwpSvg(page.svg) };
   }
   text(): Promise<string> { return this.call('text'); }
+  editable(): Promise<EditableHwp> { return this.call('editable'); }
+  export(html: string, page: PageSettings, format: 'hwp' | 'hwpx'): Promise<{ bytes: Uint8Array; pages: number; warnings: string[] }> {
+    return this.call('export', { html, page, format });
+  }
   close(message = '읽기 작업이 취소됐습니다.') {
     if (this.closed) return;
     this.closed = true; this.worker.terminate();

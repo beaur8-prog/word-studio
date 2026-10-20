@@ -10,7 +10,7 @@ declare global {
       saveRecovery(serialized: string): Promise<boolean>;
       saveFile(payload: {
         name: string;
-        extension: "wordstudio" | "docx" | "html" | "txt";
+        extension: "wordstudio" | "docx" | "html" | "txt" | "hwp" | "hwpx";
         data: Uint8Array;
       }): Promise<boolean>;
       openFile(): Promise<{ name: string; data: Uint8Array } | null>;

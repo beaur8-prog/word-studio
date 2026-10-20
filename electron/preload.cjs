@@ -1,7 +1,7 @@
 'use strict';
 
 const { contextBridge, ipcRenderer } = require('electron');
-const MENU_ACTIONS = new Set(['new', 'open', 'save', 'save-as', 'export-docx', 'export-pdf', 'print']);
+const MENU_ACTIONS = new Set(['new', 'open', 'save', 'save-as', 'export-docx', 'export-hwp', 'export-hwpx', 'export-pdf', 'print']);
 
 contextBridge.exposeInMainWorld('wordDesktop', Object.freeze({
   platform: process.platform,

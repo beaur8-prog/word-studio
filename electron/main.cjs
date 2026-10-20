@@ -14,9 +14,9 @@ const IS_DEV = !app.isPackaged && process.env.WORD_STUDIO_DEV === '1';
 const DIST_PATH = path.resolve(__dirname, '..', 'dist');
 const INDEX_PATH = path.join(DIST_PATH, 'index.html');
 const MAX_FILE_BYTES = 256 * 1024 * 1024;
-const SAVE_EXTENSIONS = new Set(['wordstudio', 'docx', 'html', 'txt']);
+const SAVE_EXTENSIONS = new Set(['wordstudio', 'docx', 'html', 'txt', 'hwp', 'hwpx']);
 const OPEN_EXTENSIONS = new Set([...SAVE_EXTENSIONS, 'htm', 'hwp', 'hwpx']);
-const FORMAT_NAMES = { wordstudio: 'Word Studio Document', docx: 'Word Document', html: 'HTML Document', txt: 'Text Document' };
+const FORMAT_NAMES = { wordstudio: 'Word Studio Document', docx: 'Word Document', html: 'HTML Document', txt: 'Text Document', hwp: 'Hangul HWP Document', hwpx: 'Hangul HWPX Document' };
 const CHROME_THEMES = {
   dark: { color: '#151515', symbolColor: '#f2f2f2', height: 40 },
   light: { color: '#f3f3f3', symbolColor: '#242424', height: 40 },
@@ -155,6 +155,8 @@ function installMenu() {
       { label: 'Save…', accelerator: 'CmdOrCtrl+S', click: () => sendMenuAction('save') },
       { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => sendMenuAction('save-as') },
       { label: 'Export Word Document…', accelerator: 'CmdOrCtrl+Shift+E', click: () => sendMenuAction('export-docx') },
+      { label: 'Export Hangul Document (HWP)…', click: () => sendMenuAction('export-hwp') },
+      { label: 'Export Hangul Document (HWPX)…', click: () => sendMenuAction('export-hwpx') },
       { label: 'Export PDF…', click: () => sendMenuAction('export-pdf') },
       { label: 'Print…', accelerator: 'CmdOrCtrl+P', click: () => sendMenuAction('print') },
       { type: 'separator' }, process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' },
@@ -218,7 +220,7 @@ function installIPC() {
       filters: [{ name: 'Documents', extensions: [...OPEN_EXTENSIONS] },
         { name: 'Word Studio Document', extensions: ['wordstudio'] },
         { name: 'Word Document', extensions: ['docx'] },
-        { name: 'Hangul Document (read only)', extensions: ['hwp', 'hwpx'] },
+        { name: 'Hangul Document', extensions: ['hwp', 'hwpx'] },
         { name: 'HTML and Text', extensions: ['html', 'htm', 'txt'] }],
       properties: ['openFile'],
     });

@@ -25,3 +25,10 @@
 .hwp-print-page svg { display: block; max-width: none; }
 @media (max-width: 850px) { .hwp-toolbar { flex-wrap: wrap; } .hwp-toolbar > div { flex-basis: 100%; } .hwp-toolbar strong { max-width: 90vw; } .hwp-controls form { margin-left: 0; } }
 @media print { dialog.hwp-reader { display: none !important; } body.studio-printing .hwp-print-layout { visibility: visible !important; } .hwp-print-page, .hwp-print-page * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+.hwp-conversion-panel { flex-shrink: 0; padding: 16px 24px; background: var(--chrome-surface); color: var(--chrome-text); max-height: 55vh; overflow: auto; border-bottom: 1px solid var(--chrome-border); }
+.hwp-conversion-panel h2 { margin: 0 0 8px; }
+.hwp-conversion-panel p, .hwp-conversion-dialog p { line-height: 1.6; }
+.hwp-conversion-panel li, .hwp-conversion-dialog li { margin-bottom: 8px; line-height: 1.5; }
+.hwp-conversion-dialog { width: min(640px, 90vw); max-height: 85vh; overflow: auto; border: 1px solid var(--chrome-border); border-radius: 12px; padding: 24px; background: var(--chrome-surface); color: var(--chrome-text); }
+.hwp-conversion-dialog::backdrop { background: #0008; }
+.hwp-conversion-dialog button, .hwp-conversion-panel button { margin: 8px 8px 0 0; padding: 8px 16px; cursor: pointer; }
