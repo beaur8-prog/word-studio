@@ -140,7 +140,7 @@ HWP 5.x·HWPX를 연 뒤 **Word 화면에서 편집 → 편집본 만들기**를
 
 **파일 → 한글 문서로 내보내기(HWP)**는 실제 HWP 5.1 바이너리를, **한글 표준 문서로 내보내기(HWPX)**는 ZIP/XML 형식의 HWPX를 만듭니다. DOCX를 열어 HWP/HWPX로 저장하거나, 한글 편집본을 **Word 문서로 내보내기(DOCX)**로 저장할 수 있습니다. 확장자만 바꾸는 방식이 아니며 저장 결과를 엔진으로 다시 파싱합니다. 저장 전에 Word 인쇄와 한글 파일의 쪽 수 차이, 메모·필드 등 변환 제한을 표시합니다.
 
-본문·기본 글자/문단 서식·표 병합·그림·용지/여백·수동 페이지 나누기를 지원합니다. 저장할 때 Word 인쇄 쪽 경계를 사용하므로 이어진 표·문단이 여러 부분으로 나뉘고 반복 머리행이 각 표에 포함될 수 있습니다. 한글과 동일한 조판이나 무손실 왕복은 보장하지 않습니다. 떠 있는 개체는 본문 흐름으로 옮기며, 수식은 원문 스크립트 표시, 글상자는 가능한 본문 텍스트, 그 외 지원하지 않는 개체는 위치 표시로 바뀝니다. 검토 메모, 첫 쪽/홀짝 머리말, 자동 필드와 일부 고급 서식은 한글 저장에서 제외하거나 텍스트로 바꿉니다. 원본과 `.wordstudio` 백업을 함께 보관하세요. [1.4.0 릴리스](https://github.com/beaur8-prog/word-studio/releases/tag/v1.4.0)에서 Mac ZIP·Windows Setup·Linux DEB를 받을 수 있습니다.
+본문·기본 글자/문단 서식·표 병합·그림·용지/여백·수동 페이지 나누기를 지원합니다. 저장할 때 Word 인쇄 쪽 경계를 사용하므로 이어진 표·문단이 여러 부분으로 나뉘고 반복 머리행이 각 표에 포함될 수 있습니다. 한글과 동일한 조판이나 무손실 왕복은 보장하지 않습니다. 떠 있는 개체는 본문 흐름으로 옮기며, 수식은 원문 스크립트 표시, 글상자는 가능한 본문 텍스트, 그 외 지원하지 않는 개체는 위치 표시로 바뀝니다. 검토 메모, 첫 쪽/홀짝 머리말, 자동 필드와 일부 고급 서식은 한글 저장에서 제외하거나 텍스트로 바꿉니다. 원본과 `.wordstudio` 백업을 함께 보관하세요. [최신 릴리스](https://github.com/beaur8-prog/word-studio/releases/latest)에서 Mac ZIP·Windows Setup·Linux DEB를 받을 수 있습니다.
 
 ### 1.4.2 변환 진행 표시
 
@@ -152,7 +152,7 @@ HWP/HWPX 열기·Word 편집본 변환·한글 저장에 처리 단계와 경과
 
 편집 변환 HTML은 UTF-8 기준 **256 MiB**, 원본 HWP/HWPX·DOCX는 **128 MiB**, 압축 해제 데이터는 **512 MiB**, Word Studio 편집본·자동 복구는 **384 MiB**까지 허용합니다. 큰 그림의 Base64 확장과 파일 열기·쓰기·복구 한도를 함께 맞추고 Worker에는 전송 가능한 버퍼를 사용합니다. 쪽 수 1,000쪽과 처리 시간·변환 손실 안내는 유지하며 모든 최대 크기 문서의 처리 성공을 보장하지 않습니다.
 
-원본 뷰어는 휠·트랙패드·Page Up/Down·Home/End로 쪽을 이어서 스크롤합니다. 쪽 번호·찾기·확대와 연동하고 화면 가까운 쪽만 렌더링합니다. 캐시는 쪽 수와 바이트 예산으로 제한하며 빠른 이동 시 이전 대기 렌더링을 취소합니다. [허용 크기·검증·남은 제한](HWP_VALIDATION.md)을 참고하세요. [1.4.1 릴리스](https://github.com/beaur8-prog/word-studio/releases/tag/v1.4.1)에서 Mac ZIP·Windows Setup·Linux DEB를 받을 수 있습니다.
+원본 뷰어는 휠·트랙패드·Page Up/Down·Home/End로 쪽을 이어서 스크롤합니다. 쪽 번호·찾기·확대와 연동하고 화면 가까운 쪽만 렌더링합니다. 캐시는 쪽 수와 바이트 예산으로 제한하며 빠른 이동 시 이전 대기 렌더링을 취소합니다. [허용 크기·검증·남은 제한](HWP_VALIDATION.md)을 참고하세요. [최신 릴리스](https://github.com/beaur8-prog/word-studio/releases/latest)에서 Mac ZIP·Windows Setup·Linux DEB를 받을 수 있습니다.
 
 ## HWP/HWPX 읽기 (1.3.0)
 
@@ -160,6 +160,6 @@ HWP/HWPX 열기·Word 편집본 변환·한글 저장에 처리 단계와 경과
 
 원본과 동일한 조판을 보장하지 않습니다. 공개 샘플 11개를 열었고 암호/구형 샘플 1개는 거부했습니다. 폴라리스 웹 뷰어의 6개 샘플과 한컴 PDF 참고본 3개를 비교했습니다. 긴 취업규칙은 엔진의 표 분할·셀 앞 여백 해석을 수정하여 154쪽에서 폴라리스와 같은 163쪽으로 개선했습니다. Mac 앱의 실제 PDF도 163쪽이며 원문 위치별 문자가 보존되고 종이 높이 밖으로 밀리던 텍스트가 사라졌습니다. 글꼴·일부 페이지 경계·표 테두리 차이는 남습니다. [자세한 검증과 제한](HWP_VALIDATION.md)을 참고하세요. 1.3.x는 HWP 저장·편집을 지원하지 않습니다. 암호/DRM, 구형 HWP 3.x는 지원하지 않으며 40 MiB·1,000쪽, HWPX 압축 해제 100 MiB 제한을 적용합니다.
 
-[검증 방법·샘플별 차이](HWP_VALIDATION.md). [1.4.0 릴리스](https://github.com/beaur8-prog/word-studio/releases/tag/v1.4.0)의 Mac ZIP·Windows Setup·Linux DEB에 포함됩니다.
+[검증 방법·샘플별 차이](HWP_VALIDATION.md). [최신 릴리스](https://github.com/beaur8-prog/word-studio/releases/latest)의 Mac ZIP·Windows Setup·Linux DEB에 포함됩니다.
 
 1.3.1에서는 HWPX manifest의 `href="section0.xml"`을 `Contents/content.hpf`가 있는 폴더 기준으로 해석하도록 수정했습니다. 기존 `href="Contents/section0.xml"` 표기도 지원합니다. Mac ZIP·Windows Setup·Linux DEB에 이 수정이 포함됩니다.
