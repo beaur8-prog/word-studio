@@ -1,6 +1,6 @@
 # HWP/HWPX 읽기 검증
 
-2026-10-20 · Word Studio 1.3.0 배포 검증 기록. Mac ZIP·Windows Setup·Linux DEB에 HWP 읽기와 페이지 분할 수정이 포함됩니다.
+2026-10-20 · Word Studio 1.3.0 배포 및 1.3.1 소스 수정 검증 기록. 공개 다운로드는 1.3.0이며, Mac ZIP·Windows Setup·Linux DEB에 HWP 읽기와 페이지 분할 수정이 포함됩니다. 1.3.1의 manifest 경로 수정은 배포 전입니다.
 
 ## 구현과 사용
 
@@ -20,14 +20,16 @@ manifest의 section·바탕쪽·내장 바이너리 경로를 OPF 폴더 기준�
 
 실제 공개 HWPX 원본 3개(`07-image`, `09-diagonal`, `11-table-text`)의 `version.xml`에는 `Hancom Office Hangul` 13.0.0.3622 / 12.0.0.535가 기록되어 있습니다. 원본들은 ZIP 루트 표기를 사용합니다. 이 원본 대조군과 **manifest 경로만 상대 표기로 바꾼 파생본**을 구분하여 검사합니다. 후자는 실제 한컴 앱에서 새로 저장한 파일이라는 의미가 아닙니다. [한컴의 구조 설명](https://tech.hancom.com/hwpxformat/)도 본문과 패키지 파일이 `Contents/`에 있음을 설명합니다.
 
-1.3.1 로컬 검증 결과:
+1.3.1 검증 결과:
 
 - 새 경로 회귀 5개는 1.3.0 엔진에서 모두 실패하고 수정 엔진에서 모두 통과합니다. 바탕쪽 본문 표시와 지연 로딩한 내장 PNG의 원본 바이트 보존도 검사합니다. 전체 Node 단위 검사 11개와 브라우저 기능 검사 90개가 통과했습니다.
 - 지원 공개 원본 11개의 **227쪽 전체 SVG 해시·쪽수·추출 텍스트가 1.3.0과 동일**합니다. HWPX 상대 표기 파생본 3개는 기존 오류가 사라지고 각각 5·1·1쪽이며, 대응 원본과 전체 SVG·텍스트가 같습니다. 암호/구형 샘플의 거부도 유지됩니다. 이는 기존 결과의 보존 검사이며 원본 뷰어와 완전한 조판 일치를 뜻하지 않습니다.
 - 최적화 WASM을 새로 빌드했고, WASM 대상 Rust Clippy(`-D warnings`)와 수정 파일 포맷 검사를 통과했습니다. WASM SHA-256은 `20426b9f42bd63059966da66bbdcaedfb626a432af53b846903c570d2a94859d`입니다. upstream 전체 Rust 회귀·Native Rust/Skia 검증은 실행하지 않았습니다.
 - Mac 1.3.1 패키지에 같은 WASM이 들어 있음을 ASAR에서 확인하고 로컬 서명을 검증했습니다. 격리 프로필에서 8개 파일의 열기·전체 텍스트 복사·PDF 저장·기존 Word 문서 보존이 통과했습니다. 새 두 문단 HWPX는 화면·PDF 모두 1쪽, 긴 취업규칙은 모두 163쪽이며 렌더러 오류는 0개입니다. 사용자 앱의 문서나 공개 1.3.0 다운로드는 바꾸지 않았습니다.
+- HWPX 공개 원본 3개와 상대 표기 파생본을 브라우저의 실제 읽기 화면에서도 열었습니다. 총 7쪽의 쪽수·텍스트·그림 수·화면 PNG가 대응 원본과 동일했고, 외부 요청·렌더러 오류는 0개였습니다. Word 편집 문서도 유지됐습니다.
+- [Windows·Ubuntu 22.04·24.04 CI](https://github.com/beaur8-prog/word-studio/actions/runs/39374731912)는 코드 커밋 `bb12dc5d399a124efaeb856414912c0aa66f29d8`에서 모두 통과했습니다. Windows와 Ubuntu 22.04는 단위 11개·브라우저 90개를 각각 실행했습니다. Windows Setup 및 두 Ubuntu의 실제 설치 앱에서 5개 HWP/HWPX 화면·PDF 쪽수는 `1, 1, 4, 4, 1`이며 마지막은 새 상대 경로 fixture입니다. 재설치·제거·사용자 데이터 보존도 통과했습니다. Ubuntu 24.04는 22.04에서 만든 같은 DEB를 사용했습니다. 세 플랫폼의 결과 JSON도 내려받아 확인했습니다.
 
-원시 로그·전후 원본/파생본 결과·비교 결과는 로컬 `.cache/hwpx-manifest-fix/`, 실제 앱 화면·PDF·JSON은 `.cache/hwp-native-MTbwaC/`에 있습니다. `node --test tests/hwpx-manifest.test.cjs`로 새 회귀를 실행하며, `RHWP_CORE_DIRECTORY=/path/to/1.3.0-core`를 지정하면 같은 검사를 이전 엔진에 적용할 수 있습니다.
+원시 로그·전후 원본/파생본 결과·비교 결과·브라우저 화면·CI 플랫폼별 증적은 로컬 `.cache/hwpx-manifest-fix/`, Mac 실제 앱 화면·PDF·JSON은 `.cache/hwp-native-MTbwaC/`에 있습니다. `node --test tests/hwpx-manifest.test.cjs`로 새 회귀를 실행하며, `RHWP_CORE_DIRECTORY=/path/to/1.3.0-core`를 지정하면 같은 검사를 이전 엔진에 적용할 수 있습니다.
 
 ## 163/154쪽 차이 수정
 
