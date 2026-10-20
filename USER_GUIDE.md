@@ -6,11 +6,11 @@
 >
 > 이 페이지에서 받은 Word Studio Setup 파일인지 확인한 뒤 진행하세요.
 
-**현재 배포 버전: 1.4.1 · 2026년 10월 20일**
+**현재 배포 버전: 1.4.2 · 2026년 10월 20일**
 
 Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DOCX와 PDF로 내보내는 로컬 문서 편집기입니다. 설치 후에는 Microsoft Word, Node.js, 계정 또는 인터넷 연결 없이 문서를 작성할 수 있습니다. Microsoft와 관련 없는 독립 앱이며 Word의 모든 기능을 지원하지는 않습니다.
 
-**1.4.1에서는 큰 HWP/HWPX의 편집 한도를 늘리고 원본 뷰어의 연속 스크롤을 추가했습니다.** 상단 **내보내기**에서 **Word 문서(.docx)·한글 문서(.hwp)·한글 표준 문서(.hwpx)·PDF(.pdf)**를 바로 고를 수 있습니다. 전용 편집본(.wordstudio)과 Word 호환 문서를 구분해 표시합니다.
+**1.4.2에서는 큰 HWP/HWPX의 변환 진행 안내를 추가했습니다.** 처리 단계와 경과 시간을 표시하며, 진도를 알 수 있는 구간은 실제 처리 개수·현재 단계의 퍼센트, 측정하기 어려운 구간은 모래시계를 보여줍니다. 대용량 문서 지원과 원본 뷰어의 연속 스크롤도 포함합니다. 상단 **내보내기**에서 Word 문서(.docx)·한글 문서(.hwp)·한글 표준 문서(.hwpx)·PDF(.pdf)를 바로 고를 수 있습니다. 전용 편집본(.wordstudio)과 Word 호환 문서를 구분해 표시합니다.
 
 **1.4.0부터 HWP/HWPX를 기존 Word 화면에서 편집하고 HWP·HWPX·DOCX로 변환할 수 있습니다.** 한글과 동일한 조판이나 무손실 변환은 보장하지 않습니다. 복잡한 양식은 쪽 수와 배치가 달라지고 수식·일부 고급 개체는 텍스트 표시로 바뀝니다. 변환 전에 쪽 수와 제한을 확인하고 원본을 함께 보관하세요. 아래 **HWP/HWPX 편집과 Word 전환**에서 사용법을 확인할 수 있습니다.
 
@@ -27,15 +27,15 @@ Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DO
 
 | 컴퓨터 | 배포 파일 | 설치 방식 |
 | --- | --- | --- |
-| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.4.1-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.1/Word-Studio-1.4.1-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
-| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.4.1-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.1/Word-Studio-1.4.1-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
-| Linux · Ubuntu 22.04 / 24.04 LTS · Intel/AMD 64비트(x64) | [Word-Studio-1.4.1-linux-x64.deb](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.1/Word-Studio-1.4.1-linux-x64.deb) | apt로 설치 → 앱 메뉴 또는 word-studio 명령으로 실행 |
+| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.4.2-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.2/Word-Studio-1.4.2-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
+| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.4.2-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.2/Word-Studio-1.4.2-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
+| Linux · Ubuntu 22.04 / 24.04 LTS · Intel/AMD 64비트(x64) | [Word-Studio-1.4.2-linux-x64.deb](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.2/Word-Studio-1.4.2-linux-x64.deb) | apt로 설치 → 앱 메뉴 또는 word-studio 명령으로 실행 |
 
 Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 DEB 패키지입니다. 다른 Debian 계열 배포판은 라이브러리 호환성을 확인해야 합니다. Intel Mac용, Windows ARM64용, Linux ARM64용 파일은 제공하지 않습니다. GitHub의 **Source code** 파일은 개발용 소스이므로 일반 설치에는 위의 운영체제별 배포 파일을 사용하세요.
 
 ## 2. Windows 설치 및 실행
 
-1. **Word-Studio-1.4.1-windows-x64-setup.exe**를 다운로드합니다. 다운로드 중 브라우저에서 **위험한 파일** 또는 **PC에 손상을 줄 수 있음**과 같은 경고가 뜰 수 있습니다. 경고 문구는 브라우저에 따라 다릅니다. 이 페이지의 다운로드 링크인지 확인하고, 출처를 신뢰할 때에만 다운로드를 계속하세요.
+1. **Word-Studio-1.4.2-windows-x64-setup.exe**를 다운로드합니다. 다운로드 중 브라우저에서 **위험한 파일** 또는 **PC에 손상을 줄 수 있음**과 같은 경고가 뜰 수 있습니다. 경고 문구는 브라우저에 따라 다릅니다. 이 페이지의 다운로드 링크인지 확인하고, 출처를 신뢰할 때에만 다운로드를 계속하세요.
 2. 받은 Setup 파일의 파일명과 함께 제공하는 SHA-256을 확인한 뒤 두 번 클릭합니다. 압축을 풀 필요가 없습니다.
 3. **Windows의 PC 보호** 화면에는 처음에 **실행 안 함** 버튼만 보이고 **실행** 버튼이 보이지 않을 수 있습니다. **추가 정보**를 누르면 **실행** 버튼이 나타납니다. 표시되는 앱이 받은 Setup 파일인지 확인하고 **실행**을 눌러 설치를 계속하세요. 영어 Windows에서는 **More info → Run anyway**입니다.
 4. 언어를 선택하고 설치 마법사를 진행합니다. **현재 사용자용** 설치가 기본이며, 필요하면 설치 경로를 바꿀 수 있습니다.
@@ -63,11 +63,11 @@ Windows 배포 파일은 코드 서명을 받지 않았습니다. SmartScreen은
 
 DEB 패키지는 **Intel/AMD 64비트(amd64/x86_64)** 데스크톱용입니다. Ubuntu 22.04·24.04 LTS에서 설치와 실행을 검증했습니다.
 
-1. **Word-Studio-1.4.1-linux-x64.deb**를 다운로드합니다.
+1. **Word-Studio-1.4.2-linux-x64.deb**를 다운로드합니다.
 2. 터미널에서 다운로드한 파일이 있는 폴더로 이동하고 다음 명령으로 설치합니다.
 
 ```sh
-sudo apt install ./Word-Studio-1.4.1-linux-x64.deb
+sudo apt install ./Word-Studio-1.4.2-linux-x64.deb
 ```
 
 3. 설치가 끝나면 앱 메뉴의 **Word Studio**를 선택하거나 일반 사용자 터미널에서 `word-studio`를 실행합니다.
@@ -91,7 +91,7 @@ sudo apt remove word-studio
 2. 위쪽 **문서 제목**을 바꾸고 가운데 흰 종이의 본문을 클릭해 입력합니다.
 3. **홈**에서 글꼴·크기·제목 스타일·정렬을 적용합니다.
 4. Mac `⌘S`, Windows·Linux `Ctrl+S`를 눌러 `.wordstudio` 파일로 저장합니다. 편집 상태를 보존하는 기본 형식입니다.
-5. 다른 사람에게 전달할 때는 상단 **내보내기** 또는 **다른 이름으로 저장(⌘/Ctrl+Shift+S)**에서 **Word 문서(.docx)·한글 문서(.hwp)·한글 표준 문서(.hwpx)·PDF(.pdf)**를 선택합니다. **파일** 메뉴에서도 각 내보내기를 사용할 수 있습니다.
+5. 다른 사람에게 전달할 때는 상단 **내보내기** 또는 **다른 이름으로 저장(⌘/Ctrl+Shift+S)**에서 Word 문서(.docx)·한글 문서(.hwp)·한글 표준 문서(.hwpx)·PDF(.pdf)를 선택합니다. **파일** 메뉴에서도 각 내보내기를 사용할 수 있습니다.
 
 | 저장 형식 | 용도 |
 | --- | --- |
@@ -131,9 +131,11 @@ sudo apt remove word-studio
 2. 별도의 **HWP 읽기** 화면에서 휠·트랙패드로 쪽을 이어서 스크롤합니다. Page Up/Down·Home/End, 쪽 번호·확대·찾기를 사용할 수 있으며 **텍스트 복사**, **PDF 저장**, **인쇄**도 지원합니다.
 3. **닫기**를 누르면 기존 Word 편집 문서로 돌아갑니다. HWP 원본과 Word 편집 이력은 변경하지 않습니다.
 
-1.3.x는 읽기 전용이며, 1.4.0부터 아래 절차로 편집본을 만들고 HWP·HWPX·DOCX로 저장할 수 있습니다. 구형 HWP 3.x, 암호·DRM 문서는 지원하지 않습니다. 1.4.1은 원본 파일 **128 MiB·1,000쪽**, HWPX 압축 해제 **512 MiB**, 편집 변환 HTML **256 MiB**까지 허용합니다. 편집본(.wordstudio)과 자동 복구 한 건은 **384 MiB**까지입니다. 크기는 원본과 변환 후 데이터에 각각 적용하며 실제 처리 가능 여부는 메모리·그림·문서 구조에 따라 다릅니다. 자체 글꼴을 포함하지만 원본과 동일한 조판을 보장하지는 않습니다.
+1.3.x는 읽기 전용이며, 1.4.0부터 아래 절차로 편집본을 만들고 HWP·HWPX·DOCX로 저장할 수 있습니다. 구형 HWP 3.x, 암호·DRM 문서는 지원하지 않습니다. 1.4.2는 원본 파일 **128 MiB·1,000쪽**, HWPX 압축 해제 **512 MiB**, 편집 변환 HTML **256 MiB**까지 허용합니다. 편집본(.wordstudio)과 자동 복구 한 건은 **384 MiB**까지입니다. 크기는 원본과 변환 후 데이터에 각각 적용하며 실제 처리 가능 여부는 메모리·그림·문서 구조에 따라 다릅니다. 자체 글꼴을 포함하지만 원본과 동일한 조판을 보장하지는 않습니다.
 
 2025 표준취업규칙의 잘못된 표 분할을 고쳐 **154쪽에서 폴라리스와 같은 163쪽**으로 맞췄습니다. Mac 앱의 PDF도 163쪽이며 원문 위치별 문자를 보존했습니다. 글꼴·일부 마지막 줄 위치·표 테두리 차이는 남아 있습니다. 제출용 인쇄·정확한 페이지 참조는 원본 뷰어에서도 확인하세요. [샘플별 비교와 제한](HWP_VALIDATION.md)을 참고하세요.
+
+큰 문서를 처리할 때는 단계별 진행 안내와 경과 시간을 확인하세요. 문단·그림·쪽 배치 등 총량을 알 수 있는 단계는 실제 개수와 **현재 단계의 퍼센트**를 표시합니다. 엔진 내부 처리·서식 준비·파일 생성과 재검증처럼 진도를 측정하기 어려운 구간에는 **모래시계**를 표시합니다. 전체 작업의 완료율이나 남은 시간을 뜻하지 않으며 문서 구조와 컴퓨터 성능에 따라 시간이 달라집니다. HWP/HWPX 저장에도 같은 안내가 나타납니다.
 
 ### HWP/HWPX 편집과 Word 전환 (1.4.0)
 
@@ -185,12 +187,12 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 
 ## 9. 버전별 변경 내역
 
-### 1.4.2 · 개발 빌드 · 미배포
+### 1.4.2 · 2026-10-20 · 변환 진행 표시와 모래시계
 
 - 큰 HWP/HWPX를 열거나 Word 편집본으로 변환할 때 처리 단계와 **경과 시간**을 표시합니다. 문단·그림·쪽 배치 항목은 실제 처리 개수와 **현재 단계의 퍼센트**를 보여줍니다.
 - 진도를 측정하기 어려운 표·그림 처리, 편집 서식 준비, 한글 파일 생성·검증에는 **모래시계**를 표시합니다. 전체 완료율이나 남은 시간을 추정한 숫자는 표시하지 않습니다.
 - HWP/HWPX로 내보낼 때도 같은 진행 안내를 제공합니다. 원본 보기 창을 닫으면 진행 표시를 정리하고 기존 Word 문서를 유지합니다.
-- 공개 다운로드와 리토스 공유 페이지는 1.4.1을 유지합니다.
+- Mac ZIP·Windows Setup·Linux DEB로 제공합니다. 기존 문서와 자동 복구를 보관한 상태에서 업데이트하세요.
 
 ### 1.4.1 · 2026-10-20 · 대용량 문서·연속 스크롤·저장 형식 안내
 
@@ -354,30 +356,30 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 Mac 터미널:
 
 ```sh
-shasum -a 256 Word-Studio-1.4.1-mac-arm64.zip
+shasum -a 256 Word-Studio-1.4.2-mac-arm64.zip
 ```
 
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\Word-Studio-1.4.1-windows-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Word-Studio-1.4.2-windows-x64-setup.exe -Algorithm SHA256
 ```
 
 Linux 터미널:
 
 ```sh
-sha256sum Word-Studio-1.4.1-linux-x64.deb
+sha256sum Word-Studio-1.4.2-linux-x64.deb
 ```
 
 표시된 값이 `SHA256SUMS.txt`의 해당 파일 값과 일치하는지 확인하세요.
 
 ## 12. 이번 배포의 확인 결과
 
-- Windows·Ubuntu 22.04에서 기능 시험 각각 **102개**와 단위 시험 각각 **21개**를 통과했습니다. [1.4.1 교차 플랫폼 검증](https://github.com/beaur8-prog/word-studio/actions/runs/39397514006)에서 결과를 확인할 수 있습니다. Mac도 기능 검사 102개를 분리 재검증을 포함해 확인했고 단위 시험 21개를 통과했습니다.
+- Windows·Ubuntu 22.04에서 기능 시험 각각 **105개**와 단위 시험 각각 **22개**를 통과했습니다. [1.4.2 교차 플랫폼 검증](https://github.com/beaur8-prog/word-studio/actions/runs/39412714731)에서 결과를 확인할 수 있습니다. Mac도 기능 시험 105개와 단위 시험 22개를 통과했습니다.
 - Windows Setup과 같은 Linux DEB를 설치한 Ubuntu 22.04·24.04에서 새 설치·실제 앱 실행·재설치·제거와 문서·복구 데이터 보존을 확인했습니다. Ubuntu 24.04에서는 같은 DEB의 설치 앱을 검사했습니다.
 - 패키징한 Mac 앱과 설치된 Windows·Ubuntu 앱에서 HWP/HWPX를 Word 화면으로 가져와 표를 수정하고, 실제 HWP·HWPX 파일로 저장한 뒤 다시 여는 검사를 통과했습니다. 네이티브 내보내기 메뉴·저장 파일 필터·저장 취소도 확인했습니다.
 - DOCX 양방향 교환, Unicode·이모지·글자/문단 서식·병합/중첩 표·그림·용지와 여백·수동 페이지 나누기, 쓰기/복구 실패 시 기존 문서 보존을 확인했습니다. 기존 DOCX 편집·저장·Studio 표 교환 검사를 포함합니다.
-- 약 **85MB HWP**의 그림 12개 편집, 약 **168MB 편집본**의 네이티브 열기·저장·자동 복구와 그림 데이터 일치를 Mac 배포 앱에서 확인했습니다. 원본 HWP 연속 스크롤·163쪽 PDF, 새로운 저장 형식 선택 화면·DOCX 재열기·PDF 출력도 확인했습니다.
-- Mac ZIP은 압축 CRC, 재추출한 앱 버전 1.4.1, 로컬 ad-hoc 서명 무결성과 시험한 앱의 ASAR 일치를 확인했습니다. Mac은 Developer ID 서명·공증을 받지 않았고 Windows 배포 파일은 미서명입니다.
+- Mac 1.4.2에서 약 **85MB HWP**의 실제 처리 개수 변화·모래시계·경과 시간을 확인하고 그림 12개를 보존해 HWP로 저장한 뒤 12쪽으로 다시 열었습니다. 1.4.1에서 확인한 약 **168MB 편집본**의 열기·저장·자동 복구 기록도 보존했습니다. 원본 뷰어의 긴 163쪽 문서와 PDF, 저장 형식 선택·DOCX 재열기·PDF 출력도 검사했습니다.
+- Mac ZIP은 압축 CRC, 재추출한 앱 버전 1.4.2, 로컬 ad-hoc 서명 무결성과 시험한 앱의 ASAR 일치를 확인했습니다. Mac은 Developer ID 서명·공증을 받지 않았고 Windows 배포 파일은 미서명입니다.
 - 원본 보기와 Word 편집본, HWP 저장본의 쪽 수는 서로 다를 수 있습니다. [HWP 검증 기록](HWP_VALIDATION.md)의 공개 샘플 7개 비교와 제한을 확인하세요. 제출용 원본 조판이나 무손실 왕복을 보장하지 않습니다.
 - 기존 공식 DOCX 샘플 20개의 호환성 기록은 [공식 샘플 검증](OFFICIAL_SAMPLE_FIXES.md), Windows Word와의 문서별 비교는 [상세 검증 기록](VALIDATION.md)에 보존했습니다. 설치 글꼴과 운영체제에 따른 차이가 있으며 Linux GUI 자동 시험은 Xvfb/X11 환경을 사용했습니다. Wayland와 실제 프린터 출력은 별도로 시험하지 않았습니다.
