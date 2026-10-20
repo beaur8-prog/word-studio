@@ -37,7 +37,7 @@ npm run package:linux
 
 Linux x64에서 `release/linux/Word-Studio-1.3.1-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
 
-사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.3.0-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
+사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.3.1-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
 
 ## 1.2.10 공식 DOCX 샘플 호환 수정
 
@@ -140,6 +140,6 @@ Sheet Studio 0.7.10과 Slide Studio 1.6.1의 표를 홈·표 메뉴 붙여넣기
 
 원본과 동일한 조판을 보장하지 않습니다. 공개 샘플 11개를 열었고 암호/구형 샘플 1개는 거부했습니다. 폴라리스 웹 뷰어의 6개 샘플과 한컴 PDF 참고본 3개를 비교했습니다. 긴 취업규칙은 엔진의 표 분할·셀 앞 여백 해석을 수정하여 154쪽에서 폴라리스와 같은 163쪽으로 개선했습니다. Mac 앱의 실제 PDF도 163쪽이며 원문 위치별 문자가 보존되고 종이 높이 밖으로 밀리던 텍스트가 사라졌습니다. 글꼴·일부 페이지 경계·표 테두리 차이는 남습니다. [자세한 검증과 제한](HWP_VALIDATION.md)을 참고하세요. HWP 저장·편집, 암호/DRM, 구형 HWP 3.x는 지원하지 않습니다. 40 MiB·1,000쪽, HWPX 압축 해제 100 MiB 제한을 적용합니다.
 
-[검증 방법·샘플별 차이](HWP_VALIDATION.md). [1.3.0 릴리스](https://github.com/beaur8-prog/word-studio/releases/tag/v1.3.0)의 Mac ZIP·Windows Setup·Linux DEB에 포함됩니다.
+[검증 방법·샘플별 차이](HWP_VALIDATION.md). [1.3.1 릴리스](https://github.com/beaur8-prog/word-studio/releases/tag/v1.3.1)의 Mac ZIP·Windows Setup·Linux DEB에 포함됩니다.
 
-소스 1.3.1에서는 HWPX manifest의 `href="section0.xml"`을 `Contents/content.hpf`가 있는 폴더 기준으로 해석하도록 수정했습니다. 기존 `href="Contents/section0.xml"` 표기도 지원합니다. 공개 다운로드는 아직 1.3.0이며, 이 수정은 다음 배포에 포함됩니다.
+1.3.1에서는 HWPX manifest의 `href="section0.xml"`을 `Contents/content.hpf`가 있는 폴더 기준으로 해석하도록 수정했습니다. 기존 `href="Contents/section0.xml"` 표기도 지원합니다. Mac ZIP·Windows Setup·Linux DEB에 이 수정이 포함됩니다.
