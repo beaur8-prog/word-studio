@@ -147,8 +147,8 @@ async function packageWindows() {
       'Word Studio.exe를 실행하세요. Node.js, Microsoft Word, 인터넷 연결이 필요하지 않습니다.',
       'EXE만 이동하지 말고 resources, locales, DLL을 포함한 폴더 전체를 보관하세요.',
       'Ctrl+N 새 문서 / Ctrl+O 열기 / Ctrl+S 저장 / Ctrl+Shift+S 다른 이름으로 저장 / Ctrl+P 인쇄',
-      '파일 메뉴에서 Word 문서(.docx), PDF, HTML, 텍스트로 내보낼 수 있습니다.',
-      '편집 내용을 유지하려면 Word Studio 문서(.wordstudio) 형식으로 저장하세요.', '',
+      '상단 내보내기에서 Word 문서(.docx), 한글 문서(.hwp/.hwpx), PDF(.pdf)를 선택하세요. 파일 메뉴에서는 HTML과 텍스트도 지원합니다.',
+      '메모와 편집 상태를 보관하려면 편집본(.wordstudio)으로 저장하세요. Word와 주고받을 문서는 .docx로 저장하세요.', '',
       '이 앱은 Microsoft와 관련 없는 독립 문서 편집기입니다. Word의 모든 기능과 DOCX 요소를 지원하지는 않습니다.',
       '이 배포 파일에는 코드 서명이 없습니다.', '',
     ].join('\r\n'));

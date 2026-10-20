@@ -16,7 +16,11 @@ const INDEX_PATH = path.join(DIST_PATH, 'index.html');
 const MAX_FILE_BYTES = require('./document-limits.json').nativeFileBytes;
 const SAVE_EXTENSIONS = new Set(['wordstudio', 'docx', 'html', 'txt', 'hwp', 'hwpx']);
 const OPEN_EXTENSIONS = new Set([...SAVE_EXTENSIONS, 'htm', 'hwp', 'hwpx']);
-const FORMAT_NAMES = { wordstudio: 'Word Studio Document', docx: 'Word Document', html: 'HTML Document', txt: 'Text Document', hwp: 'Hangul HWP Document', hwpx: 'Hangul HWPX Document' };
+const FORMAT_NAMES = {
+  wordstudio: '편집본 (.wordstudio)', docx: 'Word 문서 (.docx)',
+  html: 'HTML 문서 (.html)', txt: '텍스트 문서 (.txt)',
+  hwp: '한글 문서 (.hwp)', hwpx: '한글 표준 문서 (.hwpx)',
+};
 const CHROME_THEMES = {
   dark: { color: '#151515', symbolColor: '#f2f2f2', height: 40 },
   light: { color: '#f3f3f3', symbolColor: '#242424', height: 40 },
@@ -152,9 +156,9 @@ function installMenu() {
       { label: 'New Document', accelerator: 'CmdOrCtrl+N', click: () => sendMenuAction('new') },
       { label: 'Open…', accelerator: 'CmdOrCtrl+O', click: () => sendMenuAction('open') },
       { type: 'separator' },
-      { label: 'Save…', accelerator: 'CmdOrCtrl+S', click: () => sendMenuAction('save') },
+      { label: 'Save Editing Copy (.wordstudio)…', accelerator: 'CmdOrCtrl+S', click: () => sendMenuAction('save') },
       { label: 'Save As…', accelerator: 'CmdOrCtrl+Shift+S', click: () => sendMenuAction('save-as') },
-      { label: 'Export Word Document…', accelerator: 'CmdOrCtrl+Shift+E', click: () => sendMenuAction('export-docx') },
+      { label: 'Export Word Document (.docx)…', accelerator: 'CmdOrCtrl+Shift+E', click: () => sendMenuAction('export-docx') },
       { label: 'Export Hangul Document (HWP)…', click: () => sendMenuAction('export-hwp') },
       { label: 'Export Hangul Document (HWPX)…', click: () => sendMenuAction('export-hwpx') },
       { label: 'Export PDF…', click: () => sendMenuAction('export-pdf') },
@@ -204,7 +208,7 @@ function installIPC() {
   ipcMain.handle('word-studio:save-file', (event, payload) => withNativeDialog(event, async () => {
     const file = decodeFilePayload(payload);
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: file.extension === 'wordstudio' ? 'Save Document' : 'Export Document',
+      title: `${FORMAT_NAMES[file.extension]} 저장`,
       defaultPath: path.join(app.getPath('documents'), file.name),
       filters: [{ name: FORMAT_NAMES[file.extension], extensions: [file.extension] }],
       properties: ['createDirectory', 'showOverwriteConfirmation'],
@@ -216,12 +220,12 @@ function installIPC() {
 
   ipcMain.handle('word-studio:open-file', event => withNativeDialog(event, async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Open Document',
-      filters: [{ name: 'Documents', extensions: [...OPEN_EXTENSIONS] },
-        { name: 'Word Studio Document', extensions: ['wordstudio'] },
-        { name: 'Word Document', extensions: ['docx'] },
-        { name: 'Hangul Document', extensions: ['hwp', 'hwpx'] },
-        { name: 'HTML and Text', extensions: ['html', 'htm', 'txt'] }],
+      title: '문서 열기',
+      filters: [{ name: '지원하는 문서', extensions: [...OPEN_EXTENSIONS] },
+        { name: FORMAT_NAMES.wordstudio, extensions: ['wordstudio'] },
+        { name: FORMAT_NAMES.docx, extensions: ['docx'] },
+        { name: '한글 문서 (.hwp, .hwpx)', extensions: ['hwp', 'hwpx'] },
+        { name: 'HTML·텍스트 (.html, .htm, .txt)', extensions: ['html', 'htm', 'txt'] }],
       properties: ['openFile'],
     });
     if (result.canceled || result.filePaths.length !== 1) return null;
@@ -241,8 +245,8 @@ function installIPC() {
     if (!payload || typeof payload.name !== 'string') throw new TypeError('The PDF is missing a name.');
     const options = pdfOptions(payload);
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'Export PDF', defaultPath: path.join(app.getPath('documents'), safeFilename(payload.name, 'pdf')),
-      filters: [{ name: 'PDF Document', extensions: ['pdf'] }],
+      title: 'PDF 문서 (.pdf) 저장', defaultPath: path.join(app.getPath('documents'), safeFilename(payload.name, 'pdf')),
+      filters: [{ name: 'PDF 문서 (.pdf)', extensions: ['pdf'] }],
       properties: ['createDirectory', 'showOverwriteConfirmation'],
     });
     if (result.canceled || !result.filePath) return false;

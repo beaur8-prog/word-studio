@@ -36,11 +36,15 @@ async function main() {
       const file = path.join(directory, 'edited.' + format);
       await app.evaluate(({ dialog }, value) => {
         dialog.showSaveDialog = async (_window, options) => {
-          if (!options.filters.some(filter => filter.extensions.includes(value.format))) throw Error('Missing native Hancom save filter');
+          const name = value.format === 'hwp' ? '한글 문서 (.hwp)' : '한글 표준 문서 (.hwpx)';
+          if (!options.filters.some(filter => filter.extensions.includes(value.format) && filter.name === name)) throw Error('Missing native Hancom save filter');
           return { canceled: true };
         };
       }, { format });
-      await app.evaluate(({ Menu }, value) => {
+      if (format === 'hwp') {
+        await page.getByRole('button', { name: '내보내기', exact: true }).click();
+        await page.getByRole('region', { name: '다른 형식으로 저장', exact: true }).getByRole('button', { name: /^한글 문서 \(\.hwp\)/ }).click();
+      } else await app.evaluate(({ Menu }, value) => {
         const fileMenu = Menu.getApplicationMenu().items.find(item => item.label === 'File');
         const item = fileMenu.submenu.items.find(item => item.label === `Export Hangul Document (${value.toUpperCase()})…`);
         if (!item) throw Error('Missing native export menu'); item.click();
@@ -86,7 +90,7 @@ async function main() {
       for (const image of recoveredImages) assert.equal(image.attrs.src, source);
       await app.evaluate(({ dialog }, value) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: value }); }, saved);
       await page.keyboard.press('ControlOrMeta+s');
-      await expect(page.getByText('문서 파일을 저장했습니다', { exact: true })).toBeVisible({ timeout: 60000 });
+      await expect(page.getByText('편집본 (.wordstudio)을 저장했습니다', { exact: true })).toBeVisible({ timeout: 60000 });
       await expect.poll(async () => fs.stat(saved).then(s => s.size).catch(() => 0), { timeout: 60000 }).toBeGreaterThan(40 * 1024 * 1024);
       const reopened = JSON.parse(await fs.readFile(saved, 'utf8'));
       const savedImages = reopened.content.content.filter(node => node.type === 'image');

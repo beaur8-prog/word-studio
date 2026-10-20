@@ -1339,6 +1339,35 @@ button:hover:not(:disabled) {
   color: var(--chrome-secondary);
   font-size: 12px;
 }
+.save-formats {
+  margin-top: 28px;
+  max-width: 960px;
+}
+.format-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+.format-cards > button {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 16px;
+  border: 1px solid var(--chrome-border);
+  background: var(--chrome-surface);
+  text-align: left;
+}
+.format-cards strong {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.format-cards span,
+.save-formats > p {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--chrome-secondary);
+}
 .file-cards {
   display: flex;
   gap: 18px;

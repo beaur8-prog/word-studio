@@ -632,7 +632,7 @@ export default function App() {
           return false;
       } else download(blob, name);
       notify(
-        `${extension === "wordstudio" ? "문서" : extension.toUpperCase()} 파일을 저장했습니다` +
+        (extension === 'wordstudio' ? '편집본 (.wordstudio)을 저장했습니다' : `${extension.toUpperCase()} 파일을 저장했습니다`) +
           (extension === "docx" && comments.length
             ? ` · ${DOCX_EXPORT_NOTICE}`
             : ""),
@@ -692,7 +692,7 @@ export default function App() {
   const actions = [
     { name: "새 문서", hint: "Ctrl+N", action: () => setModal("new") },
     { name: "파일 열기", hint: "Ctrl+O", action: open },
-    { name: "문서 저장", hint: "Ctrl+S", action: () => save() },
+    { name: "편집본 저장", hint: ".wordstudio", action: () => save() },
     { name: "Word 문서로 내보내기", hint: "DOCX", action: () => save("docx") },
     { name: "PDF로 내보내기", hint: "PDF", action: () => print(true) },
     { name: '인쇄 미리보기', hint: '페이지 확인', action: () => { void preview().catch(e => notify(String(e))); } },
@@ -730,8 +730,13 @@ export default function App() {
         return;
       }
       if (!(e.ctrlKey || e.metaKey)) return;
+      if (e.key.toLowerCase() === 's' && e.shiftKey) {
+        e.preventDefault();
+        setFileMenu(true);
+        return;
+      }
       const map: Record<string, string> = {
-        s: "문서 저장",
+        s: "편집본 저장",
         o: "파일 열기",
         n: "새 문서",
         p: "인쇄",
@@ -753,11 +758,11 @@ export default function App() {
       if (document.querySelector('.hwp-reader[open]')) return;
       if (document.querySelector('.hwp-conversion-dialog[open]')) return;
       if (document.querySelector('.save-failure-dialog[open]')) return;
+      if (a === 'save-as') { setFileMenu(true); return; }
       const map: Record<string, string> = {
         new: "새 문서",
         open: "파일 열기",
-        save: "문서 저장",
-        "save-as": "문서 저장",
+        save: "편집본 저장",
         "export-docx": "Word 문서로 내보내기",
         "export-hwp": "한글 문서로 내보내기",
         "export-hwpx": "한글 표준 문서로 내보내기",
@@ -891,7 +896,7 @@ export default function App() {
           </span>
         </div>
         <div className="quick-actions">
-          <IconButton label="저장 (Ctrl+S)" onClick={() => save()}>
+          <IconButton label="편집본 저장 (.wordstudio, Ctrl+S)" onClick={() => save()}>
             <Save size={16} />
           </IconButton>
           <IconButton
@@ -977,7 +982,7 @@ export default function App() {
             읽기 · 문서 살펴보기
           </MenuItem>
         </Dropdown>
-        <button className="export-top" onClick={() => save("docx")}>
+        <button className="export-top" onClick={() => setFileMenu(true)}>
           <FileDown size={14} />
           내보내기
         </button>
@@ -2293,6 +2298,28 @@ export default function App() {
               <span className="eyebrow">YOUR LOCAL WORKSPACE</span>
               <h1>문서에 담는 새로운 생각.</h1>
               <p>작성 중인 문서는 현재 PC에 자동으로 저장됩니다.</p>
+              <section className="save-formats" aria-label="다른 형식으로 저장">
+                <h3>다른 형식으로 저장</h3>
+                <div className="format-cards">
+                  <button onClick={() => save('docx')}>
+                    <strong>Word 문서 (.docx)</strong>
+                    <span>Microsoft Word에서 열고 편집</span>
+                  </button>
+                  <button onClick={() => save('hwp')}>
+                    <strong>한글 문서 (.hwp)</strong>
+                    <span>한글에서 열고 편집 · 변환 결과 확인</span>
+                  </button>
+                  <button onClick={() => save('hwpx')}>
+                    <strong>한글 표준 문서 (.hwpx)</strong>
+                    <span>한글 표준 형식 · 변환 결과 확인</span>
+                  </button>
+                  <button onClick={() => print(true)}>
+                    <strong>PDF 문서 (.pdf)</strong>
+                    <span>페이지 배치를 유지해 공유·인쇄</span>
+                  </button>
+                </div>
+                <p>편집본 (.wordstudio)은 메모와 편집 상태를 보관하는 전용 형식입니다. Word와 주고받으려면 Word 문서 (.docx)를 선택하세요.</p>
+              </section>
               <div className="file-cards">
                 <button
                   onClick={() => {
@@ -2307,7 +2334,7 @@ export default function App() {
                 <button onClick={open}>
                   <FolderOpen size={34} />
                   <strong>파일 열기</strong>
-                  <span>DOCX · HWP/HWPX 보기·편집 · Word Studio · HTML · TXT</span>
+                  <span>DOCX · HWP/HWPX · 편집본 (.wordstudio) · HTML · TXT</span>
                 </button>
               </div>
               <h3>최근 작업한 문서</h3>

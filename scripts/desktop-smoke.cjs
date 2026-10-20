@@ -26,6 +26,35 @@ async function run() {
     // at the same viewport as the browser suite on every host.
     await window.setViewportSize({ width: 1440, height: 1000 });
     const errors = []; window.on('pageerror', error => errors.push(error.message));
+    await window.locator('.tiptap').fill('FORMAT SAVE ROUNDTRIP 형식 저장 확인');
+    const docxCopy = path.join(directory, 'word-compatible.docx');
+    const editingCopy = path.join(directory, 'editing-copy.wordstudio');
+    await app.evaluate(({ dialog }, paths) => {
+      dialog.showSaveDialog = async (_window, options) => {
+        globalThis.formatSaveOptions = options;
+        return { canceled: false, filePath: options.filters[0].extensions.includes('docx') ? paths.docxCopy : paths.editingCopy };
+      };
+    }, { docxCopy, editingCopy });
+    await window.keyboard.press('ControlOrMeta+Shift+s');
+    const formats = window.getByRole('region', { name: '다른 형식으로 저장', exact: true });
+    await expect(formats).toBeVisible();
+    await expect(formats.getByRole('button')).toHaveCount(4);
+    await window.screenshot({ path: path.join(directory, 'save-formats.png') });
+    await formats.getByRole('button', { name: /^Word 문서 \(\.docx\)/ }).click();
+    await expect(window.getByText('DOCX 파일을 저장했습니다', { exact: true })).toBeVisible();
+    const docxOptions = await app.evaluate(() => globalThis.formatSaveOptions);
+    assert.equal(docxOptions.title, 'Word 문서 (.docx) 저장');
+    assert.deepEqual(docxOptions.filters, [{ name: 'Word 문서 (.docx)', extensions: ['docx'] }]);
+    assert.equal((await fs.readFile(docxCopy)).subarray(0, 2).toString(), 'PK');
+    await app.evaluate(({ dialog }, filename) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filename] }); }, docxCopy);
+    await window.keyboard.press('ControlOrMeta+o');
+    await expect(window.getByRole('textbox', { name: '문서 제목' })).toHaveValue('word-compatible');
+    await expect(window.locator('.tiptap')).toHaveText('FORMAT SAVE ROUNDTRIP 형식 저장 확인');
+    await window.keyboard.press('ControlOrMeta+s');
+    await expect(window.getByText('편집본 (.wordstudio)을 저장했습니다', { exact: true })).toBeVisible();
+    const editingOptions = await app.evaluate(() => globalThis.formatSaveOptions);
+    assert.deepEqual(editingOptions.filters, [{ name: '편집본 (.wordstudio)', extensions: ['wordstudio'] }]);
+    assert.ok(JSON.stringify(JSON.parse(await fs.readFile(editingCopy, 'utf8')).content).includes('FORMAT SAVE ROUNDTRIP'));
     const fixture = path.join(directory, 'long-document.html');
     const pdf = path.join(directory, 'preview.pdf');
     const paragraph = '한글 PDF 페이지 배치 검증과 혼합 English 문장입니다. '.repeat(180);
@@ -68,15 +97,15 @@ async function run() {
     await expect.poll(async () => (await firstRow.boundingBox()).height).toBeCloseTo(rowBounds.height + 40, 0);
     const rowStyle = await firstRow.getAttribute('style');
     assert.match(rowStyle, /height: \d+px/);
-    await window.getByRole('button', { name: '보기', exact: true }).click();
-    await window.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    await window.getByRole('button', { name: '내보내기', exact: true }).click();
+    await expect(formats).toBeVisible();
+    await formats.getByRole('button', { name: /^PDF 문서 \(\.pdf\)/ }).click();
     await expect(window.locator('.print-page').first()).toBeVisible();
     await expect(window.locator('.print-layout th').first()).toHaveCSS('background-color', 'rgb(226, 239, 217)');
     await expect(window.locator('.print-layout th').first()).toHaveCSS('border-top-style', 'dashed');
     await expect(window.locator('.print-layout tr').first()).toHaveAttribute('style', rowStyle);
     const previewPages = await window.locator('.print-page').count();
     await window.screenshot({ path: path.join(directory, 'preview.png') });
-    await window.getByRole('button', { name: 'PDF 저장', exact: true }).click();
     await expect(window.getByText('PDF를 저장했습니다', { exact: true })).toBeVisible();
     const data = await fs.readFile(pdf);
     assert.equal(data.subarray(0, 4).toString(), '%PDF');
@@ -128,7 +157,8 @@ async function run() {
     assert.deepEqual(errors, []);
     const report = { passed: true, packaged: Boolean(packaged), platform: process.platform, tableContextMenu: true, tableRowResize: true,
       layoutFlow, previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length,
-      failedRecoveryProtected: true, savedCopyVerified: true, rendererSandboxed, rendererErrors: errors, directory };
+      failedRecoveryProtected: true, savedCopyVerified: true, formatPicker: true, docxRoundtrip: true, distinctEditingCopy: true,
+      rendererSandboxed, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2));
     console.log(JSON.stringify(report, null, 2));
   } catch (error) { console.error('Native editor assertion failed:', error); throw error; }
