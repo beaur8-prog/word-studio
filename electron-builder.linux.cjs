@@ -4,7 +4,10 @@ module.exports = {
   appId: 'local.wordstudio.app',
   productName: 'Word Studio',
   executableName: 'word-studio',
-  files: ['dist/**/*', 'electron/**/*', 'package.json'],
+  // Vite already bundles renderer dependencies; the main process uses only
+  // built-ins and local electron/ modules, as in the Mac/Windows packages.
+  // electron-builder otherwise adds project production node_modules again.
+  files: ['dist/**/*', 'electron/**/*', 'package.json', '!node_modules{,/**/*}'],
   asar: true,
   publish: null,
   linux: {

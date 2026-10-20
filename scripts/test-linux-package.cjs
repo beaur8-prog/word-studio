@@ -36,6 +36,7 @@ async function test() {
     assert.equal(await hash(binary), metadata.executableSHA256);
     assert.equal(await hash(path.join(app, 'resources/app.asar')), metadata.appAsarSHA256);
     assert.equal(JSON.parse(asar.extractFile(path.join(app, 'resources/app.asar'), 'package.json')).version, version);
+    assert.equal(asar.listPackage(path.join(app, 'resources/app.asar')).some(name => /^\/node_modules(?:\/|$)/.test(name)), false, 'The installed app must use bundled assets without duplicate dependency sources');
     const entry = await fs.readFile(desktop, 'utf8');
     assert.match(entry, /^Name=Word Studio$/m);
     assert.match(entry, /^StartupWMClass=local\.wordstudio\.app$/m);

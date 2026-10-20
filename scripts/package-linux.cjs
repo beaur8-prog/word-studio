@@ -41,7 +41,10 @@ async function run() {
     const archive = path.join(app, 'resources/app.asar');
     const packed = JSON.parse(asar.extractFile(archive, 'package.json'));
     if (packed.version !== manifest.version || packed.desktopName !== 'local.wordstudio.app') throw new Error('Linux app metadata mismatch.');
+    if (asar.listPackage(archive).some(name => /^\/node_modules(?:\/|$)/.test(name))) throw new Error('Linux package contains redundant renderer dependency sources.');
     for (const name of ['dist/index.html', 'electron/main.cjs', 'electron/preload.cjs', 'electron/WordStudio.png']) asar.extractFile(archive, name);
+    const deb = path.join(output, `Word-Studio-${manifest.version}-linux-x64.deb`);
+    if ((await fs.stat(deb)).size > 250 * 1024 * 1024) throw new Error('Linux package exceeds the existing Lithos per-file download limit.');
     const metadata = {
       product: 'Word Studio', version: manifest.version, platform: 'linux', architecture: 'x64',
       format: 'deb', signing: 'unsigned local Debian package', electronVersion: manifest.devDependencies.electron,
