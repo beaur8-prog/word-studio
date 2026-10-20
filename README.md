@@ -22,7 +22,7 @@ npm start
 npm run package:win
 ```
 
-Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.2.10-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
+Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.3.0-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
 
 `npm run package:win:dir`은 앱 폴더만, `npm run package:win:setup`은 이미 만든 앱 폴더로 설치 파일만 생성합니다. 설치 파일 빌드와 실제 설치·재설치·제거 시험은 Windows GitHub Actions에서 수행합니다. 빌드 설정은 [electron-builder.config.cjs](electron-builder.config.cjs), 격리된 CI 시험은 [scripts/test-windows-installer.ps1](scripts/test-windows-installer.ps1)에 있습니다. NSIS 옵션은 [electron-builder 공식 문서](https://www.electron.build/docs/nsis/)를 따릅니다. 설치·재설치·제거는 `%APPDATA%\Word Studio` 복구 데이터와 사용자가 저장한 문서를 지우지 않습니다.
 
@@ -35,9 +35,9 @@ npm ci
 npm run package:linux
 ```
 
-Linux x64에서 `release/linux/Word-Studio-1.2.10-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
+Linux x64에서 `release/linux/Word-Studio-1.3.0-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
 
-사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.2.10-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
+사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.3.0-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
 
 ## 1.2.10 공식 DOCX 샘플 호환 수정
 
@@ -134,10 +134,10 @@ WWLIB 전체 분석이나 Word의 내부 편집·조판 알고리즘 복원은 �
 
 Sheet Studio 0.7.10과 Slide Studio 1.6.1의 표를 홈·표 메뉴 붙여넣기 또는 Ctrl+V/⌘V로 받아 셀을 편집할 수 있습니다. 표 전체를 선택해 복사하면 두 앱으로도 보낼 수 있습니다. 병합·색·글꼴·줄바꿈·표시값을 교환하며, 잘못된 병합이나 한도를 넘는 표는 현재 본문을 바꾸기 전에 거부합니다. [사용법·교환 형식·각 앱 구현 및 제한](https://github.com/beaur8-prog/sheet-studio/blob/main/docs/STUDIO-CLIPBOARD.md)을 확인하세요.
 
-## HWP/HWPX 읽기 (1.3.0 소스·로컬, 미배포)
+## HWP/HWPX 읽기 (1.3.0)
 
 파일 열기에서 `.hwp`(5.x) 또는 `.hwpx`를 고르면 읽기 화면을 엽니다. 쪽 이동·확대·찾기·전체 텍스트 복사·PDF 저장·인쇄를 지원하며, 원본과 편집 중인 Word 문서는 변경하지 않습니다. **닫기**로 기존 Word 편집에 돌아갑니다. 한글 또는 변환 서버 설치 없이 기기 안에서 처리하며 한국어 대체 글꼴도 포함합니다.
 
 원본과 동일한 조판을 보장하지 않습니다. 공개 샘플 11개를 열었고 암호/구형 샘플 1개는 거부했습니다. 폴라리스 웹 뷰어의 6개 샘플과 한컴 PDF 참고본 3개를 비교했습니다. 긴 취업규칙은 엔진의 표 분할·셀 앞 여백 해석을 수정하여 154쪽에서 폴라리스와 같은 163쪽으로 개선했습니다. Mac 앱의 실제 PDF도 163쪽이며 원문 위치별 문자가 보존되고 종이 높이 밖으로 밀리던 텍스트가 사라졌습니다. 글꼴·일부 페이지 경계·표 테두리 차이는 남습니다. [자세한 검증과 제한](HWP_VALIDATION.md)을 참고하세요. HWP 저장·편집, 암호/DRM, 구형 HWP 3.x는 지원하지 않습니다. 40 MiB·1,000쪽, HWPX 압축 해제 100 MiB 제한을 적용합니다.
 
-[검증 방법·샘플별 차이](HWP_VALIDATION.md). 공개 릴리스와 리토스는 별도 배포 요청 전까지 1.2.11을 유지합니다.
+[검증 방법·샘플별 차이](HWP_VALIDATION.md). [1.3.0 릴리스](https://github.com/beaur8-prog/word-studio/releases/tag/v1.3.0)의 Mac ZIP·Windows Setup·Linux DEB에 포함됩니다.

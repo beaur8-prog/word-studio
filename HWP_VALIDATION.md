@@ -1,6 +1,6 @@
 # HWP/HWPX 읽기 검증
 
-2026-10-20 · Word Studio 1.3.0 소스·로컬 변경. 공개 릴리스·리토스 배포는 하지 않았습니다.
+2026-10-20 · Word Studio 1.3.0 배포 검증 기록. Mac ZIP·Windows Setup·Linux DEB에 HWP 읽기와 페이지 분할 수정이 포함됩니다.
 
 ## 구현과 사용
 
@@ -51,7 +51,7 @@ MIT 라이선스의 RHWP 0.8.7에 페이지 분할 패치를 적용한 `0.8.7-wo
 - Windows·Ubuntu 22.04에서 전체 브라우저 검사 89개와 네이티브 단위 검사 6개가 각각 통과했습니다. HWP 회귀 8개에는 SVG 자원 충돌·저장 실패 창 보호·취소 검사가 포함됩니다. 캐시 없는 개발 서버에서 첫 HWP를 열 때의 모듈 최적화 재시작도 재현 후 수정했습니다.
 - Mac arm64 패키지에서 실제 파일 열기 IPC·파일 필터, 오프라인 Worker/WASM·한국어 글꼴, OS 클립보드 복사와 원상 복원, PDF 저장, Word 문서 보존을 확인했습니다. 합성 HWP/HWPX 각각 1쪽, 교대 높이 가로 표 각각 4쪽, 공개 계약서 7쪽, 보건소 표 4쪽, 긴 취업규칙 163쪽은 화면과 실제 PDF 쪽수가 일치합니다. 렌더러 오류는 0개입니다.
 - 공개 샘플 11개·화면 37쪽을 검사했고 외부 네트워크 요청·렌더러 오류는 0개입니다. 나머지 암호/구형 1개는 거부합니다.
-- Windows setup.exe와 Ubuntu 22.04·24.04의 실제 설치 앱에서도 HWP/HWPX 열기·전체 텍스트 복사·PDF 각각 1쪽·가로 표 4쪽 저장·기존 Word 문서 보존이 통과했습니다. 설치·재설치·제거·사용자 데이터 보존도 확인했습니다. Ubuntu 24.04는 22.04에서 만든 동일한 Debian 패키지를 검사합니다. [CI 실행 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39354510294)의 Windows·linux·linux-24 아티팩트에 결과 JSON·화면·PDF가 있습니다.
+- Windows setup.exe와 Ubuntu 22.04·24.04의 실제 설치 앱에서도 HWP/HWPX 열기·전체 텍스트 복사·PDF 각각 1쪽·가로 표 4쪽 저장·기존 Word 문서 보존이 통과했습니다. 설치·재설치·제거·사용자 데이터 보존도 확인했습니다. Ubuntu 24.04는 22.04에서 만든 동일한 Debian 패키지를 검사합니다. [CI 실행 기록](https://github.com/beaur8-prog/word-studio/actions/runs/39356809110)의 Windows·linux·linux-24 아티팩트에 결과 JSON·화면·PDF가 있습니다.
 
 ```sh
 npm ci
