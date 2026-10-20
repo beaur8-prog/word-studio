@@ -63,23 +63,26 @@ async function main() {
     if (process.env.HWP_LARGE_FIXTURE_JSON) {
       const fixture = JSON.parse(await fs.readFile(process.env.HWP_LARGE_FIXTURE_JSON, 'utf8'));
       await open(path.resolve(fixture.files.hwp.file));
-      await expect(page.locator('.tiptap img:not(.ProseMirror-separator)')).toHaveCount(3);
+      await expect(page.locator('.tiptap img:not(.ProseMirror-separator)')).toHaveCount(fixture.imageSHA256.length);
       const source = 'data:image/png;base64,' + (await fs.readFile(fixture.largeImage)).toString('base64');
+      const copies = Number(process.env.HWP_LARGE_STORAGE_COPIES || 2);
+      assert.ok(Number.isInteger(copies) && copies >= 2 && copies <= 8);
       const id = 'large-native-' + Date.now(), title = 'LARGE NATIVE STORAGE';
       const original = path.join(directory, 'large-storage.wordstudio'), saved = path.join(directory, 'large-saved.wordstudio');
       await fs.writeFile(original, JSON.stringify({ format: 'word-studio', version: 1, id, title, updatedAt: new Date().toISOString(), comments: [],
         page: { size: 'A4', orientation: 'portrait', margin: 25, header: '', footer: '', pageNumbers: false },
-        content: { type: 'doc', content: [1, 2].map(() => ({ type: 'image', attrs: { src: source, width: 320, height: 875 } })) } }));
+        content: { type: 'doc', content: Array.from({ length: copies }, () => ({ type: 'image', attrs: { src: source, width: 320, height: 875 } })) } }));
       await app.evaluate(({ dialog }, value) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [value] }); }, original);
       await page.keyboard.press('ControlOrMeta+o');
       await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue(title, { timeout: 60000 });
-      await expect(page.locator('.tiptap img:not(.ProseMirror-separator)')).toHaveCount(2);
+      await expect(page.locator('.tiptap img:not(.ProseMirror-separator)')).toHaveCount(copies);
       const profile = await app.evaluate(({ app }) => app.getPath('userData'));
       const recovery = path.join(profile, 'recovery', id + '.json');
-      await expect.poll(async () => fs.stat(recovery).then(s => s.size).catch(() => 0), { timeout: 60000 }).toBeGreaterThan(40 * 1024 * 1024);
-      const recovered = JSON.parse(JSON.parse(await fs.readFile(recovery, 'utf8')).current);
+      await expect.poll(async () => fs.stat(recovery).then(s => s.size).catch(() => 0), { timeout: 60000 }).toBeGreaterThan(0);
+      const records = await require('../electron/recovery.cjs').createRecoveryStore(path.dirname(recovery)).list();
+      const recovered = JSON.parse(records.find(record => { try { return JSON.parse(record.current).id === id; } catch { return false; } }).current);
       const recoveredImages = recovered.content.content.filter(node => node.type === 'image');
-      assert.equal(recovered.title, title); assert.equal(recoveredImages.length, 2);
+      assert.equal(recovered.title, title); assert.equal(recoveredImages.length, copies);
       for (const image of recoveredImages) assert.equal(image.attrs.src, source);
       await app.evaluate(({ dialog }, value) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: value }); }, saved);
       await page.keyboard.press('ControlOrMeta+s');
@@ -87,11 +90,11 @@ async function main() {
       await expect.poll(async () => fs.stat(saved).then(s => s.size).catch(() => 0), { timeout: 60000 }).toBeGreaterThan(40 * 1024 * 1024);
       const reopened = JSON.parse(await fs.readFile(saved, 'utf8'));
       const savedImages = reopened.content.content.filter(node => node.type === 'image');
-      assert.equal(savedImages.length, 2);
+      assert.equal(savedImages.length, copies);
       for (const image of savedImages) assert.equal(image.attrs.src, source);
       largeDocument = { version: await app.evaluate(({ app }) => app.getVersion()), sourceBytes: fixture.files.hwp.bytes,
-        importedImages: 3, individualImageBytes: (await fs.stat(fixture.largeImage)).size,
-        savedBytes: (await fs.stat(saved)).size, nativeRecovery: true, nativeOpenAndSave: true, imagesPreserved: true };
+        importedImages: fixture.imageSHA256.length, individualImageBytes: (await fs.stat(fixture.largeImage)).size,
+        savedBytes: (await fs.stat(saved)).size, savedImages: copies, nativeRecovery: true, nativeOpenAndSave: true, imagesPreserved: true };
     }
     await page.screenshot({ path: path.join(directory, 'edited-word-screen.png') });
     assert.deepEqual(errors, []);

@@ -1,39 +1,60 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { HwpReaderSession, safeHwpSvg, type HwpInfo, type HwpPage } from './reader';
 import '@fontsource/noto-sans-kr/400.css';
 import '@fontsource/noto-sans-kr/700.css';
 import '@fontsource/noto-serif-kr/400.css';
 import '@fontsource/noto-serif-kr/700.css';
 import './reader.css';
-import { HWP_CONVERSION_NOTICE, type EditableHwp } from './conversion';
+import { HWP_CONVERSION_NOTICE, hwpHtmlBytes, type EditableHwp } from './conversion';
 import { sanitizeImportedHtml } from '../document-html';
 import { previewEditableHwp } from './editing';
+import { HwpViewport } from './HwpViewport';
+import documentLimits from '../../electron/document-limits.json';
 
 export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClose(): void; onOpen(): void; onEdit(source: EditableHwp): Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null), session = useRef<HwpReaderSession | null>(null);
   const currentRequest = useRef(0), cache = useRef(new Map<number, HwpPage>());
-  const [info, setInfo] = useState<HwpInfo>(), [page, setPage] = useState<HwpPage>();
+  const inFlight = useRef(new Map<number, Promise<HwpPage>>());
+  const [info, setInfo] = useState<HwpInfo>();
   const [index, setIndex] = useState(0), [zoom, setZoom] = useState(85);
+  const [navigation, setNavigation] = useState({ page: 0, id: 0 });
   const [loading, setLoading] = useState(true), [exporting, setExporting] = useState(false);
   const [error, setError] = useState(''), [status, setStatus] = useState('');
   const [converting, setConverting] = useState(false), [editable, setEditable] = useState<EditableHwp>();
   const [query, setQuery] = useState(''), [searching, setSearching] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
-  const viewport = useRef<HTMLElement>(null);
   const exportingRef = useRef(false);
-  const getPage = async (number: number) => {
-    if (cache.current.has(number)) return cache.current.get(number)!;
-    if (!session.current) throw new Error('읽기 화면을 다시 열어 주세요.');
-    const result = await session.current.page(number);
-    if (cache.current.size >= 8) cache.current.delete(cache.current.keys().next().value!);
-    cache.current.set(number, result); return result;
+  const getPage = useCallback(async (number: number, purpose: 'view' | 'print' = 'view') => {
+    const cached = cache.current.get(number);
+    if (cached) { cache.current.delete(number); cache.current.set(number, cached); return cached; }
+    if (inFlight.current.has(number)) { if (purpose === 'print') session.current?.protectQueuedPage(number); return inFlight.current.get(number)!; }
+    const reader = session.current;
+    if (!reader) throw new Error('읽기 화면을 다시 열어 주세요.');
+    const pending: Promise<HwpPage> = reader.page(number, purpose).then(result => {
+      if (session.current !== reader) throw new Error('읽기 작업이 취소됐습니다.');
+      const size = result.svg.length * 2;
+      if (size <= documentLimits.hwpPageCacheBytes) {
+        let bytes = [...cache.current.values()].reduce((sum, page) => sum + page.svg.length * 2, 0);
+        while (cache.current.size && (cache.current.size >= 8 || bytes + size > documentLimits.hwpPageCacheBytes)) {
+          const first = cache.current.keys().next().value!; bytes -= cache.current.get(first)!.svg.length * 2; cache.current.delete(first);
+        }
+        cache.current.set(number, result);
+      }
+      return result;
+    }).finally(() => { if (inFlight.current.get(number) === pending) inFlight.current.delete(number); });
+    inFlight.current.set(number, pending); return pending;
+  }, []);
+  const keepPages = useCallback((indices: number[]) => session.current?.discardQueuedPages(new Set(indices)), []);
+  const goToPage = (number: number) => {
+    if (!info || number < 0 || number >= info.count) return;
+    setIndex(number); setNavigation(value => ({ page: number, id: value.id + 1 }));
   };
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const previousTitle = document.title;
     document.title = `${file.name} — Word Studio (읽기)`;
     dialog.current?.showModal();
-    cache.current.clear(); setInfo(undefined); setPage(undefined); setIndex(0); setError(''); setStatus(''); setLoading(true); setSearching(false);
+    cache.current.clear(); inFlight.current.clear(); setInfo(undefined); setIndex(0); setNavigation(value => ({ page: 0, id: value.id + 1 })); setError(''); setStatus(''); setLoading(true); setSearching(false);
     const reader = new HwpReaderSession(); session.current = reader;
     let active = true;
     void reader.open(file).then(value => { if (active) setInfo(value); }).catch(reason => {
@@ -41,14 +62,6 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     });
     return () => { active = false; ++currentRequest.current; reader.close(); session.current = null; document.title = previousTitle; if (previous?.isConnected) previous.focus(); };
   }, [file]);
-  useEffect(() => {
-    if (!info) return;
-    const request = ++currentRequest.current;
-    setLoading(true); setError('');
-    viewport.current?.scrollTo({ top: 0, left: 0 });
-    void getPage(index).then(value => { if (request === currentRequest.current) { setPage(value); setLoading(false); } })
-      .catch(reason => { if (request === currentRequest.current) { setError(reason.message); setLoading(false); } });
-  }, [info, index]);
   const findNext = async () => {
     if (!info || !query.trim() || searching) return;
     const request = currentRequest.current, value = query.replace(/\s/g, '').toLocaleLowerCase();
@@ -56,9 +69,9 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     try {
       for (let offset = 1; offset <= info.count; offset++) {
         const number = (index + offset) % info.count;
-        const next = await getPage(number);
+        const next = await session.current!.pageText(number);
         if (request !== currentRequest.current) return;
-        if (next.text.replace(/\s/g, '').toLocaleLowerCase().includes(value)) { setIndex(number); setStatus(`${number + 1}쪽에서 찾았습니다.`); return; }
+        if (next.replace(/\s/g, '').toLocaleLowerCase().includes(value)) { goToPage(number); setStatus(`${number + 1}쪽에서 찾았습니다.`); return; }
       }
       setStatus('찾는 내용이 없습니다.');
     } catch (reason) { setStatus(String(reason)); }
@@ -95,8 +108,8 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     try {
       let size = 0;
       for (let number = 0; number < info.count; number++) {
-        const item = await getPage(number); size += item.svg.length;
-        if (size > 100 * 1024 * 1024) throw new Error('출력 데이터가 100MB를 넘습니다.');
+        const item = await getPage(number, 'print'); size += hwpHtmlBytes(item.svg);
+        if (size > documentLimits.hwpPrintHtmlBytes) throw new Error(`출력 데이터가 ${documentLimits.hwpPrintHtmlBytes / 1024 / 1024} MiB를 넘습니다. 인쇄할 문서를 나눠 주세요.`);
         const sheet = document.createElement('div'); sheet.className = 'print-page hwp-print-page';
         sheet.style.cssText = `width:${item.width}px;height:${item.height}px;page:hwp-${number}`;
         sheet.innerHTML = safeHwpSvg(item.svg).svg; root.append(sheet);
@@ -140,11 +153,11 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
       <button onClick={onClose} disabled={exporting} aria-label="HWP 읽기 닫기">닫기</button>
     </header>
     <div className="hwp-controls">
-      <button aria-label="이전 쪽" onClick={() => setIndex(index - 1)} disabled={!info || index <= 0 || exporting || searching}>‹</button>
+      <button aria-label="이전 쪽" onClick={() => goToPage(index - 1)} disabled={!info || index <= 0 || exporting || searching}>‹</button>
       <label>쪽 <input type="number" aria-label="HWP 쪽 번호" min="1" max={info?.count ?? 1} value={index + 1} disabled={!info || exporting || searching}
-        onChange={event => { const number = Number(event.target.value); if (info && Number.isInteger(number) && number >= 1 && number <= info.count) setIndex(number - 1); }} /></label>
+        onChange={event => { const number = Number(event.target.value); if (info && Number.isInteger(number) && number >= 1 && number <= info.count) goToPage(number - 1); }} /></label>
       <span data-testid="hwp-page-count">/ {info?.count ?? '…'}</span>
-      <button aria-label="다음 쪽" onClick={() => setIndex(index + 1)} disabled={!info || index + 1 >= info.count || exporting || searching}>›</button>
+      <button aria-label="다음 쪽" onClick={() => goToPage(index + 1)} disabled={!info || index + 1 >= info.count || exporting || searching}>›</button>
       <label>확대 <select aria-label="HWP 확대" value={zoom} onChange={event => setZoom(Number(event.target.value))}>
         {[50, 65, 75, 85, 100, 125, 150, 200].map(value => <option key={value} value={value}>{value}%</option>)}
       </select></label>
@@ -160,13 +173,9 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
       <button onClick={() => void onEdit(editable).catch(reason => setStatus(`편집 변환 실패: ${String(reason)}`))}>편집본 만들기</button>
       <button onClick={() => { setEditable(undefined); setStatus('원본 보기를 계속합니다.'); }}>원본 보기로 돌아가기</button>
     </section>}
-    <main ref={viewport} className="hwp-viewport" aria-busy={loading || exporting}>
-      {error ? <div className="hwp-error" role="alert"><strong>HWP 파일을 열지 못했습니다</strong><p>{error}</p><button onClick={onClose}>편집 문서로 돌아가기</button></div>
-        : page && <div className="hwp-sheet-space" style={{ width: page.width * zoom / 100, height: page.height * zoom / 100 }}>
-          <div className="hwp-sheet" data-testid="hwp-page" aria-label={`${index + 1}쪽`} style={{ width: page.width, height: page.height, transform: `scale(${zoom / 100})` }} dangerouslySetInnerHTML={{ __html: page.svg }} />
-        </div>}
-      {loading && <p className="hwp-loading" role="status">HWP 문서를 읽는 중…</p>}
-    </main>
+    {error ? <main className="hwp-viewport"><div className="hwp-error" role="alert"><strong>HWP 파일을 열지 못했습니다</strong><p>{error}</p><button onClick={onClose}>편집 문서로 돌아가기</button></div></main>
+      : info ? <HwpViewport info={info} zoom={zoom} navigation={navigation} paused={converting || exporting} getPage={getPage} keepPages={keepPages} onPageChange={setIndex} onLoadingChange={setLoading} />
+      : <main className="hwp-viewport" aria-busy="true"><p className="hwp-loading" role="status">HWP 문서를 읽는 중…</p></main>}
     <footer className="hwp-status" role="status">{exporting ? '출력할 쪽을 준비하고 있습니다…' : status || (info ? `${info.count}쪽 · HWP ${info.version} · 글꼴 ${info.fonts.length}종` : '원본을 읽고 있습니다.')}</footer>
   </dialog>;
 }

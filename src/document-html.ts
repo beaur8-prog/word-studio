@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 import documentLimits from '../electron/document-limits.json';
-// Base64 expansion of one supported 40 MiB raster, plus its data-URI header.
+// Base64 expansion of one supported embedded raster, plus its data-URI header.
 const MAX_IMAGE_SOURCE_LENGTH = Math.ceil(documentLimits.embeddedImageBytes / 3) * 4 + 64;
 export const RASTER_DATA =
   /^data:image\/(png|jpe?g|gif|webp|bmp);base64,([A-Za-z0-9+/=\s]+)$/i;

@@ -1,28 +1,30 @@
 import init, { HwpDocument } from '@rhwp/core';
 import wasmUrl from '@rhwp/core/rhwp_bg.wasm?url';
 import JSZip from 'jszip';
-import { editableHwp, serializeHwp } from './conversion';
+import { editableHwp, serializeHwp, hwpHtmlBytes } from './conversion';
+import documentLimits from '../../electron/document-limits.json';
 
 let document: HwpDocument | undefined;
 const ready = init({ module_or_path: fetch(wasmUrl).then(response => {
   if (!response.ok) throw new Error('HWP 읽기 모듈을 불러오지 못했습니다.');
   return response.arrayBuffer();
 }) });
-const scope = self as unknown as { onmessage: ((event: MessageEvent) => void) | null; postMessage(value: unknown): void };
+const scope = self as unknown as { onmessage: ((event: MessageEvent) => void) | null; postMessage(value: unknown, transfer?: Transferable[]): void };
 
 scope.onmessage = async ({ data }) => {
   const { id, action } = data;
   try {
     await ready;
     let result: unknown;
+    const transfer: Transferable[] = [];
     if (action === 'open') {
       const bytes = new Uint8Array(data.bytes);
-      if (!bytes.length || bytes.length > 40 * 1024 * 1024) throw new Error('40MB 이하의 HWP/HWPX 문서를 선택하세요.');
+      if (!bytes.length || bytes.length > documentLimits.documentFileBytes) throw new Error(`${documentLimits.documentFileBytes / 1024 / 1024} MiB 이하의 HWP/HWPX 문서를 선택하세요.`);
       if (data.extension === 'hwpx') {
         const zip = await JSZip.loadAsync(bytes);
         const entries = Object.values(zip.files);
         const size = entries.reduce((sum, entry) => sum + ((entry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0), 0);
-        if (entries.length > 10000 || size > 100 * 1024 * 1024) throw new Error('압축을 푼 HWPX가 100MB 또는 내부 파일 10,000개를 넘습니다.');
+        if (entries.length > 10000 || size > documentLimits.documentInflatedBytes) throw new Error(`압축을 푼 HWPX가 ${documentLimits.documentInflatedBytes / 1024 / 1024} MiB 또는 내부 파일 10,000개를 넘습니다.`);
         if (!zip.file('Contents/content.hpf') || !zip.file('Contents/header.xml')) throw new Error('유효한 HWPX 문서가 아닙니다.');
       } else if (![0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1].every((value, i) => bytes[i] === value)) {
         throw new Error('HWP 5.x 문서가 아닙니다. 구형 HWP 3.x는 한글에서 HWP 5.x 또는 HWPX로 변환하세요.');
@@ -33,20 +35,32 @@ scope.onmessage = async ({ data }) => {
       const info = JSON.parse(document.getDocumentInfo());
       const count = document.pageCount();
       if (!count || count > 1000) throw new Error('1,000쪽 이하의 문서를 선택하세요.');
-      result = { count, fonts: info.fontsUsed ?? [], version: info.version, warnings: JSON.parse(document.getValidationWarnings()).count ?? 0 };
+      const pages = Array.from({ length: count }, (_, number) => {
+        const { width, height } = JSON.parse(document!.getPageInfo(number));
+        if (![width, height].every(value => Number.isFinite(value) && value >= 50 && value <= 5000)) throw new Error('지원하지 않는 HWP 용지 크기입니다.');
+        return { width, height };
+      });
+      result = { count, pages, fonts: info.fontsUsed ?? [], version: info.version, warnings: JSON.parse(document.getValidationWarnings()).count ?? 0 };
     } else if (action === 'export') {
-      result = serializeHwp(HwpDocument, data.html, data.page, data.format);
+      if (!(data.htmlBytes instanceof ArrayBuffer) || data.htmlBytes.byteLength > documentLimits.hwpEditableHtmlBytes) throw new Error('편집용 변환 데이터의 크기가 올바르지 않습니다.');
+      const output = serializeHwp(HwpDocument, new TextDecoder().decode(data.htmlBytes), data.page, data.format);
+      result = output; transfer.push(output.bytes.buffer as ArrayBuffer);
     } else {
       if (!document) throw new Error('문서를 먼저 열어 주세요.');
-      if (action === 'page') {
+      if (action === 'page' || action === 'pageText') {
         const page = data.page;
         if (!Number.isInteger(page) || page < 0 || page >= document.pageCount()) throw new Error('쪽 번호가 올바르지 않습니다.');
-        const svg = document.renderPageSvg(page);
-        if (svg.length > 12 * 1024 * 1024) throw new Error('이 쪽의 그림·도형 데이터가 너무 큽니다.');
         const layout = JSON.parse(document.getPageTextLayout(page));
-        result = { svg, text: (layout.runs ?? []).map((run: { text: string }) => run.text).join('\n') };
+        const text = (layout.runs ?? []).map((run: { text: string }) => run.text).join('\n');
+        if (action === 'pageText') result = text;
+        else {
+          const svg = document.renderPageSvg(page);
+          if (hwpHtmlBytes(svg) > documentLimits.hwpPageSvgBytes) throw new Error(`이 쪽의 그림·도형 데이터가 ${documentLimits.hwpPageSvgBytes / 1024 / 1024} MiB를 넘습니다.`);
+          result = { svg, text };
+        }
       } else if (action === 'editable') {
-        result = editableHwp(document);
+        const editable = editableHwp(document), htmlBytes = new TextEncoder().encode(editable.html).buffer;
+        result = { page: editable.page, warnings: editable.warnings, htmlBytes }; transfer.push(htmlBytes);
       } else if (action === 'text') {
         // The upstream source-text API omits text nested in some HWP table and
         // textbox controls. Copy the same layout runs that the reader paints.
@@ -68,7 +82,7 @@ scope.onmessage = async ({ data }) => {
       }
       else throw new Error('지원하지 않는 읽기 작업입니다.');
     }
-    scope.postMessage({ id, result });
+    scope.postMessage({ id, result }, transfer);
   } catch (error) {
     const message = String(error instanceof Error ? error.message : error);
     scope.postMessage({ id, error: /password|비밀번호|암호화|encrypted/i.test(message)

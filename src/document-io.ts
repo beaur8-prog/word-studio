@@ -60,8 +60,11 @@ export interface ImportResult {
 }
 export const DOCX_EXPORT_NOTICE =
   "DOCX에는 본문 서식, 표, 그림, 구역 설정과 검토 메모를 저장합니다. 편집 상태의 백업에는 Word Studio 형식도 함께 사용하세요.";
-const MAX_FILE_BYTES = 40 * 1024 * 1024;
-const MAX_INFLATED_BYTES = 100 * 1024 * 1024;
+const MAX_FILE_BYTES = documentLimits.documentFileBytes;
+const MAX_INFLATED_BYTES = documentLimits.documentInflatedBytes;
+export function documentFileLimit(extension: string | undefined): number {
+  return extension === 'wordstudio' ? documentLimits.studioDocumentBytes : extension === 'html' || extension === 'htm' ? documentLimits.hwpEditableHtmlBytes : MAX_FILE_BYTES;
+}
 const INLINE = new Set(["text", "hardBreak", "inlineImage", "documentTab", "wordOverlap", "documentBookmark", "noteReference", "documentField", "documentSymbol"]);
 const BLOCKS = new Set([
   "paragraph",
@@ -563,7 +566,7 @@ export async function importFile(file: File): Promise<ImportResult> {
   if (!file.size) fail("비어 있는 파일입니다.");
   const extension = file.name.split(".").pop()?.toLowerCase();
   // Base64 pictures expand when a compressed HWP/DOCX becomes editable JSON.
-  const limit = extension === 'wordstudio' ? documentLimits.studioDocumentBytes : MAX_FILE_BYTES;
+  const limit = documentFileLimit(extension);
   if (file.size > limit) fail(`${extension === 'wordstudio' ? 'Word Studio 편집 파일은' : '문서는'} ${limit / 1024 / 1024} MiB 이하로 열어 주세요.`);
   if (extension === "wordstudio") {
     let parsed: unknown;
@@ -617,7 +620,7 @@ export async function importFile(file: File): Promise<ImportResult> {
     0,
   );
   if (inflatedSize > MAX_INFLATED_BYTES)
-    fail("압축을 푼 DOCX 크기가 100MB를 초과합니다.");
+    fail(`압축을 푼 DOCX 크기가 ${MAX_INFLATED_BYTES / 1024 / 1024} MiB를 초과합니다.`);
   const documentXml = zip.file("word/document.xml");
   if (!documentXml || !zip.file("[Content_Types].xml"))
     fail("유효한 DOCX 문서가 아닙니다.");

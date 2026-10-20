@@ -6,6 +6,11 @@ exceeds the former 24 MiB cap. A separate ~21 MB PNG covers individual-picture
 retention and Word Studio backups above 40 MiB. These generated files stay in
 ignored test/cache directories and are not committed.
 
+Passing `4` as the fixture generator's second argument creates 12 pictures,
+~85 MB source files and >100 MiB of editable HTML for the expanded limits.
+`tests/hwp-scroll-fixture.cjs` generates a 1,000-page text document to verify
+continuous scrolling, direct seeking and text-only search with bounded SVG paint.
+
 `reader.hwp` is a synthetic text/table document created with @rhwp/core 0.8.7. `reader.hwpx` uses the format/style shell of the upstream MIT-licensed `samples/표-텍스트.hwpx`, with all document text replaced by synthetic test strings and scripts/previews removed.
 
 Source and exact upstream revision: see the matching entry in `tests/hwp-samples.json`. Other public samples are downloaded into the ignored `analysis/hwp-validation/` directory, not distributed with the app.

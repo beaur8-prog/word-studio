@@ -10,28 +10,32 @@ async function largeDocument() {
 }
 
 async function editorImageHashes(page: Page) {
-  return page.locator('.tiptap').evaluate(async root => Promise.all([...root.querySelectorAll('img:not(.ProseMirror-separator)')].map(async image => {
-    const bytes = await (await fetch(image.getAttribute('src')!)).arrayBuffer();
-    return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(n => n.toString(16).padStart(2, '0')).join('');
-  })));
+  return page.locator('.tiptap').evaluate(async root => {
+    const result: string[] = [];
+    for (const image of root.querySelectorAll('img:not(.ProseMirror-separator)')) {
+      const bytes = await (await fetch(image.getAttribute('src')!)).arrayBuffer();
+      result.push([...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map(n => n.toString(16).padStart(2, '0')).join(''));
+    }
+    return result;
+  });
 }
 
-async function editFile(page: Page, file: string) {
+async function editFile(page: Page, file: string, timeout = 15000) {
   await page.locator('input[type=file]').first().setInputFiles(file);
   const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true });
-  await expect(reader.getByTestId('hwp-page')).toBeVisible();
+  await expect(reader.getByTestId('hwp-page')).toBeVisible({ timeout });
   await reader.getByRole('button', { name: 'Word 화면에서 편집', exact: true }).click();
   const notice = reader.getByRole('region', { name: '한글 편집 변환 안내' });
-  await expect(notice).toBeVisible();
+  await expect(notice).toBeVisible({ timeout });
   await notice.getByRole('button', { name: '편집본 만들기', exact: true }).click();
   await expect(reader).not.toBeVisible();
-  await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue(path.basename(file).replace(/\.(hwp|hwpx)$/i, ''));
+  await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue(path.basename(file).replace(/\.(hwp|hwpx)$/i, ''), { timeout });
 }
-async function prepareExport(page: Page, format: 'hwp' | 'hwpx') {
+async function prepareExport(page: Page, format: 'hwp' | 'hwpx', timeout = 60000) {
   await page.getByRole('button', { name: '파일', exact: true }).click();
   await page.locator('.backstage-nav button').filter({ hasText: format === 'hwp' ? /^한글 문서로 내보내기/ : /^한글 표준 문서로 내보내기/ }).click();
   const dialog = page.getByRole('dialog', { name: '한글 문서로 내보내기', exact: true });
-  await expect(dialog).toBeVisible({ timeout: 60000 }); return dialog;
+  await expect(dialog).toBeVisible({ timeout }); return dialog;
 }
 
 for (const format of ['hwp', 'hwpx'] as const) {
@@ -130,13 +134,44 @@ test('a 21 MB individual picture is retained and a Word Studio backup above 40 M
     const walk = (node: any) => { if (node.type === 'image' || node.type === 'inlineImage') { images++; intact &&= node.attrs.src === src; } node.content?.forEach(walk); };
     walk(reopened.document.content);
     let compressedLimit = '';
-    try { await importFile(new File([new Uint8Array(41 * 1024 * 1024)], 'too-large.docx')); }
+    try { await importFile(new File([new Uint8Array(129 * 1024 * 1024)], 'too-large.docx')); }
     catch (error) { compressedLimit = String(error); }
     return { bytes: file.size, images, intact, warnings: clean.warnings, compressedLimit };
   }, data);
   expect(result.bytes).toBeGreaterThan(40 * 1024 * 1024);
   expect(result.images).toBe(2); expect(result.intact).toBe(true); expect(result.warnings).toEqual([]);
-  expect(result.compressedLimit).toContain('40 MiB');
+  expect(result.compressedLimit).toContain('128 MiB');
+});
+
+test('a source above 40 MiB expands past 100 MiB, edits and saves without dropping pictures', async ({ page }, testInfo) => {
+  test.setTimeout(240000);
+  await fs.mkdir('.cache', { recursive: true });
+  const fixture = await createLargeHwpFixture(await fs.mkdtemp(path.resolve('.cache/hwp-expanded-regression-')), 4);
+  expect(fixture.files.hwp.bytes).toBeGreaterThan(40 * 1024 * 1024);
+  expect(fixture.htmlBytes).toBeGreaterThan(100 * 1024 * 1024);
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/'); await editFile(page, fixture.files.hwp.file, 120000);
+  const editor = page.locator('.tiptap');
+  await expect(editor.locator('img:not(.ProseMirror-separator)')).toHaveCount(12);
+  expect(await editorImageHashes(page)).toEqual(fixture.imageSHA256);
+  await editor.locator('p').first().fill('EXPANDED DOCUMENT EDITED');
+  const backupDownload = page.waitForEvent('download'); await page.keyboard.press('ControlOrMeta+s');
+  const backup = testInfo.outputPath('expanded.wordstudio'); await (await backupDownload).saveAs(backup);
+  expect((await fs.stat(backup)).size).toBeGreaterThan(100 * 1024 * 1024);
+  const dialog = await prepareExport(page, 'hwp', 120000);
+  const downloaded = page.waitForEvent('download'); await dialog.getByRole('button', { name: 'HWP 파일 저장', exact: true }).click();
+  const output = testInfo.outputPath('expanded.hwp'); await (await downloaded).saveAs(output);
+  expect((await fs.stat(output)).size).toBeGreaterThan(40 * 1024 * 1024);
+  await page.locator('input[type=file]').first().setInputFiles(output);
+  const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true });
+  await expect(reader.getByTestId('hwp-page-count')).toHaveText('/ 12');
+  await expect.poll(() => reader.getByTestId('hwp-page').textContent().then(text => text?.replace(/\s/g, ''))).toContain('EXPANDEDDOCUMENTEDITED');
+  await reader.getByLabel('HWP 쪽 번호').fill('12');
+  await expect.poll(() => reader.getByTestId('hwp-page').textContent().then(text => text?.replace(/\s/g, ''))).toContain('LARGE-IMAGE-12');
+  await page.screenshot({ path: testInfo.outputPath('expanded-reader.png') });
+  await fs.writeFile(testInfo.outputPath('expanded-result.json'), JSON.stringify({ sourceBytes: fixture.files.hwp.bytes, htmlBytes: fixture.htmlBytes,
+    backupBytes: (await fs.stat(backup)).size, outputBytes: (await fs.stat(output)).size, imageSHA256: fixture.imageSHA256, rendererErrors: errors }, null, 2));
+  expect(errors).toEqual([]);
 });
 
 test('canceling conversion keeps the current document, and recovery failure does not discard it', async ({ page }) => {

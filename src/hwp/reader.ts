@@ -1,8 +1,11 @@
 import DOMPurify from 'dompurify';
 import type { EditableHwp } from './conversion';
 import type { PageSettings } from '../types';
+import documentLimits from '../../electron/document-limits.json';
+import { checkHwpHtmlSize, hwpHtmlBytes } from './conversion';
 
-export interface HwpInfo { count: number; fonts: string[]; version: string; warnings: number }
+export interface HwpPageSize { width: number; height: number }
+export interface HwpInfo { count: number; fonts: string[]; version: string; warnings: number; pages: HwpPageSize[] }
 export interface HwpPage { svg: string; text: string; width: number; height: number }
 
 /** Only inert SVG paint from the local parser reaches the document. */
@@ -40,43 +43,81 @@ export class HwpReaderSession {
   private worker = new Worker(new URL('./reader-worker.ts', import.meta.url), { type: 'module' });
   private next = 0;
   private closed = false;
-  private pending = new Map<number, { resolve(value: unknown): void; reject(error: Error): void; timer: ReturnType<typeof setTimeout> }>();
+  private active?: number;
+  private queue: number[] = [];
+  private pending = new Map<number, { action: string; payload: object; transfer: Transferable[]; resolve(value: unknown): void; reject(error: Error): void; timer?: ReturnType<typeof setTimeout> }>();
   constructor() {
     this.worker.onmessage = ({ data }) => {
       const request = this.pending.get(data.id);
       if (!request) return;
       clearTimeout(request.timer); this.pending.delete(data.id);
+      if (this.active === data.id) this.active = undefined;
       if (data.error) request.reject(new Error(data.error)); else request.resolve(data.result);
+      this.dispatch();
     };
     this.worker.onerror = () => this.close('HWP 해석 중 오류가 발생했습니다. 다른 문서를 열어 주세요.');
+  }
+  private dispatch() {
+    if (this.closed || this.active !== undefined) return;
+    const id = this.queue.shift();
+    if (id === undefined) return;
+    const request = this.pending.get(id)!;
+    this.active = id;
+    // Start the timeout when work actually reaches the Worker. Scrolling during
+    // a long conversion must not time out a page merely waiting in the queue.
+    const timeout = ['editable', 'export'].includes(request.action) ? 180000 : request.action === 'open' ? 120000 : 45000;
+    request.timer = setTimeout(() => this.close('HWP 처리 시간이 초과됐습니다. 그림을 줄이거나 문서를 나눠 주세요.'), timeout);
+    try { this.worker.postMessage({ id, action: request.action, ...request.payload }, request.transfer); }
+    catch (error) {
+      clearTimeout(request.timer); this.pending.delete(id); this.active = undefined;
+      request.reject(error instanceof Error ? error : new Error(String(error))); this.dispatch();
+    }
   }
   private call<T>(action: string, payload: object = {}, transfer: Transferable[] = []): Promise<T> {
     if (this.closed) return Promise.reject(new Error('읽기 작업이 취소됐습니다.'));
     const id = ++this.next;
     return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(() => this.close('HWP 읽기 시간이 초과됐습니다. 더 작은 문서로 나눠 주세요.'), 45000);
-      this.pending.set(id, { resolve: value => resolve(value as T), reject, timer });
-      this.worker.postMessage({ id, action, ...payload }, transfer);
+      this.pending.set(id, { action, payload, transfer, resolve: value => resolve(value as T), reject });
+      this.queue.push(id); this.dispatch();
     });
   }
   async open(file: File): Promise<HwpInfo> {
-    if (!file.size || file.size > 40 * 1024 * 1024) throw new Error('40MB 이하의 HWP/HWPX 문서를 선택하세요.');
+    if (!file.size || file.size > documentLimits.documentFileBytes) throw new Error(`${documentLimits.documentFileBytes / 1024 / 1024} MiB 이하의 HWP/HWPX 문서를 선택하세요.`);
     const bytes = await file.arrayBuffer();
     return this.call('open', { bytes, name: file.name, extension: file.name.split('.').pop()?.toLowerCase() }, [bytes]);
   }
-  async page(index: number): Promise<HwpPage> {
-    const page = await this.call<{ svg: string; text: string }>('page', { page: index });
+  discardQueuedPages(keep: ReadonlySet<number>) {
+    this.queue = this.queue.filter(id => {
+      const request = this.pending.get(id)!, payload = request.payload as { page?: number; purpose?: string };
+      if (request.action !== 'page' || payload.purpose !== 'view' || keep.has(payload.page!)) return true;
+      this.pending.delete(id); request.reject(new Error('쪽 읽기 작업이 취소됐습니다.')); return false;
+    });
+  }
+  protectQueuedPage(index: number) {
+    for (const id of this.queue) {
+      const request = this.pending.get(id)!, payload = request.payload as { page?: number; purpose?: string };
+      if (request.action === 'page' && payload.page === index) payload.purpose = 'print';
+    }
+  }
+  async page(index: number, purpose: 'view' | 'print' = 'view'): Promise<HwpPage> {
+    const page = await this.call<{ svg: string; text: string }>('page', { page: index, purpose });
     return { ...page, ...safeHwpSvg(page.svg) };
   }
   text(): Promise<string> { return this.call('text'); }
-  editable(): Promise<EditableHwp> { return this.call('editable'); }
+  pageText(index: number): Promise<string> { return this.call('pageText', { page: index }); }
+  async editable(): Promise<EditableHwp> {
+    const result = await this.call<Omit<EditableHwp, 'html'> & { htmlBytes: ArrayBuffer }>('editable');
+    return { page: result.page, warnings: result.warnings, html: new TextDecoder().decode(result.htmlBytes) };
+  }
   export(html: string, page: PageSettings, format: 'hwp' | 'hwpx'): Promise<{ bytes: Uint8Array; pages: number; warnings: string[] }> {
-    return this.call('export', { html, page, format });
+    checkHwpHtmlSize(hwpHtmlBytes(html));
+    const htmlBytes = new TextEncoder().encode(html).buffer;
+    return this.call('export', { htmlBytes, page, format }, [htmlBytes]);
   }
   close(message = '읽기 작업이 취소됐습니다.') {
     if (this.closed) return;
     this.closed = true; this.worker.terminate();
     for (const request of this.pending.values()) { clearTimeout(request.timer); request.reject(new Error(message)); }
-    this.pending.clear();
+    this.pending.clear(); this.queue = []; this.active = undefined;
   }
 }

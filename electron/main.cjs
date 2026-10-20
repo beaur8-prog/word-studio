@@ -13,7 +13,7 @@ const DEV_URL = 'http://127.0.0.1:5191';
 const IS_DEV = !app.isPackaged && process.env.WORD_STUDIO_DEV === '1';
 const DIST_PATH = path.resolve(__dirname, '..', 'dist');
 const INDEX_PATH = path.join(DIST_PATH, 'index.html');
-const MAX_FILE_BYTES = 256 * 1024 * 1024;
+const MAX_FILE_BYTES = require('./document-limits.json').nativeFileBytes;
 const SAVE_EXTENSIONS = new Set(['wordstudio', 'docx', 'html', 'txt', 'hwp', 'hwpx']);
 const OPEN_EXTENSIONS = new Set([...SAVE_EXTENSIONS, 'htm', 'hwp', 'hwpx']);
 const FORMAT_NAMES = { wordstudio: 'Word Studio Document', docx: 'Word Document', html: 'HTML Document', txt: 'Text Document', hwp: 'Hangul HWP Document', hwpx: 'Hangul HWPX Document' };
@@ -60,7 +60,7 @@ function decodeFilePayload(payload) {
   if (!payload || typeof payload !== 'object' || typeof payload.name !== 'string' ||
       !SAVE_EXTENSIONS.has(payload.extension)) throw new TypeError('Choose a supported document format.');
   if (!(payload.data instanceof Uint8Array) || payload.data.byteLength > MAX_FILE_BYTES) {
-    throw new TypeError('Choose a document no larger than 256 MiB.');
+    throw new TypeError(`Choose a document no larger than ${MAX_FILE_BYTES / 1024 / 1024} MiB.`);
   }
   return { name: safeFilename(payload.name, payload.extension), extension: payload.extension,
     data: Buffer.from(payload.data.buffer, payload.data.byteOffset, payload.data.byteLength) };
@@ -230,9 +230,9 @@ function installIPC() {
     const handle = await fs.open(filename, 'r');
     try {
       const stat = await handle.stat();
-      if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error('Choose a document no larger than 256 MiB.');
+      if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error(`Choose a document no larger than ${MAX_FILE_BYTES / 1024 / 1024} MiB.`);
       const buffer = await handle.readFile();
-      if (buffer.length > MAX_FILE_BYTES) throw new Error('Choose a document no larger than 256 MiB.');
+      if (buffer.length > MAX_FILE_BYTES) throw new Error(`Choose a document no larger than ${MAX_FILE_BYTES / 1024 / 1024} MiB.`);
       return { name: path.basename(filename), data: new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) };
     } finally { await handle.close(); }
   }));

@@ -81,6 +81,7 @@ import {
   validateDocument,
   sanitizeImportedHtml,
   DOCX_EXPORT_NOTICE,
+  documentFileLimit,
 } from "./document-io";
 
 const sample = `<p style="color:#526d92;font-size:10pt">STUDIO / WORKING DOCUMENT</p><h1>아이디어를 기록하고,<br>다음 단계를 만드세요.</h1><p>생각의 시작부터 완성된 문서까지. Word Studio에서 글을 쓰고, 내용을 정리하고, 나만의 문서를 만들어 보세요.</p><h2>01. 문서 작성 시작하기</h2><p>이 문장은 자유롭게 수정할 수 있습니다. 텍스트를 선택한 다음 <strong>홈</strong> 탭에서 글꼴과 크기, 색상을 바꿔 보세요. 제목 스타일을 적용하면 왼쪽 탐색 창에 문서의 구조가 표시됩니다.</p><h2>02. 한눈에 보는 작업 계획</h2><table><tr><th><p>단계</p></th><th><p>주요 작업</p></th><th><p>상태</p></th></tr><tr><td><p>기획</p></td><td><p>핵심 아이디어와 목표 정리</p></td><td><p>진행 중</p></td></tr><tr><td><p>작성</p></td><td><p>자료 수집과 초안 작성</p></td><td><p>예정</p></td></tr><tr><td><p>검토</p></td><td><p>내용 검토와 최종 문서 공유</p></td><td><p>예정</p></td></tr></table><h2>03. 작은 체크리스트</h2><ul><li><p>읽는 사람을 떠올리며 목적을 분명하게 씁니다.</p></li><li><p>표와 이미지를 추가해 내용을 더 쉽게 전달합니다.</p></li><li><p>완성된 문서는 DOCX 또는 PDF로 내보냅니다.</p></li></ul><p><em>좋은 문서는 작은 메모에서 시작됩니다.</em></p>`;
@@ -617,6 +618,8 @@ export default function App() {
                   ],
                   { type: "text/html;charset=utf-8" },
                 );
+      const limit = documentFileLimit(extension);
+      if (blob.size > limit) throw new Error(`${extension.toUpperCase()} 파일이 ${limit / 1024 / 1024} MiB를 넘습니다. 그림을 줄이거나 문서를 나눠 주세요.`);
       const name = `${title.replace(/[<>:"/\\|?*]/g, "-") || "문서"}.${extension}`;
       if (window.wordDesktop) {
         if (

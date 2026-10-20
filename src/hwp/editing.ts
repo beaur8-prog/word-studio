@@ -3,7 +3,7 @@ import { editorExtensions, parseDocumentHtml } from '../extensions';
 import { sanitizeImportedHtml } from '../document-html';
 import type { StudioDocument } from '../types';
 import { HwpReaderSession } from './reader';
-import type { EditableHwp } from './conversion';
+import { checkHwpHtmlSize, hwpHtmlBytes, type EditableHwp } from './conversion';
 import { createPrintLayout } from '../print-layout';
 import { pageMargins } from '../types';
 
@@ -46,6 +46,7 @@ function renderedBody(root: HTMLElement, doc: StudioDocument): string {
 }
 
 export function importEditableHwp(source: EditableHwp, name: string): StudioDocument {
+  checkHwpHtmlSize(hwpHtmlBytes(source.html));
   const clean = sanitizeImportedHtml(source.html);
   const root = document.createElement('div'); root.innerHTML = clean.html;
   // Engine HTML is pretty-printed. Its indentation/newlines between P/SPAN
@@ -72,7 +73,9 @@ export async function previewEditableHwp(source: EditableHwp, name: string): Pro
  * These warnings precede the save dialog, including when the writer reports no loss. */
 export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hwpx') {
   const root = document.createElement('div');
-  root.innerHTML = sanitizeImportedHtml(generateHTML(doc.content, editorExtensions)).html;
+  const source = generateHTML(doc.content, editorExtensions);
+  checkHwpHtmlSize(hwpHtmlBytes(source));
+  root.innerHTML = sanitizeImportedHtml(source).html;
   const warnings: string[] = [];
   const warn = (selector: string, message: string) => { if (root.querySelector(selector)) warnings.push(message); };
   warn('[data-section-page], [data-section-content], [data-column-count]', '구역별 용지·다단 설정은 첫 용지 설정으로 통합합니다.');
@@ -84,7 +87,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   warn('h1,h2,h3,h4,h5,h6', '제목은 글자·문단 서식으로 저장합니다. Word 제목 수준은 유지되지 않습니다.');
   if (doc.comments.length) warnings.push(`검토 메모 ${doc.comments.length}개는 한글 파일에 저장되지 않습니다. Word Studio 백업을 함께 보관하세요.`);
   if (doc.page.differentFirstPage || doc.page.differentOddEven || doc.page.headerHtml || doc.page.footerHtml || doc.page.pageNumbers) warnings.push('머리말·꼬리말은 기본 텍스트만 저장하며 자동 쪽 번호와 첫 쪽·홀짝 구분은 유지되지 않습니다.');
-  const layout = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+  const layout = await createPrintLayout(source, doc.page);
   let html: string;
   const wordPages = layout.pages;
   try {

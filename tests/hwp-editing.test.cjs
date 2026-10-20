@@ -91,9 +91,10 @@ test('single-paragraph style survives repeated saves without accumulating sentin
 });
 
 test('conversion refuses oversized input and invalid format', async () => {
-  const { HwpDocument, serializeHwp, HWP_HTML_LIMIT } = await setup;
-  assert.throws(() => serializeHwp(HwpDocument, 'x'.repeat(HWP_HTML_LIMIT + 1), paper, 'hwp'), /변환 데이터.*100 MiB.*원본 파일 크기가 아니라/);
-  // Korean text uses three UTF-8 bytes even though String.length counts one.
-  assert.throws(() => serializeHwp(HwpDocument, '가'.repeat(Math.floor(HWP_HTML_LIMIT / 3) + 1), paper, 'hwpx'), /변환 데이터.*100 MiB/);
+  const { HwpDocument, serializeHwp, HWP_HTML_LIMIT, checkHwpHtmlSize, hwpHtmlBytes } = await setup;
+  assert.doesNotThrow(() => checkHwpHtmlSize(HWP_HTML_LIMIT));
+  assert.throws(() => checkHwpHtmlSize(HWP_HTML_LIMIT + 1), /변환 데이터.*256 MiB.*원본 파일 크기가 아니라/);
+  for (const value of ['ASCII', '한글 문서 😀', '\ud800', '\udc00', 'a😀b가']) assert.equal(hwpHtmlBytes(value), Buffer.byteLength(value));
+  assert.throws(() => serializeHwp(HwpDocument, '가'.repeat(Math.floor(HWP_HTML_LIMIT / 3) + 1), paper, 'hwpx'), /변환 데이터.*256 MiB/);
   assert.throws(() => serializeHwp(HwpDocument, '<p>x</p>', paper, 'exe'), /형식/);
 });

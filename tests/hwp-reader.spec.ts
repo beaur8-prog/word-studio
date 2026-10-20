@@ -1,5 +1,89 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import path from 'node:path';
+import fs from 'node:fs/promises';
+import { createRequire } from 'node:module';
+const { createHwpScrollFixture } = createRequire(import.meta.url)('./hwp-scroll-fixture.cjs');
+async function currentPageText(page: Page) { return page.getByTestId('hwp-page').textContent().then(text => text?.replace(/\s/g, '')); }
+
+test('wheel, trackpad direction, keyboard and page controls share one continuous HWP scroll position', async ({ page }, testInfo) => {
+  const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await page.locator('input[type=file]').first().setInputFiles(path.resolve('tests/fixtures/hwp/landscape-pagination.hwp'));
+  const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true }), viewport = reader.getByRole('main', { name: 'HWP 문서 스크롤' });
+  await expect(reader.getByTestId('hwp-page')).toHaveAttribute('aria-label', '1쪽');
+  await viewport.hover(); await page.mouse.wheel(0, 650);
+  await expect(reader.getByLabel('HWP 쪽 번호')).toHaveValue('2');
+  await expect.poll(() => viewport.evaluate(element => element.scrollTop)).toBeGreaterThan(500);
+  await expect(reader.getByTestId('hwp-page')).toHaveAttribute('aria-label', '2쪽');
+  const before = await viewport.evaluate(element => element.scrollTop);
+  await page.mouse.wheel(0, 80);
+  await expect.poll(() => viewport.evaluate(element => element.scrollTop)).toBeGreaterThan(before + 50);
+  await page.mouse.wheel(0, -1500);
+  await expect(reader.getByLabel('HWP 쪽 번호')).toHaveValue('1');
+  await viewport.press('End');
+  await expect(reader.getByTestId('hwp-page')).toHaveAttribute('aria-label', '4쪽');
+  await expect.poll(() => currentPageText(page)).toContain('ROW-24-COLUMN-2');
+  await viewport.press('Home'); await expect(reader.getByLabel('HWP 쪽 번호')).toHaveValue('1');
+  await viewport.press('PageDown'); await expect(reader.getByLabel('HWP 쪽 번호')).toHaveValue('2');
+  await viewport.press('PageUp'); await expect(reader.getByLabel('HWP 쪽 번호')).toHaveValue('1');
+  await reader.getByLabel('HWP 쪽 번호').fill('3');
+  await expect(reader.getByTestId('hwp-page')).toHaveAttribute('aria-label', '3쪽');
+  await reader.getByLabel('HWP 확대').selectOption('200');
+  await expect(reader.getByLabel('HWP 쪽 번호')).toHaveValue('3');
+  await viewport.hover(); await page.mouse.wheel(500, 0);
+  await expect.poll(() => viewport.evaluate(element => element.scrollLeft)).toBeGreaterThan(100);
+  await reader.getByLabel('HWP 확대').selectOption('85');
+  await reader.getByLabel('HWP 문서에서 찾기').fill('ROW-24-COLUMN-2'); await reader.getByRole('button', { name: '다음 찾기' }).click();
+  await expect(reader.getByTestId('hwp-page')).toHaveAttribute('aria-label', '4쪽');
+  await page.screenshot({ path: testInfo.outputPath('continuous-scroll.png') });
+  expect(await reader.locator('.hwp-sheet svg').count()).toBeLessThanOrEqual(5);
+  expect(errors).toEqual([]);
+});
+
+test('a 1000-page document can seek, scroll and search while only nearby pages are mounted', async ({ page }, testInfo) => {
+  test.setTimeout(120000);
+  await fs.mkdir('.cache', { recursive: true });
+  const directory = await fs.mkdtemp(path.resolve('.cache/hwp-scroll-regression-'));
+  const file = await createHwpScrollFixture(directory);
+  await page.goto('/'); await page.locator('input[type=file]').first().setInputFiles(file);
+  const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true }), viewport = reader.getByRole('main', { name: 'HWP 문서 스크롤' });
+  await expect(reader.getByTestId('hwp-page-count')).toHaveText('/ 1000');
+  await expect.poll(() => currentPageText(page)).toContain('SCROLL-PAGE-0001');
+  await reader.getByLabel('HWP 쪽 번호').fill('500');
+  await expect.poll(() => currentPageText(page)).toContain('SCROLL-PAGE-0500');
+  expect(await reader.locator('.hwp-sheet svg').count()).toBeLessThanOrEqual(5);
+  await viewport.hover(); await page.mouse.wheel(0, 1000);
+  await expect(reader.getByLabel('HWP 쪽 번호')).toHaveValue('501');
+  await viewport.press('End'); await expect.poll(() => currentPageText(page)).toContain('SCROLL-PAGE-1000');
+  await reader.getByLabel('HWP 문서에서 찾기').fill('SCROLL-PAGE-0999'); await reader.getByRole('button', { name: '다음 찾기' }).click();
+  await expect.poll(() => currentPageText(page), { timeout: 60000 }).toContain('SCROLL-PAGE-0999');
+  expect(await reader.locator('.hwp-sheet svg').count()).toBeLessThanOrEqual(5);
+  await page.screenshot({ path: testInfo.outputPath('1000-page-scroll.png') });
+});
+
+test('queued reader requests dispatch in order and closing rejects waiting work', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { HwpReaderSession } = await import('/src/hwp/reader.ts');
+    const original = window.Worker; let controlled: any;
+    class ControlledWorker {
+      onmessage: any; onerror: any; messages: any[] = []; terminated = false;
+      constructor() { controlled = this; }
+      postMessage(value: any) { this.messages.push(value); }
+      terminate() { this.terminated = true; }
+    }
+    window.Worker = ControlledWorker as any;
+    try {
+      const reader = new HwpReaderSession(), first = reader.pageText(0), obsolete = reader.page(1).catch(error => error.message), second = reader.page(2).catch(error => error.message);
+      reader.protectQueuedPage(2); reader.discardQueuedPages(new Set([0]));
+      const before = controlled.messages.length;
+      controlled.onmessage({ data: { id: controlled.messages[0].id, result: 'first page' } });
+      const firstText = await first, after = controlled.messages.length;
+      reader.close(); return { before, after, firstText, obsolete: await obsolete, protectedPage: controlled.messages[1].page, second: await second, terminated: controlled.terminated };
+    } finally { window.Worker = original; }
+  });
+  expect(result).toEqual({ before: 1, after: 2, firstText: 'first page', obsolete: '쪽 읽기 작업이 취소됐습니다.', protectedPage: 2, second: '읽기 작업이 취소됐습니다.', terminated: true });
+});
 
 test('OPF-relative HWPX sections open, find text and preserve the current Word document', async ({ page }) => {
   const errors: string[] = [];

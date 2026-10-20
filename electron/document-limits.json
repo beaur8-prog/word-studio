@@ -1,5 +1,11 @@
 {
-  "hwpEditableHtmlBytes": 104857600,
-  "embeddedImageBytes": 41943040,
-  "studioDocumentBytes": 134217728
+  "documentFileBytes": 134217728,
+  "documentInflatedBytes": 536870912,
+  "hwpEditableHtmlBytes": 268435456,
+  "embeddedImageBytes": 134217728,
+  "studioDocumentBytes": 402653184,
+  "nativeFileBytes": 536870912,
+  "hwpPageSvgBytes": 201326592,
+  "hwpPageCacheBytes": 67108864,
+  "hwpPrintHtmlBytes": 268435456
 }

@@ -45,6 +45,15 @@ async function main() {
       if (source.includes('landscape-pagination')) assert.equal(count, 4);
       if (source.includes('manifest-relative')) assert.equal(count, 1);
       if (source.includes('02-work-rules')) assert.equal(count, 163);
+      if (count > 1) {
+        const viewport = reader.getByRole('main', { name: 'HWP 문서 스크롤' });
+        await viewport.hover(); await page.mouse.wheel(0, 700);
+        await expect.poll(() => reader.getByLabel('HWP 쪽 번호').inputValue().then(Number)).toBeGreaterThan(1);
+        await viewport.press('End'); await expect(reader.getByTestId('hwp-page')).toHaveAttribute('aria-label', `${count}쪽`);
+        assert.ok(await reader.locator('.hwp-sheet svg').count() <= 5, 'Only nearby pages should be mounted');
+        await page.screenshot({ path: path.join(directory, 'scrolled-' + i + '.png') });
+        await viewport.press('Home'); await expect(reader.getByTestId('hwp-page')).toHaveAttribute('aria-label', '1쪽');
+      }
       await page.evaluate(() => document.fonts.ready);
       await reader.getByTestId('hwp-page').screenshot({ path: path.join(directory, 'document-' + i + '.png') });
       await reader.getByRole('button', { name: '텍스트 복사', exact: true }).click();
