@@ -91,6 +91,7 @@ module.exports = async function layoutDesktopSmoke(app, window, directory) {
     );
     await window.keyboard.press("ControlOrMeta+o");
     await expect(window.locator(".document-stack .tiptap")).toHaveText(scenario.text);
+    await window.evaluate(async () => { await document.fonts.ready; });
     await expect(window.getByText("이 PC에 저장됨", { exact: true })).toBeVisible();
     if (scenario.name === "columns") {
       await expect
@@ -107,10 +108,13 @@ module.exports = async function layoutDesktopSmoke(app, window, directory) {
       await expect
         .poll(() => window.locator(".document-stack [data-flow-widget]").count())
         .toBeGreaterThan(0);
-    const editorPages = Number(await window.locator(".document-stack").getAttribute("data-pages"));
     await window.screenshot({
       path: path.join(directory, `${scenario.name}-editor.png`),
     });
+    // Screenshot stabilization can complete a pending pagination update. Read
+    // the count represented by that frame, not the transient count before it
+    // (CI previously captured 5 while the saved screenshot already showed 4).
+    const editorPages = Number(await window.locator(".document-stack").getAttribute("data-pages"));
     await window.getByRole("button", { name: "보기", exact: true }).click();
     await window.getByRole("button", { name: "인쇄 미리보기", exact: true }).click();
     await expect(window.locator(".print-page").first()).toBeVisible();
