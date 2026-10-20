@@ -66,6 +66,7 @@ import {
 } from "lucide-react";
 import { editorExtensions, parseDocumentHtml } from "./extensions";
 import { TableContextMenu } from './TableContextMenu';
+import { HwpReader } from './hwp/HwpReader';
 import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
 import { defaultPage, pageMargins, pageFurniture } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
@@ -350,6 +351,7 @@ export default function App() {
     [tableRows, setTableRows] = useState(3),
     [tableCols, setTableCols] = useState(3);
   const [printPreview, setPrintPreview] = useState<PrintLayout | null>(null);
+  const [hwpFile, setHwpFile] = useState<File | null>(null);
   const [failedTransition, setFailedTransition] = useState<StudioDocument | null>(null);
   const transitioning = useRef(false);
   const outputLayout = useRef<PrintLayout | null>(null);
@@ -537,10 +539,18 @@ export default function App() {
     }
   };
   const readFile = async (file: File) => {
+    if (/\.(hwp|hwpx)$/i.test(file.name)) {
+      closePreview();
+      setFileMenu(false); setModal(null); setCommand(false);
+      setHwpFile(file);
+      return;
+    }
+    setHwpFile(null);
     setBusy(true);
     try {
       const result = await importFile(file);
       const loaded = await loadDoc(result.document, result.html);
+      if (loaded) setHwpFile(null);
       if (loaded && result.warnings.length) notify(result.warnings.join(" "));
     } catch (e) {
       notify(
@@ -684,6 +694,7 @@ export default function App() {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return;
+      if (document.querySelector('.hwp-reader[open]')) return;
       if (document.querySelector('.save-failure-dialog[open]')) return;
       if (e.key === "Escape") {
         setModal(null);
@@ -712,6 +723,7 @@ export default function App() {
     };
     window.addEventListener("keydown", key);
     const off = window.wordDesktop?.onMenu((a) => {
+      if (document.querySelector('.hwp-reader[open]')) return;
       if (document.querySelector('.save-failure-dialog[open]')) return;
       const map: Record<string, string> = {
         new: "새 문서",
@@ -2192,7 +2204,7 @@ export default function App() {
         ref={fileInput}
         type="file"
         hidden
-        accept=".wordstudio,.docx,.html,.htm,.txt"
+        accept=".wordstudio,.docx,.hwp,.hwpx,.html,.htm,.txt"
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) void readFile(f);
@@ -2262,7 +2274,7 @@ export default function App() {
                 <button onClick={open}>
                   <FolderOpen size={34} />
                   <strong>파일 열기</strong>
-                  <span>DOCX · Word Studio · HTML · TXT</span>
+                  <span>DOCX · HWP/HWPX 읽기 · Word Studio · HTML · TXT</span>
                 </button>
               </div>
               <h3>최근 작업한 문서</h3>
@@ -2619,6 +2631,7 @@ export default function App() {
           activateDocument(failedTransition);
           return true;
         }} />}
+      {hwpFile && <HwpReader key={`${hwpFile.name}-${hwpFile.lastModified}`} file={hwpFile} onClose={() => setHwpFile(null)} onOpen={() => void open()} />}
       {toast && (
         <div className="toast" role="status">
           <CheckCircle2 size={17} />

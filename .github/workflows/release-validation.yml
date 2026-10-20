@@ -46,6 +46,9 @@ jobs:
           include-hidden-files: true
           path: |
             .cache/linux-package-test.json
+            .cache/hwp-native-*/result.json
+            .cache/hwp-native-*/*.png
+            .cache/hwp-native-*/*.pdf
             .cache/desktop-smoke-*/result.json
             .cache/desktop-smoke-*/*.png
             .cache/desktop-smoke-*/*.pdf
@@ -77,6 +80,9 @@ jobs:
           include-hidden-files: true
           path: |
             .cache/linux-package-test.json
+            .cache/hwp-native-*/result.json
+            .cache/hwp-native-*/*.png
+            .cache/hwp-native-*/*.pdf
             .cache/desktop-smoke-*/result.json
             .cache/desktop-smoke-*/*.png
             .cache/desktop-smoke-*/*.pdf
@@ -112,6 +118,9 @@ jobs:
           path: |
             .cache/desktop-smoke-*/result.json
             .cache/installer-test.json
+            .cache/hwp-native-*/result.json
+            .cache/hwp-native-*/*.png
+            .cache/hwp-native-*/*.pdf
             .cache/desktop-smoke-*/*.png
             .cache/desktop-smoke-*/*.pdf
             test-results/

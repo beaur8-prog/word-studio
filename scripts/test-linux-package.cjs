@@ -55,6 +55,10 @@ async function test() {
       env: { ...process.env, WORD_STUDIO_EXECUTABLE: binary },
     });
     report.installedApplication = true;
+    run(process.execPath, [path.join(root, 'scripts/hwp-desktop-smoke.cjs')], {
+      env: { ...process.env, WORD_STUDIO_EXECUTABLE: binary },
+    });
+    report.hwpReader = true;
     run('sudo', ['apt-get', 'install', '--reinstall', '-y', deb]);
     await installed(); await preserved(); report.reinstall = true;
     run('sudo', ['apt-get', 'remove', '-y', 'word-studio']);

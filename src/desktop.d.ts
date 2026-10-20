@@ -3,6 +3,7 @@ declare global {
   interface Window {
     wordDesktop?: {
       paste?: () => Promise<void>;
+      copyText?: (text: string) => Promise<void>;
       platform: string;
       outlineFonts?: () => Promise<{ families: string[]; data: Uint8Array }[]>;
       readRecovery(): Promise<{ current: string; previous?: string; savedAt: string }[]>;

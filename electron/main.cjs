@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, dialog, ipcMain, Menu, session } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, session } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
@@ -15,7 +15,7 @@ const DIST_PATH = path.resolve(__dirname, '..', 'dist');
 const INDEX_PATH = path.join(DIST_PATH, 'index.html');
 const MAX_FILE_BYTES = 256 * 1024 * 1024;
 const SAVE_EXTENSIONS = new Set(['wordstudio', 'docx', 'html', 'txt']);
-const OPEN_EXTENSIONS = new Set([...SAVE_EXTENSIONS, 'htm']);
+const OPEN_EXTENSIONS = new Set([...SAVE_EXTENSIONS, 'htm', 'hwp', 'hwpx']);
 const FORMAT_NAMES = { wordstudio: 'Word Studio Document', docx: 'Word Document', html: 'HTML Document', txt: 'Text Document' };
 const CHROME_THEMES = {
   dark: { color: '#151515', symbolColor: '#f2f2f2', height: 40 },
@@ -175,6 +175,11 @@ function installMenu() {
 
 function installIPC() {
   const recovery = createRecoveryStore(path.join(app.getPath('userData'), 'recovery'));
+  ipcMain.handle('word-studio:copy-text', (event, text) => {
+    requireTrustedSender(event);
+    if (typeof text !== 'string' || Buffer.byteLength(text, 'utf8') > 4 * 1024 * 1024) throw new TypeError('Copy text no larger than 4 MiB.');
+    clipboard.writeText(text);
+  });
   ipcMain.handle('word-studio:paste', event => {
     requireTrustedSender(event);
     // Chromium delivers a normal paste event, including table HTML, through
@@ -213,6 +218,7 @@ function installIPC() {
       filters: [{ name: 'Documents', extensions: [...OPEN_EXTENSIONS] },
         { name: 'Word Studio Document', extensions: ['wordstudio'] },
         { name: 'Word Document', extensions: ['docx'] },
+        { name: 'Hangul Document (read only)', extensions: ['hwp', 'hwpx'] },
         { name: 'HTML and Text', extensions: ['html', 'htm', 'txt'] }],
       properties: ['openFile'],
     });
@@ -275,9 +281,10 @@ function hardenSession() {
   editorSession.webRequest.onHeadersReceived((details, callback) => {
     if (!isTrustedURL(details.url)) return callback({ responseHeaders: details.responseHeaders });
     const policy = [
-      "default-src 'self'", `script-src 'self'${IS_DEV ? " 'unsafe-inline'" : ''}`,
+      "default-src 'self'", `script-src 'self' 'wasm-unsafe-eval'${IS_DEV ? " 'unsafe-inline'" : ''}`,
       "style-src 'self' 'unsafe-inline'", "img-src 'self' data: blob:", "font-src 'self' data:",
-      `connect-src ${IS_DEV ? 'http://127.0.0.1:5191 ws://127.0.0.1:5191' : "'none'"}`,
+      `connect-src 'self' ${IS_DEV ? 'http://127.0.0.1:5191 ws://127.0.0.1:5191' : ''}`,
+      "worker-src 'self' blob:",
       "object-src 'none'", "frame-src 'none'", "base-uri 'none'", "form-action 'none'",
     ].join('; ');
     callback({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [policy] } });

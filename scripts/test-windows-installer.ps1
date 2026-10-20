@@ -66,6 +66,9 @@ try {
   & node (Join-Path $root 'scripts/desktop-smoke.cjs')
   if ($LASTEXITCODE -ne 0) { throw 'Installed Windows application smoke test failed.' }
   $report.installedApplication = $true
+  & node (Join-Path $root 'scripts/hwp-desktop-smoke.cjs')
+  if ($LASTEXITCODE -ne 0) { throw 'Installed Windows HWP reader test failed.' }
+  $report.hwpReader = $true
 
   Run-Installer $setup @('/S', '/currentuser')
   Assert-Installed
