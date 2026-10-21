@@ -84,6 +84,42 @@ test('HWP and standard OPF-relative HWPX import all table cells rather than only
   }
 });
 
+for (const fixture of [
+  { name: 'regular', heights: [32, 32, 32, 32] },
+  { name: 'merged', heights: [32, 32, 32, 32], merged: true },
+  { name: 'unequal', heights: [24, 40, 28, 36] },
+]) {
+  test(`Hancom ${fixture.name} rows survive a 72pt outer table with 128pt of cells`, async () => {
+    const { HwpDocument, serializeHwp, editableHwp } = await setup;
+    const cell = (row, column, span = 1) => `<td rowspan="${span}" style="width:180px;height:${fixture.heights.slice(row, row + span).reduce((a, b) => a + b, 0) * 4 / 3}px"><p>표 ${row + 1}-${column + 1}</p></td>`;
+    const html = '<table>' + fixture.heights.map((_, row) => `<tr>${fixture.merged && row === 1 ? '' : cell(row, 0, fixture.merged && row === 0 ? 2 : 1)}${cell(row, 1)}</tr>`).join('') + '</table>';
+    const output = serializeHwp(HwpDocument, html, paper, 'hwpx');
+    const zip = await JSZip.loadAsync(output.bytes);
+    const xml = await zip.file('Contents/section0.xml').async('string');
+    // 100 HWPUNIT/pt. Alter only the outer size, preserving every cell size.
+    const short = xml.replace(/(<hp:tbl\b[^>]*><hp:sz\b[^>]*\bheight=")\d+("[\s\S]*?\/?>)/, (_, before, after) => before + '7200' + after);
+    assert.notEqual(short, xml);
+    zip.file('Contents/section0.xml', short);
+    const source = new HwpDocument(await zip.generateAsync({ type: 'uint8array' }));
+    try {
+      const control = JSON.parse(source.getControls()).find(c => c.ctrlId === 'tbl');
+      assert.equal(control.props.Height, 7200);
+      for (const format of ['hwpx', 'hwp']) {
+        const doc = format === 'hwpx' ? source : new HwpDocument(source.exportHwp());
+        try {
+          const converted = editableHwp(doc);
+          const heights = [...converted.html.matchAll(/<tr style="height:([\d.]+)px;/g)].map(match => Number(match[1]));
+          assert.equal(heights.length, 4, format);
+          heights.forEach((height, row) => assert.ok(Math.abs(height - fixture.heights[row] * 4 / 3) < .02, `${format} row ${row}: ${height}`));
+          assert.ok(heights.reduce((a, b) => a + b, 0) >= 128 * 4 / 3 - .02);
+          assert.match(converted.html, /표 4-2/);
+          if (fixture.merged) assert.match(converted.html, /rowspan="2"/);
+        } finally { if (doc !== source) doc.free(); }
+      }
+    } finally { source.free(); }
+  });
+}
+
 test('unsupported equations remain visible as text and are reported before conversion', async () => {
   const { HwpDocument, editableHwp } = await setup;
   const doc = HwpDocument.createEmpty();
