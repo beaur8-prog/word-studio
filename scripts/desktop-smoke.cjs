@@ -44,15 +44,21 @@ async function run() {
     await expect(window.getByText('DOCX 파일을 저장했습니다', { exact: true })).toBeVisible();
     const docxOptions = await app.evaluate(() => globalThis.formatSaveOptions);
     assert.equal(docxOptions.title, 'Word 문서 (.docx) 저장');
+    assert.equal(path.dirname(docxOptions.defaultPath), await app.evaluate(({ app }) => app.getPath('documents')));
     assert.deepEqual(docxOptions.filters, [{ name: 'Word 문서 (.docx)', extensions: ['docx'] }]);
     assert.equal((await fs.readFile(docxCopy)).subarray(0, 2).toString(), 'PK');
-    await app.evaluate(({ dialog }, filename) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filename] }); }, docxCopy);
+    await app.evaluate(({ dialog }, filename) => { dialog.showOpenDialog = async (_window, options) => {
+      globalThis.fileOpenOptions = options;
+      return { canceled: false, filePaths: [filename] };
+    }; }, docxCopy);
     await window.keyboard.press('ControlOrMeta+o');
     await expect(window.getByRole('textbox', { name: '문서 제목' })).toHaveValue('word-compatible');
+    assert.equal(await app.evaluate(() => globalThis.fileOpenOptions.defaultPath), directory);
     await expect(window.locator('.tiptap')).toHaveText('FORMAT SAVE ROUNDTRIP 형식 저장 확인');
     await window.keyboard.press('ControlOrMeta+s');
     await expect(window.getByText('편집본 (.wordstudio)을 저장했습니다', { exact: true })).toBeVisible();
     const editingOptions = await app.evaluate(() => globalThis.formatSaveOptions);
+    assert.equal(editingOptions.defaultPath, path.join(directory, 'word-compatible.wordstudio'));
     assert.deepEqual(editingOptions.filters, [{ name: '편집본 (.wordstudio)', extensions: ['wordstudio'] }]);
     assert.ok(JSON.stringify(JSON.parse(await fs.readFile(editingCopy, 'utf8')).content).includes('FORMAT SAVE ROUNDTRIP'));
     const fixture = path.join(directory, 'long-document.html');
@@ -62,7 +68,10 @@ async function run() {
     await fs.writeFile(fixture, `<p>${paragraph}</p><table><tr><th><p>번호</p></th><th><p>내용</p></th></tr>${rows}</table>`);
     await app.evaluate(({ dialog }, paths) => {
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [paths.fixture] });
-      dialog.showSaveDialog = async () => ({ canceled: false, filePath: paths.pdf });
+      dialog.showSaveDialog = async (_window, options) => {
+        globalThis.pdfSaveOptions = options;
+        return { canceled: false, filePath: paths.pdf };
+      };
     }, { fixture, pdf });
     await window.locator('.tiptap').waitFor();
     await window.keyboard.press('ControlOrMeta+o');
@@ -107,6 +116,7 @@ async function run() {
     const previewPages = await window.locator('.print-page').count();
     await window.screenshot({ path: path.join(directory, 'preview.png') });
     await expect(window.getByText('PDF를 저장했습니다', { exact: true })).toBeVisible();
+    assert.equal(await app.evaluate(() => globalThis.pdfSaveOptions.defaultPath), path.join(directory, 'long-document.pdf'));
     const data = await fs.readFile(pdf);
     assert.equal(data.subarray(0, 4).toString(), '%PDF');
     const pdfPages = (data.toString('latin1').match(/\/Type\s*\/Page\b/g) || []).length;

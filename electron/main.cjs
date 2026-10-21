@@ -6,6 +6,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { fileURLToPath } = require('node:url');
 const { createRecoveryStore } = require('./recovery.cjs');
+const { createFileDialogDirectory } = require('./file-dialog-directory.cjs');
 const { installedOutlineFonts } = require('./outline-fonts.cjs');
 
 const PRODUCT_NAME = 'Word Studio';
@@ -36,6 +37,11 @@ const customUserData = app.commandLine.getSwitchValue('user-data-dir');
 app.setPath('userData', customUserData && path.isAbsolute(customUserData)
   ? path.resolve(customUserData) : path.join(app.getPath('appData'), PRODUCT_NAME));
 if (process.platform === 'win32') app.setAppUserModelId('local.wordstudio.app');
+// Older portal file choosers ignore defaultPath; let Electron use GTK/KDE
+// when the portal cannot honor the document's working folder.
+if (process.platform === 'linux' && !app.commandLine.hasSwitch('xdg-portal-required-version')) {
+  app.commandLine.appendSwitch('xdg-portal-required-version', '4');
+}
 
 function isTrustedURL(value) {
   try {
@@ -181,6 +187,7 @@ function installMenu() {
 
 function installIPC() {
   const recovery = createRecoveryStore(path.join(app.getPath('userData'), 'recovery'));
+  const fileDirectory = createFileDialogDirectory(path.join(app.getPath('userData'), 'file-dialog-directory.json'), app.getPath('documents'));
   ipcMain.handle('word-studio:copy-text', (event, text) => {
     requireTrustedSender(event);
     if (typeof text !== 'string' || Buffer.byteLength(text, 'utf8') > 4 * 1024 * 1024) throw new TypeError('Copy text no larger than 4 MiB.');
@@ -207,20 +214,23 @@ function installIPC() {
 
   ipcMain.handle('word-studio:save-file', (event, payload) => withNativeDialog(event, async () => {
     const file = decodeFilePayload(payload);
+    const directory = await fileDirectory.current();
     const result = await dialog.showSaveDialog(mainWindow, {
       title: `${FORMAT_NAMES[file.extension]} 저장`,
-      defaultPath: path.join(app.getPath('documents'), file.name),
+      defaultPath: directory ? path.join(directory, file.name) : file.name,
       filters: [{ name: FORMAT_NAMES[file.extension], extensions: [file.extension] }],
       properties: ['createDirectory', 'showOverwriteConfirmation'],
     });
     if (result.canceled || !result.filePath) return false;
     await atomicWrite(result.filePath, file.data);
+    await fileDirectory.rememberFile(result.filePath);
     return true;
   }));
 
   ipcMain.handle('word-studio:open-file', event => withNativeDialog(event, async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       title: '문서 열기',
+      defaultPath: await fileDirectory.current(),
       filters: [{ name: '지원하는 문서', extensions: [...OPEN_EXTENSIONS] },
         { name: FORMAT_NAMES.wordstudio, extensions: ['wordstudio'] },
         { name: FORMAT_NAMES.docx, extensions: ['docx'] },
@@ -237,6 +247,7 @@ function installIPC() {
       if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error(`Choose a document no larger than ${MAX_FILE_BYTES / 1024 / 1024} MiB.`);
       const buffer = await handle.readFile();
       if (buffer.length > MAX_FILE_BYTES) throw new Error(`Choose a document no larger than ${MAX_FILE_BYTES / 1024 / 1024} MiB.`);
+      await fileDirectory.rememberFile(filename);
       return { name: path.basename(filename), data: new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) };
     } finally { await handle.close(); }
   }));
@@ -244,8 +255,10 @@ function installIPC() {
   ipcMain.handle('word-studio:export-pdf', (event, payload) => withNativeDialog(event, async () => {
     if (!payload || typeof payload.name !== 'string') throw new TypeError('The PDF is missing a name.');
     const options = pdfOptions(payload);
+    const directory = await fileDirectory.current();
+    const name = safeFilename(payload.name, 'pdf');
     const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'PDF 문서 (.pdf) 저장', defaultPath: path.join(app.getPath('documents'), safeFilename(payload.name, 'pdf')),
+      title: 'PDF 문서 (.pdf) 저장', defaultPath: directory ? path.join(directory, name) : name,
       filters: [{ name: 'PDF 문서 (.pdf)', extensions: ['pdf'] }],
       properties: ['createDirectory', 'showOverwriteConfirmation'],
     });
@@ -255,6 +268,7 @@ function installIPC() {
       return mainWindow.webContents.printToPDF(options);
     });
     await atomicWrite(result.filePath, data);
+    await fileDirectory.rememberFile(result.filePath);
     return true;
   }));
 
