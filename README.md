@@ -22,7 +22,7 @@ npm start
 npm run package:win
 ```
 
-Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.4.2-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
+Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.4.3-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
 
 `npm run package:win:dir`은 앱 폴더만, `npm run package:win:setup`은 이미 만든 앱 폴더로 설치 파일만 생성합니다. 설치 파일 빌드와 실제 설치·재설치·제거 시험은 Windows GitHub Actions에서 수행합니다. 빌드 설정은 [electron-builder.config.cjs](electron-builder.config.cjs), 격리된 CI 시험은 [scripts/test-windows-installer.ps1](scripts/test-windows-installer.ps1)에 있습니다. NSIS 옵션은 [electron-builder 공식 문서](https://www.electron.build/docs/nsis/)를 따릅니다. 설치·재설치·제거는 `%APPDATA%\Word Studio` 복구 데이터와 사용자가 저장한 문서를 지우지 않습니다.
 
@@ -35,9 +35,9 @@ npm ci
 npm run package:linux
 ```
 
-Linux x64에서 `release/linux/Word-Studio-1.4.2-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
+Linux x64에서 `release/linux/Word-Studio-1.4.3-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
 
-사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.4.2-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
+사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.4.3-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
 
 ## 1.2.10 공식 DOCX 샘플 호환 수정
 
@@ -142,9 +142,9 @@ HWP 5.x·HWPX를 연 뒤 **Word 화면에서 편집 → 편집본 만들기**를
 
 본문·기본 글자/문단 서식·표 병합·그림·용지/여백·수동 페이지 나누기를 지원합니다. 저장할 때 Word 인쇄 쪽 경계를 사용하므로 이어진 표·문단이 여러 부분으로 나뉘고 반복 머리행이 각 표에 포함될 수 있습니다. 한글과 동일한 조판이나 무손실 왕복은 보장하지 않습니다. 떠 있는 개체는 본문 흐름으로 옮기며, 수식은 원문 스크립트 표시, 글상자는 가능한 본문 텍스트, 그 외 지원하지 않는 개체는 위치 표시로 바뀝니다. 검토 메모, 첫 쪽/홀짝 머리말, 자동 필드와 일부 고급 서식은 한글 저장에서 제외하거나 텍스트로 바꿉니다. 원본과 `.wordstudio` 백업을 함께 보관하세요. [최신 릴리스](https://github.com/beaur8-prog/word-studio/releases/latest)에서 Mac ZIP·Windows Setup·Linux DEB를 받을 수 있습니다.
 
-### 1.4.3 실행 취소 보완·내보내기 화면 전환·작업 폴더 기억 (개발 빌드 · 미배포)
+### 1.4.3 실행 취소 보완·내보내기 화면 전환·작업 폴더 기억 (2026-10-23)
 
-상단 **내보내기**를 다시 누르면 편집 화면으로 돌아옵니다. 열린 상태를 버튼에 표시하고 돌아온 뒤 기존 편집 위치에서 입력을 이어갈 수 있습니다. 파일 탭에도 같은 토글 동작을 적용했습니다. 공개 다운로드와 리토스 배포본은 1.4.2를 유지합니다.
+상단 **내보내기**를 다시 누르면 편집 화면으로 돌아옵니다. 열린 상태를 버튼에 표시하고 돌아온 뒤 기존 편집 위치에서 입력을 이어갈 수 있습니다. 파일 탭에도 같은 토글 동작을 적용했습니다. Mac ZIP·Windows Setup·Linux DEB를 제공합니다.
 
 데스크톱 앱의 열기·저장·PDF 내보내기는 마지막으로 열거나 저장한 파일의 폴더를 먼저 보여줍니다. 앱을 다시 실행해도 위치를 기억하며, 취소하거나 파일 읽기·쓰기에 실패하면 이전 위치를 유지합니다. 기억한 폴더를 사용할 수 없으면 기본 문서 폴더에서 시작합니다.
 
