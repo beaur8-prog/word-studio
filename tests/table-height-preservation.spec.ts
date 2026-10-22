@@ -30,6 +30,13 @@ async function geometry(root: Locator) {
     }
     return { height: table.getBoundingClientRect().height / scale,
       rows: [...table.rows].map(row => row.getBoundingClientRect().height / scale),
+      contentMinimums: [...table.rows].map(row => Math.max(0, ...[...row.cells].filter(cell => cell.rowSpan === 1).map(cell => {
+        const css = getComputedStyle(cell);
+        const content = [...cell.children].reduce((sum, child) => sum + child.getBoundingClientRect().height / scale, 0);
+        // Collapsed borders contribute half of each shared edge to the row.
+        return content + parseFloat(css.paddingTop) + parseFloat(css.paddingBottom) +
+          (parseFloat(css.borderTopWidth) + parseFloat(css.borderBottomWidth)) / 2;
+      }))),
       overflow, text: table.textContent, zooms: [...element.querySelectorAll<HTMLElement>('[style]')].map(el => el.style.zoom).filter(Boolean) };
   });
 }
@@ -82,10 +89,11 @@ for (const fixture of cases) {
     expect(reopened.text).toBe(pasted.text);
     expect(reopened.overflow).toBeLessThanOrEqual(1);
     for (const [row, height] of reopened.rows.entries()) {
-      // HTML's em-based line spacing becomes OOXML's font-line multiplier;
-      // content can grow after conversion, but must never be squeezed to fit.
-      if (fixture.multiline) expect(height).toBeGreaterThanOrEqual(pasted.rows[row] - .5);
-      else expect(height).toBeCloseTo(pasted.rows[row], 0);
+      // A Linux fallback face can outgrow even a single short row after HTML's
+      // em spacing becomes an OOXML font-line multiplier. Require the original
+      // minimum, and allow growth only to the independently measured content.
+      expect(height).toBeGreaterThanOrEqual(pasted.rows[row] - .5);
+      expect(height).toBeCloseTo(Math.max(expected[row], reopened.contentMinimums[row]), 0);
     }
     if (fixture.merged) await expect(editor.locator('td').first()).toHaveAttribute('rowspan', '2');
     await page.getByRole('button', { name: '보기', exact: true }).click();
