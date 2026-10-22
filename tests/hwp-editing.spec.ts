@@ -227,7 +227,7 @@ test('DOCX to Hancom bridge preserves heading appearance, image, merged cells, r
   await page.goto('/');
   const result = await page.evaluate(async () => {
     const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
-    const { generateHTML } = await import('/node_modules/@tiptap/core/dist/index.js');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js');
     const { exportDocx, importFile } = await import('/src/document-io.ts');
     const { exportEditableHwp, importEditableHwp } = await import('/src/hwp/editing.ts');
     const { HwpReaderSession } = await import('/src/hwp/reader.ts');

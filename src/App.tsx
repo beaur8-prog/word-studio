@@ -4,6 +4,7 @@ const escapeHtml = (text: string) => { const el = document.createElement('span')
 import { EditorContent, useEditor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
 import { EditorState } from '@tiptap/pm/state';
+import { DocumentHistory, documentMetadata, changeDocumentMetadata, dispatchHistoryEvent } from './document-history';
 import {
   Save,
   Undo2,
@@ -374,7 +375,7 @@ export default function App() {
   const pendingRecovery = useRef(false), recoveryEpoch = useRef(0);
   const commentRange = useRef<{ from: number; to: number } | null>(null);
   const editor = useEditor({
-    extensions: editorExtensions,
+    extensions: [...editorExtensions, DocumentHistory],
     content: initial.content,
     onUpdate() {
       pendingRecovery.current = true;
@@ -384,7 +385,9 @@ export default function App() {
     onSelectionUpdate() {
       setSelectionVersion((x) => x + 1);
     },
-    onTransaction() {
+    onTransaction({ editor }) {
+      const metadata = documentMetadata.getState(editor.state);
+      if (metadata) { setPage(metadata.page); setComments(metadata.comments); }
       setSelectionVersion((x) => x + 1);
     },
     editorProps: {
@@ -505,6 +508,7 @@ export default function App() {
     editor.view.updateState(EditorState.create({
       schema: editor.schema, doc: editor.schema.nodeFromJSON(doc.content), plugins: editor.state.plugins,
     }));
+    editor.view.dispatch(editor.state.tr.setMeta(documentMetadata, { page: doc.page, comments: doc.comments }).setMeta('addToHistory', false));
     ++recoveryEpoch.current;
     pendingRecovery.current = true;
     outputLayout.current?.dispose(); outputLayout.current = null;
@@ -846,7 +850,7 @@ export default function App() {
       ? [...matches].reverse()
       : [matches[Math.min(findIndex, matches.length - 1)]];
     for (const m of targets) tr.insertText(replace, m.from, m.to);
-    editor.view.dispatch(tr);
+    dispatchHistoryEvent(editor, tr);
     notify(`${targets.length}개 항목을 바꿨습니다`);
   };
   const setIndent = (delta: number) => {
@@ -882,9 +886,15 @@ export default function App() {
     pageWidth = page.orientation === "portrait" ? dims[0] : dims[1],
     pageHeight = page.orientation === "portrait" ? dims[1] : dims[0],
     margin = (pageMargins(page).top * 96) / 25.4;
-  const setPageValue = (change: Partial<PageSettings>) =>
-    setPage((p) => ({ ...p, ...change, ...(change.margin !== undefined ? { margins: undefined } : {}),
-      ...Object.fromEntries(['header','footer','firstHeader','firstFooter','evenHeader','evenFooter'].filter(key => key in change).map(key => [`${key}Html`, undefined])) }));
+  const changeMetadata = (change: Partial<Pick<StudioDocument, 'page' | 'comments'>>, tr = editor.state.tr) => {
+    const before = documentMetadata.getState(editor.state) ?? { page: currentRef.current.page, comments: currentRef.current.comments };
+    changeDocumentMetadata(editor, before, { ...before, ...change }, tr);
+  };
+  const setPageValue = (change: Partial<PageSettings>) => {
+    const p = documentMetadata.getState(editor.state)?.page ?? currentRef.current.page;
+    changeMetadata({ page: { ...p, ...change, ...(change.margin !== undefined ? { margins: undefined } : {}),
+      ...Object.fromEntries(['header','footer','firstHeader','firstFooter','evenHeader','evenFooter'].filter(key => key in change).map(key => [`${key}Html`, undefined])) } });
+  };
   const format = editor.getAttributes("textStyle");
   void selectionVersion;
   const fit = () => {
@@ -2148,11 +2158,11 @@ export default function App() {
                   {c.html ? <div className="comment-story" dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(c.html).html }} /> : <p>{c.text}</p>}
                   <button
                     onClick={() =>
-                      setComments(
+                      changeMetadata({ comments:
                         comments.map((x) =>
                           x.id === c.id ? { ...x, resolved: !x.resolved } : x,
                         ),
-                      )
+                      })
                     }
                   >
                     {c.resolved ? (
@@ -2178,8 +2188,7 @@ export default function App() {
                         tr.removeMark(pos, pos + node.nodeSize, mark.type);
                         if (ids.length) tr.addMark(pos, pos + node.nodeSize, mark.type.create({ ids: ids.join(' ') }));
                       });
-                      editor.view.dispatch(tr);
-                      setComments(comments.filter((x) => x.id !== c.id));
+                      changeMetadata({ comments: comments.filter((x) => x.id !== c.id) }, tr);
                     }}
                   >
                     <Trash2 size={13} />
@@ -2640,16 +2649,15 @@ export default function App() {
                     onClick={() => {
                       const id = crypto.randomUUID();
                       const range = commentRange.current;
+                      const tr = editor.state.tr;
                       if (range && range.from < range.to) {
-                        const tr = editor.state.tr;
                         editor.state.doc.nodesBetween(range.from, range.to, (node, pos) => {
                           if (!node.isText) return;
                           const prior = node.marks.find(m => m.type.name === 'commentAnchor')?.attrs.ids || '';
                           tr.addMark(Math.max(pos, range.from), Math.min(pos + node.nodeSize, range.to), editor.schema.marks.commentAnchor.create({ ids: [...new Set([...prior.split(' ').filter(Boolean), id])].join(' ') }));
                         });
-                        editor.view.dispatch(tr);
                       }
-                      setComments([
+                      changeMetadata({ comments: [
                         ...comments,
                         {
                           id,
@@ -2658,7 +2666,7 @@ export default function App() {
                           createdAt: new Date().toISOString(),
                           resolved: false,
                         },
-                      ]);
+                      ] }, tr);
                       setCommentsOpen(true);
                       setModal(null);
                     }}

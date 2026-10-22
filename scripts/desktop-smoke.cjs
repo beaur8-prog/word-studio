@@ -164,9 +164,10 @@ async function run() {
     }
     await expect(window.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
     const layoutFlow = await require('./layout-desktop-smoke.cjs')(app, window, directory);
+    const userWorkflows = await require('./workflow-desktop-smoke.cjs')(app, window, directory);
     assert.deepEqual(errors, []);
     const report = { passed: true, packaged: Boolean(packaged), platform: process.platform, tableContextMenu: true, tableRowResize: true,
-      layoutFlow, previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length,
+      layoutFlow, userWorkflows, previewPages, pdfPages, pdfBytes: data.length, recoveryRecords: recovery.length,
       failedRecoveryProtected: true, savedCopyVerified: true, formatPicker: true, docxRoundtrip: true, distinctEditingCopy: true,
       rendererSandboxed, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2));

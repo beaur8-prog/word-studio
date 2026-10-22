@@ -816,7 +816,7 @@ function alignment(value: unknown) {
     )[String(value) as "left"] ?? AlignmentType.LEFT
   );
 }
-function paragraphOptions(node: JSONContent): IParagraphOptions {
+function paragraphOptions(node: JSONContent, defaultAfter = 150): IParagraphOptions {
   const lineHeight =
     node.attrs?.lineSpacing ??
     node.attrs?.lineHeight ??
@@ -828,6 +828,14 @@ function paragraphOptions(node: JSONContent): IParagraphOptions {
   const right = Number.parseFloat(node.attrs?.rightIndent), first = Number.parseFloat(node.attrs?.firstLineIndent);
   const before = Number.parseFloat(node.attrs?.spaceBefore), after = Number.parseFloat(node.attrs?.spaceAfter);
   const exact = typeof lineHeight === 'string' && /(?:pt|px)$/.test(lineHeight);
+  // Plain authored paragraphs inherit 11pt / 1.65em in the editor. Falling
+  // through to docx's 1.15-line / 6pt defaults shrinks long documents on reopen.
+  // A minimum physical line height preserves that CSS baseline while allowing
+  // large glyphs and inline pictures to grow; imported Word rules stay intact.
+  const authoredDefault = node.type === 'paragraph' && !lineHeight;
+  const defaultLine = Math.round(Math.max(fontPoints(node.attrs?.paragraphSize) ?? 11,
+    ...(node.content ?? []).flatMap(n => (n.marks ?? []).filter(m => m.type === 'textStyle')
+      .map(m => fontPoints(m.attrs?.fontSize) ?? 0))) * 1.65 * 20);
   return {
     alignment: alignment(node.attrs?.textAlign),
     tabStops: parseTabStops(node.attrs?.tabStops).map(stop => ({ position: Math.round(stop.position * 15), type: stop.type,
@@ -841,8 +849,9 @@ function paragraphOptions(node: JSONContent): IParagraphOptions {
       fontFamily: node.attrs?.paragraphFont, fontSize: node.attrs?.paragraphSize, color: node.attrs?.paragraphColor,
     } }] }), text: undefined },
     spacing: {
-      after: Number.isFinite(after) ? Math.round(after * 15) : 120,
+      after: Number.isFinite(after) ? Math.round(after * 15) : node.type === 'paragraph' ? defaultAfter : 120,
       ...(Number.isFinite(before) ? { before: Math.round(before * 15) } : {}),
+      ...(authoredDefault ? { line: defaultLine, lineRule: LineRuleType.AT_LEAST } : {}),
       ...(exact && Number.isFinite(line) && line > 0 ? { line: Math.round(line * (lineHeight.endsWith('pt') ? 20 : 15)), lineRule: node.attrs?.wordLineRule === 'atLeast' ? LineRuleType.AT_LEAST : LineRuleType.EXACT } : {}),
       ...(!exact && Number.isFinite(line) && line > 0 && line < 10
         ? { line: Math.round(line * 240), lineRule: LineRuleType.AUTO }
@@ -1020,11 +1029,12 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           HeadingLevel.HEADING_5,
           HeadingLevel.HEADING_6,
         ];
+        const paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150);
         output.push(
           new Paragraph({
-            ...paragraphOptions(node),
+            ...paragraph,
             children: await inline(node.content ?? []),
-            ...(context.cellRun ? { run: { ...context.cellRun, ...paragraphOptions(node).run } } : {}),
+            ...(context.cellRun ? { run: { ...context.cellRun, ...paragraph.run } } : {}),
             ...(node.type === "heading"
               ? { heading: headings[(node.attrs?.level ?? 1) - 1] }
               : {}),

@@ -28,6 +28,10 @@ async function main() {
       const panel = reader.getByRole('region', { name: '한글 편집 변환 안내' });
       await expect(panel).toContainText('쪽 수 비교', { timeout: 60000 });
       await panel.getByRole('button', { name: '편집본 만들기', exact: true }).click();
+      // HWP and HWPX copies may have the same basename as the current editor.
+      // Wait for the actual transition, not an already-matching title.
+      await expect(reader).not.toBeVisible({ timeout: 60000 });
+      await expect(page.getByRole('region', { name: 'HWP 처리 진행', exact: true })).toHaveCount(0, { timeout: 60000 });
       await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue(path.basename(file).replace(/\.(hwp|hwpx)$/i, ''));
     };
     await open(path.join(root, 'tests/fixtures/hwp/reader.hwp'));
@@ -105,6 +109,14 @@ async function main() {
     const report = { passed: true, platform: process.platform, packaged: Boolean(packaged), nativeCancellation: true, nativeMenuAndFilters: true, reports, largeDocument, rendererErrors: errors, directory };
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify(report, null, 2) + '\n');
     console.log(JSON.stringify(report, null, 2));
+  } catch (error) {
+    const page = await app.firstWindow().catch(() => undefined);
+    if (page) {
+      await page.screenshot({ path: path.join(directory, 'failure.png') }).catch(() => {});
+      await fs.writeFile(path.join(directory, 'failure.txt'), await page.locator('body').innerText().catch(() => 'Renderer unavailable'));
+    }
+    console.error('HWP editing evidence:', directory);
+    throw error;
   } finally { await close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

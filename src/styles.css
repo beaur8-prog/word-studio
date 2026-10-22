@@ -729,7 +729,7 @@ button:hover:not(:disabled) {
   outline: 0 !important;
   padding: var(--page-padding, var(--page-margin));
   min-height: var(--page-height);
-  font-family: "Malgun Gothic", Arial, sans-serif;
+  font-family: "Malgun Gothic", "맑은 고딕", Arial, sans-serif;
   font-size: 11pt;
   line-height: 1.65;
   overflow-wrap: break-word;
@@ -739,6 +739,12 @@ button:hover:not(:disabled) {
 }
 .tiptap > :first-child {
   margin-top: 0;
+}
+/* DOCX uses either name for the default face. When it is unavailable, use
+   the same fallback as authored text instead of Chromium's default serif. */
+.tiptap [style*='font-family: "Malgun Gothic"'],
+.tiptap [style*='font-family: "맑은 고딕"'] {
+  font-family: "Malgun Gothic", "맑은 고딕", Arial, sans-serif !important;
 }
 .tiptap p {
   margin: 0 0 10px;
