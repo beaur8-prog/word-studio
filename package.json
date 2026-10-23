@@ -16,6 +16,7 @@
     "package:linux": "npm run build && node scripts/package-linux.cjs",
     "test": "playwright test",
     "test:native": "node --test tests/*.test.cjs",
+    "test:updates": "node --test tests/updates/studio-updater.cjs",
     "test:desktop": "node scripts/desktop-smoke.cjs",
     "test:linux-package": "node scripts/test-linux-package.cjs",
     "test:hwp-samples": "node scripts/validate-hwp-samples.cjs",

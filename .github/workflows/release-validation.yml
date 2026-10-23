@@ -33,6 +33,7 @@ jobs:
         timeout-minutes: 6
         run: bash scripts/prepare-linux-ci.sh browser
       - run: npm run test:native
+      - run: npm run test:updates
       - run: npm test -- --reporter=line
         if: ${{ !inputs.native_only }}
         env:
@@ -111,6 +112,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run test:native
+      - run: npm run test:updates
       - run: npm test -- --reporter=line
         if: ${{ !inputs.native_only }}
       - run: npm run package:win

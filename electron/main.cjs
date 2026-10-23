@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, session } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, session, shell, Notification } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
@@ -8,6 +8,7 @@ const { fileURLToPath } = require('node:url');
 const { createRecoveryStore } = require('./recovery.cjs');
 const { createFileDialogDirectory } = require('./file-dialog-directory.cjs');
 const { installedOutlineFonts } = require('./outline-fonts.cjs');
+const { createStudioUpdater } = require('./studio-updater.cjs');
 
 const PRODUCT_NAME = 'Word Studio';
 const DEV_URL = 'http://127.0.0.1:5191';
@@ -37,6 +38,8 @@ const customUserData = app.commandLine.getSwitchValue('user-data-dir');
 app.setPath('userData', customUserData && path.isAbsolute(customUserData)
   ? path.resolve(customUserData) : path.join(app.getPath('appData'), PRODUCT_NAME));
 if (process.platform === 'win32') app.setAppUserModelId('local.wordstudio.app');
+const updates = createStudioUpdater({ app, dialog, shell, Notification, id: 'word', getWindow: () => mainWindow });
+updates.onChange(installMenu);
 // Older portal file choosers ignore defaultPath; let Electron use GTK/KDE
 // when the portal cannot honor the document's working folder.
 if (process.platform === 'linux' && !app.commandLine.hasSwitch('xdg-portal-required-version')) {
@@ -181,6 +184,7 @@ function installMenu() {
     ] },
     { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'zoom' },
       ...(process.platform === 'darwin' ? [{ role: 'front' }] : [])] },
+    { label: '도움말', submenu: updates.menuTemplate() },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -347,6 +351,7 @@ async function createWindow() {
       buttons: ['Keep Editing', 'Close Without Saving'], defaultId: 0, cancelId: 0, noLink: true,
     });
     if (response === 1) event.preventDefault();
+    else void updates.cancelInstall();
   });
   mainWindow.on('closed', () => { mainWindow = null; });
   mainWindow.once('ready-to-show', () => mainWindow?.show());
@@ -375,6 +380,7 @@ else {
       copyright: 'An independent document editor. Not affiliated with Microsoft.' });
     hardenSession(); installIPC(); installMenu();
     await createWindow();
+    await updates.start();
     app.on('activate', () => { if (!mainWindow) void createWindow(); });
   });
   app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
