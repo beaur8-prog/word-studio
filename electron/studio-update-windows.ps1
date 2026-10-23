@@ -1,7 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$JobFile)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
-$job = Get-Content -LiteralPath $JobFile -Raw | ConvertFrom-Json
+$job = Get-Content -LiteralPath $JobFile -Raw -Encoding UTF8 | ConvertFrom-Json
 try {
   if ($job.schema -ne 1 -or $job.id -notin @('sheet','slide','word') -or $job.sha256 -notmatch '^[a-f0-9]{64}$' -or $job.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid update job.' }
   $directory = [IO.Path]::GetFullPath((Split-Path -Parent $JobFile))
