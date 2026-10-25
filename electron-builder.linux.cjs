@@ -10,6 +10,7 @@ module.exports = {
   files: ['dist/**/*', 'electron/**/*', 'package.json', '!node_modules{,/**/*}'],
   asar: true,
   publish: null,
+  fileAssociations: require('./electron/document-types.cjs').fileAssociations,
   linux: {
     target: [{ target: 'deb', arch: ['x64'] }],
     category: 'Office;WordProcessor',

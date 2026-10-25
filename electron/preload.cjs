@@ -10,6 +10,13 @@ contextBridge.exposeInMainWorld('wordDesktop', Object.freeze({
   saveRecovery: serialized => ipcRenderer.invoke('word-studio:save-recovery', serialized),
   saveFile: payload => ipcRenderer.invoke('word-studio:save-file', payload),
   openFile: () => ipcRenderer.invoke('word-studio:open-file'),
+  takeRequestedFile: () => ipcRenderer.invoke('word-studio:take-requested-file'),
+  onOpenRequested: callback => {
+    if (typeof callback !== 'function') throw new TypeError('A file-open callback is required.');
+    const listener = () => callback();
+    ipcRenderer.on('word-studio:open-requested', listener);
+    return () => ipcRenderer.removeListener('word-studio:open-requested', listener);
+  },
   exportPdf: payload => ipcRenderer.invoke('word-studio:export-pdf', payload),
   print: () => ipcRenderer.invoke('word-studio:print'),
   paste: () => ipcRenderer.invoke('word-studio:paste'),

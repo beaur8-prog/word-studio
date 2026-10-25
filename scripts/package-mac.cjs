@@ -56,6 +56,8 @@ async function packageMac() {
       LSApplicationCategoryType: 'public.app-category.productivity',
       NSHumanReadableCopyright: 'Independent document editor. Not affiliated with Microsoft.',
     })) plist(info, key, value);
+    execFileSync('/usr/bin/plutil', ['-replace', 'CFBundleDocumentTypes', '-json',
+      JSON.stringify(require('../electron/document-types.cjs').macDocumentTypes), info]);
     const integrity = { 'Resources/app.asar': { algorithm: 'SHA256',
       hash: createHash('sha256').update(asar.getRawHeader(archive).headerString).digest('hex') } };
     execFileSync('/usr/bin/plutil', ['-replace', 'ElectronAsarIntegrity', '-json', JSON.stringify(integrity), info]);

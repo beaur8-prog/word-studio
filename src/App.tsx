@@ -363,6 +363,10 @@ export default function App() {
   const [hwpExport, setHwpExport] = useState<HwpExportFile | null>(null);
   const [hwpOperation, setHwpOperation] = useState<HwpOperation>();
   const fileSavePending = useRef(false);
+  const [openRequestVersion, setOpenRequestVersion] = useState(0);
+  const [requestedFile, setRequestedFile] = useState<{ name: string; data: Uint8Array } | null>(null);
+  const takingRequestedFile = useRef(false);
+  const openingRequestedFile = useRef(false);
   const [failedTransition, setFailedTransition] = useState<StudioDocument | null>(null);
   const transitioning = useRef(false);
   const outputLayout = useRef<PrintLayout | null>(null);
@@ -602,6 +606,30 @@ export default function App() {
       }
     } else fileInput.current?.click();
   };
+  useEffect(() => window.wordDesktop?.onOpenRequested?.(() => {
+    setOpenRequestVersion(version => version + 1);
+  }), []);
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || busy || modal || command || failedTransition || hwpFile || hwpExport || hwpOperation ||
+        requestedFile || takingRequestedFile.current || !window.wordDesktop?.takeRequestedFile) return;
+    takingRequestedFile.current = true;
+    void window.wordDesktop.takeRequestedFile().then(setRequestedFile).catch(error => {
+      notify(`파일을 열지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
+      setOpenRequestVersion(version => version + 1);
+    }).finally(() => { takingRequestedFile.current = false; });
+  }, [editor, busy, modal, command, failedTransition, hwpFile, hwpExport, hwpOperation, requestedFile, openRequestVersion]);
+  useEffect(() => {
+    if (!requestedFile || !editor || editor.isDestroyed || busy || modal || command || failedTransition || hwpFile || hwpExport ||
+        hwpOperation || openingRequestedFile.current) return;
+    openingRequestedFile.current = true;
+    // Reuse import, HWP original view and recovery-failure protection. Check
+    // current state after disk I/O, including edits made while bytes were read.
+    void readFile(new File([new Uint8Array(requestedFile.data)], requestedFile.name)).finally(() => {
+      openingRequestedFile.current = false;
+      setRequestedFile(null);
+      setOpenRequestVersion(version => version + 1);
+    });
+  }, [requestedFile, editor, busy, modal, command, failedTransition, hwpFile, hwpExport, hwpOperation]);
   const toggleFileMenu = () => {
     setFileMenu((open) => !open);
     if (fileMenu) editor?.commands.focus();

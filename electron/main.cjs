@@ -9,6 +9,8 @@ const { createRecoveryStore } = require('./recovery.cjs');
 const { createFileDialogDirectory } = require('./file-dialog-directory.cjs');
 const { installedOutlineFonts } = require('./outline-fonts.cjs');
 const { createStudioUpdater } = require('./studio-updater.cjs');
+const { FileOpenRequests } = require('./file-open-requests.cjs');
+const { OPEN_EXTENSIONS } = require('./document-types.cjs');
 
 const PRODUCT_NAME = 'Word Studio';
 const DEV_URL = 'http://127.0.0.1:5191';
@@ -17,7 +19,6 @@ const DIST_PATH = path.resolve(__dirname, '..', 'dist');
 const INDEX_PATH = path.join(DIST_PATH, 'index.html');
 const MAX_FILE_BYTES = require('./document-limits.json').nativeFileBytes;
 const SAVE_EXTENSIONS = new Set(['wordstudio', 'docx', 'html', 'txt', 'hwp', 'hwpx']);
-const OPEN_EXTENSIONS = new Set([...SAVE_EXTENSIONS, 'htm', 'hwp', 'hwpx']);
 const FORMAT_NAMES = {
   wordstudio: '편집본 (.wordstudio)', docx: 'Word 문서 (.docx)',
   html: 'HTML 문서 (.html)', txt: '텍스트 문서 (.txt)',
@@ -29,6 +30,8 @@ const CHROME_THEMES = {
 };
 
 let mainWindow = null;
+const fileOpenRequests = new FileOpenRequests();
+let desktopReady = false;
 let nativeOperationPending = false;
 let chromeTheme = 'dark';
 let printBackgroundActive = false;
@@ -84,7 +87,20 @@ async function withNativeDialog(event, task) {
   if (nativeOperationPending) throw new Error('Finish the current file or print dialog first.');
   nativeOperationPending = true;
   try { return await task(); }
-  finally { nativeOperationPending = false; }
+  finally { nativeOperationPending = false; notifyFileOpenRequests(); }
+}
+
+function notifyFileOpenRequests() {
+  if (fileOpenRequests.size && mainWindow && !mainWindow.isDestroyed())
+    mainWindow.webContents.send('word-studio:open-requested');
+}
+
+function showEditorForFileOpen() {
+  if (!desktopReady) return;
+  if (!mainWindow) { void createWindow(); return; }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show(); mainWindow.focus();
+  notifyFileOpenRequests();
 }
 
 async function atomicWrite(filename, buffer) {
@@ -192,6 +208,24 @@ function installMenu() {
 function installIPC() {
   const recovery = createRecoveryStore(path.join(app.getPath('userData'), 'recovery'));
   const fileDirectory = createFileDialogDirectory(path.join(app.getPath('userData'), 'file-dialog-directory.json'), app.getPath('documents'));
+  async function readDocumentFile(filename) {
+    if (!OPEN_EXTENSIONS.has(path.extname(filename).slice(1).toLowerCase())) throw new Error('Choose a supported document file.');
+    const handle = await fs.open(filename, 'r');
+    try {
+      const stat = await handle.stat();
+      if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error(`Choose a document no larger than ${MAX_FILE_BYTES / 1024 / 1024} MiB.`);
+      const buffer = await handle.readFile();
+      if (buffer.length > MAX_FILE_BYTES) throw new Error(`Choose a document no larger than ${MAX_FILE_BYTES / 1024 / 1024} MiB.`);
+      await fileDirectory.rememberFile(filename);
+      return { name: path.basename(filename), data: new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) };
+    } finally { await handle.close(); }
+  }
+  ipcMain.handle('word-studio:take-requested-file', (event, ...args) => {
+    requireTrustedSender(event);
+    if (args.length) throw new TypeError('파일 열기 요청에는 경로나 인수가 필요하지 않습니다.');
+    if (!fileOpenRequests.size || nativeOperationPending) return null;
+    return withNativeDialog(event, () => readDocumentFile(fileOpenRequests.take()));
+  });
   ipcMain.handle('word-studio:copy-text', (event, text) => {
     requireTrustedSender(event);
     if (typeof text !== 'string' || Buffer.byteLength(text, 'utf8') > 4 * 1024 * 1024) throw new TypeError('Copy text no larger than 4 MiB.');
@@ -243,17 +277,7 @@ function installIPC() {
       properties: ['openFile'],
     });
     if (result.canceled || result.filePaths.length !== 1) return null;
-    const filename = result.filePaths[0];
-    if (!OPEN_EXTENSIONS.has(path.extname(filename).slice(1).toLowerCase())) throw new Error('Choose a supported document file.');
-    const handle = await fs.open(filename, 'r');
-    try {
-      const stat = await handle.stat();
-      if (!stat.isFile() || stat.size > MAX_FILE_BYTES) throw new Error(`Choose a document no larger than ${MAX_FILE_BYTES / 1024 / 1024} MiB.`);
-      const buffer = await handle.readFile();
-      if (buffer.length > MAX_FILE_BYTES) throw new Error(`Choose a document no larger than ${MAX_FILE_BYTES / 1024 / 1024} MiB.`);
-      await fileDirectory.rememberFile(filename);
-      return { name: path.basename(filename), data: new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) };
-    } finally { await handle.close(); }
+    return readDocumentFile(result.filePaths[0]);
   }));
 
   ipcMain.handle('word-studio:export-pdf', (event, payload) => withNativeDialog(event, async () => {
@@ -368,17 +392,23 @@ async function createWindow() {
 
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-  app.on('second-instance', () => {
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.show(); mainWindow.focus();
-    }
+  // Finder may deliver a document before Electron or the renderer is ready.
+  app.on('open-file', (event, filename) => {
+    event.preventDefault();
+    fileOpenRequests.add(filename);
+    showEditorForFileOpen();
+  });
+  fileOpenRequests.addArguments(process.argv, process.cwd());
+  app.on('second-instance', (_event, argv, workingDirectory) => {
+    fileOpenRequests.addArguments(argv, workingDirectory);
+    showEditorForFileOpen();
   });
   app.whenReady().then(async () => {
     if (process.platform === 'darwin') app.dock.setIcon(path.join(__dirname, 'WordStudio.png'));
     app.setAboutPanelOptions({ applicationName: PRODUCT_NAME, applicationVersion: app.getVersion(),
       copyright: 'An independent document editor. Not affiliated with Microsoft.' });
     hardenSession(); installIPC(); installMenu();
+    desktopReady = true;
     await createWindow();
     await updates.start();
     app.on('activate', () => { if (!mainWindow) void createWindow(); });

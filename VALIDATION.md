@@ -1,5 +1,26 @@
 # Word Studio 검증
 
+## 2026-10-25 기본 앱으로 연결한 문서의 더블클릭 열기 수정 (미배포)
+
+설치된 Mac Word Studio 1.4.5를 격리 프로필로 실행해 DOCX 시작 경로를 무시하고 기본 문서를 표시하는 현상을 재현했습니다. `open-file` 리스너가 없었고 `second-instance`도 창만 표시했습니다. Slide Studio의 `6d67e1a` 수정과 같은 누락입니다.
+
+- macOS `open-file`, 최초 실행 인수, Windows/Linux 두 번째 실행 인수를 대기열에 보관하고 편집기와 복구 저장소가 준비되면 기존 `readFile` 경로로 엽니다. 지원 형식은 DOCX·`.wordstudio`·HWP·HWPX·HTML/HTM·TXT입니다. 대기열에는 파일 경로만 보관하며 중복 요청·실행 스위치·원격 URL·미지원 확장자는 제외합니다.
+- 파일 선택·저장·인쇄 및 문서 대화상자, HWP 원본 보기/변환 중에는 요청을 보존합니다. 현재 문서의 복구 저장·저장 실패 시 취소/사본 저장 절차를 재사용하며, 파일을 읽는 동안 입력한 내용도 전환 전에 보존합니다. 손상되거나 사라진 파일 때문에 다음 요청이 중단되지 않습니다.
+- 일반 열기와 외부 요청은 같은 확장자·용량·일반 파일 검사와 작업 폴더 기억을 사용합니다. 렌더러에는 임의 경로를 읽는 API를 제공하지 않고, 검증한 편집기 프레임만 OS가 요청한 다음 파일을 가져올 수 있습니다.
+- Mac 번들에 지원 문서 형식과 `Alternate` 순위를 선언했습니다. Linux 데스크톱 항목의 MIME 형식과 `%U` 파일 인수 전달을 확인했습니다. 사용자의 기존 기본 앱 설정은 변경하지 않습니다. Windows 시작/재실행 인수 처리는 검사했으며 Windows 설치 프로그램의 기본 앱 등록 방식은 변경하지 않았습니다.
+
+| 검사 | 결과 |
+| --- | --- |
+| 외부 열기 및 기존 문서 전환 브라우저 회귀 | **12/12 통과**: 지연 초기화, DOCX 시작 요청, 여러 파일 순서, 대화상자 중 대기, 읽기 중 추가 편집, 복구 실패/취소, 손상 파일, HWPX 원본 보기 |
+| Node 단위·IPC·복구·HWP 엔진 | **37/37 통과**. 신규 8개는 OS 대기열, macOS 초기 이벤트, Windows/Linux 인수, 신뢰하지 않는 IPC 거부, 용량/파일 검사와 선택창 대기 검사 |
+| 패키징한 실제 Mac 앱 | **9개 시나리오 통과**, 렌더러 오류 0개: DOCX 시작, 실행 중 열기, 편집 복구 보존, 손상/누락 뒤 다음 요청, 작업 폴더, HWP 원본 보기, 상대 경로 재실행, 닫은 창 재생성, 일반 시작 복구 |
+| 실제 macOS Launch Services | **처음 실행 DOCX 및 실행 중 TXT 열기 통과**. 별도 번들 ID와 임시 프로필에서 `open -a`로 Finder와 같은 OS 경로를 사용했으며 기본 앱 설정은 유지. 한글·공백 파일명과 창 1개 유지 확인 |
+| 타입 검사·프로덕션 빌드·Mac 패키징 | 통과. 최종 ZIP을 다시 풀어 앱을 시험하고 번들의 문서 형식 선언과 임시 서명 무결성 확인 |
+
+재실행: `node --test tests/file-open-requests.test.cjs`, `npm test -- tests/file-associations.spec.ts tests/document-lifecycle.spec.ts`, `node scripts/qa-file-associations.cjs "/경로/Word Studio.app/Contents/MacOS/Word Studio"`, Mac의 OS 경로는 `node scripts/qa-mac-file-open.cjs "/경로/Word Studio.app"`. 결과와 화면은 로컬 `.cache/file-open/`에 보관합니다. Windows/Linux 실제 설치 환경의 더블클릭은 이번 Mac 검수에 포함하지 않았습니다.
+
+이벤트와 문서 형식 선언은 [Electron app 문서](https://www.electronjs.org/docs/latest/api/app/) 및 [Apple CFBundleDocumentTypes](https://developer.apple.com/documentation/bundleresources/information-property-list/cfbundledocumenttypes)를 참고했습니다.
+
 ## 2026-10-23 1.4.3 사용자 시나리오 검수 및 수정 (미배포)
 
 기준 소스는 `ed93512`이며, macOS arm64에서 Chrome과 실제 패키징한 Electron 앱을 별도 시험 프로필로 실행했습니다. 합성 문서와 저장소의 공개/회귀 샘플을 사용했습니다. 사용자 문서와 실제 복구 기록은 수정하지 않았습니다.

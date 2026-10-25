@@ -14,6 +14,8 @@ declare global {
         data: Uint8Array;
       }): Promise<boolean>;
       openFile(): Promise<{ name: string; data: Uint8Array } | null>;
+      takeRequestedFile?: () => Promise<{ name: string; data: Uint8Array } | null>;
+      onOpenRequested?: (callback: () => void) => () => void;
       exportPdf(payload: {
         name: string;
         header?: string;
