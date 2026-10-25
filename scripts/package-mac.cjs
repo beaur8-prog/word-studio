@@ -72,29 +72,31 @@ async function packageMac() {
     }
     run('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', '--timestamp=none', bundle]);
     run('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle]);
-    await fs.mkdir(output, { recursive: true });
-    const backup = path.join(output, product + '-' + Date.now() + '.previous.app');
-    const previous = fsSync.existsSync(destination);
-    if (previous) await fs.rename(destination, backup);
-    try {
-      await fs.cp(bundle, destination, { recursive: true, verbatimSymlinks: true });
-      run('/usr/bin/codesign', ['--verify', '--deep', '--strict', destination]);
-    } catch (error) {
-      await fs.rm(destination, { recursive: true, force: true });
-      if (previous) await fs.rename(backup, destination);
-      throw error;
+    if (!process.argv.includes('--no-install')) {
+      await fs.mkdir(output, { recursive: true });
+      const backup = path.join(output, product + '-' + Date.now() + '.previous.app');
+      const previous = fsSync.existsSync(destination);
+      if (previous) await fs.rename(destination, backup);
+      try {
+        await fs.cp(bundle, destination, { recursive: true, verbatimSymlinks: true });
+        run('/usr/bin/codesign', ['--verify', '--deep', '--strict', destination]);
+      } catch (error) {
+        await fs.rm(destination, { recursive: true, force: true });
+        if (previous) await fs.rename(backup, destination);
+        throw error;
+      }
+      if (previous) await fs.rm(backup, { recursive: true, force: true });
     }
-    if (previous) await fs.rm(backup, { recursive: true, force: true });
     const release = path.join(root, 'release');
     await fs.mkdir(release, { recursive: true });
-    const zip = path.join(release, `Word-Studio-mac-${process.arch}.zip`);
-    run('/usr/bin/ditto', ['-c', '-k', '--keepParent', destination, zip]);
+    const zip = path.join(release, `Word-Studio-${manifest.version}-mac-${process.arch}.zip`);
+    run('/usr/bin/ditto', ['-c', '-k', '--keepParent', bundle, zip]);
     await fs.writeFile(path.join(release, 'BUILD-mac.json'), JSON.stringify({
       product, version: manifest.version, platform: 'darwin', architecture: process.arch,
-      bundle: destination, archive: zip, electronVersion: manifest.devDependencies.electron,
+      bundle: process.argv.includes('--no-install') ? null : destination, archive: zip, electronVersion: manifest.devDependencies.electron,
       signing: 'ad-hoc (local use; not Apple notarized)', builtAt: new Date().toISOString(),
     }, null, 2));
-    console.log(`Built ${destination}\nArchive ${zip}`);
+    console.log(`Built ${process.argv.includes("--no-install") ? "release archive without replacing a local app" : destination}\nArchive ${zip}`);
   } finally { await fs.rm(work, { recursive: true, force: true }); }
 }
 packageMac().catch(error => { console.error(error.stack); process.exitCode = 1; });

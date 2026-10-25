@@ -6,7 +6,7 @@ const path = require('node:path');
 const os = require('node:os');
 const { EventEmitter } = require('node:events');
 const { createHash } = require('node:crypto');
-const { createStudioUpdater, selectRelease, newer, readJSON, download, powershellCommand } = require('../../electron/studio-updater.cjs');
+const { createStudioUpdater, selectRelease, selectMacRelease, newer, readJSON, download, powershellCommand } = require('../../electron/studio-updater.cjs');
 
 const bytes = Buffer.from('verified installer bytes');
 const sha256 = createHash('sha256').update(bytes).digest('hex');
@@ -31,7 +31,7 @@ async function fixture(t, { platform = 'win32', answer = 1, fetchImpl } = {}) {
     executable,
     dialog: { showMessageBox: async (...args) => { dialogs.push(args.at(-1)); return { response: answer }; } },
     shell: { showItemInFolder: file => opened.push(file), openExternal: async url => opened.push(url) },
-    fetchImpl: fetchImpl || (async url => { requests.push(url); return url.includes('api.github.com') ? Response.json(release('word', platform, platform === 'darwin' ? 'arm64' : 'x64')) : new Response(bytes); }),
+    fetchImpl: fetchImpl || (async url => { requests.push(url); const item = release('word', platform, platform === 'darwin' ? 'arm64' : 'x64'); return url.includes('api.github.com') ? Response.json(platform === 'darwin' ? [item] : item) : new Response(bytes); }),
     launch: (...args) => { launched.push(args); return { on() {}, unref() {} }; },
     logger: { warn: (...args) => warnings.push(args) },
   });
@@ -68,6 +68,23 @@ test('unexpected sources, missing digests, duplicate assets and oversized payloa
 });
 test('metadata response is bounded', async () => {
   await assert.rejects(readJSON(new Response('x'.repeat(1024 * 1024 + 1))), /너무 큽니다/);
+});
+test('Mac updates select the highest compatible version independently of Windows latest', () => {
+  const options = { id:'word', currentVersion:'1.4.3', platform:'darwin', arch:'arm64' };
+  const list = [release('word','win32','x64','1.4.9'), release('word','darwin','arm64','1.4.4'),
+    { ...release('word','darwin','arm64','1.4.8'), prerelease:true }, release('word','darwin','x64','1.4.7'),
+    release('word','darwin','arm64','1.4.5')];
+  assert.equal(selectMacRelease(list, options).version, '1.4.5');
+  assert.equal(selectMacRelease(list, { ...options, currentVersion:'1.4.5' }), null);
+  assert.throws(() => selectMacRelease(list, { ...options, platform:'win32' }));
+});
+test('Mac release enumeration rejects malformed metadata and untrusted matching downloads', () => {
+  const options = { id:'word', currentVersion:'1.4.3', platform:'darwin', arch:'arm64' };
+  assert.throws(() => selectMacRelease({}, options));
+  assert.throws(() => selectMacRelease(Array(21).fill(release()), options));
+  const item = release('word','darwin','arm64');
+  item.assets[0].browser_download_url = 'https://attacker.example/app.zip';
+  assert.throws(() => selectMacRelease([item], options));
 });
 test('download verifies the whole file and rechecks a cached file before reuse', async t => {
   const { directory } = await fixture(t);
@@ -139,6 +156,7 @@ test('Mac downloads the exact ZIP and offers manual replacement without closing 
   assert.equal(f.opened.length,1); assert.ok(f.opened[0].endsWith('Word-Studio-1.4.4-mac-arm64.zip'));
   assert.equal(f.quitCalls(),0); assert.equal(f.launched.length,0);
   assert.ok(f.dialogs.some(d => d.detail.includes('직접 교체')));
+  assert.ok(f.requests[0].endsWith('/releases?per_page=20'));
 });
 test('Linux uses the individual release page without any network/download/install automation', async t => {
   const f = await fixture(t,{ platform:'linux' });

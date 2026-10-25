@@ -40,6 +40,21 @@ function selectRelease(release, { id, currentVersion, platform, arch }) {
   if (asset.browser_download_url !== expected) throw new Error('허용되지 않는 업데이트 주소입니다.');
   return { version, filename: asset.name, bytes: asset.size, sha256: asset.digest.slice(7), url: expected };
 }
+// Mac releases can be published independently with GitHub's make_latest=false.
+// Keep the existing Windows /latest feed unchanged for installed Windows apps.
+function selectMacRelease(releases, options) {
+  if (!Array.isArray(releases) || releases.length > 20 || options.platform !== 'darwin') throw new Error('Mac 업데이트 목록이 올바르지 않습니다.');
+  let selected = null;
+  for (const release of releases) {
+    if (!release || release.draft || release.prerelease || !/^v?\d+\.\d+\.\d+$/.test(release.tag_name || '')) continue;
+    const version = versionParts(release.tag_name).join('.');
+    const expected = { sheet: `Sheet-Studio-${version}-macOS-${options.arch}.zip`, slide: `Slide-Studio-mac-${options.arch}.zip`, word: `Word-Studio-${version}-mac-${options.arch}.zip` }[options.id];
+    if (!(release.assets || []).some(asset => asset.name === expected && asset.state === 'uploaded')) continue;
+    const candidate = selectRelease(release, options);
+    if (candidate && (!selected || newer(candidate.version, selected.version))) selected = candidate;
+  }
+  return selected;
+}
 async function readJSON(response) {
   if (!response.ok || !response.body) throw new Error('업데이트 서버에 연결할 수 없습니다. HTTP ' + response.status);
   let length = 0;
@@ -182,12 +197,14 @@ function createStudioUpdater({ app, dialog, shell, Notification, id, getWindow, 
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(30 * 60 * 1000)]);
     try {
       update({ phase: 'checking', percent: 0 });
-      const response = await fetchImpl(`https://api.github.com/repos/beaur8-prog/${id}-studio/releases/latest`, {
+      const endpoint = platform === 'darwin' ? 'releases?per_page=20' : 'releases/latest';
+      const response = await fetchImpl(`https://api.github.com/repos/beaur8-prog/${id}-studio/${endpoint}`, {
         headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': product.replaceAll(' ', '-') + '-Updater' },
         signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
       });
       const release = await readJSON(response);
-      const asset = selectRelease(release, { id, currentVersion: app.getVersion(), platform, arch });
+      const options = { id, currentVersion: app.getVersion(), platform, arch };
+      const asset = platform === 'darwin' ? selectMacRelease(release, options) : selectRelease(release, options);
       if (!asset) {
         ready = null; update({ phase: 'idle', version: null });
         if (manualWaiting) await message({ type: 'info', title: product + ' 업데이트', message: '최신 버전을 사용하고 있습니다.', buttons: ['확인'] });
@@ -261,4 +278,4 @@ function createStudioUpdater({ app, dialog, shell, Notification, id, getWindow, 
     getState: () => ({ ...state, automatic: enabled }), dispose };
 }
 
-module.exports = { createStudioUpdater, selectRelease, newer, readJSON, download, verifyFile, powershellCommand };
+module.exports = { createStudioUpdater, selectRelease, selectMacRelease, newer, readJSON, download, verifyFile, powershellCommand };
