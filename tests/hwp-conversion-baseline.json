@@ -1,0 +1,470 @@
+{
+  "date": "2026-10-26",
+  "sourceCommit": "bb2fdecdf01c4cbbbe381c4e341d6b8f046b01e9",
+  "appVersion": "1.4.7",
+  "rhwpVersion": "0.8.7-wordstudio.2",
+  "browser": "155.0.8059.85",
+  "docxRenderer": "Bundled LibreOfficeDev 26.8.0.0.alpha0 2c87e51eeaa2b413ff4ae097b2705eea1995d8e5",
+  "rendererFontsTemporarilyAdded": [
+    "AppleMyungjo",
+    "AppleGothic",
+    "Nanum Myeongjo"
+  ],
+  "scope": "Read-only conversion investigation; no production converter changes. Microsoft Word native rendering not tested.",
+  "results": [
+    {
+      "id": "01-employment-contract",
+      "title": "고용노동부 2025 표준근로계약서",
+      "sourcePages": 7,
+      "referencePdfPages": null,
+      "studioPages": 7,
+      "docxLibreOfficePages": 8,
+      "sourceControls": {
+        "secd": 1,
+        "cold": 1,
+        "tbl": 10
+      },
+      "editorNodes": {
+        "doc": 1,
+        "table": 10,
+        "tableRow": 22,
+        "tableCell": 102,
+        "paragraph": 316,
+        "text": 567
+      },
+      "docxObjects": {
+        "tables": 10,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "02-work-rules",
+      "title": "고용노동부 2025 표준취업규칙",
+      "sourcePages": 163,
+      "referencePdfPages": null,
+      "studioPages": 177,
+      "docxLibreOfficePages": 182,
+      "sourceControls": {
+        "secd": 4,
+        "cold": 4,
+        "head": 2,
+        "tbl": 25,
+        "gso": 2,
+        "foot": 1,
+        "nwno": 1,
+        "pghd": 2
+      },
+      "editorNodes": {
+        "doc": 1,
+        "paragraph": 2236,
+        "text": 6050,
+        "table": 45,
+        "tableRow": 391,
+        "tableCell": 811,
+        "sectionBreak": 3
+      },
+      "docxObjects": {
+        "tables": 45,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "떠 있는 표·그림은 본문 흐름 안으로 옮깁니다. 겹침·회전·자르기·캡션은 원본과 다를 수 있습니다.",
+        "머리말·꼬리말은 기본 텍스트로 가져옵니다. 홀짝·첫 쪽 구분과 개체는 원본 보기에서 확인하세요.",
+        "그리기 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "한글의 다단 배치는 편집본에서 단일 본문으로 변환합니다.",
+        "표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "03-health-table",
+      "title": "보건소 분장사무",
+      "sourcePages": 4,
+      "referencePdfPages": 4,
+      "studioPages": 7,
+      "docxLibreOfficePages": 5,
+      "sourceControls": {
+        "cold": 1,
+        "secd": 1,
+        "tbl": 1
+      },
+      "editorNodes": {
+        "doc": 1,
+        "paragraph": 445,
+        "text": 243,
+        "table": 1,
+        "tableRow": 147,
+        "tableCell": 441
+      },
+      "docxObjects": {
+        "tables": 1,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "떠 있는 표·그림은 본문 흐름 안으로 옮깁니다. 겹침·회전·자르기·캡션은 원본과 다를 수 있습니다.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "04-language-plan",
+      "title": "국립국어원 업무계획",
+      "sourcePages": 35,
+      "referencePdfPages": 35,
+      "studioPages": 39,
+      "docxLibreOfficePages": 35,
+      "sourceControls": {
+        "secd": 1,
+        "cold": 1,
+        "pgnp": 2,
+        "tbl": 55,
+        "gso": 4,
+        "pghd": 2,
+        "nwno": 1
+      },
+      "editorNodes": {
+        "doc": 1,
+        "paragraph": 1630,
+        "text": 2783,
+        "table": 55,
+        "tableRow": 169,
+        "tableCell": 766,
+        "inlineImage": 2,
+        "image": 1
+      },
+      "docxObjects": {
+        "tables": 55,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "떠 있는 표·그림은 본문 흐름 안으로 옮깁니다. 겹침·회전·자르기·캡션은 원본과 다를 수 있습니다.",
+        "OLE 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "05-return-form",
+      "title": "복학원서",
+      "sourcePages": 1,
+      "referencePdfPages": 1,
+      "studioPages": 2,
+      "docxLibreOfficePages": 2,
+      "sourceControls": {
+        "secd": 1,
+        "cold": 1,
+        "gso": 3,
+        "tbl": 3
+      },
+      "editorNodes": {
+        "doc": 1,
+        "paragraph": 72,
+        "text": 63,
+        "table": 3,
+        "tableRow": 12,
+        "tableCell": 35,
+        "inlineImage": 1
+      },
+      "docxObjects": {
+        "tables": 3,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "떠 있는 표·그림은 본문 흐름 안으로 옮깁니다. 겹침·회전·자르기·캡션은 원본과 다를 수 있습니다.",
+        "타원 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "06-mixed-document",
+      "title": "부천옥길 A1 영구임대주택 예비입주자 모집공고",
+      "sourcePages": 35,
+      "referencePdfPages": 35,
+      "studioPages": 41,
+      "docxLibreOfficePages": 37,
+      "sourceControls": {
+        "cold": 4,
+        "secd": 1,
+        "tbl": 71,
+        "head": 1,
+        "nwno": 1,
+        "gso": 44,
+        "bokm": 10
+      },
+      "editorNodes": {
+        "doc": 1,
+        "table": 71,
+        "tableRow": 315,
+        "tableCell": 881,
+        "paragraph": 1825,
+        "text": 2723,
+        "image": 12
+      },
+      "docxObjects": {
+        "tables": 71,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "떠 있는 표·그림은 본문 흐름 안으로 옮깁니다. 겹침·회전·자르기·캡션은 원본과 다를 수 있습니다.",
+        "책갈피 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "07-english-exam",
+      "title": "영어 시험지",
+      "sourcePages": 8,
+      "referencePdfPages": 8,
+      "studioPages": 26,
+      "docxLibreOfficePages": 23,
+      "sourceControls": {
+        "secd": 1,
+        "cold": 1,
+        "foot": 1,
+        "gso": 16,
+        "tbl": 19
+      },
+      "editorNodes": {
+        "doc": 1,
+        "paragraph": 624,
+        "text": 697,
+        "table": 19,
+        "tableRow": 43,
+        "tableCell": 288,
+        "image": 2,
+        "inlineImage": 5
+      },
+      "docxObjects": {
+        "tables": 19,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "떠 있는 표·그림은 본문 흐름 안으로 옮깁니다. 겹침·회전·자르기·캡션은 원본과 다를 수 있습니다.",
+        "A4/Letter 이외의 용지는 A4로 맞춥니다.",
+        "머리말·꼬리말은 기본 텍스트로 가져옵니다. 홀짝·첫 쪽 구분과 개체는 원본 보기에서 확인하세요.",
+        "한글의 다단 배치는 편집본에서 단일 본문으로 변환합니다.",
+        "다각형 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "사각형 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "08-math-exam",
+      "title": "수학 시험지",
+      "sourcePages": 20,
+      "referencePdfPages": 20,
+      "studioPages": 24,
+      "docxLibreOfficePages": 21,
+      "sourceControls": {
+        "secd": 2,
+        "cold": 2,
+        "tbl": 16,
+        "gso": 19,
+        "atno": 1,
+        "eqed": 512,
+        "head": 9,
+        "pghd": 3
+      },
+      "editorNodes": {
+        "doc": 1,
+        "table": 16,
+        "tableRow": 20,
+        "tableCell": 25,
+        "paragraph": 317,
+        "text": 1290,
+        "hardBreak": 4,
+        "inlineImage": 9,
+        "sectionBreak": 1
+      },
+      "docxObjects": {
+        "tables": 16,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "떠 있는 표·그림은 본문 흐름 안으로 옮깁니다. 겹침·회전·자르기·캡션은 원본과 다를 수 있습니다.",
+        "A4/Letter 이외의 용지는 A4로 맞춥니다.",
+        "한글의 다단 배치는 편집본에서 단일 본문으로 변환합니다.",
+        "사각형 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "직선 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "수식 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "09-korean-exam",
+      "title": "국어 시험지 편집본",
+      "sourcePages": 15,
+      "referencePdfPages": 15,
+      "studioPages": 30,
+      "docxLibreOfficePages": 27,
+      "sourceControls": {
+        "secd": 1,
+        "cold": 10,
+        "tbl": 16,
+        "gso": 23,
+        "atno": 2
+      },
+      "editorNodes": {
+        "doc": 1,
+        "table": 16,
+        "tableRow": 39,
+        "tableCell": 80,
+        "paragraph": 415,
+        "text": 1192,
+        "image": 1
+      },
+      "docxObjects": {
+        "tables": 16,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "떠 있는 표·그림은 본문 흐름 안으로 옮깁니다. 겹침·회전·자르기·캡션은 원본과 다를 수 있습니다.",
+        "A4/Letter 이외의 용지는 A4로 맞춥니다.",
+        "한글의 다단 배치는 편집본에서 단일 본문으로 변환합니다.",
+        "직선 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "사각형 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "10-lh-plan",
+      "title": "LH 2025 업무계획 보도자료",
+      "sourcePages": 5,
+      "referencePdfPages": 5,
+      "studioPages": 6,
+      "docxLibreOfficePages": 5,
+      "sourceControls": {
+        "secd": 1,
+        "cold": 5,
+        "pgnp": 1,
+        "tbl": 10,
+        "gso": 3
+      },
+      "editorNodes": {
+        "doc": 1,
+        "table": 10,
+        "tableRow": 22,
+        "tableCell": 50,
+        "image": 3,
+        "paragraph": 126,
+        "text": 231
+      },
+      "docxObjects": {
+        "tables": 10,
+        "columns": 0,
+        "mathObjects": 0,
+        "positionedDrawings": 0
+      },
+      "warnings": [
+        "떠 있는 표·그림은 본문 흐름 안으로 옮깁니다. 겹침·회전·자르기·캡션은 원본과 다를 수 있습니다.",
+        "표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    }
+  ],
+  "experiments": [
+    {
+      "id": "03-health-table",
+      "variants": [
+        {
+          "mode": "baseline",
+          "studioPages": 7
+        },
+        {
+          "mode": "serif-font",
+          "studioPages": 8
+        },
+        {
+          "mode": "empty-paragraph-metrics",
+          "studioPages": 7
+        },
+        {
+          "mode": "serif-and-empty",
+          "studioPages": 8
+        }
+      ],
+      "normalizedParagraphs": 242
+    },
+    {
+      "id": "05-return-form",
+      "variants": [
+        {
+          "mode": "baseline",
+          "studioPages": 2
+        },
+        {
+          "mode": "serif-font",
+          "studioPages": 2
+        },
+        {
+          "mode": "empty-paragraph-metrics",
+          "studioPages": 2
+        },
+        {
+          "mode": "serif-and-empty",
+          "studioPages": 2
+        }
+      ],
+      "normalizedParagraphs": 42
+    }
+  ],
+  "docxGeometryAndSpacingExperiments": [
+    {
+      "variant": "03-health-table-percent-normalized",
+      "pages": 6
+    },
+    {
+      "variant": "05-return-form-percent-normalized",
+      "pages": 2
+    },
+    {
+      "variant": "07-english-exam-paper",
+      "pages": 13
+    },
+    {
+      "variant": "07-english-exam-paper-columns",
+      "pages": 8
+    },
+    {
+      "variant": "08-math-exam-paper",
+      "pages": 14
+    },
+    {
+      "variant": "08-math-exam-paper-columns",
+      "pages": 9
+    },
+    {
+      "variant": "09-korean-exam-paper",
+      "pages": 13
+    },
+    {
+      "variant": "09-korean-exam-paper-columns",
+      "pages": 10
+    }
+  ],
+  "rendererErrors": []
+}

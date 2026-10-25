@@ -1,0 +1,197 @@
+{
+  "date": "2026-10-26",
+  "samples": [
+    {
+      "id": "01-employment-contract",
+      "title": "고용노동부 2025 표준근로계약서",
+      "category": "계약서·양식",
+      "url": "https://www.moel.go.kr/common/downloadFile.do?bbs_id=29&bbs_seq=20250300356&file_ext=hwp&file_seq=20250800411",
+      "expectedSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "referenceKind": "기존 독립 뷰어 대조 기록",
+      "hwp": {
+        "file": "samples/01-employment-contract.hwp",
+        "bytes": 69120,
+        "sha256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c"
+      }
+    },
+    {
+      "id": "02-work-rules",
+      "title": "고용노동부 2025 표준취업규칙",
+      "category": "긴 규정·다단계 목록·표",
+      "url": "https://www.moel.go.kr/common/downloadFile.do?bbs_id=29&bbs_seq=20250300356&file_ext=hwp&file_seq=20250800410",
+      "expectedSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "referenceKind": "기존 독립 뷰어 대조 기록",
+      "hwp": {
+        "file": "samples/02-work-rules.hwp",
+        "bytes": 279040,
+        "sha256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec"
+      }
+    },
+    {
+      "id": "03-health-table",
+      "title": "보건소 분장사무",
+      "category": "긴 병합 표",
+      "upstreamCommit": "1a76570e833917d15817415a53c09ad61ab3203f",
+      "url": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/21868765_%EB%B3%84%ED%91%9C2_%EB%B3%B4%EA%B1%B4%EC%86%8C_%EB%B6%84%EC%9E%A5%EC%82%AC%EB%AC%B4.hwp",
+      "gitBlob": "a38d30873f6d84493d39f76d676ba2c42de066c5",
+      "referenceURL": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/21868765_%EB%B3%84%ED%91%9C2_%EB%B3%B4%EA%B1%B4%EC%86%8C_%EB%B6%84%EC%9E%A5%EC%82%AC%EB%AC%B4.pdf",
+      "referenceGitBlob": "29ff90459d21f81f39fd09672566cb7909aa200d",
+      "referenceKind": "업스트림 동봉 PDF — 문서 내용·판본 일치는 별도 확인",
+      "hwp": {
+        "file": "samples/03-health-table.hwp",
+        "bytes": 61952,
+        "sha256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13"
+      },
+      "pdf": {
+        "file": "samples/03-health-table.pdf",
+        "bytes": 154878,
+        "sha256": "b4a85b70cdb8a41f3a55b6863481360b56b4d069e803da9b40211c56692168aa"
+      }
+    },
+    {
+      "id": "04-language-plan",
+      "title": "국립국어원 업무계획",
+      "category": "보고서·표·글상자",
+      "upstreamCommit": "1a76570e833917d15817415a53c09ad61ab3203f",
+      "url": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/2022%EB%85%84%20%EA%B5%AD%EB%A6%BD%EA%B5%AD%EC%96%B4%EC%9B%90%20%EC%97%85%EB%AC%B4%EA%B3%84%ED%9A%8D.hwp",
+      "gitBlob": "695c725624603fc73c3edcbb319c61b6f796a50f",
+      "referenceURL": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/2022%EB%85%84%20%EA%B5%AD%EB%A6%BD%EA%B5%AD%EC%96%B4%EC%9B%90%20%EC%97%85%EB%AC%B4%EA%B3%84%ED%9A%8D.pdf",
+      "referenceGitBlob": "f75beb0fae7e72595dfd8cb198cfeb444ac8ba13",
+      "referenceKind": "업스트림 동봉 PDF — 문서 내용·판본 일치는 별도 확인",
+      "hwp": {
+        "file": "samples/04-language-plan.hwp",
+        "bytes": 304640,
+        "sha256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9"
+      },
+      "pdf": {
+        "file": "samples/04-language-plan.pdf",
+        "bytes": 796530,
+        "sha256": "402bd06fb829aba9031f3a8f1ddcc6ba68befac61773c9ba62ee25f0601ec4f0"
+      }
+    },
+    {
+      "id": "05-return-form",
+      "title": "복학원서",
+      "category": "한 쪽 신청 양식·고정 서명란",
+      "upstreamCommit": "1a76570e833917d15817415a53c09ad61ab3203f",
+      "url": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/%EB%B3%B5%ED%95%99%EC%9B%90%EC%84%9C.hwp",
+      "gitBlob": "6d1f3c6adc5b939e816c9472d127d43eaa7b32ab",
+      "referenceURL": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/%EB%B3%B5%ED%95%99%EC%9B%90%EC%84%9C.pdf",
+      "referenceGitBlob": "9f0b832d0130de1a2182a7f728796c538ad1389c",
+      "referenceKind": "업스트림 동봉 PDF — 문서 내용·판본 일치는 별도 확인",
+      "hwp": {
+        "file": "samples/05-return-form.hwp",
+        "bytes": 114688,
+        "sha256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4"
+      },
+      "pdf": {
+        "file": "samples/05-return-form.pdf",
+        "bytes": 198909,
+        "sha256": "8994559903ff5d6ed8d01e6a38aeb5b2268b128bf2fc30876f6775bda1456c72"
+      }
+    },
+    {
+      "id": "06-mixed-document",
+      "title": "부천옥길 A1 영구임대주택 예비입주자 모집공고",
+      "category": "그림·표·혼합 개체",
+      "upstreamCommit": "1a76570e833917d15817415a53c09ad61ab3203f",
+      "url": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/synam-001.hwp",
+      "gitBlob": "492086befe0492b08a42edbf09be3a1bcdf40bab",
+      "referenceURL": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/synam-001.pdf",
+      "referenceGitBlob": "315f8f4bb93ab45a3b0e6f0c4275c224ef81cc0f",
+      "referenceKind": "업스트림 동봉 PDF — 문서 내용·판본 일치는 별도 확인",
+      "hwp": {
+        "file": "samples/06-mixed-document.hwp",
+        "bytes": 2850304,
+        "sha256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b"
+      },
+      "pdf": {
+        "file": "samples/06-mixed-document.pdf",
+        "bytes": 668007,
+        "sha256": "f4e1b0d2ffed451fcb1aec22d17af42965bd4fcdb5970b04463fb0556f8bf15c"
+      }
+    },
+    {
+      "id": "07-english-exam",
+      "title": "영어 시험지",
+      "category": "다단·그림·문항 번호",
+      "upstreamCommit": "1a76570e833917d15817415a53c09ad61ab3203f",
+      "url": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/exam_eng.hwp",
+      "gitBlob": "97d6425bc87bd40e417f7581f94413495274b951",
+      "referenceURL": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/exam_eng.pdf",
+      "referenceGitBlob": "a5f834f80f1f8d90e9b8e49e113a9da2459c843b",
+      "referenceKind": "업스트림 동봉 PDF — 문서 내용·판본 일치는 별도 확인",
+      "hwp": {
+        "file": "samples/07-english-exam.hwp",
+        "bytes": 3486208,
+        "sha256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b"
+      },
+      "pdf": {
+        "file": "samples/07-english-exam.pdf",
+        "bytes": 3216619,
+        "sha256": "f5b970223010d2f498e0411f38a8dd3e9eb9cfe9f8f20a68ee2122029e8489bc"
+      }
+    },
+    {
+      "id": "08-math-exam",
+      "title": "수학 시험지",
+      "category": "수식·그림·다단",
+      "upstreamCommit": "1a76570e833917d15817415a53c09ad61ab3203f",
+      "url": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/exam_math.hwp",
+      "gitBlob": "26f121e800b7b6497c9fbe2e576f25652a54b74e",
+      "referenceURL": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/exam_math.pdf",
+      "referenceGitBlob": "473b56303880b764bc29a48c3e094a8e4d8147d2",
+      "referenceKind": "업스트림 동봉 PDF — 문서 내용·판본 일치는 별도 확인",
+      "hwp": {
+        "file": "samples/08-math-exam.hwp",
+        "bytes": 770048,
+        "sha256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe"
+      },
+      "pdf": {
+        "file": "samples/08-math-exam.pdf",
+        "bytes": 929356,
+        "sha256": "ba31f4a43a294420cda548b45110bdae1846b6c44f3a33189f9bc9630713135b"
+      }
+    },
+    {
+      "id": "09-korean-exam",
+      "title": "국어 시험지 편집본",
+      "category": "긴 다단 본문·문항·상자",
+      "upstreamCommit": "1a76570e833917d15817415a53c09ad61ab3203f",
+      "url": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/21_%EC%96%B8%EC%96%B4_%EA%B8%B0%EC%B6%9C_%ED%8E%B8%EC%A7%91%EA%B0%80%EB%8A%A5%EB%B3%B8.hwp",
+      "gitBlob": "e17044941fd84b0577df4caa1c4095e2653d7ea0",
+      "referenceURL": "https://raw.githubusercontent.com/edwardkim/rhwp/1a76570e833917d15817415a53c09ad61ab3203f/samples/21_%EC%96%B8%EC%96%B4_%EA%B8%B0%EC%B6%9C_%ED%8E%B8%EC%A7%91%EA%B0%80%EB%8A%A5%EB%B3%B8.pdf",
+      "referenceGitBlob": "c10a13799c5b8e7d73b8c0d7a9b336af6761f96e",
+      "referenceKind": "업스트림 동봉 PDF — 문서 내용·판본 일치는 별도 확인",
+      "hwp": {
+        "file": "samples/09-korean-exam.hwp",
+        "bytes": 435200,
+        "sha256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15"
+      },
+      "pdf": {
+        "file": "samples/09-korean-exam.pdf",
+        "bytes": 655657,
+        "sha256": "6bc54661a73af788d437463e000f76652b1325b44607e58443e7391d23e2db83"
+      }
+    },
+    {
+      "id": "10-lh-plan",
+      "title": "LH 2025 업무계획 보도자료",
+      "category": "공공기관 보고문·머리말·강조·쪽 번호",
+      "url": "https://www.lh.or.kr/galleryDownload.es?bid=0003&list_no=11703&seq=1",
+      "referenceURL": "https://www.lh.or.kr/galleryDownload.es?bid=0003&list_no=11703&seq=2",
+      "sourcePage": "https://www.lh.or.kr/gallery.es?act=view&bid=0003&list_no=11703&mid=a10502000000",
+      "referenceKind": "같은 공공기관 게시글의 동봉 PDF",
+      "hwp": {
+        "file": "samples/10-lh-plan.hwp",
+        "bytes": 228352,
+        "sha256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb"
+      },
+      "pdf": {
+        "file": "samples/10-lh-plan.pdf",
+        "bytes": 366465,
+        "sha256": "6663b0bfffa4fd63ff1c87608c9abb883557b71add11b3e01a4ae32dece36b0e"
+      }
+    }
+  ]
+}
