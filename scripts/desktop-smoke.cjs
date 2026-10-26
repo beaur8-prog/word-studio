@@ -77,11 +77,11 @@ async function run() {
     await window.keyboard.press('ControlOrMeta+o');
     // Page overlays repeat headers outside the editable document. Count only
     // source rows inside the textbox, excluding pagination spacer widgets.
-    await expect(window.locator('.tiptap[role="textbox"] table tr:not(.pagination-gap)')).toHaveCount(81);
+    await expect(window.locator('.tiptap[role="textbox"] table tr:not(.ProseMirror-widget)')).toHaveCount(81);
     await expect(window.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
     const recovery = await window.evaluate(() => window.wordDesktop.readRecovery());
     assert.ok(recovery.some(record => JSON.parse(record.current).title === 'long-document'));
-    const cells = window.locator('.tiptap[role="textbox"] tr:not(.pagination-gap) > td,.tiptap[role="textbox"] tr:not(.pagination-gap) > th');
+    const cells = window.locator('.tiptap[role="textbox"] tr:not(.ProseMirror-widget) > td,.tiptap[role="textbox"] tr:not(.ProseMirror-widget) > th');
     await cells.nth(0).click(); await cells.nth(3).click({ modifiers: ['Shift'] });
     await expect(window.locator('.tiptap[role="textbox"] .selectedCell')).toHaveCount(4);
     await cells.nth(1).click({ button: 'right' });
@@ -95,7 +95,7 @@ async function run() {
     await expect(cells.first()).toHaveCSS('border-top-style', 'dashed');
     await window.screenshot({ path: path.join(directory, 'table-menu.png') });
     await window.keyboard.press('Escape');
-    const firstRow = window.locator('.tiptap[role="textbox"] tr').first();
+    const firstRow = window.locator('.tiptap[role="textbox"] tr:not(.ProseMirror-widget)').first();
     const rowBounds = await firstRow.boundingBox(), cellBounds = await cells.first().boundingBox();
     const edgeX = cellBounds.x + cellBounds.width / 2, edgeY = cellBounds.y + cellBounds.height - 1;
     await window.mouse.move(edgeX, edgeY);
