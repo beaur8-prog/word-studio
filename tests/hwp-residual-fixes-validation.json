@@ -336,9 +336,9 @@
   "limitations": [
     "Actual Microsoft Word and Windows app not tested.",
     "Equations/shapes remain images with scripts/text in descriptions; their internals are not editable.",
-    "Five remaining unsupported cell Header placeholders across notice/math/Korean are retained rather than silently dropped.",
+    "Five generic placeholders are retained rather than silently dropped: notice/math have three Header controls; Korean has two PAGE AutoNumber controls (classification corrected in hwp-completion-review.json).",
     "Rules editor 157 / print 167 / source 163; English editor 10 / print 9 / source 8; notice 41 / source 35.",
-    "Korean exam has 3 top-margin text rects (2.21–7.01px), including two unsupported Header placeholders.",
+    "Korean exam has 3 top-margin text rects (2.21–7.01px), including two unsupported PAGE AutoNumber placeholders.",
     "English form line-height/border details and DOCX floating-background layout still differ from source.",
     "LibreOffice rules PDF has 3 pages with no extracted text, not a claim that all three are visually blank.",
     "Only first pages and selected changed regions were visually reviewed, not every page."

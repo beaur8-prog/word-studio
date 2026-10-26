@@ -1,0 +1,257 @@
+{
+  "date": "2026-10-26",
+  "reviewedCommit": "47219b2a24f89fded5bd521ca80f754b379ba083",
+  "scope": "Read-only product review; native HWP control/XML inventory, cached models made by this commit, current browser print diagnostics, existing LibreOffice PDFs. No product changes or deployment.",
+  "correction": "The five generic placeholders are three Header controls (notice 1, math 2) and two PAGE AutoNumber controls (Korean), not five Headers. Three additional typed placeholders were excluded by the earlier generic-only count.",
+  "allPlaceholderParagraphs": [
+    {
+      "id": "01-employment-contract",
+      "placeholderParagraphs": []
+    },
+    {
+      "id": "02-work-rules",
+      "placeholderParagraphs": [
+        {
+          "path": "/12",
+          "text": "[그리기 — 원본 보기에서 확인]"
+        },
+        {
+          "path": "/128",
+          "text": "[그리기 — 원본 보기에서 확인]"
+        }
+      ]
+    },
+    {
+      "id": "03-health-table",
+      "placeholderParagraphs": []
+    },
+    {
+      "id": "04-language-plan",
+      "placeholderParagraphs": [
+        {
+          "path": "/481",
+          "text": "[OLE — 원본 보기에서 확인]"
+        }
+      ]
+    },
+    {
+      "id": "05-return-form",
+      "placeholderParagraphs": []
+    },
+    {
+      "id": "06-mixed-document",
+      "placeholderParagraphs": [
+        {
+          "path": "/0/0/0/0",
+          "text": "[변환하지 못한 개체 — 원본 보기에서 확인]부천옥길 A1블록 영구임대주택 예비입주자 모집"
+        }
+      ]
+    },
+    {
+      "id": "07-english-exam",
+      "placeholderParagraphs": []
+    },
+    {
+      "id": "08-math-exam",
+      "placeholderParagraphs": [
+        {
+          "path": "/12/31/0/0/0",
+          "text": "단 답 형[변환하지 못한 개체 — 원본 보기에서 확인]"
+        },
+        {
+          "path": "/18/26/0/0/0",
+          "text": "단 답 형[변환하지 못한 개체 — 원본 보기에서 확인]"
+        }
+      ]
+    },
+    {
+      "id": "09-korean-exam",
+      "placeholderParagraphs": [
+        {
+          "path": "/3/134/0/0/0",
+          "text": "[변환하지 못한 개체 — 원본 보기에서 확인] "
+        },
+        {
+          "path": "/3/163/0/0/0",
+          "text": "[변환하지 못한 개체 — 원본 보기에서 확인] "
+        }
+      ]
+    },
+    {
+      "id": "10-lh-plan",
+      "placeholderParagraphs": []
+    }
+  ],
+  "drawingGroups": {
+    "document": "02-work-rules",
+    "bodyParagraphs": [
+      {
+        "section": 0,
+        "para": 10,
+        "text": "일반 근로자용"
+      },
+      {
+        "section": 1,
+        "para": 102,
+        "text": "단시간 근로자용"
+      }
+    ],
+    "nativeControlType": "group",
+    "cause": "objectHtml only accepts shape/line/ellipse/polygon before it can inspect the supported group drawing tree"
+  },
+  "ole": {
+    "document": "04-language-plan",
+    "count": 1,
+    "serializedPart": "BinData/image1.OLE",
+    "bytes": 132612,
+    "contentStatus": "Embedded compound object retained in source; editable conversion is a placeholder. Actual object content and usable preview still require inspection; no claim that it is empty."
+  },
+  "headers": {
+    "noticeHeader": {
+      "count": 1,
+      "text": "",
+      "hasDrawing": false
+    },
+    "math": {
+      "serializedHeaders": 11,
+      "cellHeaderControls": 2,
+      "serializedContents": [
+        "수학 영역",
+        "수학 영역(확률과 통계)",
+        "수학 영역(미적분)",
+        "수학 영역(기하)"
+      ],
+      "nativeApiBothPagesExists": false,
+      "nativeApiEvenAndOddExist": true,
+      "nativeApiPlainText": "",
+      "cause": "Importer only requests apply_to=0 and plain text, while content is in even/odd drawing stories and some later paragraph-local header definitions."
+    },
+    "korean": {
+      "autoNumberCount": 2,
+      "numType": "PAGE",
+      "storedNumbers": [
+        1,
+        2
+      ]
+    }
+  },
+  "rulesPagination": {
+    "sourceReader": 163,
+    "editor": 157,
+    "print": 167,
+    "docxLibreOffice": 169,
+    "sourceHeaderRows": 21,
+    "printedHeaderRows": 283,
+    "diagnostics": {
+      "disableRepeatingHeadersPrintPages": 160,
+      "removeSavedRowHeightsPrintPages": 124
+    },
+    "interpretation": "These destructive diagnostic variants are not fixes. Header repetition and row-height reserve are material contributors; neither alone proves the whole editor/print delta."
+  },
+  "englishTypography": {
+    "originalRun": {
+      "fontFamily": "Times New Roman",
+      "fontSizePx": 16.3,
+      "letterSpacingPx": -1.8,
+      "widthPx": 366.4,
+      "characterShapeId": 27,
+      "languageSpacings": [
+        -17,
+        -12,
+        -12,
+        -12,
+        -12,
+        -12,
+        -12
+      ],
+      "relativeSizes": [
+        100,
+        106,
+        100,
+        100,
+        100,
+        100,
+        100
+      ]
+    },
+    "browserDiagnostic": [
+      {
+        "mode": "baseline",
+        "width": 231.453125,
+        "height": 17,
+        "font": "15.3333px / 23.77px HY신명조, \"Times New Roman\"",
+        "tracking": "-2.6px",
+        "pages": 9
+      },
+      {
+        "mode": "native-run-metrics",
+        "width": 304.6875,
+        "height": 19,
+        "font": "16.3px / 23.77px \"Times New Roman\"",
+        "tracking": "-1.8px",
+        "pages": 9
+      }
+    ],
+    "interpretation": "Language-specific metrics disagree with exported HTML. Applying native values partially widens the text but does not fully reproduce native width or page count; font selection/shaping and tracking require further isolation."
+  },
+  "englishPagination": {
+    "sourceReader": 8,
+    "editor": 10,
+    "print": 9,
+    "firstPageOriginalEndsAtQuestion": 12,
+    "firstPagePrintEndsAtQuestion": 6,
+    "convertedTitleTableHeightPx": 147.9375,
+    "convertedBodyOffsetPx": 185.96875,
+    "diagnosticRemoveTitlePages": 9,
+    "interpretation": "The title and forced column-break flow need investigation together; deleting the title does not fix overall page count."
+  },
+  "blankRulesPages": {
+    "libreOffice": [
+      2,
+      4,
+      93
+    ],
+    "correspondingSourceReader": [
+      2,
+      4,
+      88
+    ],
+    "confirmedVisuallyBlank": true,
+    "sourceContext": "First blank pair is after cover/title; third follows the part-time-worker divider, which moved later in DOCX. Do not remove these pages to reduce page count."
+  },
+  "remainingBoundaryIssues": {
+    "korean": {
+      "textRects": 3,
+      "overflowPx": [
+        7.01377952755908,
+        2.206904527558436,
+        2.223154527557199
+      ],
+      "causeAreas": [
+        "Large first-page number exceeds its line box",
+        "Two PAGE AutoNumber placeholders have a 9.6px line box for 12pt text"
+      ]
+    },
+    "untestedGeneralCases": [
+      "Continuing editable rows containing note references or floating images return early",
+      "Complex continuing vertical merges with multiple paragraphs/images remain outside the current editor path"
+    ]
+  },
+  "completionOrder": [
+    "Freeze independent Hancom/official PDF references and feature inventory",
+    "Restore group drawings/OLE previews and header/page-field stories",
+    "Normalize language-specific font width/size/tracking and line boxes",
+    "Share page-break decisions between editor and print, including headers and row reserves",
+    "Restore source-relative table wrapping/anchors/columns and close remaining page deltas",
+    "Verify DOCX in Microsoft Word and HWP/HWPX roundtrips; validate every page and editing/history scenarios"
+  ],
+  "completionGates": [
+    "No unaccounted text/object/field loss relative to source, including separate stories",
+    "No visible placeholders for supported corpus controls, no glyph overlap or clipping",
+    "Editor and print page count and paragraph/table start pages agree",
+    "Representative corpus matches independently verified source pagination, with any supported exception explicitly classified",
+    "At least two save/reopen rounds preserve model semantics and rendered layout",
+    "Native Windows/Mac plus actual Microsoft Word and reference Hancom/PDF validation"
+  ],
+  "localEvidence": "analysis/hwp-completion-review-2026-10-26/"
+}
