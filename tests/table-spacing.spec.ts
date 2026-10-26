@@ -116,8 +116,33 @@ test('a final full-page table creates no synthetic second page and remains escap
   await editor.locator('td p').click();
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
   await page.keyboard.press('ArrowDown');
+  await expect(editor.locator('.ProseMirror-gapcursor')).toHaveCount(1);
+  expect(await editor.locator(':scope > p').count()).toBe(0);
   await page.keyboard.type('AFTER TABLE');
   await expect(editor.locator(':scope > p')).toHaveText('AFTER TABLE');
   await page.keyboard.press('ControlOrMeta+z');
   await expect(editor).not.toContainText('AFTER TABLE');
+});
+
+test('Down stays in a nonfinal table row and can exit a nested trailing table without changing the outer table', async ({ page }) => {
+  await page.goto('/');
+  const doc = await page.evaluate(async () => {
+    const { importFile } = await import('/src/document-io.ts'), { parseDocumentHtml } = await import('/src/extensions.ts');
+    const html = '<table><tr><td><table><tr><td><p>FIRST ROW</p></td></tr><tr><td><p>LAST ROW</p></td></tr></table></td></tr></table>';
+    const loaded = await importFile(new File([html], 'nested.html'));
+    return { ...loaded.document, content: parseDocumentHtml(html) };
+  });
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'nested.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(doc)) });
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역' });
+  await editor.getByText('FIRST ROW', { exact: true }).click();
+  await page.keyboard.press('ArrowDown');
+  await expect(editor.locator('.ProseMirror-gapcursor')).toHaveCount(0);
+  await editor.getByText('LAST ROW', { exact: true }).click();
+  await page.keyboard.press('ArrowDown');
+  await expect(editor.locator('.ProseMirror-gapcursor')).toHaveCount(1);
+  await page.keyboard.type('AFTER INNER');
+  await expect(editor.locator('table').first().locator(':scope > tbody > tr > td > p')).toHaveText('AFTER INNER');
+  expect(await editor.locator('table').count()).toBe(2);
+  expect(await editor.locator(':scope > p').count()).toBe(0);
+  await page.keyboard.press('ControlOrMeta+z'); await expect(editor).not.toContainText('AFTER INNER');
 });

@@ -23,6 +23,7 @@ import { DocumentSymbol } from './document-symbols';
 import { ColumnLayout } from './column-layout';
 import { FloatingLayout } from './floating-layout';
 import { TableAnchorLayout } from './table-anchor';
+import { TableNavigation } from './table-navigation';
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { getSchema } from '@tiptap/core';
 
@@ -99,6 +100,7 @@ export const editorExtensions = [
   }),
   CellAppearance,
   TableRowResize,
+  TableNavigation,
   TableAnchorLayout,
   BlockImage.configure({ allowBase64: true }),
   InlineImage,
