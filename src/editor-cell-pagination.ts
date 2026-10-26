@@ -161,14 +161,17 @@ export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[]
   };
   const merges = rows.flatMap((row, index) => [...row.cells].filter(c => c.rowSpan > 1).map(cell => ({ cell, index })));
   if (!merges.length || rows.some(r => r.dataset.wordRowRule === 'exact' || r.dataset.rowSplit === 'avoid' || r.getBoundingClientRect().height / g.scale > usable) ||
-    merges.some(({ cell }) => cell.dataset.cellSplit !== 'allow' || cell.children.length !== 1 || !cell.firstElementChild?.matches('p') || cell.querySelector('img,table') || cell.firstElementChild.getBoundingClientRect().height / g.scale > usable)) return null;
+    merges.some(({ cell }) => cell.dataset.cellSplit !== 'allow' || [...cell.children].some(block => !block.matches('p,h1,h2,h3,h4,h5,h6')) || cell.querySelector('table,img[data-image-floating],[data-note-reference]'))) return null;
   const decorations: Decoration[] = [], signatures: string[] = [], offsets = [0];
+  const collapsed = rows[0].closest('table') && getComputedStyle(rows[0].closest('table')!).borderCollapse === 'collapse';
+  const borderFactor = collapsed ? .5 : 1;
   let extra = 0;
   for (const row of rows) {
     const box = row.getBoundingClientRect(), top = y(box.top) + g.extra + extra, height = box.height / g.scale;
     const page = Math.max(0, Math.floor((top - g.top + .5) / stride)), boundary = page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0);
     if (top + height > boundary + .5) {
-      const gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) - top) * 64) / 64);
+      const edge = collapsed ? Math.max(0, ...[...row.cells].map(cell => (parseFloat(getComputedStyle(cell).borderTopWidth) || 0) / 2)) : 0;
+      const gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) + edge - top) * 64) / 64);
       for (const cell of [...row.cells]) {
         const pos = view.posAtDOM(cell, 0) - 1;
         const padding = parseFloat(getComputedStyle(cell).paddingTop) || 0;
@@ -183,18 +186,70 @@ export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[]
     offsets.push(extra);
   }
   for (const { cell, index } of merges) {
-    const paragraph = cell.firstElementChild as HTMLElement, box = paragraph.getBoundingClientRect();
-    const alignment = getComputedStyle(cell).verticalAlign;
-    const before = offsets[index], inside = offsets[Math.min(rows.length, index + cell.rowSpan)] - before;
-    const firstGap = offsets[index + 1] - before;
-    const displacement = before + (alignment === 'middle' ? (inside + firstGap) / 2 : alignment === 'bottom' ? inside : firstGap);
-    const top = y(box.top) + g.extra + displacement, bottom = y(box.bottom) + g.extra + displacement;
-    const page = Math.max(0, Math.floor((top - g.top + .5) / stride));
-    if (bottom > page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0) + .5) {
-      const shift = Math.max(0, (page + 1) * stride + g.top - top), pos = view.posAtDOM(paragraph, 0) - 1;
-      if (bottom + shift > y(cell.getBoundingClientRect().bottom) + g.extra + before + inside + .5) return null;
-      decorations.push(Decoration.node(pos, pos + view.state.doc.nodeAt(pos)!.nodeSize, { class: 'pagination-merge-label', style: `--pagination-label-shift:${shift}px` }));
-      signatures.push(`merge-label:${pos}:${shift}`);
+    const end = Math.min(rows.length, index + cell.rowSpan), style = getComputedStyle(cell);
+    const factor = style.verticalAlign === 'middle' ? .5 : style.verticalAlign === 'bottom' ? 1 : 0;
+    const paddingTop = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.borderTopWidth) || 0) * borderFactor;
+    const paddingBottom = (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0) * borderFactor;
+    const blocks = [...cell.children] as HTMLElement[];
+    const lines = blocks.flatMap(block => {
+      const measured = measureParagraphLines(view, block, y), css = getComputedStyle(block);
+      return measured.map((line, n) => ({ ...line, block,
+        marginTop: n === 0 ? parseFloat(css.marginTop) || 0 : 0,
+        marginBottom: n === measured.length - 1 ? parseFloat(css.marginBottom) || 0 : 0,
+      }));
+    });
+    if (!lines.length) continue;
+    const firstTop = y(blocks[0].getBoundingClientRect().top) - lines[0].marginTop;
+    const lastBottom = y(blocks.at(-1)!.getBoundingClientRect().bottom) + lines.at(-1)!.marginBottom;
+    const cuts = [index, ...rows.map((_, i) => i).filter(i => i > index && i < end && offsets[i + 1] > offsets[i] + .5), end];
+    const firstHeight = y(rows[cuts[1] - 1].getBoundingClientRect().bottom) - y(rows[index].getBoundingClientRect().top);
+    const rich = blocks.length > 1 || lastBottom - firstTop > firstHeight - paddingTop - paddingBottom;
+    const targets: number[] = [];
+    let start = 0;
+    for (let part = 0; part < cuts.length - 1 && start < lines.length; part++) {
+      const from = cuts[part], to = cuts[part + 1];
+      const top = y(rows[from].getBoundingClientRect().top) + g.extra + offsets[from + 1];
+      const bottom = y(rows[to - 1].getBoundingClientRect().bottom) + g.extra + offsets[to];
+      const naturalHeight = y(rows[end - 1].getBoundingClientRect().bottom) - y(rows[from].getBoundingClientRect().top);
+      const sourceTop = start ? lines[start].top - (lines[start].before || 0) - lines[start].marginTop : firstTop;
+      const remainingHeight = lastBottom - sourceTop;
+      const beforeSplit = top + paddingTop + (rich ? 0 : factor) * Math.max(0, naturalHeight - paddingTop - paddingBottom - remainingHeight);
+      let stop = start;
+      while (stop < lines.length && beforeSplit + lines[stop].bottom + (lines[stop].after || 0) + lines[stop].marginBottom - sourceTop <= bottom - paddingBottom + .5) stop++;
+      if (stop === start) continue;
+      const keptHeight = lines[stop - 1].bottom + (lines[stop - 1].after || 0) + lines[stop - 1].marginBottom - sourceTop;
+      const placedTop = top + paddingTop + factor * Math.max(0, bottom - top - paddingTop - paddingBottom - keptHeight);
+      for (let n = start; n < stop; n++) targets[n] = placedTop + lines[n].top - sourceTop;
+      start = stop;
+    }
+    if (start < lines.length) return null;
+    const cellPos = view.posAtDOM(cell, 0) - 1;
+    decorations.push(Decoration.node(cellPos, cellPos + view.state.doc.nodeAt(cellPos)!.nodeSize, {
+      class: 'pagination-merge-flow', style: `--pagination-source-valign:${style.verticalAlign}`,
+    }));
+    let inserted = 0;
+    const base = y(cell.getBoundingClientRect().top) + g.extra + offsets[index + 1] + paddingTop - firstTop;
+    for (let n = 0; n < lines.length;) {
+      const first = n, block = lines[n].block;
+      const shift = targets[n] - (lines[n].top + base + inserted);
+      while (++n < lines.length && lines[n].block === block) {
+        const gap = targets[n] - (lines[n].top + base + inserted + shift);
+        if (gap > .5) {
+          const pos = lines[n].pos();
+          decorations.push(Decoration.widget(pos, () => {
+            const node = document.createElement('span'); node.className = 'pagination-cell-gap';
+            node.contentEditable = 'false'; node.setAttribute('aria-hidden', 'true');
+            node.style.cssText = `display:block;height:${gap}px;line-height:0;pointer-events:none`;
+            return node;
+          }, { side: -1, key: `merge-line-${pos}-${gap}`, ignoreSelection: true }));
+          inserted += gap; signatures.push(`merge-line:${pos}:${gap}`);
+        }
+      }
+      const pos = view.posAtDOM(block, 0) - 1;
+      decorations.push(Decoration.node(pos, pos + view.state.doc.nodeAt(pos)!.nodeSize, {
+        class: 'pagination-merge-label', style: `--pagination-label-shift:${shift}px`,
+      }));
+      signatures.push(`merge-label:${pos}:${shift}:${first}`);
     }
   }
   return { decorations, signatures, extra };

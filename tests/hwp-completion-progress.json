@@ -4,7 +4,7 @@
   "status": "in_progress",
   "build": "passed",
   "unitTests": 70,
-  "browserTests": 221,
+  "browserTests": 236,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -189,12 +189,12 @@
   ],
   "evidence": {
     "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
-    "browser": "browser-cell-paper-full.log",
+    "browser": "browser-rich-merged-full.log",
     "unit": "unit-cell-paper-after.log",
-    "build": "build-cell-paper.log",
+    "build": "build-rich-merged-final.log",
     "nativeLarge": "native-large-completion.log",
-    "nativeFourDocuments": "native-cell-paper-flow.log",
-    "docx": "docx-cell-paper-corpus.json",
+    "nativeFourDocuments": "native-rich-merged-final.log",
+    "docx": "docx-rich-merged-corpus.json",
     "cropAlignment": "empty-cell-slots.log",
     "largeGlyph": "korean-ink.json",
     "sourceTextAudit": "source-text-audit.json",
@@ -206,7 +206,7 @@
     "columnAndReserve": "column-forms.log",
     "nativeColumns": "columns-roundtrip.log",
     "tableGapAndFontInheritance": "spacing-inheritance-final.log",
-    "freshImport": "fresh-cell-paper.log",
+    "freshImport": "fresh-rich-merged-final.log",
     "fullSourceBody": "tests/hwp-source-text-audit.json"
   },
   "falsePositivesCorrected": [
@@ -425,7 +425,26 @@
       "commit": "eefd588",
       "result": "passed"
     },
-    "fullInstallValidation": "pending: full Windows/Linux browser and native units passed at 3ef6ff4, desktop gutter-row test selector corrected in 3a88b58",
+    "fullInstallValidation": {
+      "runId": 40357162846,
+      "commit": "8e65390",
+      "result": "passed",
+      "windowsBrowserTests": 221,
+      "nativeTestsPerOS": 70,
+      "systems": [
+        "Windows",
+        "Ubuntu 22.04",
+        "Ubuntu 24.04"
+      ],
+      "checks": [
+        "installed app",
+        "HWP view/edit",
+        "reinstall",
+        "uninstall",
+        "user data preservation"
+      ],
+      "scope": "before rich merged-cell checkpoint"
+    },
     "actualMicrosoftWord": "unavailable",
     "actualHancom": "unavailable"
   },
@@ -451,5 +470,37 @@
       "matchingLongParagraphPageStarts": 35,
       "remaining": "short title table page starts, inline object line leading and font metrics"
     }
+  },
+  "richVerticalMerges": {
+    "cases": 15,
+    "zooms": [
+      100,
+      50,
+      125,
+      200,
+      100
+    ],
+    "docxSaves": 2,
+    "alignment": [
+      "top",
+      "middle",
+      "bottom"
+    ],
+    "scenarios": [
+      "multiple paragraphs and inline image",
+      "wrapping paragraphs",
+      "four pages",
+      "paragraph margins",
+      "one long paragraph"
+    ],
+    "editorPrintTextYTolerancePx": 1,
+    "postRoundtripFixRegressionTests": 31,
+    "evidence": [
+      "merged-rich-before.log",
+      "merged-docx-after.log"
+    ],
+    "limitations": [
+      "own notes inside merges and nested tables inside merged cells remain unsupported by this flow path"
+    ]
   }
 }

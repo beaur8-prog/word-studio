@@ -1994,6 +1994,8 @@ button:hover:not(:disabled) {
 .pagination-measuring-cells .pagination-merge-padding { padding-top: var(--pagination-source-cell-padding) !important; }
 .tiptap .pagination-merge-label { transform: translateY(var(--pagination-label-shift)); }
 .pagination-measuring-cells .pagination-merge-label { transform: none; }
+.tiptap .pagination-merge-flow { vertical-align: top !important; }
+.pagination-measuring-cells .pagination-merge-flow { vertical-align: var(--pagination-source-valign) !important; }
 
 /* View-only repeated table headers reserve space through pagination gaps. */
 .pagination-headers { position:absolute; inset:0; pointer-events:none; z-index:2; }

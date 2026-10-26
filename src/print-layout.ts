@@ -286,11 +286,28 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       const crossings = entries.filter(e => e.row < cut && e.row + e.cell.rowSpan > cut);
       if (!crossings.length || crossings.some(e => e.cell.dataset.cellSplit !== 'allow')) continue;
       const tails = group.slice(cut);
+      // The continuation starts at a source row boundary, not at the bottom
+      // of the sheet. Filling the unused area below that row stretches the
+      // retained rows and makes editor and print disagree about the grid.
+      const rowBoundary = group[cut - 1].getBoundingClientRect().bottom;
       for (const { cell, row, col } of crossings) {
         const next = cell.cloneNode(false) as HTMLTableCellElement;
-        const remainder = splitElement(cell, boundary);
+        next.dataset.printMergeContinuation = 'true';
+        // Partition rich content using the available row height. Applying a
+        // whole-cell middle/bottom offset before partitioning can leave most
+        // of the first fragment empty and overflow the last one. Each printed
+        // fragment then applies the original vertical alignment independently.
+        const align = cell.style.verticalAlign;
+        const cellStyle = getComputedStyle(cell), child = cell.firstElementChild as HTMLElement | null;
+        const childStyle = child && getComputedStyle(child);
+        const rich = cell.dataset.printMergeFlow === 'rich' || cell.children.length > 1 ||
+          (child?.getBoundingClientRect().height ?? 0) + (parseFloat(childStyle?.marginTop || '') || 0) + (parseFloat(childStyle?.marginBottom || '') || 0) >
+          rowBoundary - cell.getBoundingClientRect().top - (parseFloat(cellStyle.paddingTop) || 0) - (parseFloat(cellStyle.paddingBottom) || 0);
+        if (rich) { cell.style.verticalAlign = 'top'; next.dataset.printMergeFlow = 'rich'; }
+        const remainder = splitElement(cell, rowBoundary);
         if (remainder) next.append(...remainder.childNodes);
-        else if ([...cell.children].some(c => c.getBoundingClientRect().bottom > boundary + .5)) next.append(...cell.childNodes);
+        else if ([...cell.children].some(c => c.getBoundingClientRect().bottom > rowBoundary + .5)) next.append(...cell.childNodes);
+        cell.style.verticalAlign = align;
         next.rowSpan = row + cell.rowSpan - cut; cell.rowSpan = cut - row;
         cell.style.removeProperty('height'); next.style.removeProperty('height');
         const following = entries.find(e => e.row === cut && e.col > col)?.cell;
@@ -324,6 +341,10 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         const mergedTail = splitMergedGroup(group, content.getBoundingClientRect().bottom);
         if (mergedTail) { rows.splice(end, 0, ...mergedTail); return; }
         if (group.length !== 1 || [...group[0].cells].some(c => c.rowSpan !== 1)) return;
+        // DOCX enables row splitting to preserve continuing vertical merges.
+        // A final one-row fragment is still part of that merge: keep its row
+        // boundary instead of moving only its empty height to the next sheet.
+        if (group[0].querySelector(':scope > [data-print-merge-continuation]') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
         if (group[0].dataset.rowSplit !== 'allow' && !group[0].querySelector('table') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
         const tail = splitElement(group[0], content.getBoundingClientRect().bottom);
         if (tail) rows.splice(end, 0, tail as HTMLTableRowElement);
