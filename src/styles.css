@@ -733,7 +733,11 @@ button:hover:not(:disabled) {
   font-size: 11pt;
   line-height: 1.65;
   overflow-wrap: break-word;
-  white-space: pre-wrap;
+  /* Match ProseMirror's injected text rules in print and measurement trees.
+     Hanging spaces or enabled ligatures otherwise change line/page breaks. */
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
   color: #242932;
   caret-color: #2864a8;
 }

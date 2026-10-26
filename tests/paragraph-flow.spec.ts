@@ -1,20 +1,20 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 
-for (const font of ['inherit', 'Studio Text']) test(`${font}: a body paragraph continues at printed line boundaries across zoom, editing and undo without splitting the model`, async ({ page }) => {
+for (const font of ['inherit', 'Studio Text']) for (const width of [150, 152]) test(`${font}, ${width} mm: a body paragraph continues at printed line boundaries across zoom, editing and undo without splitting the model`, async ({ page }) => {
   await page.goto('/');
   if (font !== 'inherit') await page.addStyleTag({ content: `.tiptap { font-family: '${font}' !important; }` });
-  const state = await page.evaluate(async () => {
+  const state = await page.evaluate(async width => {
     const { defaultPage } = await import('/src/types.ts'), { importFile } = await import('/src/document-io.ts');
     const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
     const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js'), { createPrintLayout } = await import('/src/print-layout.ts');
     const text = Array.from({ length: 240 }, (_, i) => `Token${String(i).padStart(3, '0')} `).join('');
     const loaded = await importFile(new File([`<p style="line-height:400px;margin:0">LEAD</p><p style="font-size:10pt;line-height:20px;margin:0;text-indent:12px">${text}</p>`], 'flow.html'));
-    const doc = { ...loaded.document, page: { ...defaultPage, size: 'Custom', width: 150, height: 180, margin: 10 }, content: parseDocumentHtml(loaded.html!) };
+    const doc = { ...loaded.document, page: { ...defaultPage, size: 'Custom', width, height: 180, margin: 10 }, content: parseDocumentHtml(loaded.html!) };
     const print = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
     try { const p = print.element.querySelectorAll('.print-content p')[1] as HTMLElement; const range = document.createRange(); range.selectNodeContents(p); return { doc, metrics: { css: p.style.cssText, font: getComputedStyle(p).font, width: p.getBoundingClientRect().width, height: p.getBoundingClientRect().height, rects: [...range.getClientRects()].slice(0,3).map(r => ({x:r.x,y:r.y,w:r.width,h:r.height})) }, pages: [...print.element.querySelectorAll('.print-content')].map(p => p.textContent!.replace(/\s/g, '')) }; }
     finally { print.dispose(); }
-  });
+  }, width);
   await page.locator('input[type=file]').first().setInputFiles({ name: 'flow.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state.doc)) });
   const editor = page.getByRole('textbox', { name: '문서 편집 영역' });
   if (process.env.HWP_LAYOUT_DIAGNOSTICS) console.log('PRINT METRICS', state.metrics);
