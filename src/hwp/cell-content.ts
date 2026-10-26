@@ -86,8 +86,17 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
 export function restoreCellContent(doc: HwpDocument, section: number, para: number, tableControl: number, tableOrdinal: number, html: string,
   equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
   picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined) {
+  const annotate = (content: string, paragraph: number) => {
+    let tableDepth = 0;
+    return content.replace(/<\/?(?:table|p)\b[^>]*>/g, tag => {
+      if (/^<table\b/.test(tag)) tableDepth++;
+      else if (tag === '</table>') tableDepth--;
+      else if (!tableDepth && /^<p\b/.test(tag)) return tag.replace(/>$/, ` data-hwp-cell-paragraph="${paragraph}">`);
+      return tag;
+    });
+  };
   const repair = (source: string, parents: CellPath, control: number, key: string, depth = 0): string => {
-    if (!/<!--\s*rhwp:|<img\b/.test(source) || depth > 12) return source;
+    if ((!/<!--\s*rhwp:|<img\b/.test(source) && !/<table\b[\s\S]*<table\b/.test(source)) || depth > 12) return source;
     const tablePath = [...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }];
     const dims = parents.length ? JSON.parse(doc.getTableDimensionsByPath(section, para, JSON.stringify(tablePath))) : JSON.parse(doc.getTableDimensions(section, para, control));
     if (dims.cellCount > 50000) throw Error('편집할 표의 셀 수가 너무 많습니다.');
@@ -102,7 +111,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
       if (tableDepth !== 1) continue;
       if (/^<td\b/.test(tag)) { start = match.index! + tag.length; continue; }
       const original = source.slice(start, match.index), current = cells[cell++];
-      if (!current || !/<!--\s*rhwp:|<img\b/.test(original)) continue;
+      if (!current || !/<!--\s*rhwp:|<(?:img|table)\b/.test(original)) continue;
       const path = [...parents, { controlIndex: control, cellIndex: current.index, cellParaIndex: 0 }];
       const paragraphs = doc.getCellParagraphCountByPath(section, para, JSON.stringify(path));
       const parts: string[] = [];
@@ -110,7 +119,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
         path[path.length - 1].cellParaIndex = p;
         const json = JSON.stringify(path), paragraphKey = `${key}/c${current.index}/p${p}`;
         let content = fragment(doc.exportSelectionInCellHtmlByPath(section, para, json, p, 0, p, 0xffffffff));
-        const needsRepair = /<!--\s*rhwp:/.test(content) || (/<img\b/.test(content) && (!!picture || !!content.replace(/<[^>]*>/g, '').trim()));
+        const needsRepair = /<!--\s*rhwp:|<table\b/.test(content) || (/<img\b/.test(content) && (!!picture || !!content.replace(/<[^>]*>/g, '').trim()));
         if (needsRepair) {
           const controls: { index: number; type: string; html: string }[] = [];
           for (let index = 0; index < 1024; index++) {
@@ -160,7 +169,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
               if (value[0] === '&') { emit(); output += value; offset += entities(value).length; }
               else for (const char of value) { emit(); output += char; offset += char.length; }
             }
-            parts.push(output); continue;
+            parts.push(annotate(output, p)); continue;
           }
           let next = 0, eq = 0, nested = 0;
           const tableRanges: [number, number][] = [];
@@ -205,6 +214,10 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
         // Control-only paragraphs have no P in the clipboard HTML. Give their
         // inline previews the same paragraph slot as the original source.
         if (needsRepair && /^<img\b/.test(content)) content = `<p>${content}</p>`;
+        // A control-only paragraph can consist solely of a nested table,
+        // without an outer P. Carry the source index to following paragraphs
+        // so tableGeometry does not shift their formatting by one slot.
+        content = annotate(content, p);
         parts.push(content.replace(/<img\b(?![^>]*\bdata-inline-image=)/g, '<img data-inline-image="true"'));
       }
       output += source.slice(cursor, start) + parts.join('\n'); cursor = match.index!;

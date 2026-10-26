@@ -26,6 +26,7 @@ module.exports = async function createFixture(directory) {
       await fs.writeFile(files[format], format === 'hwp' ? doc.exportHwp() : doc.exportHwpx());
     }
     files.x = JSON.parse(doc.getPageControlLayout(0)).controls.find(c => c.type === 'table').x;
+    files.gap = JSON.parse(doc.getTableProperties(0, c.para, c.controlIndex)).outerBottom / 75 + 20;
     return files;
   } finally { doc.free(); }
 };

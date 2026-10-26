@@ -11,7 +11,7 @@ import { paginateParagraph } from './editor-paragraph-pagination';
 
 const key = new PluginKey('studioPagination');
 type RepeatingHeader = { table: HTMLTableElement; rows: HTMLTableRowElement[]; height: number };
-type Piece = { pos: number; end: number; top: number; height: number; columns?: number; cellRow?: HTMLTableRowElement; mergedRows?: HTMLTableRowElement[]; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[]; header?: RepeatingHeader; tableTop?: number };
+type Piece = { pos: number; end: number; top: number; height: number; columns?: number; columnFlow?: boolean; cellRow?: HTMLTableRowElement; mergedRows?: HTMLTableRowElement[]; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[]; header?: RepeatingHeader; tableTop?: number };
 
 /** Use real block/row geometry. A form is often one large table cell containing
  * paragraphs and nested tables, so treating only top-level nodes as indivisible
@@ -46,7 +46,7 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       if (node.type.name === 'sectionBreak') { try { breakType = JSON.parse(node.attrs.page).breakType || ''; } catch { /* Validated on file input. */ } }
       result.push({ pos, end: pos + node.nodeSize, ...box, height: 0, explicit: node.type.name, breakType }); return;
     }
-    if (node.type.name !== 'table') { result.push({ pos, end: pos + node.nodeSize, ...box, empty: !node.textContent.trim() && !dom.querySelector('img,[data-note-reference]') }); return; }
+    if (node.type.name !== 'table') { result.push({ pos, end: pos + node.nodeSize, ...box, columnFlow: node.type.name === 'columnGroup', empty: !node.textContent.trim() && !dom.querySelector('img,[data-note-reference]') }); return; }
     const rows: { node: PMNode; pos: number; dom: HTMLElement }[] = [];
     node.forEach((row, offset) => {
       const rowPos = pos + 1 + offset, rowDom = view.nodeDOM(rowPos) as HTMLElement;
@@ -215,7 +215,10 @@ export const Pagination = Extension.create({
                     if (flow) { assignNotes(flow.references); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                   }
                 }
-                if (piece.explicit || (y + piece.height > end + .5 && piece.height <= usable)) {
+                // Multi-column groups already fragment across paper rows in
+                // layoutColumns. Moving their outer box as an atomic block
+                // adds a second page gap and feeds it back into column-prefix.
+                if (piece.explicit || (!piece.columnFlow && y + piece.height > end + .5 && piece.height <= usable)) {
                   let destination = page + 1;
                   if (piece.breakType === 'oddPage' || piece.breakType === 'evenPage') {
                     const parity = piece.breakType === 'oddPage' ? 1 : 0;

@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 const createFixture = createRequire(import.meta.url)('./hwp-inline-tables-fixture.cjs');
-let directory: string, files: { hwp: string; hwpx: string; x: number };
+let directory: string, files: { hwp: string; hwpx: string; x: number; gap: number };
 test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-inline-tables-')); files = await createFixture(directory); });
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
 for (const format of ['hwp', 'hwpx'] as const) test(`${format}: inline table prefix and suffix spaces add no lines, retain indentation and preserve a separate blank paragraph through DOCX saves`, async ({ page }) => {
@@ -28,6 +28,7 @@ for (const format of ['hwp', 'hwpx'] as const) test(`${format}: inline table pre
           const tail = paragraphs.find(p => p.textContent === 'TAIL')!;
           states.push({ pages: layout.pages, x: table.getBoundingClientRect().left - paper.getBoundingClientRect().left,
             prefix: before.textContent, suffix: after.textContent, prefixHeight: before.getBoundingClientRect().height, suffixHeight: after.getBoundingClientRect().height,
+            gap: after.getBoundingClientRect().top - table.getBoundingClientRect().bottom,
             separateBlank: tail.nextElementSibling!.textContent, blankHeight: tail.nextElementSibling!.getBoundingClientRect().height, text: layout.element.textContent });
         } finally { layout.dispose(); }
         if (save < 2) { const result = await importFile(new File([await exportDocx(doc)], 'again.docx')); doc = { ...result.document, content: parseDocumentHtml(result.html!) }; }
@@ -40,5 +41,6 @@ for (const format of ['hwp', 'hwpx'] as const) test(`${format}: inline table pre
     expect(state.prefixHeight).toBeLessThan(1); expect(state.suffixHeight).toBeLessThan(1);
     expect(state.separateBlank).toBe(' '); expect(state.blankHeight).toBeCloseTo(30, 0);
     expect(state.x).toBeCloseTo(files.x, 0); expect(state.text).toContain('TABLE TEXT');
+    expect(state.gap).toBeCloseTo(files.gap, 0);
   }
 });

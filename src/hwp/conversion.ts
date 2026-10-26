@@ -102,12 +102,42 @@ function sourceLinePitches(doc: HwpDocument): Map<string, number> {
 function tableGeometry(doc: HwpDocument, section: number, para: number, control: number, html: string, pitches: Map<string, number>): string {
   const dims = JSON.parse(doc.getTableDimensions(section, para, control));
   if (dims.cellCount > 50000 || dims.colCount > 1000 || dims.rowCount > 10000) throw new Error('편집할 표의 셀 수가 너무 많습니다.');
+  const tableProperties = JSON.parse(doc.getTableProperties(section, para, control));
   const cells = Array.from({ length: dims.cellCount }, (_, index) => ({
     index, ...JSON.parse(doc.getCellInfo(section, para, control, index)), ...JSON.parse(doc.getCellProperties(section, para, control, index)),
-  })).sort((a, b) => a.row - b.row || a.col - b.col);
+  })).map(cell => {
+    // Stored cell padding is inactive unless hasMargin is enabled. Inherited
+    // table padding can be much smaller; using the inactive values wraps
+    // short headings into extra lines and increases every following row.
+    for (const side of ['Left', 'Right', 'Top', 'Bottom']) {
+      const key = 'padding' + side;
+      if (!cell.applyInnerMargin || Number(cell[key]) < 0) cell[key] = Math.max(0, Number(tableProperties[key]) || 0);
+    }
+    return cell;
+  }).sort((a, b) => a.row - b.row || a.col - b.col);
   // Solve cumulative grid edges from both merged and unmerged cells. Dividing
   // every merged width equally expands the fine grids used by Hancom forms.
   const grid = (axis: 'col' | 'row', length: number) => {
+    if (axis === 'row' && cells.some(c => c.height === 0)) {
+      // Zero-height cells are automatic rows, not zero-length grid edges.
+      // Pinning such an edge puts all remaining merged-cell height in the
+      // final row, then CSS grows the earlier automatic rows again.
+      const heights: (number | undefined)[] = Array.from({ length }, (_, row) => {
+        const values = cells.filter(c => c.row === row && c.rowSpan === 1 && c.height > 0).map(c => c.height);
+        return values.length ? Math.max(...values) : undefined;
+      });
+      const constraints = cells.filter(c => c.rowSpan > 1 && c.height > 0)
+        .sort((a, b) => a.rowSpan - b.rowSpan).map(c => ({ start: c.row, count: c.rowSpan, height: c.height }));
+      constraints.push({ start: 0, count: length, height: Math.max(0, Number(tableProperties.tableHeight) || 0) });
+      for (const constraint of constraints) {
+        const indexes = Array.from({ length: constraint.count }, (_, i) => constraint.start + i).filter(i => i < length);
+        const unknown = indexes.filter(i => heights[i] === undefined);
+        if (!unknown.length || !constraint.height) continue;
+        const remaining = Math.max(0, constraint.height - indexes.reduce((sum, i) => sum + (heights[i] ?? 0), 0));
+        for (const i of unknown) heights[i] = remaining / unknown.length;
+      }
+      return heights.map(height => Math.max(1, px(height ?? 0)));
+    }
     const edges: (number | undefined)[] = Array(length + 1); edges[0] = 0;
     for (let pass = 0; pass < 4; pass++) for (const cell of cells) {
       const start = cell[axis], end = start + cell[axis + 'Span'], size = cell[axis === 'col' ? 'width' : 'height'];
@@ -123,7 +153,6 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     return Array.from({ length }, (_, i) => Math.max(1, px(edges[i + 1]! - edges[i]!)));
   };
   const columns = grid('col', dims.colCount), rows = grid('row', dims.rowCount);
-  const tableProperties = JSON.parse(doc.getTableProperties(section, para, control));
   // Some stored HWP row layouts continue their cell contents onto later
   // sheets even under RowBreak. Keep that observed behavior, rather than
   // treating every multi-cell row as an indivisible form or guessing from
@@ -138,12 +167,14 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
   const borderWidths = [.1, .12, .15, .2, .25, .3, .4, .5, .6, .7, 1, 1.5, 2, 3, 4, 5];
   const style = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old}${css}"`) : tag.replace(/>$/, ` style="${css}">`);
   let depth = 0, cellIndex = 0, row = 0, cellParagraph = 0, header = false, paragraphStyle = '';
-  return html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, tag => {
+  return html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, (tag, offset: number) => {
     if (/^<table\b/.test(tag)) { depth++; return depth === 1 ? style(tag, `width:${columns.reduce((sum, n) => sum + n, 0)}px;margin-bottom:${px(Math.max(0, Number(tableProperties.outerBottom) || 0))}px;`) : tag; }
     if (tag === '</table>') { depth--; return tag; }
     if (depth !== 1) return tag;
     if (/^<p\b/.test(tag)) {
       try {
+        const sourceIndex = tag.match(/\bdata-hwp-cell-paragraph="(\d+)"/)?.[1];
+        if (sourceIndex !== undefined) cellParagraph = Number(sourceIndex);
         const c = cells[cellIndex - 1], index = c.index;
         const properties = JSON.parse(doc.getCellParaPropertiesAt(section, para, control, index, cellParagraph));
         const char = JSON.parse(doc.getCellCharPropertiesAt(section, para, control, index, cellParagraph, 0));
@@ -171,7 +202,19 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
         if (c.rowSpan === 1 && doc.getCellParagraphCount(section, para, control, index) === 1 &&
           JSON.parse(doc.getLineInfoInCell(section, para, control, index, 0, 0)).lineCount === 1)
           cap = px(c.height - c.paddingTop - c.paddingBottom);
-        return cssStyle(tag, paragraphCss(properties, char, cap, false) + (pitch ? `line-height:${pitch}px;` : ''));
+        let finalPitch = pitch;
+        const text = html.slice(offset + tag.length, html.indexOf('</p>', offset));
+        if (cellParagraph === doc.getCellParagraphCount(section, para, control, index) &&
+          JSON.parse(doc.getLineInfoInCell(section, para, control, index, cellParagraph - 1, 0)).lineCount <= 1 &&
+          !/<(?:img|table)\b|<!--\s*rhwp:/i.test(text)) {
+          // Hancom does not reserve trailing line leading after the final
+          // line in a cell. For a single-line final paragraph this is an
+          // ordinary exact line height and survives DOCX without hidden data.
+          const inkHeight = pitches.get(`height:${key}`) ?? Number(char.fontSize) / 75;
+          const requested = pitch ?? physicalLineHeight(properties, char);
+          if (inkHeight > 0 && requested > inkHeight) finalPitch = inkHeight;
+        }
+        return cssStyle(tag, paragraphCss(properties, char, cap, false) + (finalPitch ? `line-height:${finalPitch}px;` : ''));
       } catch { return tag; }
     }
     if (tag === '</td>') return `${cellParagraph ? '' : `<p style="${paragraphStyle}"></p>`}</${header ? 'th' : 'td'}>`;
@@ -534,6 +577,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const onlyWhitespace = (html: string) => !/<(?:br|img|table|svg)\b|data-(?:note-reference|page-number|symbol-font)/i.test(html) &&
         !entities(html.replace(/<[^>]*>/g, '')).trim();
       let cursor = 0, content = '', contentBytes = 0, lastInlineTable = false;
+      let inlineTail: { piece: number; line: number; width: number; left: number; available: number } | undefined;
       const appendInline = (value: string) => { contentBytes += hwpHtmlBytes(value); checkHwpHtmlSize(size + contentBytes); content += value; };
       for (const c of byParagraph.get(globalPara) ?? []) {
         if (backgroundControls.has(c.controlIndex)) continue;
@@ -624,6 +668,19 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         }
         if (/^<(?:table|p)\b/.test(controlHtml)) {
           const inlineTable = c.ctrlId === 'tbl' && !!JSON.parse(doc.getTableProperties(section, para, c.controlIndex)).treatAsChar;
+          if (inlineTable && !doc.getTextRange(section, para, 0, 0xffffffff).trim()) {
+            const lineIndex = JSON.parse(doc.getLineInfo(section, para, pos)).lineIndex;
+            const char = JSON.parse(doc.getCharPropertiesAt(section, para, pos));
+            const leading = structure?.lineSpacings?.[lineIndex] ??
+              (['Percent', 'SpaceOnly'].includes(properties.lineSpacingType) ? physicalLineHeight(properties, char) - Number(char.fontSize) / 75 : 0);
+            // An inline table occupies the line's object height, followed by
+            // the source line's extra leading. Removing the placeholder text
+            // line must not also remove that independent gap.
+            if (Number.isFinite(leading) && leading > 0) {
+              const props = JSON.parse(doc.getTableProperties(section, para, c.controlIndex));
+              controlHtml = controlHtml.replace(/^<table\b[^>]*>/, tag => cssStyle(tag, `margin-bottom:${Math.round((px(Math.max(0, Number(props.outerBottom) || 0)) + leading) * 100) / 100}px;`));
+            }
+          }
           // Spaces before an inline table share the table's line. Keep their
           // text, but do not turn them into an additional full-height line.
           // A positive subpixel pitch also survives DOCX exact-line spacing.
@@ -643,13 +700,41 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
               controlHtml = controlHtml.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify({ x: position.x, y: position.y, bottom: px(props.outerBottom || 0) }))}"`);
           }
           if (fullWidth) { closeColumns(); append('<div data-column-count="1" data-column-space="0">'); }
+          const tablePiece = pieces.length;
           append(controlHtml);
+          inlineTail = undefined;
+          if (inlineTable && !fullWidth && columnCount === 1 && tableWidth > 0) {
+            const position = controlPosition(section, para, c.controlIndex);
+            const pages = new Set(JSON.parse(doc.getTableCellBboxes(section, para, c.controlIndex)).map((b: any) => b.pageIndex));
+            const left = position ? position.x - px(pd.marginLeft) : 0;
+            const available = px((pd.landscape ? pd.height : pd.width) - pd.marginLeft - pd.marginRight) - left;
+            if (pages.size === 1 && available - tableWidth >= 1)
+              inlineTail = { piece: tablePiece, line: JSON.parse(doc.getLineInfo(section, para, pos)).lineIndex, width: tableWidth, left, available };
+          }
           if (fullWidth) { append('</div>'); openColumns(); }
           content = ''; contentBytes = 0;
           lastInlineTable = inlineTable;
         } else { appendInline(controlHtml.replace(/<img /g, '<img data-inline-image="true" ')); lastInlineTable = false; }
       }
       appendInline(inline(range(cursor, 0xffffffff)));
+      if (inlineTail && !onlyWhitespace(content) && !onlyFloating(content) &&
+        !/<(?:br|table)\b/.test(content) && JSON.parse(doc.getLineInfo(section, para, cursor)).lineIndex === inlineTail.line &&
+        JSON.parse(doc.getLineInfo(section, para, 0)).lineCount === inlineTail.line + 1) {
+        // Inline tables and following text can share the same source line.
+        // A borderless layout row preserves this editable relationship in
+        // standard DOCX too, instead of inventing a paragraph below the table.
+        // Restrict this to a source table on one page and its final text line.
+        const { piece, width, left, available } = inlineTail;
+        const table = pieces[piece];
+        const gap = [...(table.match(/^<table\b[^>]*>/)?.[0] ?? '').matchAll(/margin-bottom:([\d.]+)px/g)].at(-1)?.[1] ?? '0';
+        const inner = table.replace(/^<table\b[^>]*>/, tag => cssStyle(tag, 'margin-left:0;margin-right:0;margin-bottom:0;'));
+        const cell = 'padding:0;border:none;vertical-align:bottom;';
+        const tailWidth = Math.max(1, available - width);
+        const tail = cssStyle(open, 'margin:0;text-indent:0;text-align:left;') + content + '</p>';
+        const wrapped = `<table style="width:${available}px;margin-left:${left}px;margin-bottom:${gap}px;border:none;"><tr><td colwidth="${Math.round(width)}" style="${cell}width:${width}px;">${inner}</td><td colwidth="${Math.round(tailWidth)}" style="${cell}width:${tailWidth}px;">${tail}</td></tr></table>`;
+        size += hwpHtmlBytes(wrapped) - hwpHtmlBytes(table); checkHwpHtmlSize(size);
+        pieces[piece] = wrapped; content = ''; contentBytes = 0;
+      }
       // Keep real blank paragraphs, but avoid an extra empty paragraph after a table.
       if (content.trim() || !(byParagraph.get(globalPara) ?? []).some(c => c.ctrlId === 'tbl')) {
         if (lastInlineTable && onlyWhitespace(content)) open = cssStyle(open, 'line-height:0.1px;margin-top:0px;');
@@ -663,7 +748,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   }
   for (const note of noteStories.notes) append(`<div data-document-note="${note.id}" data-note-kind="${note.kind}" data-note-label="${escape(note.label)}">${note.html}</div>`);
   onProgress?.({ label: '변환한 본문과 그림을 정리하는 중…' });
-  let html = pieces.join('\n').replace(/<!--\s*rhwp:\s*셀 안 (ColumnDef|Bookmark|PageHide)\b[\s\S]*?-->/g, (_, type: string) => {
+  let html = pieces.join('\n').replace(/\sdata-hwp-cell-paragraph="\d+"/g, '').replace(/<!--\s*rhwp:\s*셀 안 (ColumnDef|Bookmark|PageHide)\b[\s\S]*?-->/g, (_, type: string) => {
     warnings.add(type === 'ColumnDef' ? '표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.'
       : type === 'Bookmark' ? '책갈피 위치 정보는 편집본에 전달되지 않습니다. 본문 내용은 유지합니다.'
       : '원본의 쪽 숨김 설정은 편집본에 전달되지 않습니다. 본문 내용은 유지합니다.');
@@ -702,8 +787,11 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   // for these imported paragraphs. Ordinary authored HTML keeps its own rule.
   html = html.replace(/<p style="([^"]*)">/g, (tag, css: string) => {
     const line = [...css.matchAll(/(?:^|;)line-height:([\d.]+)%;/g)].at(-1);
-    const font = [...css.matchAll(/(?:^|;)font-size:([\d.]+)(pt|px);/g)].at(-1);
-    if (!line || !font || [...css.matchAll(/(?:^|;)line-height:([^;]+);/g)].at(-1)?.[1] !== line[1] + '%') return tag;
+    const font = [...css.matchAll(/(?:^|;)font-size:([\d.]+)(pt|px)(?=;|$)/g)].at(-1);
+    // Do not consume the semicolon: adjacent declarations can override one
+    // another, and skipping the second would replace measured exact leading
+    // with an earlier percentage again.
+    if (!line || !font || [...css.matchAll(/(?:^|;)line-height:([^;]+)(?=;|$)/g)].at(-1)?.[1] !== line[1] + '%') return tag;
     const pitch = Number(font[1]) * (font[2] === 'pt' ? 4 / 3 : 1) * Number(line[1]) / 100;
     return cssStyle(tag, `line-height:${Math.max(.1, Math.round(pitch * 100) / 100)}px;`);
   });

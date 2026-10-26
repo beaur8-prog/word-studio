@@ -6,6 +6,9 @@ import { symbolFont, symbolElement } from './document-symbols';
 import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
+// A standard paragraph style identifies the otherwise invisible separator
+// required by Word between adjacent tables and after a table inside a cell.
+export const TABLE_GAP_STYLE = 'WordStudioTableGap';
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
@@ -133,6 +136,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       template.innerHTML = html.replace(/<a\s+id="(ws_marker_\d+)"\s*><\/a>/g, '<span data-ws-marker="$1"></span>')
         .replace(/<a\s+id="([^"]+)"\s*><\/a>/g, '<span data-docx-bookmark="$1"></span>');
       const sizedTables = new Map<HTMLTableElement, Element>();
+      const tableGaps = new Map<HTMLElement, number>();
       for (const el of template.content.querySelectorAll('img')) {
         const name = el.getAttribute('alt') || '', marker = markers.get(name);
         if (marker?.kind !== 'image') continue;
@@ -186,6 +190,12 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
+        const properties = child(marker.paragraph, 'pPr');
+        if (val(child(properties, 'pStyle')) === TABLE_GAP_STYLE &&
+            Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark'))) {
+          const spacing = child(properties, 'spacing');
+          if (val(spacing, 'lineRule') === 'exact') tableGaps.set(p, Math.max(0, Number(val(spacing, 'line')) / 15));
+        }
         p.setAttribute('data-word-line-rule', format.lineRule(marker.paragraph));
         const tabs = format.tabs(marker.paragraph);
         if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
@@ -323,6 +333,17 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         p.after(pageBreak);
         if (after.textContent || (after as Element).querySelector('img,br')) pageBreak.after(after);
         if (!p.textContent && !p.querySelector('img,br')) p.remove();
+      }
+      // Restore our structural table separators to margins. Leaving them as
+      // body paragraphs can create an otherwise empty page after a full table.
+      // An ordinary blank paragraph, or a separator edited to contain content,
+      // remains an ordinary paragraph.
+      for (const [p, gap] of tableGaps) {
+        const table = p.previousElementSibling as HTMLElement | null;
+        if (table?.tagName !== 'TABLE' || p.textContent || p.children.length) continue;
+        if (p.nextElementSibling?.tagName !== 'TABLE' && !(p.parentElement?.matches('td,th') && !p.nextElementSibling)) continue;
+        table.style.marginBottom = `${gap <= 1 / 15 ? 0 : gap}px`;
+        p.remove();
       }
       // An inline table's following-paragraph spacing represents the gap
       // after the table. Keep it with that table when the next paragraph

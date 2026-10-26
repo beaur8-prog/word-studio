@@ -84,8 +84,9 @@ export const editorExtensions = [
     link: { openOnClick: false, protocols: ["https", "http", "mailto"] },
     underline: false, strike: false,
     // These containers already have an editable end. A synthetic paragraph
-    // outside a full final column row otherwise creates an extra blank page.
-    trailingNode: { notAfter: ['columnGroup', 'sectionContent'] },
+    // after a full final table/column otherwise creates an extra blank page.
+    // The gap cursor can insert a following paragraph when the user types.
+    trailingNode: { notAfter: ['columnGroup', 'sectionContent', 'table'] },
   }),
   Underline.extend({ parseHTML() { return [...(this.parent?.() || []), { style: 'text-decoration-line', consuming: false, getAttrs: value => String(value).includes('underline') ? {} : false }]; } }),
   Strike.extend({ parseHTML() { return [...(this.parent?.() || []), { style: 'text-decoration-line', consuming: false, getAttrs: value => String(value).includes('line-through') ? {} : false }]; } }),

@@ -16,7 +16,7 @@ async function main() {
   run('git', ['clone', '--filter=blob:none', '--no-checkout', 'https://github.com/edwardkim/rhwp.git', source], root);
   run('git', ['sparse-checkout', 'set', 'src', 'crates', 'bindings', 'scripts', 'vendor', 'saved', 'tools/rhwp-subsecond', 'tools/batch-convert', 'tools/llm_verifier/verdict_protocol', 'tools/llm_verifier/claim_bind', 'tools/llm_verifier/criteria_decomp', 'mydocs/manual', 'mydocs/tech/tools/vendor/saved']);
   run('git', ['checkout', '--detach', revision]);
-  for (const patch of ['pagination.patch', 'manifest-paths.patch', 'cell-paper-pictures.patch']) {
+  for (const patch of ['pagination.patch', 'manifest-paths.patch', 'cell-paper-pictures.patch', 'cell-padding.patch']) {
     run('git', ['apply', '--check', path.join(destination, patch)]);
     run('git', ['apply', path.join(destination, patch)]);
   }

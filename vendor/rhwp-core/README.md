@@ -2,8 +2,8 @@
 
 MIT-licensed RHWP 0.8.7, built from
 [`1a76570e833917d15817415a53c09ad61ab3203f`](https://github.com/edwardkim/rhwp/tree/1a76570e833917d15817415a53c09ad61ab3203f)
-with `pagination.patch`, `manifest-paths.patch` and `cell-paper-pictures.patch`
-(`0.8.7-wordstudio.3`). This is a
+with `pagination.patch`, `manifest-paths.patch`, `cell-paper-pictures.patch` and `cell-padding.patch`
+(`0.8.7-wordstudio.4`). This is a
 local Word Studio build, not an upstream release.
 The package is vendored so installers use the exact same engine offline, without
 requiring Rust on users' machines or downloading a replacement during CI.
@@ -42,6 +42,15 @@ axes against the physical page after cell-local placement, including outer
 picture margins as in the body renderer. Paragraph, column and inline positions
 keep their existing behavior. Synthetic HWP/HWPX round trips cover behind-text,
 square and top/bottom wrapping, nested cells, alternative text and margins.
+
+`cell-padding.patch` exports effective table/cell padding, including nested cells.
+The HTML importer distinguishes explicit zero padding from missing CSS and sets
+the native per-cell margin flag, so saving does not silently revert to table
+defaults. HWP and HWPX tests cover inherited margins, nested cells, explicit zero
+and two successive saves. Blank cell paragraphs retain their format and source
+slots. Fixed leading uses the native doubled units, preserving both CSS px and
+pt lengths. CSS declarations follow last-wins order while inner elements override
+inherited formatting; nested bold/italic and duplicate declarations are tested.
 
 Build toolchain: Rust 1.93.1 (`wasm32-unknown-unknown`), wasm-pack 0.15.0,
 wasm-bindgen CLI 0.2.127, upstream locked Cargo dependencies and wasm-opt settings.

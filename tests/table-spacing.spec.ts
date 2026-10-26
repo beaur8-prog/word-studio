@@ -1,5 +1,39 @@
 import { test, expect } from '@playwright/test';
 
+test('structural table gaps never turn into blank pages and genuine blank paragraphs survive two DOCX saves', async ({ page }) => {
+  await page.goto('/');
+  const cases = await page.evaluate(async () => {
+    const { exportDocx, importFile } = await import('/src/document-io.ts');
+    const { editorExtensions, parseDocumentHtml } = await import('/src/extensions.ts');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js');
+    const { createPrintLayout } = await import('/src/print-layout.ts');
+    const { defaultPage } = await import('/src/types.ts');
+    const results = [];
+    for (const gap of ['0px', '13.37px', null]) {
+      const table = (text: string) => `<table ${gap === null ? '' : `style="margin-bottom:${gap}"`}><tr style="height:603px"><td style="padding:0;border:none"><p style="margin:0;line-height:20px">${text}</p></td></tr></table>`;
+      let doc: any = { format: 'word-studio', version: 1, id: crypto.randomUUID(), title: 'Table boundaries', comments: [], updatedAt: new Date().toISOString(),
+        page: { ...defaultPage, size: 'Custom', width: 150, height: 180, margin: 10, margins: undefined },
+        content: parseDocumentHtml(table('FIRST') + table('SECOND') + '<p style="font-size:1pt;line-height:13.4px;margin:0"></p><p style="line-height:20px;margin:0">AFTER</p>') };
+      const states = [];
+      for (let save = 0; save < 3; save++) {
+        const layout = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+        try { states.push({ pages: [...layout.element.querySelectorAll('.print-content')].map(p => p.textContent),
+          nodes: doc.content.content.map((n: any) => n.type), gap: doc.content.content[0].attrs.tableSpacing }); }
+        finally { layout.dispose(); }
+        if (save < 2) { const next = await importFile(new File([await exportDocx(doc)], 'boundaries.docx')); doc = { ...next.document, content: parseDocumentHtml(next.html!) }; }
+      }
+      results.push(states);
+    }
+    return results;
+  });
+  for (const states of cases) for (const state of states) {
+    expect(state.pages).toEqual(['FIRST', 'SECOND', 'AFTER']);
+    expect(state.nodes).toEqual(['table', 'table', 'paragraph', 'paragraph']);
+  }
+  for (const [index, states] of cases.entries()) for (const state of states.slice(1))
+    expect(parseFloat(state.gap)).toBeCloseTo([0, 13.37, 18][index], 1);
+});
+
 test('table bottom spacing keeps the following paragraph on the same page through two DOCX saves', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async () => {
@@ -65,4 +99,25 @@ test('unstyled text and fields inherit their paragraph font ahead of cell defaul
     expect(state.SMALL.size).toBe(12);
     for (const text of ['CELL', '1']) { expect(state[text].font).toBe('Georgia'); expect(state[text].size).toBe(24); }
   }
+});
+
+test('a final full-page table creates no synthetic second page and remains escapable with the gap cursor', async ({ page }) => {
+  await page.goto('/');
+  const doc = await page.evaluate(async () => {
+    const { defaultPage } = await import('/src/types.ts'), { importFile } = await import('/src/document-io.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const loaded = await importFile(new File(['<table style="margin-bottom:0"><tr style="height:590px"><td style="padding:0;border:none"><p style="line-height:20px;margin:0">FINAL CELL</p></td></tr></table>'], 'last.html'));
+    return { ...loaded.document, page: { ...defaultPage, size: 'Custom', width: 150, height: 180, margin: 10 }, content: parseDocumentHtml(loaded.html!) };
+  });
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'last.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(doc)) });
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역' });
+  await expect.poll(() => editor.evaluate(root => root.closest<HTMLElement>('.document-stack')!.dataset.pages)).toBe('1');
+  expect(await editor.locator(':scope > p').count()).toBe(0);
+  await editor.locator('td p').click();
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.type('AFTER TABLE');
+  await expect(editor.locator(':scope > p')).toHaveText('AFTER TABLE');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(editor).not.toContainText('AFTER TABLE');
 });

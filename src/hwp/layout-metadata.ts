@@ -2,13 +2,13 @@ import * as CFB from 'cfb';
 import JSZip from 'jszip';
 import { Inflate } from 'fflate';
 
-export type HwpParagraphLayout = { pageBreak: boolean; columnBreak: boolean; columns?: { count: number; space: number; balance?: boolean } };
+export type HwpParagraphLayout = { pageBreak: boolean; columnBreak: boolean; columns?: { count: number; space: number; balance?: boolean }; lineSpacings?: number[] };
 export type HwpLayoutMetadata = { paragraphs: Record<string, HwpParagraphLayout>; warnings: string[] };
 const LIMIT = 32 * 1024 * 1024;
 const columns = (count: number, gap: number) => count >= 1 && count <= 12 && gap >= 0 && gap <= 75000
   ? { count, space: Math.round(gap / 75 * 100) / 100 } : undefined;
 
-/** Only top-level paragraph headers and column definitions are needed. Nested
+/** Read top-level paragraph headers, columns and stored line leading. Nested
  * table/header paragraphs must not shift the main document's paragraph index. */
 export function parseHwpSection(bytes: Uint8Array, section: number): Record<string, HwpParagraphLayout> {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), result: Record<string, HwpParagraphLayout> = {};
@@ -31,6 +31,9 @@ export function parseHwpSection(bytes: Uint8Array, section: number): Record<stri
       const flags = view.getUint16(offset + 4, true);
       current.columns = columns((flags >>> 2) & 255, view.getUint16(offset + 6, true));
       if (current.columns && (flags & 3) === 1) current.columns.balance = true;
+    } else if (tag === 69 && level === 1 && current) {
+      if (length % 36) throw new Error('Invalid HWP line segments');
+      current.lineSpacings = Array.from({ length: length / 36 }, (_, i) => view.getInt32(offset + i * 36 + 20, true) / 75);
     }
     offset += length;
   }
@@ -41,7 +44,7 @@ export function parseHwpxSection(xml: string, section: number): Record<string, H
   const result: Record<string, HwpParagraphLayout> = {};
   let depth = 0, paragraph = -1, current: HwpParagraphLayout | undefined;
   const attr = (tag: string, name: string) => tag.match(new RegExp(`\\b${name}=["']([^"']*)["']`))?.[1];
-  for (const match of xml.matchAll(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\/?[\w.-]+:(?:p|colPr)\b[^>]*>/g)) {
+  for (const match of xml.matchAll(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<\/?[\w.-]+:(?:p|colPr|lineseg)\b[^>]*>/g)) {
     const tag = match[0];
     if (tag.startsWith('<!')) continue;
     if (/^<\/[\w.-]+:p\b/.test(tag)) { depth--; continue; }
@@ -51,7 +54,11 @@ export function parseHwpxSection(xml: string, section: number): Record<string, H
         result[`${section}:${++paragraph}`] = current;
       }
       if (!tag.endsWith('/>')) depth++;
-    } else if (depth === 1 && current) {
+    } else if (depth === 1 && current && /:lineseg\b/.test(tag) && !tag.startsWith('</')) {
+      const spacing = Number(attr(tag, 'spacing'));
+      if (!Number.isFinite(spacing)) throw new Error('Invalid HWPX line spacing');
+      (current.lineSpacings ??= []).push(spacing / 75);
+    } else if (depth === 1 && current && /:colPr\b/.test(tag)) {
       current.columns = columns(Number(attr(tag, 'colCount')), Number(attr(tag, 'sameGap') || 0));
       if (current.columns && /balanced/i.test(attr(tag, 'type') || '')) current.columns.balance = true;
     }
@@ -75,15 +82,56 @@ async function inflateBounded(bytes: Uint8Array): Promise<Uint8Array> {
   return output;
 }
 
+async function hwpxSections(zip: JSZip): Promise<JSZip.JSZipObject[]> {
+  // Match the native reader's OPF order and path resolution. ZIP entry order
+  // and numeric basenames need not be the document's section order.
+  const manifest = zip.file('Contents/content.hpf');
+  if (!manifest || ((manifest as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? LIMIT + 1) > LIMIT)
+    throw new Error('Missing or oversized HWPX manifest');
+  const decode = (value: string) => value.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/gi, entity => {
+    const named: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" };
+    if (named[entity]) return named[entity];
+    const point = Number.parseInt(entity.slice(entity[2] === 'x' ? 3 : 2, -1), entity[2] === 'x' ? 16 : 10);
+    if (!Number.isFinite(point) || point < 1 || point > 0x10ffff) throw new Error('Invalid XML entity');
+    return String.fromCodePoint(point);
+  });
+  const attr = (tag: string, name: string) => decode(tag.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(["'])(.*?)\\1`))?.[2] ?? '');
+  const items: { id: string; href: string; type: string }[] = [], spine: string[] = [];
+  const xml = (await manifest.async('string')).replace(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>/g, '');
+  for (const match of xml.matchAll(/<(?:[\w.-]+:)?(item|itemref)\b[^>]*>/g)) {
+    if (match[1] === 'itemref') spine.push(attr(match[0], 'idref'));
+    else items.push({ id: attr(match[0], 'id'), href: attr(match[0], 'href'), type: attr(match[0], 'media-type') });
+  }
+  const section = (item: typeof items[number] | undefined): item is typeof items[number] => !!item && item.type === 'application/xml' && item.href.includes('section');
+  let ordered = spine.map(id => items.find(item => item.id === id)).filter(section);
+  if (!ordered.length) ordered = items.filter(section).sort((a, b) => a.href < b.href ? -1 : a.href > b.href ? 1 : 0);
+  if (!ordered.length) throw new Error('HWPX has no section manifest');
+  const normalize = (path: string) => {
+    const parts: string[] = [];
+    for (const part of path.split('/')) {
+      if (!part || part === '.') continue;
+      if (part === '..') { if (!parts.pop()) throw new Error('Invalid package path'); }
+      else parts.push(part);
+    }
+    return parts.join('/');
+  };
+  return ordered.map(({ href }) => {
+    if (!href || href.startsWith('/') || /[:\\\x00]/.test(href)) throw new Error('Invalid package path');
+    const relative = normalize('Contents/' + href);
+    const entry = zip.file(relative) ?? zip.file(normalize(href));
+    if (!entry) throw new Error('Missing HWPX section');
+    return entry;
+  });
+}
+
 export async function readHwpLayoutMetadata(bytes: Uint8Array, hwpx = false): Promise<HwpLayoutMetadata> {
   const output: HwpLayoutMetadata = { paragraphs: {}, warnings: [] };
   try {
     if (hwpx) {
       const zip = await JSZip.loadAsync(bytes);
-      for (const file of Object.values(zip.files).filter(f => /^Contents\/section\d+\.xml$/.test(f.name))) {
+      for (const [section, file] of (await hwpxSections(zip)).entries()) {
         const size = (file as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? LIMIT + 1;
         if (size > LIMIT) throw new Error('HWPX section metadata exceeds budget');
-        const section = Number(file.name.match(/section(\d+)\.xml$/)![1]);
         Object.assign(output.paragraphs, parseHwpxSection(await file.async('string'), section));
       }
     } else {

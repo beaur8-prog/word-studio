@@ -1,7 +1,7 @@
 {
   "name": "@rhwp/core",
-  "version": "0.8.7-wordstudio.3",
-  "description": "RHWP 0.8.7 with Word Studio pagination, manifest path and cell picture positioning fixes",
+  "version": "0.8.7-wordstudio.4",
+  "description": "RHWP 0.8.7 with Word Studio pagination, paths, picture positioning and cell formatting preservation",
   "type": "module",
   "main": "rhwp.js",
   "types": "rhwp.d.ts",

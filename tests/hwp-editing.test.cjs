@@ -594,3 +594,127 @@ test('hard line breaks before cell pictures survive the clipboard exporter omitt
     }
   } finally { source.free(); }
 });
+
+for (const format of ['hwp', 'hwpx']) test(`${format}: inactive stored cell margins use table padding, including nested cells and explicit zero`, async () => {
+  const { HwpDocument, editableHwp, serializeHwp } = await setup;
+  const source = HwpDocument.createEmpty(); source.createBlankDocument();
+  source.pasteHtml(0, 0, 0, '<p></p><table><tr><td><p>INHERITED</p><table><tr><td><p>NESTED</p></td></tr></table></td><td><p>ZERO</p></td></tr></table><p></p>');
+  const zip = await JSZip.loadAsync(source.exportHwpx()); source.free();
+  let xml = await zip.file('Contents/section0.xml').async('string');
+  xml = xml.replace(/<hp:inMargin\b[^>]*\/>/g, '<hp:inMargin left="75" right="150" top="225" bottom="300"/>')
+    .replace(/<hp:cellMargin\b[^>]*\/>/g, '<hp:cellMargin left="1800" right="1800" top="1800" bottom="1800"/>')
+    .replace(/(<hp:tc\b[^>]*\bhasMargin=)"[^"]*"/g, '$1"0"');
+  // The final cell explicitly opts into zero padding. Zero is a real override.
+  const last = xml.lastIndexOf('<hp:tc ');
+  xml = xml.slice(0, last) + xml.slice(last).replace('hasMargin="0"', 'hasMargin="1"').replace(/<hp:cellMargin\b[^>]*\/>/, '<hp:cellMargin left="0" right="0" top="0" bottom="0"/>');
+  zip.file('Contents/section0.xml', xml);
+  const fixture = new HwpDocument(await zip.generateAsync({ type: 'uint8array' }));
+  let bytes = format === 'hwp' ? fixture.exportHwp() : fixture.exportHwpx(); fixture.free();
+  for (let round = 0; round < 3; round++) {
+    const doc = new HwpDocument(bytes);
+    try {
+      const imported = editableHwp(doc), cells = [...imported.html.matchAll(/<td\b[^>]*style="([^"]*)"[^>]*>/g)].map(m => m[1]);
+      assert.equal(cells.length, 3);
+      for (const css of cells.slice(0, 2)) {
+        const padding = [...css.matchAll(/(?:^|;)padding:([^;]+);/g)].at(-1)[1].split(/\s+/).map(parseFloat);
+        assert.deepEqual(padding, [3, 2, 4, 1]);
+      }
+      const padding = [...cells[2].matchAll(/(?:^|;)padding:([^;]+);/g)].at(-1)[1].split(/\s+/).map(parseFloat);
+      assert.ok(padding.every(p => p === 0), cells[2]);
+      if (round < 2) bytes = serializeHwp(HwpDocument, imported.html, imported.page, format).bytes;
+    } finally { doc.free(); }
+  }
+});
+
+test('single-line final cell paragraphs discard trailing leading and later exact CSS wins over adjacent percentages', async () => {
+  const { HwpDocument, editableHwp, serializeHwp } = await setup;
+  for (const format of ['hwp', 'hwpx']) {
+    let html = '<table style="width:400px"><tr><td style="padding:0"><p style="font-size:12pt;line-height:200%"><span style="font-size:12pt">FIRST LINE</span></p><p style="font-size:12pt;line-height:150%"><span style="font-size:12pt">FINAL LINE</span></p></td></tr></table>';
+    for (let round = 0; round < 2; round++) {
+      const output = serializeHwp(HwpDocument, html, paper, format), doc = new HwpDocument(output.bytes);
+      try {
+        const imported = editableHwp(doc); html = imported.html;
+        const paragraphs = [...html.matchAll(/<p\b[^>]*style="([^"]*)"[^>]*>([\s\S]*?)<\/p>/g)];
+        const css = paragraphs.find(p => p[2].includes('FINAL LINE'))[1];
+        const rules = Object.fromEntries(css.split(';').filter(p => p.includes(':')).map(p => { const i = p.indexOf(':'); return [p.slice(0, i).trim(), p.slice(i + 1).trim()]; }));
+        assert.equal(rules['line-height'], '16px', `${format} round ${round}: ${css}`);
+        assert.ok(paragraphs.some(p => p[2].includes('FIRST LINE')));
+      } finally { doc.free(); }
+    }
+  }
+});
+
+for (const format of ['hwp', 'hwpx']) test(`${format}: empty cell paragraphs retain their slots and the following paragraph format through two saves`, async () => {
+  const { HwpDocument, editableHwp, serializeHwp } = await setup;
+  let html = '<table><tr><td><p>BEFORE</p><p style="font-size:18pt;line-height:40px"></p><p style="text-align:right">AFTER</p></td><td><p></p></td></tr></table>';
+  for (let round = 0; round < 3; round++) {
+    const output = serializeHwp(HwpDocument, html, paper, format), doc = new HwpDocument(output.bytes);
+    try {
+      const table = JSON.parse(doc.getControls()).find(c => c.ctrlId === 'tbl' && c.list === 0);
+      assert.equal(doc.getCellParagraphCount(0, table.para, table.controlIndex, 0), 3);
+      const imported = editableHwp(doc); html = imported.html;
+      const cell = html.match(/<td\b[^>]*>([\s\S]*?)<\/td>/)[1];
+      const paragraphs = [...cell.matchAll(/<p\b([^>]*)>([\s\S]*?)<\/p>/g)];
+      assert.equal(paragraphs.length, 3);
+      assert.equal(paragraphs[1][2].replace(/<[^>]*>/g, '').trim(), '');
+      assert.match(paragraphs[1][1], /line-height:40(?:\.0)?px/);
+      assert.match(paragraphs[2][1], /text-align:right/);
+      assert.match(paragraphs[2][2], /AFTER/);
+    } finally { doc.free(); }
+  }
+});
+
+test('native fixed leading keeps physical px/pt units and the last CSS declaration through repeated saves', async () => {
+  const { HwpDocument, editableHwp, serializeHwp } = await setup;
+  for (const format of ['hwp', 'hwpx']) for (const line of ['40px', '30pt', '160%;line-height:40px']) {
+    let html = `<p style="line-height:${line}">FIXED LEADING</p>`;
+    for (let round = 0; round < 3; round++) {
+      const output = serializeHwp(HwpDocument, html, paper, format), doc = new HwpDocument(output.bytes);
+      try {
+        const properties = JSON.parse(doc.getParaPropertiesAt(0, 0));
+        assert.equal(properties.lineSpacingType, 'Fixed', `${format} ${line} round ${round}`);
+        assert.equal(properties.lineSpacing, 40, `${format} ${line} round ${round}`);
+        html = editableHwp(doc).html;
+      } finally { doc.free(); }
+    }
+  }
+});
+
+test('automatic zero-height rows share the remaining merged-cell height without inflating the final row', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const source = HwpDocument.createEmpty(); source.createBlankDocument();
+  source.pasteHtml(0, 0, 0, '<table style="width:400px"><tr><td><p>HEAD</p></td><td><p>HEAD2</p></td></tr><tr><td><p>A</p></td><td rowspan="3"><p>MERGED</p></td></tr><tr><td><p>B</p></td></tr><tr><td><p>C</p></td></tr></table>');
+  const zip = await JSZip.loadAsync(source.exportHwpx()); source.free();
+  const heights = [1500, 1500, 1500, 6000, 0, 0]; let i = 0;
+  let xml = await zip.file('Contents/section0.xml').async('string');
+  xml = xml.replace(/<hp:cellSz\b[^>]*\/>/g, tag => tag.replace(/height="\d+"/, `height="${heights[i++]}"`));
+  assert.equal(i, heights.length);
+  zip.file('Contents/section0.xml', xml);
+  const fixture = new HwpDocument(await zip.generateAsync({ type: 'uint8array' }));
+  try {
+    for (const format of ['hwp', 'hwpx']) {
+      const doc = new HwpDocument(format === 'hwp' ? fixture.exportHwp() : fixture.exportHwpx());
+      try {
+        const html = editableHwp(doc).html;
+        const rows = [...html.matchAll(/<tr\b[^>]*style="[^"]*height:([\d.]+)px/g)].map(m => Number(m[1]));
+        assert.deepEqual(rows, [20, 20, 30, 30], format);
+        for (const text of ['HEAD', 'MERGED', 'A', 'B', 'C']) assert.ok(html.includes(text));
+      } finally { doc.free(); }
+    }
+  } finally { fixture.free(); }
+});
+
+test('native CSS cascade applies inner formatting after inherited declarations', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  for (const format of ['hwp', 'hwpx']) {
+    const html = '<p><span style="font-weight:normal;font-size:10pt;font-style:normal"><strong style="font-size:12pt;font-size:18pt">B</strong><em>I</em>N<span style="font-style:italic"><span style="font-style:normal">R</span></span></span></p>';
+    const doc = new HwpDocument(serializeHwp(HwpDocument, html, paper, format).bytes);
+    try {
+      const chars = [0, 1, 2, 3].map(i => JSON.parse(doc.getCharPropertiesAt(0, 0, i)));
+      assert.equal(chars[0].bold, true); assert.equal(chars[0].fontSize, 1800);
+      assert.equal(chars[1].italic, true); assert.equal(chars[1].fontSize, 1000);
+      assert.equal(chars[2].bold, false); assert.equal(chars[2].italic, false);
+      assert.equal(chars[3].italic, false);
+    } finally { doc.free(); }
+  }
+});

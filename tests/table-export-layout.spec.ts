@@ -3,7 +3,7 @@ import { Document, Packer, Paragraph } from 'docx';
 import JSZip from 'jszip';
 
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-test('separate wide and narrow tables keep their grids and have a minimal Word paragraph between them', async ({ page }) => {
+test('separate wide and narrow tables keep their grids and retain the default table gap in their Word separator', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async W => {
     const { importFile, exportDocx } = await import('/src/document-io.ts');
@@ -25,7 +25,8 @@ test('separate wide and narrow tables keep their grids and have a minimal Word p
       tables: saved.content?.filter(n => n.type === 'table').length, text: again.html };
   }, W);
   expect(result.grids).toEqual([[7200, 4800], [2700, 2700]]);
-  expect(result.separator).toBe('p'); expect(result.line).toBe('1'); expect(result.tables).toBe(2);
+  expect(result.separator).toBe('p'); expect(result.line).toBe('270'); // 18px default gap at 15 twips/px.
+  expect(result.tables).toBe(2);
   expect(result.text).toContain('WIDE LEFT'); expect(result.text).toContain('NARROW RIGHT');
 });
 
@@ -51,7 +52,7 @@ test('nested tables use the padded parent cell width, including the row beneath 
     return { widths, trailing, text: again.html };
   }, W);
   expect(result.widths).toEqual([4200, 4200]); // 300px cell minus 10px on either side.
-  expect(result.trailing).toEqual([['p', '1'], ['p', '1']]);
+  expect(result.trailing).toEqual([['p', '270'], ['p', '270']]);
   expect(result.text).toContain('TOP'); expect(result.text).toContain('BOTTOM'); expect(result.text).toContain('MERGED');
 });
 

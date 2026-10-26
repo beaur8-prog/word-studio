@@ -44,7 +44,7 @@ import type {
   ITableCellBorders,
 } from "docx";
 import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
-import { prepareDocxMetadata } from './docx-metadata';
+import { prepareDocxMetadata, TABLE_GAP_STYLE } from './docx-metadata';
 import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
 import { overlapParts } from './word-overlap';
@@ -1030,12 +1030,13 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     depth?: number;
     indent?: number;
     cellRun?: IRunOptions;
+    tableGap?: number;
     width?: number;
     list?: { reference: string; level: number };
   };
   // Consumers coalesce adjacent tables when no paragraph separates them. The
   // later narrow table can then resize every preceding row of the long table.
-  const tableBoundary = (gap = 0) => new Paragraph({ spacing: { before: 0, after: 0, line: Math.max(1, Math.round(gap * 15)), lineRule: LineRuleType.EXACT }, run: { size: 2 } });
+  const tableBoundary = (gap = 0) => new Paragraph({ style: TABLE_GAP_STYLE, spacing: { before: 0, after: 0, line: Math.max(1, Math.round(gap * 15)), lineRule: LineRuleType.EXACT }, run: { size: 2 } });
   const tableSpacing = new WeakMap<Table, number>();
   const blocks = async (
     nodes: JSONContent[],
@@ -1144,7 +1145,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             );
             output.push(
               ...(await blocks([child], {
-                cellRun: context.cellRun, width: context.width,
+                cellRun: context.cellRun, width: context.width, tableGap: context.tableGap,
                 depth: level + 1,
                 ...(first && isParagraph ? { list: { reference, level } } : {}),
                 ...(!first && isParagraph ? { indent: 720 * (level + 1) } : {}),
@@ -1218,6 +1219,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             column += span;
             const children = await blocks(inheritCellText(cell.content ?? [], cell.attrs), {
               width: Math.max(1, cellWidth - inset),
+              tableGap: context.tableGap,
               cellRun: runOptions({ type: 'text', marks: [{ type: 'textStyle', attrs: {
                 fontFamily: cell.attrs?.fontFamily, fontSize: cell.attrs?.fontSize, color: cell.attrs?.textColor,
               } }] }),
@@ -1226,7 +1228,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               !children.length ||
               children[children.length - 1] instanceof Table
             )
-              children.push(tableBoundary());
+              children.push(tableBoundary(tableSpacing.get(children.at(-1) as Table) || 0));
             const color =
               cell.attrs?.backgroundColor === 'transparent' ? undefined : rgb(cell.attrs?.backgroundColor) ??
               (cell.type === "tableHeader" ? "E8EEF7" : undefined);
@@ -1267,7 +1269,9 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             ...(anchor ? { float: { horizontalAnchor: TableAnchorType.PAGE, verticalAnchor: TableAnchorType.PAGE,
               absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round(anchor.y * 15), bottomFromText: Math.round(anchor.bottom * 15) } } : {}),
           });
-        tableSpacing.set(table, anchor ? 0 : Math.max(0, fontPoints(node.attrs?.tableSpacing) ?? 0) * 4 / 3);
+        // Missing imported CSS uses the editor's 18px table gap. Furniture
+        // and note tables have a zero default, passed through nested blocks.
+        tableSpacing.set(table, anchor ? 0 : Math.max(0, fontPoints(node.attrs?.tableSpacing) ?? (context.tableGap ?? 18) * .75) * 4 / 3);
         output.push(table);
       }
     }
@@ -1295,7 +1299,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   for (const [id, note] of notes) {
     // Both paragraph and table objects implement the block XML component
     // protocol, although docx's public note type lists Paragraph only.
-    const children = await blocks(note.content || []);
+    const children = await blocks(note.content || [], { tableGap: 0 });
     (note.attrs?.kind === 'endnote' ? endnotes : footnotes)[String(noteIds.get(id))] = { children: children as Paragraph[] };
   }
   for (const group of groups) {
@@ -1306,7 +1310,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const count = page.columns?.count || 1;
   contentWidth = Math.max(1, Math.floor((fullWidth - Math.round((page.columns?.space || 0) * 15) * (count - 1)) / count));
   const children = await blocks(group.nodes);
-  const richBlocks = async (html: string) => blocks(parseDocumentHtml(sanitizeImportedHtml(html).html).content || []);
+  const richBlocks = async (html: string) => blocks(parseDocumentHtml(sanitizeImportedHtml(html).html).content || [], { tableGap: 0 });
   const plainFurniture: IParagraphOptions = { run: { size: 18, color: '697386' }, spacing: { before: 0, after: 0, line: 336, lineRule: LineRuleType.AUTO } };
   const footer = async (text: string, numbers: boolean, html?: string, headerHtml?: string) => new Footer({ children: [
     ...(html ? await richBlocks(html) : text || !numbers ? [new Paragraph({ ...plainFurniture, text, alignment: AlignmentType.CENTER })] : []),
@@ -1360,7 +1364,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     footnotes, endnotes,
     comments: { children: await Promise.all(document.comments.map(async (comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: comment.author ?? 'Word Studio', initials: comment.initials, date: new Date(comment.createdAt),
       resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph(text)) }))) },
-    styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } } },
+    styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } },
+      paragraphStyles: [{ id: TABLE_GAP_STYLE, name: 'Table spacing', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } }] },
     sections,
   });
   const blob = await Packer.toBlob(docx);
