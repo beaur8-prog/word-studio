@@ -27,6 +27,68 @@ const setup = (async () => {
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
+test('Hancom furniture uses paper-edge distances and bottom-aligns the footer in its reserved area', async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  const page = { ...paper, size: 'A4', orientation: 'portrait', margin: 30, margins: { top: 30, right: 20, bottom: 35, left: 20 }, headerDistance: 5, footerDistance: 7,
+    headerHtml: '<p style="font-size:9pt;line-height:100%;margin:0">HEADER</p>', footerHtml: '<p style="font-size:9pt;line-height:100%;margin:0">FOOTER</p>' };
+  test('a standalone centered footer table stays centered in native layout after two saves', async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  let page = { ...paper, size: 'A4', orientation: 'portrait', margins: { top: 25, right: 20, bottom: 30, left: 20 }, footerDistance: 10,
+    header: '', footer: '', footerHtml: '<table style="width:90px;margin-left:auto;margin-right:auto"><tr><td style="width:90px;padding:0"><p style="font-size:9pt;line-height:100%;margin:0"><span data-page-number="PAGE">9</span></p></td></tr></table>' };
+  for (const format of ['hwp', 'hwpx']) for (let round = 0; round < 2; round++) {
+    const out = serializeHwp(HwpDocument, '<p>BODY</p>', page, format), doc = new HwpDocument(out.bytes);
+    try {
+      const def = JSON.parse(doc.getPageDef(0)), table = JSON.parse(doc.getPageControlLayout(0)).controls.find(c => c.type === 'table' && c.headerFooter?.kind === 'footer');
+      assert.ok(table); assert.ok(Math.abs(table.x + table.w / 2 - def.width / 150) < .2);
+      page = editableHwp(doc).page; assert.match(page.footerHtml, /margin-left:auto;margin-right:auto/);
+    } finally { doc.free(); }
+  }
+});
+
+for (const format of ['hwp', 'hwpx']) {
+    const out = serializeHwp(HwpDocument, '<p>BODY</p>', page, format), doc = new HwpDocument(out.bytes);
+    try {
+      const def = JSON.parse(doc.getPageDef(0)), converted = editableHwp(doc);
+      assert.ok(Math.abs(converted.page.headerDistance - 5) < .02); assert.ok(Math.abs(converted.page.footerDistance - 7) < .02);
+      assert.ok(Math.abs(def.marginTop * 25.4 / 7200 - 5) < .02); assert.ok(Math.abs(def.marginBottom * 25.4 / 7200 - 7) < .02);
+      const tree = JSON.parse(doc.getPageLayerTreeWithProfile(0, 'print', true, true));
+      const find = (node, kind) => node.groupKind?.kind === kind ? node : (node.children || []).map(n => find(n, kind)).find(Boolean) || (node.child && find(node.child, kind));
+      const header = find(tree.root, 'header'), footer = find(tree.root, 'footer');
+      assert.ok(header && footer);
+      assert.ok(Math.abs(header.children[0].bounds.y - 5 * 96 / 25.4) < .03);
+      const bottom = Math.max(...footer.children.map(n => n.bounds.y + n.bounds.height));
+      assert.ok(Math.abs(bottom - (def.height / 75 - 7 * 96 / 25.4)) < .03, `Footer bottom ${bottom}`);
+    } finally { doc.free(); }
+  }
+});
+
+for (const format of ['hwp', 'hwpx']) test(`${format}: rich odd/even furniture retains native formatted stories, images, tables and live fields`, async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  let page = { ...paper, differentOddEven: true, pageNumbers: true,
+    headerHtml: `<p><b>ODD HEADER</b> <span data-page-number="PAGE">99</span>/<span data-page-number="NUMPAGES">99</span></p><table><tr><td><p>HEADER CELL</p></td></tr></table><p><img src="data:image/png;base64,${png}" width="12" height="12"></p>`,
+    evenHeaderHtml: '<p><i>EVEN HEADER</i></p>', footerHtml: '<p>ODD FOOTER</p>', evenFooterHtml: '<p>EVEN FOOTER</p>', evenPageNumbers: true };
+  let html = '<p>BODY ONE</p><div data-page-break="true"></div><p>BODY TWO</p>';
+  for (let round = 0; round < 2; round++) {
+  const out = serializeHwp(HwpDocument, html, page, format), doc = new HwpDocument(out.bytes);
+  try {
+    assert.equal(doc.getParagraphCount(0), 2); assert.equal(doc.pageCount(), 2);
+    const zip = await JSZip.loadAsync(doc.exportHwpx()), xml = await zip.file('Contents/section0.xml').async('string');
+    const headers = [...xml.matchAll(/<hp:header\b[^>]*>[\s\S]*?<\/hp:header>/g)].map(m => m[0]);
+    assert.equal(headers.length, 2); assert.match(headers.find(h => h.includes('applyPageType="ODD"')), /HEADER CELL/);
+    assert.match(headers.join(''), /<hp:pic/); assert.match(headers.join(''), /<hp:tbl/);
+    assert.match(headers.join(''), /numType="PAGE"/); assert.match(headers.join(''), /numType="TOTAL_PAGE"/);
+    assert.match(xml, /applyPageType="EVEN"[\s\S]*?EVEN FOOTER[\s\S]*?numType="PAGE"/);
+    assert.doesNotMatch(xml, /WORDSTUDIO-FURNITURE|WORDSTUDIO-FIELD|<hp:t>99<\/hp:t>/);
+    const info = await zip.file('Contents/header.xml').async('string'); assert.match(info, /<hh:bold/); assert.match(info, /<hh:italic/);
+    for (const text of ['ODD HEADER', 'EVEN HEADER', 'ODD FOOTER', 'EVEN FOOTER', 'BODY ONE', 'BODY TWO']) assert.equal(xml.split(`<hp:t>${text}</hp:t>`).length - 1, 1);
+    const converted = editableHwp(doc); html = converted.html; page = converted.page;
+    assert.match(page.headerHtml, /font-weight:bold/); assert.match(page.evenHeaderHtml, /font-style:italic/);
+    assert.match(page.headerHtml, /data-page-number="PAGE"/); assert.match(page.headerHtml, /data-page-number="NUMPAGES"/);
+    assert.match(page.headerHtml, /<table/); assert.match(page.headerHtml, /<img/);
+  } finally { doc.free(); }
+  }
+});
+
 for (const format of ['hwp', 'hwpx']) test(`${format}: sections keep paper, margins, headers and shared notes/images through two saves`, async () => {
   const { HwpDocument, serializeHwp, editableHwp } = await setup;
   const second = { ...paper, size: 'Custom', width: 240, height: 320, orientation: 'portrait', margins: { top: 30, right: 17, bottom: 25, left: 19 }, header: 'SECOND HEADER', footer: 'SECOND FOOTER', columns: { count: 2, space: 24, balance: false } };

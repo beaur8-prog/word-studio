@@ -1261,6 +1261,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         const table = new Table({
             rows,
             width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+            ...(['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
             ...(node.attrs?.tableIndent ? { indent: { size: Math.round(Number.parseFloat(node.attrs.tableIndent) * 15) || 0, type: WidthType.DXA } } : {}),
             columnWidths,
             ...(anchor ? { float: { horizontalAnchor: TableAnchorType.PAGE, verticalAnchor: TableAnchorType.PAGE,

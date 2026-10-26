@@ -1959,6 +1959,8 @@ button:hover:not(:disabled) {
 
 .document-furniture, .print-footnotes { padding: 0; min-height: 0; font-size: 9pt; line-height: 1.4; }
 .document-furniture { overflow: visible; }
+.document-furniture:has(*) { white-space: normal; }
+.print-footer > .document-furniture { flex: 1; min-width: 0; }
 .document-furniture p { margin: 0; }
 .document-furniture img { max-width: 100%; object-fit: contain; }
 .document-furniture table, .print-footnotes table { margin: 0; border-collapse: collapse; table-layout: fixed; max-width: 100%; }

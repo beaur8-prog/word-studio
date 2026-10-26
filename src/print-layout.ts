@@ -81,7 +81,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     pageSettings.set(paper, settings);
     paper.dataset.page = String(++pageNumber);
     if (keepBlank) paper.dataset.keepBlank = 'true';
-    const furniture = pageFurniture(settings, pageNumber, ++sectionPage === 1);
+    const first = ++sectionPage === 1;
+    paper.dataset.sectionFirst = String(first);
+    const furniture = pageFurniture(settings, pageNumber, first);
     Object.assign(paper.style, { width: `${width * PX}px`, height: `${height * PX}px`, page: pageName });
     content = document.createElement('div'); content.className = 'tiptap print-content';
     Object.assign(content.style, { left: `${margins.left * PX}px`, top: `${margins.top * PX}px`,

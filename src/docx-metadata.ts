@@ -169,6 +169,10 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           if (sourceTable && table && !sizedTables.has(table)) {
             sizedTables.set(table, sourceTable);
             table.style.marginLeft = `${Number(val(child(child(sourceTable, 'tblPr'), 'tblInd'), 'w')) / 15}px`;
+            const alignment = val(child(child(sourceTable, 'tblPr'), 'jc'), 'val');
+            if (['center', 'right', 'end'].includes(alignment)) {
+              table.style.marginLeft = 'auto'; table.style.marginRight = alignment === 'center' ? 'auto' : '0px';
+            }
             table.style.marginBottom = '0px';
             const floating = child(child(sourceTable, 'tblPr'), 'tblpPr');
             // Page-relative tables spanning the text area can wrap only above

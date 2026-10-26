@@ -3,8 +3,8 @@
   "baselineCommit": "e694647",
   "status": "in_progress",
   "build": "passed",
-  "unitTests": 61,
-  "browserTests": 189,
+  "unitTests": 65,
+  "browserTests": 196,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -183,18 +183,18 @@
     "The independent PDFs cover samples 03–10; full-page visual correspondence is not complete.",
     "Source-reader and converted print counts differ for rules (163/167), language plan (35/36), notice (35/39), English (8/9).",
     "Language-specific font size, tracking and width remain under investigation; diagnostic variants are not shipped.",
-    "HWP/HWPX native PAGE/NUMPAGES now survive, but section/floating object/rich furniture export limitations remain explicitly warned.",
+    "HWP/HWPX native PAGE/NUMPAGES now survive, but floating object/complex drawing furniture export limitations remain explicitly warned.",
     "Microsoft Word, Hancom office and a Windows runtime are unavailable on this Mac.",
     "All 10 samples retain current DOCX page counts; a few rules page-start lines still differ by one or two characters after saving."
   ],
   "evidence": {
     "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
-    "browser": "browser-docx-final.log",
-    "unit": "unit-docx-verified.log",
-    "build": "build-docx-final.log",
+    "browser": "browser-furniture-alignment-final.log",
+    "unit": "unit-furniture-alignment-final.log",
+    "build": "build-furniture-alignment-final.log",
     "nativeLarge": "native-large-completion.log",
-    "nativeFourDocuments": "native-docx-final.log",
-    "docx": "docx-spacing-final.log",
+    "nativeFourDocuments": "native-furniture-alignment-final.log",
+    "docx": "docx-furniture-corpus.json",
     "cropAlignment": "empty-cell-slots.log",
     "largeGlyph": "korean-ink.json",
     "sourceTextAudit": "source-text-audit.json",
@@ -206,7 +206,7 @@
     "columnAndReserve": "column-forms.log",
     "nativeColumns": "columns-roundtrip.log",
     "tableGapAndFontInheritance": "spacing-inheritance-final.log",
-    "freshImport": "fresh-current.log"
+    "freshImport": "fresh-furniture-alignment-final.log"
   },
   "falsePositivesCorrected": [
     "Korean large glyph: font rectangle extends into margin, actual ink does not.",
@@ -271,7 +271,7 @@
     ],
     "limitations": [
       "Column groups nested inside table/note stories are explicitly rejected.",
-      "Section paper sizes, floating objects and rich header stories remain separate pending work."
+      "Floating objects and complex drawing furniture remain separate pending work."
     ]
   },
   "nativeSections": {
@@ -289,7 +289,7 @@
     ],
     "limitations": [
       "continuous changes inside one printed sheet",
-      "rich furniture",
+      "complex drawing furniture coordinates",
       "floating objects"
     ],
     "evidence": [
@@ -308,5 +308,47 @@
       200,
       100
     ]
+  },
+  "nativeFurniture": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "saves": 2,
+    "preserved": [
+      "paragraph formatting",
+      "tables and pictures",
+      "PAGE and NUMPAGES",
+      "odd/even stories",
+      "first-page stories via separate section",
+      "header/footer paper-edge distance",
+      "centered single-table stories"
+    ],
+    "restoredSourceFields": {
+      "02-work-rules": 1,
+      "07-english-exam": 2
+    },
+    "limitations": [
+      "complex drawing coordinate fidelity",
+      "English footer table height differs from native by about 2.6px although bottom edges match"
+    ],
+    "evidence": [
+      "tests/hwp-furniture.spec.ts",
+      "tests/hwp-editing.test.cjs",
+      "english-footer-editable.png"
+    ]
+  },
+  "tableAlignment": {
+    "alignment": [
+      "center",
+      "right"
+    ],
+    "locations": [
+      "body",
+      "footer",
+      "editable view"
+    ],
+    "docxSaves": 2,
+    "evidence": "tests/table-alignment.spec.ts"
   }
 }

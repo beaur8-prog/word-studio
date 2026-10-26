@@ -14,7 +14,7 @@ export function stageHwpSections(html: string, page: PageSettings) {
     if (!next || !['A4', 'Letter', 'Custom'].includes(next.size) || !['portrait', 'landscape'].includes(next.orientation)) throw Error('한글 구역의 용지 설정이 올바르지 않습니다.');
     return `<p>${prefix}${settings.push(next) - 1}-END</p>`;
   });
-  return { html: staged, restore(Core: typeof HwpDocument, doc: HwpDocument, applyPage: (doc: HwpDocument, page: PageSettings, section: number) => void) {
+  return { html: staged, settings, restore(Core: typeof HwpDocument, doc: HwpDocument, applyPage: (doc: HwpDocument, page: PageSettings, section: number) => void) {
     if (settings.length === 1) return doc;
     let size = 0;
     const files = unzipSync(doc.exportHwpx(), { filter: file => {

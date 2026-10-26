@@ -6,11 +6,12 @@ import type { HwpLayoutMetadata } from './layout-metadata';
 import { cellContents, restoreCellContent, entities, type CellPath } from './cell-content';
 import { serializedParts } from './serialized-parts';
 import { olePreview } from './ole-preview';
-import { headerDefinitions, headerPreviewPage, headerLayer, hiddenStories } from './header-stories';
+import { headerDefinitions, headerPreviewPage, headerLayer, hiddenStories, editableHeaderStories } from './header-stories';
 import { stageHwpFields } from './export-fields';
 import { importHwpNotes, stageHwpNotes } from './note-stories';
 import { stageHwpColumns } from './export-columns';
 import { stageHwpSections } from './export-sections';
+import { stageHwpFurniture } from './export-furniture';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -206,12 +207,11 @@ function pageSettings(doc: HwpDocument, section: number, warnings: Set<string>):
   const page: PageSettings = { size: custom ? 'Custom' : letter ? 'Letter' : 'A4', ...(custom ? { width: mm(p.width), height: mm(p.height) } : {}), orientation: p.landscape ? 'landscape' : 'portrait',
     ...(column.columnCount > 1 ? { columns: { count: column.columnCount, space: px(column.spacing), balance: column.columnType === 1 } } : {}),
     margin: mm(p.marginLeft), margins: { top: mm(p.marginTop + p.marginHeader), right: mm(p.marginRight), bottom: mm(p.marginBottom + p.marginFooter), left: mm(p.marginLeft) },
-    header: '', footer: '', pageNumbers: false, headerDistance: mm(p.marginHeader), footerDistance: mm(p.marginFooter), gutter: mm(p.marginGutter) };
+    header: '', footer: '', pageNumbers: false, headerDistance: mm(p.marginTop), footerDistance: mm(p.marginBottom), gutter: mm(p.marginGutter) };
   for (const isHeader of [true, false]) {
     const hf = JSON.parse(doc.getHeaderFooter(section, isHeader, 0));
     if (hf.exists) {
       page[isHeader ? 'header' : 'footer'] = hf.text ?? '';
-      warnings.add('머리말·꼬리말은 기본 텍스트로 가져옵니다. 홀짝·첫 쪽 구분과 개체는 원본 보기에서 확인하세요.');
     }
   }
   return page;
@@ -373,16 +373,18 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     } catch { return; }
   };
   const storyChanges = new Map<string, Partial<PageSettings>>(), restoredHeaders = new Set<string>();
+  const definitions = headerDefinitions(serialized());
+  const editableStories = editableHeaderStories(doc, definitions, isolated => editableHwp(isolated, undefined, undefined, true).html);
   // The raw selection exporter omits rich header stories. Reuse the isolated
   // header layer (never a page crop), with PAGE controls kept as live fields.
-  for (const definition of headerDefinitions(serialized())) {
+  for (const definition of definitions) {
     const key = `${definition.section}:${definition.para}`, page = pageSettings(doc, definition.section, warnings);
     const names = definition.apply === 0 ? [definition.kind, definition.kind === 'header' ? 'evenHeader' : 'evenFooter']
       : [definition.apply === 1 ? definition.kind === 'header' ? 'evenHeader' : 'evenFooter' : definition.kind];
     const text = [...definition.xml.matchAll(/<hp:t>([^<]*)<\/hp:t>/g)].map(m => m[1]).join('');
-    const rich = /<hp:(?:rect|line|pic|ellipse|polygon|container|tbl|equation|ole|autoNum)\b/.test(definition.xml);
-    let html = text ? `<p>${text}</p>` : '', preserved = !rich;
-    if (rich) {
+    const rich = editableStories.has(definition) || /<hp:(?:rect|line|pic|ellipse|polygon|container|tbl|equation|ole|autoNum)\b/.test(definition.xml);
+    let html = editableStories.get(definition) ?? (text ? `<p>${text}</p>` : ''), preserved = editableStories.has(definition) || !rich;
+    if (rich && !preserved) {
       const index = headerPreviewPage(doc, definition);
       const original = index === undefined ? undefined : headerLayer(pageLayer(index), definition.kind);
       if (original) {
@@ -686,9 +688,10 @@ export function setHwpPage(doc: HwpDocument, page: PageSettings, section = 0) {
   const header = Math.min(m.top, page.headerDistance ?? Math.max(0, m.top / 2 - 3));
   const footer = Math.min(m.bottom, page.footerDistance ?? Math.max(0, m.bottom / 2 - 3));
   doc.setPageDef(section, JSON.stringify({ width: page.size === 'Custom' ? hu(page.width!) : letter ? 61200 : 59528, height: page.size === 'Custom' ? hu(page.height!) : letter ? 79200 : 84188, landscape: page.orientation === 'landscape',
-    // HWP body top = marginHeader + marginTop, unlike Word's body margin.
-    marginTop: hu(m.top - header), marginRight: hu(m.right), marginBottom: hu(m.bottom - footer), marginLeft: hu(m.left),
-    marginHeader: hu(header), marginFooter: hu(footer), marginGutter: hu(page.gutter ?? 0) }));
+    // HWP top/bottom margins locate the furniture at the paper edge; the
+    // header/footer areas are the additional distance to the body boundary.
+    marginTop: hu(header), marginRight: hu(m.right), marginBottom: hu(footer), marginLeft: hu(m.left),
+    marginHeader: hu(m.top - header), marginFooter: hu(m.bottom - footer), marginGutter: hu(page.gutter ?? 0) }));
   if (page.columns) doc.setColumnDef(section, page.columns.count, page.columns.balance ? 1 : 0, 1, Math.round(page.columns.space * 75));
   for (const isHeader of [true, false]) {
     const text = page[isHeader ? 'header' : 'footer'];
@@ -706,10 +709,12 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     doc.createBlankDocument();
     const breakToken = 'WORDSTUDIO-PAGE-BREAK-' + crypto.randomUUID();
     const sections = stageHwpSections(html, page);
-    const notes = stageHwpNotes(sections.html);
+    const furniture = stageHwpFurniture(sections.html, sections.settings);
+    const notes = stageHwpNotes(furniture.html);
     const fields = stageHwpFields(notes.html);
     const columns = stageHwpColumns(fields.html, page);
     const converted = columns.html.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
+    checkHwpHtmlSize(hwpHtmlBytes(converted));
     // The first pasted paragraph inherits the host's paragraph shape even on
     // the multi-paragraph path. Sacrifice a leading blank, then remove both
     // sentinels. The writer rebuilds section controls from the section model.
@@ -735,6 +740,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withNotes !== doc) { doc.free(); doc = withNotes; }
     const withSections = sections.restore(Core, doc, setHwpPage);
     if (withSections !== doc) { doc.free(); doc = withSections; }
+    const withFurniture = furniture.restore(Core, doc);
+    if (withFurniture !== doc) { doc.free(); doc = withFurniture; }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {

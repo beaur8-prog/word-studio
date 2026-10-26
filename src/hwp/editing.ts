@@ -91,7 +91,9 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   warn('table', '표의 병합과 내용은 저장하지만 복잡한 셀 너비·테두리·쪽 나눔은 달라질 수 있습니다.');
   warn('h1,h2,h3,h4,h5,h6', '제목은 글자·문단 서식으로 저장합니다. Word 제목 수준은 유지되지 않습니다.');
   if (doc.comments.length) warnings.push(`검토 메모 ${doc.comments.length}개는 한글 파일에 저장되지 않습니다. Word Studio 백업을 함께 보관하세요.`);
-  if (doc.page.differentFirstPage || doc.page.differentOddEven || doc.page.headerHtml || doc.page.footerHtml || doc.page.pageNumbers) warnings.push('머리말·꼬리말은 기본 텍스트만 저장하며 자동 쪽 번호와 첫 쪽·홀짝 구분은 유지되지 않습니다.');
+  const allSettings = [doc.page, ...[...root.querySelectorAll<HTMLElement>('[data-section-page]')].map(el => JSON.parse(el.dataset.sectionPage!))];
+  if (allSettings.some(page => page.differentFirstPage)) warnings.push('첫 쪽만 다른 머리말·꼬리말은 별도의 한글 구역으로 저장해 현재 쪽의 모양을 유지합니다.');
+  if (allSettings.some(page => [page.headerHtml, page.footerHtml, page.evenHeaderHtml, page.evenFooterHtml].some(html => html?.includes('data-image-floating')))) warnings.push('머리말·꼬리말의 그림은 저장하지만 떠 있는 개체의 좌표·겹침은 달라질 수 있습니다.');
   const layout = await createPrintLayout(source, doc.page, onProgress);
   let html: string, exportPage = doc.page;
   const wordPages = layout.pages;
@@ -104,7 +106,11 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     let previousPage = doc.page;
     root.innerHTML = [...layout.element.querySelectorAll('.print-page')].map((sheet, index) => {
       const body = sheet.querySelector('.print-content')?.innerHTML || '<p></p>';
-      const settings = layout.pageSettings.get(sheet) ?? previousPage;
+      const original = layout.pageSettings.get(sheet) ?? previousPage;
+      const first = sheet.getAttribute('data-section-first') === 'true';
+      const settings = original.differentFirstPage ? first ? { ...original, differentFirstPage: false, differentOddEven: false,
+        header: original.firstHeader ?? '', footer: original.firstFooter ?? '', headerHtml: original.firstHeaderHtml, footerHtml: original.firstFooterHtml, pageNumbers: original.firstPageNumbers ?? false }
+        : { ...original, differentFirstPage: false } : original;
       if (!index) exportPage = settings;
       const section = JSON.stringify(settings) !== JSON.stringify(previousPage);
       const marker = document.createElement('div');
