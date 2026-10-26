@@ -1,0 +1,216 @@
+{
+  "runAtUTC": "2026-10-26T02:40:32.778Z",
+  "sourceCommit": "c3c871639a14e4dd6c0ff30d1892fd9ddedf2445",
+  "sourceTreeSHA256": "47fd6989b512bbb4dfa10f2717ddc5734b834106f04a43349723b28b881eb037",
+  "workingTreeDirty": true,
+  "appVersion": "1.4.7",
+  "engine": "0.8.7-wordstudio.2",
+  "browser": "155.0.8059.85",
+  "rendererErrors": [],
+  "scope": "Restore half-em Hancom cut-line glyph advance and normalize geometry-confirmed zero-leading title/spacer pairs. No release or Lithos update.",
+  "docxRenderer": "Bundled LibreOfficeDev 26.8.0.0.alpha0 2c87e51eeaa2b413ff4ae097b2705eea1995d8e5",
+  "rendererFontsTemporarilyAdded": [
+    "AppleMyungjo",
+    "AppleGothic",
+    "Nanum Myeongjo"
+  ],
+  "results": [
+    {
+      "id": "01-employment-contract",
+      "title": "고용노동부 2025 표준근로계약서",
+      "sourcePages": 7,
+      "before": {
+        "studioPages": 7,
+        "docxLibreOfficePages": 7
+      },
+      "after": {
+        "studioPages": 7,
+        "docxLibreOfficePages": 7
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "02-work-rules",
+      "title": "고용노동부 2025 표준취업규칙",
+      "sourcePages": 163,
+      "before": {
+        "studioPages": 182,
+        "docxLibreOfficePages": 169
+      },
+      "after": {
+        "studioPages": 182,
+        "docxLibreOfficePages": 169
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "03-health-table",
+      "title": "보건소 분장사무",
+      "sourcePages": 4,
+      "before": {
+        "studioPages": 4,
+        "docxLibreOfficePages": 4
+      },
+      "after": {
+        "studioPages": 4,
+        "docxLibreOfficePages": 4
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "04-language-plan",
+      "title": "국립국어원 업무계획",
+      "sourcePages": 35,
+      "before": {
+        "studioPages": 36,
+        "docxLibreOfficePages": 38
+      },
+      "after": {
+        "studioPages": 36,
+        "docxLibreOfficePages": 38
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "05-return-form",
+      "title": "복학원서",
+      "sourcePages": 1,
+      "before": {
+        "studioPages": 2,
+        "docxLibreOfficePages": 2
+      },
+      "after": {
+        "studioPages": 1,
+        "docxLibreOfficePages": 1
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "06-mixed-document",
+      "title": "부천옥길 A1 영구임대주택 예비입주자 모집공고",
+      "sourcePages": 35,
+      "before": {
+        "studioPages": 39,
+        "docxLibreOfficePages": 39
+      },
+      "after": {
+        "studioPages": 39,
+        "docxLibreOfficePages": 39
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "07-english-exam",
+      "title": "영어 시험지",
+      "sourcePages": 8,
+      "before": {
+        "studioPages": 10,
+        "docxLibreOfficePages": 10
+      },
+      "after": {
+        "studioPages": 10,
+        "docxLibreOfficePages": 10
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "08-math-exam",
+      "title": "수학 시험지",
+      "sourcePages": 20,
+      "before": {
+        "studioPages": 22,
+        "docxLibreOfficePages": 21
+      },
+      "after": {
+        "studioPages": 22,
+        "docxLibreOfficePages": 21
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "09-korean-exam",
+      "title": "국어 시험지 편집본",
+      "sourcePages": 15,
+      "before": {
+        "studioPages": 15,
+        "docxLibreOfficePages": 17
+      },
+      "after": {
+        "studioPages": 15,
+        "docxLibreOfficePages": 17
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "10-lh-plan",
+      "title": "LH 2025 업무계획 보도자료",
+      "sourcePages": 5,
+      "before": {
+        "studioPages": 5,
+        "docxLibreOfficePages": 5
+      },
+      "after": {
+        "studioPages": 5,
+        "docxLibreOfficePages": 5
+      },
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    }
+  ],
+  "targetChecks": {
+    "mathDocxInkBoundsPt": {
+      "upperBottomPt": 148.97539370078994,
+      "headingTopPt": 150.98039370078993,
+      "headingBottomPt": 191.98039370078993,
+      "overlap": false
+    },
+    "syntheticHwpAndHwpxThroughTwoDocxSaves": true,
+    "ordinaryUnicodeCutLinesUnchanged": true,
+    "unmarkedZeroLeadingAndFollowingRealContentPreserved": true
+  },
+  "verification": {
+    "browserTestsPassed": 139,
+    "unitTestsPassed": 45,
+    "productionBuildPassed": true,
+    "actualMacElectronNativeHwpHwpxSaveCancelReopenPassed": true,
+    "actualMacElectronTargetFiles": {
+      "passed": true,
+      "productionBuild": true,
+      "results": [
+        {
+          "id": "05-return-form",
+          "pages": 1,
+          "comparison": "쪽 수 비교: 원본 보기 1쪽 → Word 편집본 1쪽 · 쪽 수가 같아도 세부 배치는 다를 수 있습니다."
+        },
+        {
+          "id": "08-math-exam",
+          "pages": 22,
+          "comparison": "쪽 수 비교: 원본 보기 20쪽 → Word 편집본 22쪽 · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.",
+          "heading": {
+            "upperBottom": 266.265625,
+            "headingTop": 269.671875
+          }
+        }
+      ],
+      "rendererErrors": []
+    }
+  },
+  "limitations": [
+    "Page count equality does not prove full visual equivalence.",
+    "Original inline-table/text paragraph flow remains only partially represented.",
+    "Only geometry-confirmed one-line zero-leading cell paragraphs followed by a coincident whitespace-only spacer are normalized; that spacer is merged into the title while its characters and marks are retained.",
+    "Math title horizontal position and total exam pagination still differ.",
+    "Long work-rules document remains 182 Studio / 169 LibreOffice pages versus 163 source pages.",
+    "LibreOffice uses substitute Korean fonts; actual Microsoft Word and Windows installed app were not tested in this pass.",
+    "All ten first DOCX pages and target pages were visually inspected, not every page."
+  ]
+}

@@ -8,8 +8,22 @@ import { rasterizeHwpObject } from './object-preview';
  * importer continues to reject arbitrary SVGs and external image resources. */
 export async function prepareEditableHwp(source: EditableHwp, onProgress?: HwpProgressReporter, signal?: AbortSignal): Promise<EditableHwp> {
   signal?.throwIfAborted();
-  if (!/data-hwp-(?:svg|object)=/.test(source.html)) return source;
+  if (!/data-hwp-(?:svg|object|zero-line)=/.test(source.html)) return source;
   const root = document.createElement('template'); root.innerHTML = source.html;
+  // A zero-advance heading can share its source baseline with a following
+  // whitespace paragraph that reserves its height. CSS zero leading instead
+  // raises the ink into the previous line. Preserve that reserved space as a
+  // visible line plus after-space; retain the spacer's characters and marks.
+  for (const paragraph of root.content.querySelectorAll<HTMLElement>('p[data-hwp-zero-line]')) {
+    const [height, after] = paragraph.getAttribute('data-hwp-zero-line')!.split(',').map(Number);
+    const next = paragraph.nextElementSibling;
+    if ([height, after].every(n => Number.isFinite(n) && n >= 0 && n <= 10000) && height > 0 &&
+      next?.tagName === 'P' && !next.textContent?.trim() && !next.querySelector('img,table,br,[data-page-break],[data-column-break]')) {
+      paragraph.style.lineHeight = `${height}px`; paragraph.style.marginBottom = `${after}px`;
+      paragraph.append(...next.childNodes); next.remove();
+    }
+    paragraph.removeAttribute('data-hwp-zero-line');
+  }
   const images = [...root.content.querySelectorAll<HTMLImageElement>('img[data-hwp-svg],img[data-hwp-object]')];
   const warnings = new Set(source.warnings);
   let completed = 0;

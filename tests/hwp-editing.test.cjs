@@ -236,3 +236,21 @@ test('imported Hancom tables retain their outer bottom gap instead of the editor
     }
   } finally { doc.free(); }
 });
+
+test('zero-leading titles identify a coincident spacer, and Hancom cut-line glyphs retain their half-em advance', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const source = HwpDocument.createEmpty();
+  try {
+    require('./hwp-textflow-fixture.cjs').populate(source);
+    for (const format of ['hwp', 'hwpx']) {
+      const doc = new HwpDocument(format === 'hwp' ? source.exportHwp() : source.exportHwpx());
+      try {
+        const { html } = editableHwp(doc);
+        assert.match(html, /data-hwp-zero-line="53\.3,26\.7"/);
+        assert.match(html, /letter-spacing:-6\.666666666666666px/);
+        assert.equal((html.match(/┈/g) || []).length, 81);
+        assert.match(html, /NORMAL ┈/); assert.match(html, /UPPER TITLE/); assert.match(html, /BIG TITLE/);
+      } finally { doc.free(); }
+    }
+  } finally { source.free(); }
+});

@@ -38,16 +38,22 @@ const hu = (value: number) => Math.round(value * 7200 / 25.4);
 const px = (value: number) => Math.round(value / 75 * 100) / 100;
 const cssStyle = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old};${css}"`) : tag.replace(/>$/, ` style="${css}">`);
 
+function physicalLineHeight(properties: Record<string, any>, char?: Record<string, any>): number {
+  const fontPx = Number(char?.fontSize) / 75;
+  const line = Number(properties.lineSpacing);
+  return properties.lineSpacingType === 'Percent' ? fontPx * line / 100
+    : properties.lineSpacingType === 'Fixed' ? line
+    : properties.lineSpacingType === 'SpaceOnly' ? fontPx + line
+    : properties.lineSpacingType === 'Minimum' ? Math.max(fontPx, line) : NaN;
+}
+
 function paragraphCss(properties: Record<string, any>, char?: Record<string, any>, cap?: number, includeSpacing = true): string {
   const fontPx = Number(char?.fontSize) / 75;
   const line = Number(properties.lineSpacing);
   // The query API mixes units: margins/indent and fixed leading are
   // already physical pixels, but before/after retain ParaShape's 2x scale.
   // See build_para_properties_json and style_resolver at the corpus revision.
-  const height = properties.lineSpacingType === 'Percent' ? fontPx * line / 100
-    : properties.lineSpacingType === 'Fixed' ? line
-    : properties.lineSpacingType === 'SpaceOnly' ? fontPx + line
-    : properties.lineSpacingType === 'Minimum' ? Math.max(fontPx, line) : NaN;
+  const height = physicalLineHeight(properties, char);
   const indent = Number(properties.indent) || 0;
   const left = (Number(properties.marginLeft) || 0) + Math.max(0, -indent);
   const spacing = Number.isFinite(cap) && Number.isFinite(height) && height > cap! && cap! >= fontPx ? `${cap}px`
@@ -63,8 +69,11 @@ function sourceLinePitches(doc: HwpDocument): Map<string, number> {
   const pitches = new Map<string, number>();
   for (let page = 0; page < doc.pageCount(); page++) for (const run of JSON.parse(doc.getPageTextLayout(page)).runs ?? []) {
     if (run.parentParaIdx === undefined && typeof run.secIdx === 'number' && typeof run.paraIdx === 'number') pitches.set(`flow:${run.secIdx}:${run.paraIdx}`, 1);
-    if (typeof run.secIdx !== 'number' || typeof run.paraIdx !== 'number' || !run.text?.trim() || run.cellPath?.length > 1) continue;
+    if (typeof run.secIdx !== 'number' || typeof run.paraIdx !== 'number' || run.cellPath?.length > 1) continue;
     const key = run.parentParaIdx === undefined ? `${run.secIdx}:${run.paraIdx}` : `${run.secIdx}:${run.parentParaIdx}:${run.controlIdx}:${run.cellIdx}:${run.cellParaIdx}`;
+    if (!pitches.has(`top:${key}`)) { pitches.set(`top:${key}`, run.y); pitches.set(`page:${key}`, page); }
+    pitches.set(`height:${key}`, Math.max(pitches.get(`height:${key}`) ?? 0, run.h));
+    if (!run.text?.trim()) continue;
     const group = lines.get(key) ?? [], previous = group.at(-1);
     if (!previous || previous.page !== page || Math.abs(previous.y - run.y) > Math.min(previous.h, run.h) * .45) group.push({ y: run.y, h: run.h, page });
     lines.set(key, group);
@@ -116,7 +125,23 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
         const c = cells[cellIndex - 1], index = c.index;
         const properties = JSON.parse(doc.getCellParaPropertiesAt(section, para, control, index, cellParagraph));
         const char = JSON.parse(doc.getCellCharPropertiesAt(section, para, control, index, cellParagraph, 0));
-        const pitch = pitches.get(`${section}:${para}:${control}:${index}:${cellParagraph}`);
+        const key = `${section}:${para}:${control}:${index}:${cellParagraph}`;
+        const pitch = pitches.get(key);
+        if (properties.lineSpacingType === 'Percent' && Number(properties.lineSpacing) === 0 &&
+          cellParagraph + 1 < doc.getCellParagraphCount(section, para, control, index)) {
+          const next = cellParagraph + 1, nextKey = `${section}:${para}:${control}:${index}:${next}`;
+          const firstY = pitches.get(`top:${key}`), nextY = pitches.get(`top:${nextKey}`), height = pitches.get(`height:${key}`);
+          if (height && firstY !== undefined && nextY !== undefined && Math.abs(firstY - nextY) < .5 &&
+            pitches.get(`page:${key}`) === pitches.get(`page:${nextKey}`) &&
+            JSON.parse(doc.getLineInfoInCell(section, para, control, index, cellParagraph, 0)).lineCount === 1 &&
+            JSON.parse(doc.getLineInfoInCell(section, para, control, index, next, 0)).lineCount === 1) {
+            const following = fragment(doc.exportSelectionInCellHtml(section, para, control, index, next, 0, next, 0xffffffff));
+            const reserve = physicalLineHeight(JSON.parse(doc.getCellParaPropertiesAt(section, para, control, index, next)),
+              JSON.parse(doc.getCellCharPropertiesAt(section, para, control, index, next, 0)));
+            if (!following.replace(/<[^>]*>/g, '').trim() && !/<(?:img|table|br)\b|<!--\s*rhwp:/i.test(following) && reserve >= height)
+              tag = tag.replace(/>$/, ` data-hwp-zero-line="${height},${Math.round((reserve - height) * 100) / 100}">`);
+          }
+        }
         cellParagraph++;
         // A one-line source cell can be shorter than CSS's em * percentage.
         // Preserve its measured content pitch, without enforcing a fixed row.
@@ -362,7 +387,16 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   });
   // Verified Hancom glyph meanings, also used by the core reader's text paint.
   // Limit this to the two forms symbols; never guess arbitrary PUA meanings.
-  html = html.replace(/\u{F081C}/gu, '┈').replace(/\u{F012B}/gu, '(인)');
+  // This Hancom line glyph advances half an em. A plain Unicode substitution
+  // advances a full em in the fallback face and doubles the cut-line's width.
+  html = html.replace(/<span style="([^"]*)">([^<]*\u{F081C}[^<]*)<\/span>/gu, (tag, css: string, text: string) => {
+    const font = [...css.matchAll(/(?:^|;)font-size:([\d.]+)(pt|px)/g)].at(-1);
+    if (!font) return tag;
+    const size = Number(font[1]) * (font[2] === 'pt' ? 4 / 3 : 1);
+    const content = text.split(/(\u{F081C}+)/gu).map(part => part.includes('\u{F081C}')
+      ? `<span style="${css};letter-spacing:${-size / 2}px;">${part.replace(/\u{F081C}/gu, '┈')}</span>` : part).join('');
+    return `<span style="${css}">${content}</span>`;
+  }).replace(/\u{F081C}/gu, '┈').replace(/\u{F012B}/gu, '(인)');
   // Some HWPX manifests label embedded BMPs as application/octet-stream.
   // Sniff only known raster signatures; never permit arbitrary data resources.
   html = html.replace(/src="data:application\/octet-stream;base64,([A-Za-z0-9+/=\s]+)"/g, (source, base64: string) => {
