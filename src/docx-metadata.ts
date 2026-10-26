@@ -228,13 +228,13 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const grid = Array.from(child(source, 'tblGrid')?.children ?? []).map(c => Number(val(c, 'w')) / 15);
         const total = grid.reduce((n, w) => n + w, 0); if (!total || !grid.every(n => n > 0)) continue;
         const preferred = child(child(source, 'tblPr'), 'tblW');
-        const requested = val(preferred, 'type') === 'pct' && Number(val(preferred, 'w')) > 0 ? available * Number(val(preferred, 'w')) / 5000 : total;
         const borderPixels = (value: string) => (parseFloat(value) || 0) * (value.endsWith('pt') ? 4 / 3 : 1);
         const cells = [...table.querySelectorAll<HTMLTableCellElement>('td,th')].filter(cell => cell.closest('table') === table);
         // Collapsed outer strokes extend beyond the sum of colgroup widths.
         const borderReserve = (Math.max(0, ...cells.map(cell => borderPixels(cell.style.borderLeftWidth))) + Math.max(0, ...cells.map(cell => borderPixels(cell.style.borderRightWidth)))) / 2;
         const count = page?.columns?.count || 1;
         const columnWidth = parent ? available : (available - (count - 1) * (page?.columns?.space || 0)) / count;
+        const requested = val(preferred, 'type') === 'pct' && Number(val(preferred, 'w')) > 0 ? columnWidth * Number(val(preferred, 'w')) / 5000 : total;
         const target = Math.min(columnWidth - borderReserve, requested);
         if (Math.abs(target - total) < 1) continue;
         for (const cell of table.querySelectorAll<HTMLTableCellElement>('td[colwidth],th[colwidth]')) {

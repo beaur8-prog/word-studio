@@ -190,3 +190,24 @@ test('queried HWP paragraph values normalize mixed units without double-scaling 
     }
   } finally { source.free(); }
 });
+
+test('imported Hancom tables retain their outer bottom gap instead of the editor table default', async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  const created = serializeHwp(HwpDocument, '<table><tr><td><p>TABLE GAP</p></td></tr></table><p>AFTER</p>', paper, 'hwpx');
+  const zip = await JSZip.loadAsync(created.bytes);
+  const xml = await zip.file('Contents/section0.xml').async('string');
+  const changed = xml.replace(/(<hp:outMargin\b[^>]*\bbottom=")[^"]*(")/, '$1900$2');
+  assert.notEqual(changed, xml);
+  zip.file('Contents/section0.xml', changed);
+  const doc = new HwpDocument(await zip.generateAsync({ type: 'uint8array' }));
+  try {
+    for (const format of ['hwp', 'hwpx']) {
+      const reopened = new HwpDocument(format === 'hwp' ? doc.exportHwp() : doc.exportHwpx());
+      try {
+        const html = editableHwp(reopened).html;
+        assert.match(html, /<table[^>]*margin-bottom:12px/);
+        assert.match(html, /TABLE GAP/); assert.match(html, /AFTER/);
+      } finally { reopened.free(); }
+    }
+  } finally { doc.free(); }
+});

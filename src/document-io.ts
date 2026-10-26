@@ -965,7 +965,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   count(document.content);
   const opened = new Set<string>();
   let wroteUnanchored = false;
-  const inline = async (nodes: JSONContent[]): Promise<ParagraphChild[]> => {
+  const inline = async (nodes: JSONContent[], width: number): Promise<ParagraphChild[]> => {
     const runs: ParagraphChild[] = [];
     if (!wroteUnanchored) {
       wroteUnanchored = true;
@@ -1009,7 +1009,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         runs.push(field);
       }
       else if (node.type === "image" || node.type === "inlineImage")
-        runs.push(await imageRun(node, contentWidth / 15, geometries));
+        runs.push(await imageRun(node, width / 15, geometries));
     }
     return runs;
   };
@@ -1017,12 +1017,17 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     depth?: number;
     indent?: number;
     cellRun?: IRunOptions;
+    width?: number;
     list?: { reference: string; level: number };
   };
+  // Consumers coalesce adjacent tables when no paragraph separates them. The
+  // later narrow table can then resize every preceding row of the long table.
+  const tableBoundary = () => new Paragraph({ spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT }, run: { size: 2 } });
   const blocks = async (
     nodes: JSONContent[],
     context: Context = {},
   ): Promise<(Paragraph | Table)[]> => {
+    const width = context.width ?? contentWidth;
     const output: (Paragraph | Table)[] = [];
     for (const node of nodes) {
       if (
@@ -1042,7 +1047,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         output.push(
           new Paragraph({
             ...paragraph,
-            children: await inline(node.content ?? []),
+            children: await inline(node.content ?? [], width),
             ...(context.cellRun ? { run: { ...context.cellRun, ...paragraph.run } } : {}),
             ...(node.type === "heading"
               ? { heading: headings[(node.attrs?.level ?? 1) - 1] }
@@ -1060,7 +1065,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       } else if (node.type === "image")
         output.push(
           new Paragraph({
-            children: [await imageRun(node, contentWidth / 15, geometries)],
+            children: [await imageRun(node, width / 15, geometries)],
             alignment: alignment(node.attrs?.textAlign),
           }),
         );
@@ -1119,6 +1124,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             );
             output.push(
               ...(await blocks([child], {
+                cellRun: context.cellRun, width: context.width,
                 depth: level + 1,
                 ...(first && isParagraph ? { list: { reference, level } } : {}),
                 ...(!first && isParagraph ? { indent: 720 * (level + 1) } : {}),
@@ -1141,17 +1147,18 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             );
         }
         const fallback = Math.floor(
-          contentWidth / Math.max(1, columnWidths.length),
+          width / Math.max(1, columnWidths.length),
         );
         for (let i = 0; i < columnWidths.length; i++)
           if (!columnWidths[i]) columnWidths[i] = fallback;
         const total = columnWidths.reduce((a, b) => a + b, 0);
-        if (total > contentWidth)
+        if (total > width)
           for (let i = 0; i < columnWidths.length; i++)
             columnWidths[i] = Math.max(
               1,
-              Math.floor((columnWidths[i] * contentWidth) / total),
+              Math.floor((columnWidths[i] * width) / total),
             );
+        let occupied: number[] = [];
         let continuations: { remaining: number; attrs: Record<string, unknown> }[] = [];
         const borderPixels = (attrs: Record<string, unknown>, side: string) => {
           const css = globalThis.document.createElement('span').style;
@@ -1172,8 +1179,20 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             const padding = parseFloat(cell.attrs?.[`padding${side}`]);
             return sum + (Number.isFinite(padding) ? Math.max(0, padding) : 8);
           }, 0)));
+          let column = 0;
+          const nextOccupied = occupied.map(remaining => Math.max(0, remaining - 1));
           for (const cell of row.content ?? []) {
+            while ((occupied[column] || 0) > 0) column++;
+            const span = Math.max(1, Number(cell.attrs?.colspan) || 1);
+            const cellWidth = columnWidths.slice(column, column + span).reduce((sum, n) => sum + n, 0);
+            const inset = ['Left', 'Right'].reduce((sum, side) => {
+              const padding = parseFloat(cell.attrs?.[`padding${side}`]);
+              return sum + (Number.isFinite(padding) ? Math.max(0, padding) * 15 : 150);
+            }, 0);
+            if (Number(cell.attrs?.rowspan) > 1) for (let i = 0; i < span; i++) nextOccupied[column + i] = Number(cell.attrs!.rowspan) - 1;
+            column += span;
             const children = await blocks(inheritCellText(cell.content ?? [], cell.attrs), {
+              width: Math.max(1, cellWidth - inset),
               cellRun: runOptions({ type: 'text', marks: [{ type: 'textStyle', attrs: {
                 fontFamily: cell.attrs?.fontFamily, fontSize: cell.attrs?.fontSize, color: cell.attrs?.textColor,
               } }] }),
@@ -1182,7 +1201,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               !children.length ||
               children[children.length - 1] instanceof Table
             )
-              children.push(new Paragraph(""));
+              children.push(tableBoundary());
             const color =
               cell.attrs?.backgroundColor === 'transparent' ? undefined : rgb(cell.attrs?.backgroundColor) ??
               (cell.type === "tableHeader" ? "E8EEF7" : undefined);
@@ -1201,6 +1220,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               }, cell.attrs?.whiteSpace === 'nowrap'),
             );
           }
+          occupied = nextOccupied;
           rows.push(
             new TableRow({
               children: cells,
@@ -1221,7 +1241,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         );
       }
     }
-    return output;
+    return output.flatMap((block, i) => i > 0 && block instanceof Table && output[i - 1] instanceof Table
+      ? [tableBoundary(), block] : [block]);
   };
   const groups: { page: PageSettings; nodes: JSONContent[] }[] = [{ page, nodes: [] }];
   let sectionPage = page;

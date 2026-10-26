@@ -108,7 +108,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
   const style = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old}${css}"`) : tag.replace(/>$/, ` style="${css}">`);
   let depth = 0, cellIndex = 0, row = 0, cellParagraph = 0, header = false, paragraphStyle = '';
   return html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, tag => {
-    if (/^<table\b/.test(tag)) { depth++; return depth === 1 ? style(tag, `width:${columns.reduce((sum, n) => sum + n, 0)}px;`) : tag; }
+    if (/^<table\b/.test(tag)) { depth++; return depth === 1 ? style(tag, `width:${columns.reduce((sum, n) => sum + n, 0)}px;margin-bottom:${px(Math.max(0, Number(tableProperties.outerBottom) || 0))}px;`) : tag; }
     if (tag === '</table>') { depth--; return tag; }
     if (depth !== 1) return tag;
     if (/^<p\b/.test(tag)) {
@@ -292,7 +292,10 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     closeColumns();
   }
   onProgress?.({ label: '변환한 본문과 그림을 정리하는 중…' });
-  let html = pieces.join('\n').replace(/<div data-column-count="[^"]*"[^>]*>\s*<\/div>/g, '').replace(/<!--\s*rhwp:([\s\S]*?)-->/g, () => {
+  let html = pieces.join('\n').replace(/<!--\s*rhwp:\s*셀 안 ColumnDef[^>]*-->/g, () => {
+    warnings.add('표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.');
+    return '';
+  }).replace(/<div data-column-count="[^"]*"[^>]*>\s*<\/div>/g, '').replace(/<!--\s*rhwp:([\s\S]*?)-->/g, () => {
     warnings.add('표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.');
     return '<span>[변환하지 못한 개체 — 원본 보기에서 확인]</span>';
   });
