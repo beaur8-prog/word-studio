@@ -6,7 +6,7 @@ import { measureParagraphLines } from './editor-lines';
  * Widgets affect the view only; the paragraph and undo history stay intact. */
 export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
   origin: number; scale: number; top: number; bottom: number; height: number; extra: number;
-  removed: { top: number; height: number }[];
+  removed: { top: number; height: number }[]; reserveAt?: (page: number) => number;
 }) {
   if (paragraph.querySelector('img,table,[data-note-reference],[data-page-number]')) return null;
   const naturalY = (value: number) => {
@@ -20,7 +20,7 @@ export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
   for (const line of lines) {
     if (line.bottom - line.top > g.height - g.top - g.bottom) return null;
     const y = line.top + g.extra + extra, page = Math.max(0, Math.floor((y - g.top + .5) / stride));
-    if (line.bottom + (line.after || 0) + g.extra + extra <= page * stride + g.height - g.bottom + .5) continue;
+    if (line.bottom + (line.after || 0) + g.extra + extra <= page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0) + .5) continue;
     const gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top + (line.before || 0) - y) * 64) / 64);
     const pos = line.pos();
     decorations.push(Decoration.widget(pos, () => {

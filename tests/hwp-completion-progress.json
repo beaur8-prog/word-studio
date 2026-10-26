@@ -4,7 +4,7 @@
   "status": "in_progress",
   "build": "passed",
   "unitTests": 65,
-  "browserTests": 196,
+  "browserTests": 199,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -189,11 +189,11 @@
   ],
   "evidence": {
     "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
-    "browser": "browser-furniture-alignment-final.log",
+    "browser": "browser-note-reserve-final.log",
     "unit": "unit-furniture-alignment-final.log",
-    "build": "build-furniture-alignment-final.log",
+    "build": "build-note-reserve-final.log",
     "nativeLarge": "native-large-completion.log",
-    "nativeFourDocuments": "native-furniture-alignment-final.log",
+    "nativeFourDocuments": "native-note-reserve-final.log",
     "docx": "docx-furniture-corpus.json",
     "cropAlignment": "empty-cell-slots.log",
     "largeGlyph": "korean-ink.json",
@@ -350,5 +350,28 @@
     ],
     "docxSaves": 2,
     "evidence": "tests/table-alignment.spec.ts"
+  },
+  "footnoteReserve": {
+    "cases": [
+      "paragraph",
+      "multi-paragraph row",
+      "vertical merge"
+    ],
+    "zooms": [
+      100,
+      50,
+      125,
+      200,
+      100
+    ],
+    "before": "3 failed: overlap or editor/print page mismatch",
+    "after": "3 passed: page-wise text, no note overlap, editing/undo/save model invariance",
+    "limitations": [
+      "References inside the long flowing paragraph/row remain pending."
+    ],
+    "evidence": [
+      "footnote-flow-before.log",
+      "footnote-flow-reserve-final.log"
+    ]
   }
 }

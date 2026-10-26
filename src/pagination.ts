@@ -185,17 +185,17 @@ export const Pagination = Extension.create({
                 let refs = candidate();
                 const end = page * stride + h - bottom - reserve(page, refs);
                 if (piece.mergedRows) {
-                  const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed, repeatAt });
+                  const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed, repeatAt, reserveAt: page => reserve(page, refs) });
                   if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }
                 if (piece.cellRow && y + piece.height > end + .5) {
-                  const flow = paginateCellRow(view, piece.cellRow, piece.pos, { origin, scale, top, bottom, height: h, extra, removed, repeatAt });
+                  const flow = paginateCellRow(view, piece.cellRow, piece.pos, { origin, scale, top, bottom, height: h, extra, removed, repeatAt, reserveAt: page => reserve(page, refs) });
                   if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }
                 if (!piece.columns && !piece.explicit && y + piece.height > end + .5 && !piece.references?.length) {
                   const paragraph = view.nodeDOM(piece.pos);
                   if (paragraph instanceof HTMLElement && paragraph.tagName === 'P') {
-                    const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed });
+                    const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed, reserveAt: page => reserve(page, refs) });
                     if (flow) { dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                   }
                 }

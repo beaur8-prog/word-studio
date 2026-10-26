@@ -2,7 +2,7 @@ import type { EditorView } from '@tiptap/pm/view';
 import { Decoration } from '@tiptap/pm/view';
 
 import { measureParagraphLines } from './editor-lines';
-type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number };
+type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; reserveAt?: (page: number) => number };
 
 /** Insert view-only gaps in each column of a continuing row. The row and its
  * cells remain single editable model nodes, so selection/history/save do not
@@ -17,7 +17,7 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
   const decorations: Decoration[] = [], signatures: string[] = [];
   const gapFor = (top: number, bottom: number, offset: number, before = 0, after = 0) => {
     const y = top + g.extra + offset, page = Math.max(0, Math.floor((y - g.top + .5) / stride));
-    if (bottom + after + g.extra + offset <= page * stride + g.height - g.bottom + .5) return 0;
+    if (bottom + after + g.extra + offset <= page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0) + .5) return 0;
     return Math.max(0, Math.ceil(((page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) + before - y) * 64) / 64);
   };
   const addGap = (pos: number, gap: number, columns = 0) => {
@@ -73,7 +73,7 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
                 // The unused body area before a form moves consumes an outer
                 // row's minimum-height reserve. Only the physical paper gutter
                 // and repeated header extend that reserve onto the next sheet.
-                const gutter = g.top + g.bottom + 24 + (g.repeatAt?.(page + 1) ?? 0);
+                const gutter = g.top + g.bottom + 24 + (g.reserveAt?.(page) ?? 0) + (g.repeatAt?.(page + 1) ?? 0);
                 addGap(view.posAtDOM(first, 0) - 1, gap, [...first.cells].reduce((n, c) => n + c.colSpan, 0)); extra += gap; cellGaps += Math.min(gap, gutter);
               } else return false;
             }
@@ -105,8 +105,8 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
     // must not silently consume the stored minimum row height.
     let cursor = flowedContentBottom + g.extra + offset;
     let page = Math.max(0, Math.floor((cursor - g.top + .5) / stride));
-    while (naturalBottom + g.extra + offset + extra > page * stride + g.height - g.bottom + .5) {
-      const boundary = page * stride + g.height - g.bottom;
+    while (naturalBottom + g.extra + offset + extra > page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0) + .5) {
+      const boundary = page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0);
       if (cursor > boundary + .5) { page++; continue; }
       const next = (page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0);
       extra += next - boundary;
@@ -141,7 +141,7 @@ export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[]
   let extra = 0;
   for (const row of rows) {
     const box = row.getBoundingClientRect(), top = y(box.top) + g.extra + extra, height = box.height / g.scale;
-    const page = Math.max(0, Math.floor((top - g.top + .5) / stride)), boundary = page * stride + g.height - g.bottom;
+    const page = Math.max(0, Math.floor((top - g.top + .5) / stride)), boundary = page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0);
     if (top + height > boundary + .5) {
       const gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) - top) * 64) / 64);
       for (const cell of [...row.cells]) {
@@ -165,7 +165,7 @@ export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[]
     const displacement = before + (alignment === 'middle' ? (inside + firstGap) / 2 : alignment === 'bottom' ? inside : firstGap);
     const top = y(box.top) + g.extra + displacement, bottom = y(box.bottom) + g.extra + displacement;
     const page = Math.max(0, Math.floor((top - g.top + .5) / stride));
-    if (bottom > page * stride + g.height - g.bottom + .5) {
+    if (bottom > page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0) + .5) {
       const shift = Math.max(0, (page + 1) * stride + g.top - top), pos = view.posAtDOM(paragraph, 0) - 1;
       if (bottom + shift > y(cell.getBoundingClientRect().bottom) + g.extra + before + inside + .5) return null;
       decorations.push(Decoration.node(pos, pos + view.state.doc.nodeAt(pos)!.nodeSize, { class: 'pagination-merge-label', style: `--pagination-label-shift:${shift}px` }));
