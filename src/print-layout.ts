@@ -12,6 +12,33 @@ export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: W
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
 const PX = 96 / 25.4;
 const dimensions = paperDimensions;
+/** Use existing visual lines: truncating at arbitrary characters can pull part
+ * of the next word onto the preceding line, unlike the editable paragraph. */
+function paragraphLineOffsets(element: HTMLElement) {
+  const breaks = new Set<number>(), walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let offset = 0, previousTop: number | undefined;
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text, range = document.createRange();
+    range.selectNodeContents(node);
+    const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(node.data)].map(s => s.index);
+    for (const rect of range.getClientRects()) {
+      if (rect.width < .1 || rect.height < 1) continue;
+      if (previousTop === undefined || Math.abs(rect.top - previousTop) > rect.height * .5) {
+        let low = 0, high = offsets.length - 1, first = 0;
+        while (low <= high) {
+          const mid = (low + high) >> 1;
+          range.setStart(node, offsets[mid]); range.setEnd(node, offsets[mid + 1] ?? node.length);
+          if (range.getBoundingClientRect().top < rect.top - .5) { first = mid + 1; low = mid + 1; } else high = mid - 1;
+        }
+        const position = offset + (offsets[Math.min(first, offsets.length - 1)] ?? 0);
+        if (position) breaks.add(position);
+        previousTop = rect.top;
+      }
+    }
+    offset += node.length;
+  }
+  return [...breaks].sort((a, b) => a - b);
+}
 function splitText(element: HTMLElement, offset: number): [HTMLElement, HTMLElement] {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   let remaining = offset, node: Node | null = walker.nextNode();
@@ -142,7 +169,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   function splitElement(element: HTMLElement, boundary: number, depth = 0): HTMLElement | null {
     if (depth > 30) return null;
     if (element.matches('p,h1,h2,h3,h4,h5,h6') && (element.textContent?.length ?? 0) > 1) {
-      const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(element.textContent!)].map(s => s.index).slice(1);
+      const offsets = paragraphLineOffsets(element);
       let low = 0, high = offsets.length - 1, best = 0;
       const marker = document.createComment('split'); element.replaceWith(marker);
       while (low <= high) {
@@ -393,10 +420,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     content.append(element);
     if (fits()) return;
     if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && (element.textContent?.length ?? 0) > 1) {
-      const text = element.textContent!;
-      // Grapheme boundaries keep Korean, emoji and combining characters intact.
-      const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
-      const offsets = [...segmenter.segment(text)].map(s => s.index).slice(1);
+      const offsets = paragraphLineOffsets(element);
       let low = 0, high = offsets.length - 1, best = 0;
       element.remove();
       while (low <= high) {

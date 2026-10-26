@@ -4,7 +4,7 @@
   "status": "in_progress",
   "build": "passed",
   "unitTests": 68,
-  "browserTests": 201,
+  "browserTests": 205,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -417,5 +417,17 @@
       "native source parser shared",
       "separate stories/drawings/fields and full visual audit pending"
     ]
+  },
+  "crossPlatformValidation": {
+    "run": 40337301112,
+    "status": "failed_then_fixed_locally",
+    "remaining": "Windows/Linux rerun and installed-package verification",
+    "findings": [
+      "Print split a wrapping word mid-word and disagreed with editor pages",
+      "Zero-leading headings overlapped with taller fallback fonts",
+      "One Windows Vite request failed with ERR_NO_BUFFER_SPACE before app startup"
+    ],
+    "localTargeted": "10 passed",
+    "localFull": "205 passed"
   }
 }

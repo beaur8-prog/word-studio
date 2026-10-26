@@ -55,7 +55,31 @@ async function prepareBody(source: EditableHwp, onProgress?: HwpProgressReporter
     const next = paragraph.nextElementSibling;
     if ([height, after].every(n => Number.isFinite(n) && n >= 0 && n <= 10000) && height > 0 &&
       next?.tagName === 'P' && !next.textContent?.trim() && !next.querySelector('img,table,br,[data-page-break],[data-column-break]')) {
-      paragraph.style.lineHeight = `${height}px`; paragraph.style.marginBottom = `${after}px`;
+      // The source height is an em, not necessarily the fallback font's line
+      // box. A taller Windows/Linux fallback otherwise paints above this line
+      // and overlaps the preceding title. Use its actual normal line box,
+      // consuming the same existing spacer reserve when it is sufficient.
+      const probe = document.createElement('div'); probe.className = 'tiptap';
+      probe.style.cssText = 'position:fixed;left:-100000px;top:0;visibility:hidden;white-space:pre;width:max-content;min-height:0;padding:0;line-height:normal';
+      const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        if (node.parentElement === paragraph && !node.data.trim()) continue;
+        const span = document.createElement('span'); span.textContent = node.data;
+        const parents: HTMLElement[] = [];
+        for (let el = node.parentElement; el; el = el.parentElement) { parents.unshift(el); if (el === paragraph) break; }
+        for (const el of parents) for (const key of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle'] as const) {
+          if (el.style[key]) span.style[key] = el.style[key];
+          if (key === 'fontWeight' && el.matches('b,strong')) span.style[key] = 'bold';
+          if (key === 'fontStyle' && el.matches('i,em')) span.style[key] = 'italic';
+        }
+        probe.append(span);
+      }
+      document.body.append(probe);
+      let measured = height;
+      try { await document.fonts.ready; signal?.throwIfAborted(); measured = Math.max(height, probe.getBoundingClientRect().height); }
+      finally { probe.remove(); }
+      paragraph.style.lineHeight = `${measured}px`; paragraph.style.marginBottom = `${Math.max(0, height + after - measured)}px`;
       paragraph.append(...next.childNodes); next.remove();
     }
     paragraph.removeAttribute('data-hwp-zero-line');

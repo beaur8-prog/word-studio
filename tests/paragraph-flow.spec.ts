@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 
-test('a body paragraph continues at printed line boundaries across zoom, editing and undo without splitting the model', async ({ page }) => {
+for (const font of ['inherit', 'Studio Text']) test(`${font}: a body paragraph continues at printed line boundaries across zoom, editing and undo without splitting the model`, async ({ page }) => {
   await page.goto('/');
+  if (font !== 'inherit') await page.addStyleTag({ content: `.tiptap { font-family: '${font}' !important; }` });
   const state = await page.evaluate(async () => {
     const { defaultPage } = await import('/src/types.ts'), { importFile } = await import('/src/document-io.ts');
     const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');

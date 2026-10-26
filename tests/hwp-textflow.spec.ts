@@ -8,7 +8,7 @@ let directory: string, files: Record<string, string>;
 test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-textflow-')); files = await createFixture(directory); });
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
 
-for (const format of ['hwp', 'hwpx']) test(`${format}: zero-leading heading and half-em cut line stay editable without overlap through two DOCX saves`, async ({ page }) => {
+for (const format of ['hwp', 'hwpx']) for (const font of ['', '-tall']) test(`${format}${font}: zero-leading heading and half-em cut line stay editable without overlap through two DOCX saves`, async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async ({ bytes, format }) => {
     const { HwpReaderSession } = await import('/src/hwp/reader.ts');
@@ -38,7 +38,7 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: zero-leading heading and 
       }
       return { states, rawMarkerRemains: source.html.includes('data-hwp-zero-line'), textNodes: JSON.stringify(doc.content).includes('BIG TITLE') };
     } finally { session.close(); }
-  }, { bytes: [...await fs.readFile(files[format])], format });
+  }, { bytes: [...await fs.readFile(files[format + font])], format });
   expect(result.rawMarkerRemains).toBe(false); expect(result.textNodes).toBe(true);
   for (const state of result.states) {
     expect(state.lower.top).toBeGreaterThanOrEqual(state.upper.bottom - .5);

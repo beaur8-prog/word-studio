@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 
-for (const kind of ['paragraph', 'row', 'merge']) test(`a previous footnote reserves space while a long ${kind} continues, including zoom and undo`, async ({ page }) => {
+for (const [kind, font] of [['paragraph', 'inherit'], ['paragraph', 'Studio Text'], ['row', 'inherit'], ['merge', 'inherit']]) test(`${font}: a previous footnote reserves space while a long ${kind} continues, including zoom and undo`, async ({ page }) => {
   await page.goto('/');
+  if (font !== 'inherit') await page.addStyleTag({ content: `.tiptap { font-family: '${font}' !important; }` });
   const state = await page.evaluate(async kind => {
     const { defaultPage } = await import('/src/types.ts'), { importFile } = await import('/src/document-io.ts');
     const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
