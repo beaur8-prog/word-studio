@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { createRequire } from 'node:module';
 const fixture = createRequire(import.meta.url)('./hwp-crop-fixture.cjs');
 let directory: string, files: Record<string,string>;
-test.beforeAll(async () => { directory=await fs.mkdtemp(path.resolve('.cache/hwp-crop-tests-')); files=await fixture(directory); });
+test.beforeAll(async () => { directory=await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-crop-tests-')); files=await fixture(directory); });
 test.afterAll(async () => { await fs.rm(directory,{recursive:true}); });
 for (const format of ['hwp','hwpx']) test(`${format}: cropped body/cell pictures retain visible pixels and image-only paragraph alignment through two DOCX saves`, async ({ page }) => {
   await page.goto('/');

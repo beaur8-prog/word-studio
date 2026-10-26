@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { createRequire } from 'node:module';
 const createFixture = createRequire(import.meta.url)('./hwp-shape-fixture.cjs');
 let directory: string, files: Record<string, string>, grouped: Record<string, string>;
-test.beforeAll(async () => { directory = await fs.mkdtemp(path.resolve('.cache/hwp-shapes-')); files = await createFixture(directory); grouped = await createFixture.grouped(directory); });
+test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-shapes-')); files = await createFixture(directory); grouped = await createFixture.grouped(directory); });
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
 
 for (const format of ['hwp', 'hwpx']) test(`${format}: a grouped drawing remains one inline image through two DOCX saves`, async ({ page }) => {

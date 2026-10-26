@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { createRequire } from 'node:module';
 const fixture = createRequire(import.meta.url)('./hwp-overlay-fixture.cjs');
 let directory: string, files: Record<string, string>, centeredFiles: Record<string, string>;
 test.beforeAll(async () => {
-  directory = await fs.mkdtemp(path.resolve('.cache/hwp-overlay-'));
+  directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-overlay-'));
   files = await fixture(directory);
   centeredFiles = await fixture(path.join(directory, 'centered'), 1);
 });

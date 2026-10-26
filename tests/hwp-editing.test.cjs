@@ -3,6 +3,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
+const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const { createRequire } = require('node:module');
 const ts = require('typescript');
@@ -374,7 +375,7 @@ test('equations retain their SVG appearance and original script before raster pr
 
 test('cell equations preserve multiple controls in one paragraph and nested cells in HWP and HWPX', async () => {
   const { HwpDocument, editableHwp } = await setup;
-  const directory = await fs.mkdtemp(path.resolve('.cache/hwp-cell-content-'));
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-cell-content-'));
   try {
     const files = await require('./hwp-cell-content-fixture.cjs')(directory);
     for (const format of ['hwp', 'hwpx']) {

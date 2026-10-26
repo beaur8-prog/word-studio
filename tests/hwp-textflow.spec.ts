@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { createRequire } from 'node:module';
 const createFixture = createRequire(import.meta.url)('./hwp-textflow-fixture.cjs');
 let directory: string, files: Record<string, string>;
-test.beforeAll(async () => { directory = await fs.mkdtemp(path.resolve('.cache/hwp-textflow-')); files = await createFixture(directory); });
+test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-textflow-')); files = await createFixture(directory); });
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
 
 for (const format of ['hwp', 'hwpx']) test(`${format}: zero-leading heading and half-em cut line stay editable without overlap through two DOCX saves`, async ({ page }) => {

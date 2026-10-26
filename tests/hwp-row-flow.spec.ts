@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { createRequire } from 'node:module';
 const createFixture = createRequire(import.meta.url)('./hwp-row-flow-fixture.cjs');
 let directory: string, files: Record<string, string>;
-test.beforeAll(async () => { directory = await fs.mkdtemp(path.resolve('.cache/hwp-row-flow-')); files = await createFixture(directory); });
+test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-row-flow-')); files = await createFixture(directory); });
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
 
 for (const format of ['hwp', 'hwpx']) test(`${format}: long two-column rows retain each column, widths and full-size text across pages and two DOCX saves`, async ({ page }) => {

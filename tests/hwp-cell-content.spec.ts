@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { createRequire } from 'node:module';
 const fixture = createRequire(import.meta.url)('./hwp-cell-content-fixture.cjs');
 let directory: string, files: Record<string, string>;
-test.beforeAll(async () => { directory = await fs.mkdtemp(path.resolve('.cache/hwp-cell-browser-')); files = await fixture(directory); });
+test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-cell-browser-')); files = await fixture(directory); });
 test.afterAll(async () => { await fs.rm(directory, { recursive: true }); });
 for (const format of ['hwp', 'hwpx']) test(`${format}: inline cell controls retain text order, nested shapes and pixels through two DOCX saves`, async ({ page }) => {
   await page.goto('/');
