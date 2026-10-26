@@ -4,9 +4,11 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { imageFloating } from './image-floating';
+import { paginateCellRow, paginateMergedRows } from './editor-cell-pagination';
+import { layoutColumns } from './column-layout';
 
 const key = new PluginKey('studioPagination');
-type Piece = { pos: number; end: number; top: number; height: number; columns?: number; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[] };
+type Piece = { pos: number; end: number; top: number; height: number; columns?: number; cellRow?: HTMLTableRowElement; mergedRows?: HTMLTableRowElement[]; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[] };
 
 /** Use real block/row geometry. A form is often one large table cell containing
  * paragraphs and nested tables, so treating only top-level nodes as indivisible
@@ -24,6 +26,11 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
     const dom = view.nodeDOM(pos) as HTMLElement | null;
     if (!dom?.getBoundingClientRect) return;
     const box = rect(dom);
+    if (node.type.name === 'columnGroup' && node.attrs.count === 1) { node.forEach((child, offset) => walk(child, pos + 1 + offset)); return; }
+    if (node.type.name === 'columnGroup') {
+      const prefix = parseFloat(dom.style.getPropertyValue('--column-prefix')) || 0;
+      box.top += prefix; box.height = Math.max(0, box.height - prefix);
+    }
     // Absolute floating pictures still occupy paper. Include their extent so
     // a short anchor near the bottom moves with its picture to the next page.
     for (const img of dom.querySelectorAll<HTMLElement>('img[data-image-floating]')) {
@@ -50,6 +57,14 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const first = rect(rows[i].dom), last = rect(rows[end - 1].dom);
       const height = last.top + last.height - first.top;
       const row = rows[i];
+      if (i === 0 && headerEnd && height > usableHeight && rows[headerEnd]?.node.attrs.rowSplit === 'allow') {
+        const headers = rect(rows[headerEnd - 1].dom);
+        const paragraph = rows[headerEnd].dom.querySelector('p');
+        const line = paragraph ? parseFloat(getComputedStyle(paragraph).lineHeight) || 24 : 24;
+        let columns = 0; row.node.forEach(cell => { columns += Number(cell.attrs.colspan || 1); });
+        result.push({ pos: row.pos, end: rows[headerEnd - 1].pos + rows[headerEnd - 1].node.nodeSize, top: first.top, height: headers.top + headers.height - first.top + line, columns });
+        i = headerEnd; continue;
+      }
       let containsTable = false;
       if (row.node.childCount === 1) row.node.firstChild!.forEach(block => { if (block.type.name === 'table') containsTable = true; });
       if ((height > usableHeight || containsTable) && end === i + 1 && row.node.childCount === 1) {
@@ -57,7 +72,9 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
         cell.forEach((block, offset) => walk(block, row.pos + 2 + offset));
       } else {
         let columns = 0; row.node.forEach(cell => { columns += Number(cell.attrs.colspan || 1); });
-        result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns });
+        const cellRow = end === i + 1 && row.node.attrs.rowSplit === 'allow' && row.node.attrs.wordRowRule !== 'exact' && row.node.content.content.every(c => Number(c.attrs.rowspan || 1) === 1)
+          ? row.dom as HTMLTableRowElement : undefined;
+        result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns, cellRow, mergedRows: end > i + 1 && height > usableHeight ? rows.slice(i, end).map(r => r.dom as HTMLTableRowElement) : undefined });
       }
       i = end;
     }
@@ -84,6 +101,12 @@ export const Pagination = Extension.create({
           scheduled = requestAnimationFrame(() => {
             if (!view.dom.isConnected || view.composing || view.dom.classList.contains('table-row-resizing')) return;
             const sheet = view.dom.closest<HTMLElement>('.document-stack'); if (!sheet) return;
+            // Column prefixes depend on the previous page gaps. Resolve them
+            // before measuring; min-height can keep the root's ResizeObserver
+            // silent even when column fragments have moved inside the sheet.
+            layoutColumns(view.dom);
+            view.dom.classList.add('pagination-measuring-cells');
+            try {
             const dec: Decoration[] = [], signatures: string[] = [];
             const contexts: { node: PMNode; start: number; dom: HTMLElement; sheet: HTMLElement }[] = [];
             view.state.doc.forEach((node, pos) => {
@@ -131,6 +154,14 @@ export const Pagination = Extension.create({
                   .map(ref => ({ id: ref.id, page: Math.max(0, Math.floor((piece.top + extra + ref.offset - top + .5) / stride)) }));
                 let refs = candidate();
                 const end = page * stride + h - bottom - reserve(page, refs);
+                if (piece.mergedRows) {
+                  const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed });
+                  if (flow) { dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
+                }
+                if (piece.cellRow && y + piece.height > end + .5) {
+                  const flow = paginateCellRow(view, piece.cellRow, piece.pos, { origin, scale, top, bottom, height: h, extra, removed });
+                  if (flow) { dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
+                }
                 if (piece.explicit || (y + piece.height > end + .5 && piece.height <= usable)) {
                   let destination = page + 1;
                   if (piece.breakType === 'oddPage' || piece.breakType === 'evenPage') {
@@ -179,6 +210,7 @@ export const Pagination = Extension.create({
               signature = next; lastDocument = view.state.doc;
               view.dispatch(view.state.tr.setMeta(key, DecorationSet.create(view.state.doc, dec)).setMeta('addToHistory', false));
             }
+            } finally { view.dom.classList.remove('pagination-measuring-cells'); }
           });
         };
         calculate(); const observer = new ResizeObserver(calculate); observer.observe(view.dom);

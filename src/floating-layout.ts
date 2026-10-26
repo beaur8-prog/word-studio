@@ -201,7 +201,9 @@ function imagePosition(
     py = sr.top + page * (ph + 24);
   const leftMargin = parseFloat(rootStyle.paddingLeft) || parseFloat(root.style.left) || 0;
   const rightMargin = parseFloat(rootStyle.paddingRight) || leftMargin;
-  const column = group
+  const cell = p.closest<HTMLElement>("td,th");
+  const cellStyle = cell ? getComputedStyle(cell) : undefined;
+  const column = cell ? cell.getBoundingClientRect().left + (parseFloat(cellStyle!.paddingLeft) || 0) : group
     ? group.getBoundingClientRect().left +
       Math.floor(
         (rect.left - group.getBoundingClientRect().left + 0.5) /
@@ -222,6 +224,8 @@ function imagePosition(
   const hwidth =
     horizontal.relative === "page"
       ? sheet.clientWidth
+      : horizontal.relative === "column" && cell
+        ? cell.getBoundingClientRect().width - (parseFloat(cellStyle!.paddingLeft) || 0) - (parseFloat(cellStyle!.paddingRight) || 0)
       : horizontal.relative === "column" && group
         ? (group.clientWidth -
             (Number(group.dataset.columnCount) - 1) * Number(group.dataset.columnSpace)) /

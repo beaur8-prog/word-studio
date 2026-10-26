@@ -104,3 +104,49 @@ test('unmarked forms, exact rows, vertical merges and explicit keep-together row
   for (const pages of result.output) { expect(pages).toHaveLength(2); expect(pages[0]).not.toContain('KEEP'); expect(pages[1]).toContain('KEEP LEFT'); expect(pages[1]).toContain('KEEP RIGHT'); }
   expect(result.policies).toEqual([['avoid', 'allow'], ['avoid', 'allow']]);
 });
+
+test('source-observed vertical merges continue without scaling or duplicating cell text', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { createPrintLayout } = await import('/src/print-layout.ts'), { defaultPage } = await import('/src/types.ts');
+    const { importFile } = await import('/src/document-io.ts'), { parseDocumentHtml } = await import('/src/extensions.ts');
+    const html = `<table style="width:400px;margin:0"><colgroup><col style="width:100px"><col style="width:300px"></colgroup>${Array.from({ length: 6 }, (_, i) => `<tr style="height:200px">${i === 0 ? '<td rowspan="6" data-cell-split="allow" style="vertical-align:middle"><p>MERGED ONCE</p></td>' : ''}<td><p>ROW ${i}</p></td></tr>`).join('')}</table>`;
+    const imported = await importFile(new File([html], 'merge.html'));
+    const model = parseDocumentHtml(imported.html!);
+    const layout = await createPrintLayout(imported.html!, { ...defaultPage, size: 'Custom', width: 150, height: 180, margin: 10 });
+    try {
+      return { pages: layout.pages, model, texts: [...layout.element.querySelectorAll('td')].map(c => c.textContent),
+        widths: [...layout.element.querySelectorAll<HTMLTableRowElement>('tr')].filter(r => r.cells.length === 2).map(r => [...r.cells].map(c => c.getBoundingClientRect().width)),
+        scaled: [...layout.element.querySelectorAll<HTMLElement>('[style]')].some(e => !!e.style.zoom),
+        maxOverflow: Math.max(...[...layout.element.querySelectorAll('.print-content')].map(p => Math.max(...[...p.querySelectorAll('tr')].map(r => r.getBoundingClientRect().bottom - p.getBoundingClientRect().bottom)))),
+      };
+    } finally { layout.dispose(); }
+  });
+  expect(result.pages).toBe(2); expect(result.scaled).toBe(false); expect(result.maxOverflow).toBeLessThanOrEqual(.5);
+  expect(result.texts.filter(t => t?.includes('MERGED ONCE'))).toHaveLength(1);
+  for (let i = 0; i < 6; i++) expect(result.texts.filter(t => t === 'ROW ' + i)).toHaveLength(1);
+  expect(result.widths).toHaveLength(2); expect(result.widths[0]).toEqual(result.widths[1]);
+  expect(result.model.content?.[0].content?.[0].content?.[0].attrs).toMatchObject({ rowspan: 6, cellSplit: 'allow' });
+});
+
+test('continuing merge policy and unscaled fragments survive two DOCX saves', async ({ page }) => {
+  await page.goto('/');
+  const states = await page.evaluate(async () => {
+    const { importFile, exportDocx } = await import('/src/document-io.ts'), { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js'), { createPrintLayout } = await import('/src/print-layout.ts');
+    const { defaultPage } = await import('/src/types.ts');
+    const html = `<table>${Array.from({ length: 6 }, (_, i) => `<tr style="height:200px">${i === 0 ? '<td rowspan="6" data-cell-split="allow"><p>MERGED ONCE</p></td>' : ''}<td><p>ROW ${i}</p></td></tr>`).join('')}</table>`;
+    const loaded = await importFile(new File([html], 'merge.html'));
+    let doc = { ...loaded.document, page: { ...defaultPage, pageNumbers: false, size: 'Custom', width: 150, height: 180, margin: 10 }, content: parseDocumentHtml(loaded.html!) }; const states = [];
+    for (let i = 0; i < 2; i++) {
+      const reopened = await importFile(new File([await exportDocx(doc)], 'again.docx')); doc = { ...reopened.document, content: parseDocumentHtml(reopened.html!) };
+      const layout = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+      try { states.push({ model: doc.content, pages: layout.pages, scaled: [...layout.element.querySelectorAll<HTMLElement>('[style]')].some(e => !!e.style.zoom), texts: [...layout.element.querySelectorAll('td')].map(c => c.textContent) }); } finally { layout.dispose(); }
+    }
+    return states;
+  });
+  for (const state of states) {
+    expect(state.pages).toBe(2); expect(state.scaled).toBe(false); expect(JSON.stringify(state.model)).toContain('"cellSplit":"allow"');
+    expect(state.texts.filter(t => t === 'MERGED ONCE')).toHaveLength(1); for (let i = 0; i < 6; i++) expect(state.texts.filter(t => t === 'ROW ' + i)).toHaveLength(1);
+  }
+});

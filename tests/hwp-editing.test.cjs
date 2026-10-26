@@ -16,7 +16,11 @@ const setup = (async () => {
   const source = await fs.readFile(sourceFile, 'utf8');
   const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
   const bridge = { exports: {} };
-  new Function('require', 'module', 'exports', compiled)(createRequire(sourceFile), bridge, bridge.exports);
+  const nativeRequire = createRequire(sourceFile);
+  const helperFile = path.join(__dirname, '../src/hwp/cell-content.ts'), helper = { exports: {} };
+  const helperCode = ts.transpileModule(await fs.readFile(helperFile, 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
+  new Function('require', 'module', 'exports', helperCode)(nativeRequire, helper, helper.exports);
+  new Function('require', 'module', 'exports', compiled)(name => name === './cell-content' ? helper.exports : nativeRequire(name), bridge, bridge.exports);
   return { HwpDocument, ...bridge.exports };
 })();
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
@@ -151,6 +155,45 @@ test('equations retain their SVG appearance and original script before raster pr
   } finally { doc.free(); }
 });
 
+test('cell equations preserve multiple controls in one paragraph and nested cells in HWP and HWPX', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const directory = await fs.mkdtemp(path.resolve('.cache/hwp-cell-content-'));
+  try {
+    const files = await require('./hwp-cell-content-fixture.cjs')(directory);
+    for (const format of ['hwp', 'hwpx']) {
+      const doc = new HwpDocument(await fs.readFile(files[format]));
+      try {
+        const converted = editableHwp(doc);
+        for (const script of ['a over b', 'x^2', 'y over z', 'sqrt {q}']) assert.ok(converted.html.includes('수식: ' + script), `${format}: ${script}`);
+        assert.equal((converted.html.match(/data-hwp-svg=/g) || []).length, 4);
+        assert.equal((converted.html.match(/data-hwp-object=/g) || []).length, 3);
+        assert.match(converted.html, /BEFORE[\s\S]*수식: x\^2[\s\S]*MIDDLE[\s\S]*수식: y over z[\s\S]*AFTER/);
+        assert.match(converted.html, /UNCHANGED 한글/);
+        assert.ok(!converted.html.includes('변환하지 못한 개체'), format);
+      } finally { doc.free(); }
+    }
+  } finally { await fs.rm(directory, { recursive: true }); }
+});
+
+test('nonvisual cell controls warn without inserting visible text or dropping real unsupported content', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const doc = HwpDocument.createEmpty();
+  try {
+    doc.createBlankDocument(); doc.pasteHtml(0, 0, 0, '<table><tr><td>KEEP WORDS</td></tr></table>');
+    const original = doc.exportControlHtml.bind(doc);
+    doc.exportControlHtml = (...args) => original(...args).replace('KEEP WORDS', 'KEEP WORDS<!-- rhwp: 셀 안 Bookmark omitted --><!-- rhwp: 셀 안 PageHide omitted --><!-- rhwp: 셀 안 Unknown omitted -->');
+    // Keep the selection bridge consistent with the deliberately injected
+    // unsupported controls without inventing native control indexes.
+    const selection = doc.exportSelectionInCellHtmlByPath.bind(doc);
+    doc.exportSelectionInCellHtmlByPath = (...args) => selection(...args).replace('KEEP WORDS', 'KEEP WORDS<!-- rhwp: 셀 안 Bookmark omitted --><!-- rhwp: 셀 안 PageHide omitted --><!-- rhwp: 셀 안 Unknown omitted -->');
+    const converted = editableHwp(doc);
+    assert.match(converted.html, /KEEP WORDS/);
+    assert.equal((converted.html.match(/변환하지 못한 개체/g) || []).length, 1);
+    assert.ok(converted.warnings.some(w => w.includes('책갈피')));
+    assert.ok(converted.warnings.some(w => w.includes('쪽 숨김')));
+  } finally { doc.free(); }
+});
+
 test('floating shapes keep isolated drawing subtrees and body anchors despite colliding header indexes', async () => {
   const { HwpDocument, editableHwp } = await setup;
   const source = HwpDocument.createEmpty();
@@ -268,6 +311,40 @@ test('only observed cell continuations enable row splitting, rather than repeate
         const { html } = editableHwp(doc);
         assert.equal((html.match(/data-row-split="allow"/g) || []).length, 1);
         assert.match(html, /<th\b/); assert.match(html, /LEFT 109/); assert.match(html, /RIGHT 74/);
+      } finally { doc.free(); }
+    }
+  } finally { source.free(); }
+});
+
+test('inline cell pictures keep their paragraph slot and order instead of adding a second block height', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const source = HwpDocument.createEmpty();
+  try {
+    source.createBlankDocument();
+    source.pasteHtml(0, 0, 0, `<table><tr><td><p>BEFORE <img src="data:image/png;base64,${png}" width="24" height="24"> AFTER</p></td></tr></table>`);
+    for (const format of ['hwp', 'hwpx']) {
+      const doc = new HwpDocument(format === 'hwp' ? source.exportHwp() : source.exportHwpx());
+      try {
+        const html = editableHwp(doc).html, cell = html.match(/<td\b[^>]*>([\s\S]*?)<\/td>/)?.[1];
+        assert.ok(cell, format); assert.equal((cell.match(/<img\b/g) || []).length, 1);
+        assert.match(cell, /<p\b[^>]*>(?:(?!<\/p>)[\s\S])*BEFORE(?:(?!<\/p>)[\s\S])*<img\b(?:(?!<\/p>)[\s\S])*AFTER(?:(?!<\/p>)[\s\S])*<\/p>/);
+      } finally { doc.free(); }
+    }
+  } finally { source.free(); }
+});
+
+test('hard line breaks before cell pictures survive the clipboard exporter omitting the break', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const source = HwpDocument.createEmpty();
+  try {
+    source.createBlankDocument();
+    source.pasteHtml(0, 0, 0, `<table><tr><td><p>BEFORE<br>LINE <img src="data:image/png;base64,${png}" width="24" height="24"> AFTER<br>END</p></td></tr></table>`);
+    for (const format of ['hwp', 'hwpx']) {
+      const doc = new HwpDocument(format === 'hwp' ? source.exportHwp() : source.exportHwpx());
+      try {
+        const html = editableHwp(doc).html;
+        assert.match(html, /BEFORE<br>LINE <img\b[^>]*> AFTER<br>END/, format);
+        assert.equal((html.match(/<img\b/g) || []).length, 1);
       } finally { doc.free(); }
     }
   } finally { source.free(); }

@@ -291,6 +291,7 @@ export function validateDocument(input: unknown): StudioDocument {
     )
       fail("제목 수준이 올바르지 않습니다.");
     if (["tableCell", "tableHeader"].includes(type)) {
+      if (attrs?.cellSplit != null && attrs.cellSplit !== "allow") fail("병합 셀의 쪽 나누기 설정이 올바르지 않습니다.");
       for (const key of ["colspan", "rowspan"])
         if (
           attrs?.[key] != null &&
@@ -1160,6 +1161,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               1,
               Math.floor((columnWidths[i] * width) / total),
             );
+        const continuingMergeRows = new Set<number>();
+        (node.content ?? []).forEach((row, index) => {
+          for (const cell of row.content ?? []) if (cell.attrs?.cellSplit === 'allow')
+            for (let i = index; i < Math.min(node.content!.length, index + Number(cell.attrs?.rowspan || 1)); i++) continuingMergeRows.add(i);
+        });
         let occupied: number[] = [];
         let continuations: { remaining: number; attrs: Record<string, unknown> }[] = [];
         const borderPixels = (attrs: Record<string, unknown>, side: string) => {
@@ -1167,7 +1173,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           css.border = String(attrs[`border${side}`] ?? '1px solid #c6ced8');
           return ['none', 'hidden'].includes(css.borderStyle) ? 0 : (fontPoints(css.borderWidth) ?? .75) * 4 / 3;
         };
-        for (const row of node.content ?? []) {
+        for (const [rowIndex, row] of (node.content ?? []).entries()) {
           const cells: TableCell[] = [];
           // Subtract the same border reserve Word adds to minimum heights,
           // including continuation cells materialized by the DOCX writer.
@@ -1226,7 +1232,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           rows.push(
             new TableRow({
               children: cells,
-              ...(row.attrs?.rowSplit ? { cantSplit: row.attrs.rowSplit === 'avoid' } : {}),
+              ...(row.attrs?.rowSplit ? { cantSplit: row.attrs.rowSplit === 'avoid' } : continuingMergeRows.has(rowIndex) ? { cantSplit: false } : {}),
               ...(rowHeight(row.attrs?.rowHeight) ? { height: { value: Math.max(1, Math.round((row.attrs!.rowHeight - (row.attrs?.wordRowRule === 'exact' ? 0 : rowPadding + rowBorder)) * 15)), rule: row.attrs?.wordRowRule === 'exact' ? HeightRule.EXACT : HeightRule.ATLEAST } } : {}),
               ...((row.content?.length ?? 0) > 0 && (row.content ?? []).every(
                 (cell) => cell.type === "tableHeader",

@@ -203,6 +203,41 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (element.matches('tr')) { element.style.removeProperty('height'); tail.style.removeProperty('height'); }
     return tail;
   }
+  // Only source-observed continuing merges may cross a row boundary. Keep
+  // the grid and every cell's content exactly once; this is print DOM only.
+  function splitMergedGroup(group: HTMLTableRowElement[], boundary: number): HTMLTableRowElement[] | null {
+    if (group.length < 2 || group.some(r => r.dataset.rowSplit === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
+    const entries: { cell: HTMLTableCellElement; row: number; col: number }[] = [];
+    const occupied: number[] = [];
+    for (let row = 0; row < group.length; row++) {
+      let col = 0;
+      for (const cell of [...group[row].cells]) {
+        while ((occupied[col] || 0) > row) col++;
+        entries.push({ cell, row, col });
+        for (let j = col; j < col + cell.colSpan; j++) occupied[j] = row + cell.rowSpan;
+        col += cell.colSpan;
+      }
+    }
+    for (let cut = group.length - 1; cut > 0; cut--) {
+      if (group[cut - 1].getBoundingClientRect().bottom > boundary + .5) continue;
+      const crossings = entries.filter(e => e.row < cut && e.row + e.cell.rowSpan > cut);
+      if (!crossings.length || crossings.some(e => e.cell.dataset.cellSplit !== 'allow')) continue;
+      const tails = group.slice(cut);
+      for (const { cell, row, col } of crossings) {
+        const next = cell.cloneNode(false) as HTMLTableCellElement;
+        const remainder = splitElement(cell, boundary);
+        if (remainder) next.append(...remainder.childNodes);
+        else if ([...cell.children].some(c => c.getBoundingClientRect().bottom > boundary + .5)) next.append(...cell.childNodes);
+        next.rowSpan = row + cell.rowSpan - cut; cell.rowSpan = cut - row;
+        cell.style.removeProperty('height'); next.style.removeProperty('height');
+        const following = entries.find(e => e.row === cut && e.col > col)?.cell;
+        tails[0].insertBefore(next, following || null);
+      }
+      tails.forEach(r => r.remove()); group.splice(cut);
+      return tails;
+    }
+    return null;
+  }
   function appendTable(table: HTMLTableElement) {
     const rows = Array.from(table.rows);
     const headers: HTMLTableRowElement[] = [];
@@ -223,6 +258,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       const group = rows.slice(i, end).map(row => row.cloneNode(true) as HTMLTableRowElement);
       group.forEach(row => part.body.append(row));
       const split = () => {
+        const mergedTail = splitMergedGroup(group, content.getBoundingClientRect().bottom);
+        if (mergedTail) { rows.splice(end, 0, ...mergedTail); return; }
         if (group.length !== 1 || [...group[0].cells].some(c => c.rowSpan !== 1)) return;
         if (group[0].dataset.rowSplit !== 'allow' && !group[0].querySelector('table') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
         const tail = splitElement(group[0], content.getBoundingClientRect().bottom);

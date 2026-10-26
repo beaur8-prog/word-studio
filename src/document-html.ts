@@ -90,7 +90,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-docx-tab", "data-tab-stops",
       "data-word-line-rule", "data-word-line",
       "data-word-row-rule",
-      "data-row-split",
+      "data-row-split", "data-cell-split",
       "data-word-overlap",
       "data-docx-bookmark", "id",
       "data-list-id", "data-list-level", "data-list-format", "data-list-pattern", "data-list-label",

@@ -3,6 +3,7 @@ import type { PageSettings } from '../types';
 import documentLimits from '../../electron/document-limits.json';
 import type { HwpProgressReporter } from './progress';
 import type { HwpLayoutMetadata } from './layout-metadata';
+import { cellContents, restoreCellContent, type CellPath } from './cell-content';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -171,6 +172,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     if (!/^<td\b/.test(tag)) return tag;
     const c = cells[cellIndex++]; if (!c) return tag;
     cellParagraph = 0; header = !!c.isHeader && !!tableProperties.repeatHeader;
+    if (!header && c.rowSpan > 1 && (cellPages.get(c.index)?.size ?? 0) > 1) tag = tag.replace(/>$/, ' data-cell-split="allow">');
     try { paragraphStyle = paragraphCss(JSON.parse(doc.getCellParaPropertiesAt(section, para, control, c.index, 0)), JSON.parse(doc.getCellCharPropertiesAt(section, para, control, c.index, 0, 0)),
       c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined, false); }
     catch { paragraphStyle = 'line-height:100%;font-size:10pt;'; }
@@ -214,18 +216,30 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   const warnings = new Set<string>(metadata?.warnings);
   const controls: Control[] = JSON.parse(doc.getControls());
   const pitches = sourceLinePitches(doc);
+  let equations: ReturnType<typeof cellContents> | undefined;
+  const equationMetadata = () => equations ??= cellContents(doc);
+  const equationHtml = (equation: { script: string; fontSize: number; color: number; width: number; height: number }) => {
+    const svg = doc.renderEquationPreview(equation.script, equation.fontSize || 1200, equation.color || 0);
+    const width = equation.width > 0 ? px(equation.width) : Number(svg.match(/\bwidth="([\d.]+)"/)?.[1]);
+    const height = equation.height > 0 ? px(equation.height) : Number(svg.match(/\bheight="([\d.]+)"/)?.[1]);
+    if (!(width > 0 && height > 0)) throw new Error('Empty equation preview');
+    warnings.add('수식은 원래 모양의 그림으로 가져옵니다. 수식 명령어는 그림 설명에 보존하지만 수식 자체는 편집할 수 없습니다.');
+    return `<img data-inline-image="true" data-hwp-svg="${escape(svg)}" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==" width="${width}" height="${height}" alt="${escape('수식: ' + equation.script)}" />`;
+  };
   let controlPositions: Map<string, any> | undefined;
-  const controlPosition = (section: number, para: number, control: number) => {
+  const positionKey = (section: number, para: number, control: number, path: CellPath = []) => `${section}:${para}:${control}:${JSON.stringify(path)}`;
+  const controlPosition = (section: number, para: number, control: number, path: CellPath = []) => {
     if (!controlPositions) {
       controlPositions = new Map();
       for (let page = 0; page < doc.pageCount(); page++) for (const c of JSON.parse(doc.getPageControlLayout(page)).controls ?? []) {
         // Header/footer paragraph indexes are local to their own story. They
         // can equal body indexes and must never replace the body's anchor.
-        if (c.headerFooter || c.cellPath?.length || c.parentParaIdx !== undefined) continue;
-        controlPositions.set(`${c.secIdx}:${c.paraIdx}:${c.controlIdx}`, { ...c, page });
+        if (c.headerFooter || (c.parentParaIdx !== undefined && !c.cellPath?.length)) continue;
+        const key = positionKey(c.secIdx, c.paraIdx, c.controlIdx, c.cellPath ?? []);
+        if (!controlPositions.has(key)) controlPositions.set(key, { ...c, page });
       }
     }
-    return controlPositions.get(`${section}:${para}:${control}`);
+    return controlPositions.get(positionKey(section, para, control, path));
   };
   const floatingGeometry = (position: any, props: any) => ({
     horizontalPosition: { relative: 'page', offset: Math.round(position.x * 9525) },
@@ -251,24 +265,45 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     return `<img data-inline-image="true" data-image-floating="${escape(JSON.stringify(geometry))}" src="data:${image.mime};base64,${image.base64}" width="${position.w}" height="${position.h}" alt="${escape(props.description || '그림')}" />`;
   };
   let layerPage = -1, layerRoot: any;
-  const shapeHtml = (section: number, para: number, control: Control): string | undefined => {
+  const pageLayer = (page: number) => {
+    if (layerPage !== page) {
+      const tree = JSON.parse(doc.getPageLayerTreeWithProfile(page, 'print', true, true));
+      if (tree.schemaVersion !== 1 || tree.unit !== 'px' || tree.coordinateSystem !== 'page-top-left-y-down') return;
+      layerPage = page; layerRoot = tree.root;
+    }
+    return layerRoot;
+  };
+  const cellShapePosition = (section: number, para: number, path: CellPath, index: number, props: any) => {
+    const position = controlPosition(section, para, index, path);
+    if (position || !props.treatAsChar) return position;
+    // The control-layout API omits inline shapes in nested tables. A unique
+    // own-size subtree enclosed by the addressed source cell is unambiguous;
+    // never crop the cell or take a similarly sized object elsewhere.
+    const boxes = JSON.parse(doc.getTableCellBboxesByPath(section, para, JSON.stringify(path)));
+    for (const box of boxes.filter((b: any) => b.cellIdx === path.at(-1)!.cellIndex)) {
+      const matches: any[] = [];
+      const find = (node: any, depth = 0) => {
+        if (!node || depth > 40) return;
+        const b = node.bounds;
+        if (b && Math.abs(b.width - px(props.width)) < 1 && Math.abs(b.height - px(props.height)) < 1 &&
+          b.x >= box.x - 1 && b.y >= box.y - 1 && b.x + b.width <= box.x + box.w + 1 && b.y + b.height <= box.y + box.h + 1) { matches.push(node); return; }
+        node.children?.forEach((n: any) => find(n, depth + 1)); if (node.child) find(node.child, depth + 1);
+      };
+      find(pageLayer(box.pageIndex));
+      if (matches.length === 1) { const b = matches[0].bounds; return { type: 'shape', page: box.pageIndex, x: b.x, y: b.y, w: b.width, h: b.height }; }
+    }
+  };
+  const objectHtml = (position: any, props: any, label: string, cell = false): string | undefined => {
     try {
-      const props = JSON.parse(doc.getShapeProperties(section, para, control.controlIndex));
-      if (props.treatAsChar) return;
-      const position = controlPosition(section, para, control.controlIndex);
       if (!position || !['shape', 'line', 'ellipse', 'polygon'].includes(position.type)) return;
-      if (layerPage !== position.page) {
-        const tree = JSON.parse(doc.getPageLayerTreeWithProfile(position.page, 'print', true, true));
-        if (tree.schemaVersion !== 1 || tree.unit !== 'px' || tree.coordinateSystem !== 'page-top-left-y-down') return;
-        layerPage = position.page; layerRoot = tree.root;
-      }
+      if (!pageLayer(position.page)) return;
       // Select one object subtree, never crop a page: a crop would also copy
       // unrelated text and background pictures underneath the shape.
       const matches: any[] = [];
       const find = (node: any, depth = 0) => {
         if (!node || depth > 40) return;
         const b = node.bounds;
-        if (node.layer?.zOrder === position.zOrder && b &&
+        if ((cell || node.layer?.zOrder === position.zOrder) && b &&
           [b.x - position.x, b.y - position.y, b.width - position.w, b.height - position.h].every(n => Math.abs(n) < 1)) {
           matches.push(node); return;
         }
@@ -296,9 +331,18 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const payload = JSON.stringify({ ...node, previewPadding: padding });
       if (payload.length > 4 * 1024 * 1024) return;
       const b = node.bounds;
-      const geometry = floatingGeometry({ x: b.x - padding, y: b.y - padding }, props);
+      const geometry = cell ? { ...floatingGeometry(position, props),
+        horizontalPosition: { relative: 'column', offset: Math.round((px(props.horzOffset || 0) - padding) * 9525) },
+        verticalPosition: { relative: 'paragraph', offset: Math.round((px(props.vertOffset || 0) - padding) * 9525) } }
+        : floatingGeometry({ x: b.x - padding, y: b.y - padding }, props);
       warnings.add('도형·글상자는 원래 위치와 모양의 그림으로 가져옵니다. 글상자 내용은 그림 설명에 보존하지만 개체 내부는 편집할 수 없습니다.');
-      return `<img data-inline-image="true" data-hwp-object="${escape(payload)}" data-image-floating="${escape(JSON.stringify(geometry))}" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==" width="${b.width + padding * 2}" height="${b.height + padding * 2}" alt="${escape([control.userDesc || '도형', text.join('')].filter(Boolean).join(': '))}" />`;
+      return `<img data-inline-image="true" data-hwp-object="${escape(payload)}"${cell && props.treatAsChar ? '' : ` data-image-floating="${escape(JSON.stringify(geometry))}"`} src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==" width="${b.width + padding * 2}" height="${b.height + padding * 2}" alt="${escape([label || '도형', text.join('')].filter(Boolean).join(': '))}" />`;
+    } catch { return; }
+  };
+  const shapeHtml = (section: number, para: number, control: Control): string | undefined => {
+    try {
+      const props = JSON.parse(doc.getShapeProperties(section, para, control.controlIndex));
+      return objectHtml(controlPosition(section, para, control.controlIndex), props, control.userDesc, !!props.treatAsChar);
     } catch { return; }
   };
   const byParagraph = new Map<number, Control[]>();
@@ -327,6 +371,51 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       if (structure?.columns) { closeColumns(); columnCount = structure.columns.count; columnSpace = structure.columns.space; openColumns(); }
       if (properties.pageBreakBefore || structure?.pageBreak) { closeColumns(); append('<div data-page-break="true"></div>'); openColumns(); }
       else if (structure?.columnBreak) append('<div data-column-break="true"></div>');
+      // Some forms are editable text tables over a paper/background picture
+      // in the same anchor paragraph. Stacking both blocks doubles their
+      // height. Preserve an unambiguous one-cell overlay as a local backdrop.
+      const tableBackgrounds = new Map<number, { html: string; original: string }>(), backgroundControls = new Set<number>();
+      const paragraphControls = byParagraph.get(globalPara) ?? [];
+      for (const table of paragraphControls.filter(c => c.ctrlId === 'tbl')) {
+        try {
+          const props = JSON.parse(doc.getTableProperties(section, para, table.controlIndex));
+          const dims = JSON.parse(doc.getTableDimensions(section, para, table.controlIndex));
+          if (props.treatAsChar || props.textWrap !== 'InFrontOfText' || dims.cellCount !== 1) continue;
+          const cell = JSON.parse(doc.getCellProperties(section, para, table.controlIndex, 0));
+          const position = controlPosition(section, para, table.controlIndex); if (!position) continue;
+          const paragraph = JSON.parse(doc.getCellParaPropertiesAt(section, para, table.controlIndex, 0, 0));
+          // A paragraph-relative picture follows the text, not the cell edge.
+          // Middle/bottom alignment is safe only when the source text already
+          // fills the cell: otherwise its alignment reserve moves the backdrop.
+          if (cell.verticalAlign !== 0) {
+            const key = `${section}:${para}:${table.controlIndex}:0:0`;
+            const top = pitches.get(`top:${key}`), ink = pitches.get(`height:${key}`);
+            const char = JSON.parse(doc.getCellCharPropertiesAt(section, para, table.controlIndex, 0, 0, 0));
+            const line = pitches.get(key) ?? physicalLineHeight(paragraph, char);
+            const reserve = top === undefined || ink === undefined ? NaN
+              : top - position.y - px(cell.paddingTop) - (paragraph.spacingBefore || 0) / 2 - Math.max(0, line - ink) / 2;
+            if (!Number.isFinite(reserve) || Math.abs(reserve) > 2 || pitches.get(`page:${key}`) !== position.page) continue;
+          }
+          const candidates = paragraphControls.filter(c => c.ctrlId === 'gso' && !backgroundControls.has(c.controlIndex)).flatMap(c => {
+            try {
+              const picture = JSON.parse(doc.getPictureProperties(section, para, c.controlIndex)), box = controlPosition(section, para, c.controlIndex);
+              if (!picture.treatAsChar || !box || box.page !== position.page || box.type !== 'image') return [];
+              const overlap = Math.max(0, Math.min(box.x + box.w, position.x + position.w) - Math.max(box.x, position.x)) *
+                Math.max(0, Math.min(box.y + box.h, position.y + position.h) - Math.max(box.y, position.y));
+              if (overlap < Math.max(box.w * box.h, position.w * position.h) * .9) return [];
+              const image = fragment(doc.exportControlHtml(section, para, '[]', c.controlIndex)).match(/<img\b[^>]*>/)?.[0];
+              return image ? [{ c, box, image }] : [];
+            } catch { return []; }
+          });
+          if (candidates.length !== 1) continue;
+          const { c, box, image } = candidates[0];
+          const geometry = { horizontalPosition: { relative: 'column', offset: Math.round((box.x - position.x - px(cell.paddingLeft)) * 9525) },
+            verticalPosition: { relative: 'paragraph', offset: Math.round((box.y - position.y - px(cell.paddingTop) - (paragraph.spacingBefore || 0) / 2) * 9525) },
+            wrap: { type: 0 }, behindDocument: true, layoutInCell: true, allowOverlap: true };
+          tableBackgrounds.set(table.controlIndex, { original: image, html: image.replace(/\s(?:width|height|data-inline-image|data-image-floating)="[^"]*"/g, '').replace(/\s*\/?>$/, ` data-inline-image="true" data-image-floating="${escape(JSON.stringify(geometry))}" width="${box.w}" height="${box.h}" />`) });
+          backgroundControls.add(c.controlIndex);
+        } catch { /* Ambiguous overlays keep both original controls. */ }
+      }
       const positions: number[] = JSON.parse(doc.getControlTextPositions(section, para));
       const range = (start: number, end: number) => fragment(doc.exportSelectionHtml(section, para, start, para, end));
       const whole = range(0, 0xffffffff);
@@ -338,23 +427,40 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       let cursor = 0, content = '', contentBytes = 0;
       const appendInline = (value: string) => { contentBytes += hwpHtmlBytes(value); checkHwpHtmlSize(size + contentBytes); content += value; };
       for (const c of byParagraph.get(globalPara) ?? []) {
+        if (backgroundControls.has(c.controlIndex)) continue;
         if (['secd', 'cold', 'head', 'foot', 'pgnp', 'pgct', 'pghd', 'nwno'].includes(c.ctrlId)) continue;
+        if (c.ctrlId === 'bokm') { warnings.add('책갈피 위치 정보는 편집본에 전달되지 않습니다. 본문 내용은 유지합니다.'); continue; }
         const pos = Math.max(cursor, positions[c.controlIndex] ?? cursor);
         appendInline(inline(range(cursor, pos))); cursor = pos;
         onProgress?.({ label: c.ctrlId === 'tbl' ? '표를 변환하는 중…' : c.ctrlId === 'gso' ? '그림·도형을 변환하는 중…' : '문서 개체를 변환하는 중…' });
         let controlHtml = fragment(doc.exportControlHtml(section, para, '[]', c.controlIndex));
         if (c.ctrlId === 'gso') controlHtml = pictureHtml(section, para, c) ?? shapeHtml(section, para, c) ?? controlHtml;
-        if (c.ctrlId === 'tbl') controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches);
+        if (c.ctrlId === 'tbl') {
+          const ordinal = (byParagraph.get(globalPara) ?? []).filter(c => c.ctrlId === 'tbl').indexOf(c);
+          controlHtml = restoreCellContent(doc, section, para, c.controlIndex, ordinal, controlHtml, equationHtml, (path, index) => {
+            try {
+              const props = JSON.parse(doc.getCellShapePropertiesByPath(section, para, JSON.stringify(path), index));
+              return objectHtml(cellShapePosition(section, para, path, index, props), props, props.description || '도형', true);
+            } catch { return; }
+          }, warnings, equationMetadata);
+          controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches);
+          const background = tableBackgrounds.get(c.controlIndex);
+          if (background) {
+            const target = /(<t[dh]\b[^>]*>\s*<p\b[^>]*>)/;
+            if (target.test(controlHtml)) {
+              controlHtml = controlHtml.replace(target, '$1' + background.html);
+              warnings.add('겹친 표와 배경 그림은 편집 가능한 표와 셀 배경 그림으로 함께 가져옵니다.');
+            } else {
+              controlHtml = `<p>${background.original}</p>` + controlHtml;
+              warnings.add('겹친 표의 배경 그림을 별도 그림으로 보존합니다. 원본 배치를 확인하세요.');
+            }
+          }
+        }
         if (c.ctrlId === 'eqed') {
           const equation = JSON.parse(doc.getEquationProperties(section, para, c.controlIndex, -1, -1));
           const script = equation.script || '';
           try {
-            const svg = doc.renderEquationPreview(script, equation.fontSize || 1200, 0);
-            const width = equation.width > 0 ? px(equation.width) : Number(svg.match(/\bwidth="([\d.]+)"/)?.[1]);
-            const height = equation.height > 0 ? px(equation.height) : Number(svg.match(/\bheight="([\d.]+)"/)?.[1]);
-            if (!(width > 0 && height > 0)) throw new Error('Empty equation preview');
-            controlHtml = `<img data-inline-image="true" data-hwp-svg="${escape(svg)}" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==" width="${width}" height="${height}" alt="${escape('수식: ' + script)}" />`;
-            warnings.add('수식은 원래 모양의 그림으로 가져옵니다. 수식 명령어는 그림 설명에 보존하지만 수식 자체는 편집할 수 없습니다.');
+            controlHtml = equationHtml({ ...equation, script });
           } catch { controlHtml = ''; }
         }
         if (!controlHtml || /^<!--/.test(controlHtml)) {
@@ -392,8 +498,10 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     closeColumns();
   }
   onProgress?.({ label: '변환한 본문과 그림을 정리하는 중…' });
-  let html = pieces.join('\n').replace(/<!--\s*rhwp:\s*셀 안 ColumnDef[^>]*-->/g, () => {
-    warnings.add('표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.');
+  let html = pieces.join('\n').replace(/<!--\s*rhwp:\s*셀 안 (ColumnDef|Bookmark|PageHide)\b[\s\S]*?-->/g, (_, type: string) => {
+    warnings.add(type === 'ColumnDef' ? '표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.'
+      : type === 'Bookmark' ? '책갈피 위치 정보는 편집본에 전달되지 않습니다. 본문 내용은 유지합니다.'
+      : '원본의 쪽 숨김 설정은 편집본에 전달되지 않습니다. 본문 내용은 유지합니다.');
     return '';
   }).replace(/<div data-column-count="[^"]*"[^>]*>\s*<\/div>/g, '').replace(/<!--\s*rhwp:([\s\S]*?)-->/g, () => {
     warnings.add('표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.');

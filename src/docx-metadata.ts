@@ -216,6 +216,11 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           row.dataset.wordRowRule = exact ? 'exact' : 'atLeast';
         });
       }
+      // An explicit cantSplit=false across the whole merge preserves its
+      // permission to continue. Missing/default policy is not new evidence.
+      for (const table of sizedTables.keys()) for (const [index, row] of [...table.rows].entries()) for (const cell of [...row.cells]) {
+        if (cell.rowSpan > 1 && [...table.rows].slice(index, index + cell.rowSpan).every(r => r.dataset.rowSplit === 'allow' && r.dataset.wordRowRule !== 'exact')) cell.dataset.cellSplit = 'allow';
+      }
       // Resolve preferred widths in their containing text area. Process outer
       // tables first so nested percentages use the actual padded parent cell.
       for (const table of template.content.querySelectorAll<HTMLTableElement>('table')) {
