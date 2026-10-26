@@ -1,10 +1,10 @@
 {
-  "date": "2026-10-26",
+  "date": "2026-10-27",
   "baselineCommit": "e694647",
   "status": "in_progress",
   "build": "passed",
   "unitTests": 68,
-  "browserTests": 207,
+  "browserTests": 212,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -419,17 +419,15 @@
     ]
   },
   "crossPlatformValidation": {
-    "run": 40337301112,
-    "status": "in_progress",
-    "remaining": "Windows/Linux rerun and installed-package verification",
-    "findings": [
-      "Print split a wrapping word mid-word and disagreed with editor pages",
-      "Zero-leading headings overlapped with taller fallback fonts",
-      "One Windows Vite request failed with ERR_NO_BUFFER_SPACE before app startup"
-    ],
-    "localTargeted": "10 passed",
-    "localFull": "205 passed",
-    "rerun": 40341958143
+    "windowsFocused": {
+      "runId": 40348104533,
+      "commit": "6ae960b",
+      "result": "passed",
+      "tests": 15
+    },
+    "fullInstallValidation": "pending: desktop smoke selector corrected after Linux repeated-header overlay count failure",
+    "actualMicrosoftWord": "unavailable",
+    "actualHancom": "unavailable"
   },
   "inlineTableSpacing": {
     "status": "fixed_prefix_suffix_and_horizontal_position",

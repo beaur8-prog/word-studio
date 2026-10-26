@@ -18,6 +18,10 @@ export function measureParagraphLines(view: EditorView, block: HTMLElement, natu
     if (node instanceof HTMLElement) {
       if (node.tagName !== 'IMG') continue;
       const box = node.getBoundingClientRect();
+      // ProseMirror puts an empty IMG before a non-editable inline atom. It
+      // is a caret separator, not a line; counting it corrupts the first
+      // line's inset when a paragraph starts with a footnote reference.
+      if (box.width < .1 || box.height < 1) continue;
       add(naturalY(box.top), naturalY(box.bottom), () => view.posAtDOM(node.parentNode!, [...node.parentNode!.childNodes].indexOf(node)));
     } else if (node instanceof Text && node.data && !node.parentElement?.closest('.pagination-gap,[data-flow-widget]')) {
       const range = document.createRange(); range.selectNodeContents(node);
@@ -41,8 +45,14 @@ export function measureParagraphLines(view: EditorView, block: HTMLElement, natu
   }
   if (!blockLines.length) { const box = block.getBoundingClientRect(); blockLines.push({ top: naturalY(box.top), bottom: naturalY(box.bottom), pos: () => firstPos }); }
   else blockLines[0].pos = () => firstPos;
-  const inset = Math.max(0, blockLines[0].top - naturalY(block.getBoundingClientRect().top));
-  const pitch = parseFloat(getComputedStyle(block).lineHeight);
-  for (const line of blockLines) { line.before = inset; line.after = Number.isFinite(pitch) ? Math.max(0, pitch - inset - (line.bottom - line.top)) : 0; }
+  const box = block.getBoundingClientRect();
+  for (let i = 0; i < blockLines.length; i++) {
+    const line = blockLines[i], previous = blockLines[i - 1], next = blockLines[i + 1];
+    // Superscripts and large runs can make only one line taller. Derive the
+    // leading from adjacent measured lines instead of applying the first
+    // line's inset to every line in the paragraph.
+    line.before = Math.max(0, previous ? (line.top - previous.bottom) / 2 : line.top - naturalY(box.top));
+    line.after = Math.max(0, next ? (next.top - line.bottom) / 2 : naturalY(box.bottom) - line.bottom);
+  }
   return blockLines;
 }

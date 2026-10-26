@@ -146,6 +146,11 @@ export const Pagination = Extension.create({
                 return false;
               });
               const assigned = new Map<string, number>(), onPage = new Map<number, Set<string>>();
+              const assignNotes = (refs: { id: string; page: number }[]) => {
+                for (const ref of refs) if (!assigned.has(ref.id)) {
+                  assigned.set(ref.id, ref.page); const ids = onPage.get(ref.page) || new Set<string>(); ids.add(ref.id); onPage.set(ref.page, ids);
+                }
+              };
               const reserve = (page: number, candidate: { id: string; page: number }[]) => {
                 const ids = new Set([...(onPage.get(page) || []), ...candidate.filter(ref => ref.page === page).map(ref => ref.id)]);
                 return ids.size ? 12 + [...ids].reduce((sum, id) => sum + (noteNodes.get(id)?.height || 0), 0) : 0;
@@ -192,11 +197,13 @@ export const Pagination = Extension.create({
                   const flow = paginateCellRow(view, piece.cellRow, piece.pos, { origin, scale, top, bottom, height: h, extra, removed, repeatAt, reserveAt: page => reserve(page, refs) });
                   if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }
-                if (!piece.columns && !piece.explicit && y + piece.height > end + .5 && !piece.references?.length) {
+                if (!piece.columns && !piece.explicit && y + piece.height > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
                   if (paragraph instanceof HTMLElement && paragraph.tagName === 'P') {
-                    const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed, reserveAt: page => reserve(page, refs) });
-                    if (flow) { dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
+                    const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed,
+                      references: (piece.references ?? []).filter(ref => refs.some(r => r.id === ref.id)).map(ref => ({ id: ref.id, top: piece.top + ref.offset })),
+                      reserveAt: (page, own) => reserve(page, own) });
+                    if (flow) { assignNotes(flow.references); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                   }
                 }
                 if (piece.explicit || (y + piece.height > end + .5 && piece.height <= usable)) {
@@ -216,9 +223,7 @@ export const Pagination = Extension.create({
                   }, { side: -1, key: `gap-${piece.pos}-${gap}` }));
                   extra += gap; signatures.push(`${piece.pos}:${gap.toFixed(3)}`); refs = candidate();
                 }
-                for (const ref of refs) if (!assigned.has(ref.id)) {
-                  assigned.set(ref.id, ref.page); const ids = onPage.get(ref.page) || new Set(); ids.add(ref.id); onPage.set(ref.page, ids);
-                }
+                assignNotes(refs);
                 if (piece.explicit === 'sectionBreak') sectionJustStarted = true;
                 else if (!piece.empty && !piece.explicit) sectionJustStarted = false;
               }
