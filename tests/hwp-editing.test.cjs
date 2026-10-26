@@ -33,8 +33,9 @@ test('inline picture alternative text retains literal XML and replacement charac
     const html = `<p><img src="data:image/png;base64,${png}" width="20" height="20" alt="Picture $&amp; &lt;tag&gt; &quot;한글&quot;"></p>`;
     const out = serializeHwp(HwpDocument, html, { ...paper, header: '', footer: '' }, format), doc = new HwpDocument(out.bytes);
     try {
-      const image = JSON.parse(doc.getPageControlLayout(0)).controls.find(c => c.type === 'image');
-      assert.equal(JSON.parse(doc.getPictureProperties(image.secIdx, image.paraIdx, image.controlIdx)).description, 'Picture $& <tag> "한글"');
+      const image = JSON.parse(doc.getControls()).find(c => c.ctrlId === 'gso');
+      assert.ok(image);
+      assert.equal(JSON.parse(doc.getPictureProperties(0, image.para, image.controlIndex)).description, 'Picture $& <tag> "한글"');
     } finally { doc.free(); }
   }
 });
