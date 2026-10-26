@@ -4,6 +4,7 @@ import { layoutWordLines } from './word-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
+import { imageFloating } from './image-floating';
 
 export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
@@ -110,7 +111,10 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     applyFloatingLayout(content);
     const last = content.lastElementChild as HTMLElement | null;
     return (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
-      && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img => img.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)
+      // Behind/in-front objects do not consume text flow. A page decoration
+      // extending into the margin must not push its anchor onto another page.
+      && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img =>
+        imageFloating(img.dataset.imageFloating)?.wrap?.type === 0 || img.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)
       // Page-relative floating pictures can extend past a column box without
       // overflowing its text. scrollWidth includes those absolute descendants
       // and would move otherwise fitting columns onto another sheet.

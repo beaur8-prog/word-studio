@@ -175,18 +175,31 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   const warnings = new Set<string>(metadata?.warnings);
   const controls: Control[] = JSON.parse(doc.getControls());
   const pitches = sourceLinePitches(doc);
-  let picturePositions: Map<string, any> | undefined;
+  let controlPositions: Map<string, any> | undefined;
+  const controlPosition = (section: number, para: number, control: number) => {
+    if (!controlPositions) {
+      controlPositions = new Map();
+      for (let page = 0; page < doc.pageCount(); page++) for (const c of JSON.parse(doc.getPageControlLayout(page)).controls ?? []) {
+        // Header/footer paragraph indexes are local to their own story. They
+        // can equal body indexes and must never replace the body's anchor.
+        if (c.headerFooter || c.cellPath?.length || c.parentParaIdx !== undefined) continue;
+        controlPositions.set(`${c.secIdx}:${c.paraIdx}:${c.controlIdx}`, { ...c, page });
+      }
+    }
+    return controlPositions.get(`${section}:${para}:${control}`);
+  };
+  const floatingGeometry = (position: any, props: any) => ({
+    horizontalPosition: { relative: 'page', offset: Math.round(position.x * 9525) },
+    verticalPosition: { relative: 'page', offset: Math.round(position.y * 9525) },
+    wrap: { type: ['BehindText', 'InFrontOfText'].includes(props.textWrap) ? 0 : props.textWrap === 'TopAndBottom' ? 3 : 1 },
+    behindDocument: props.textWrap === 'BehindText', allowOverlap: props.allowOverlap, layoutInCell: true,
+  });
   const overlays = new Map<number, any[]>();
   const pictureHtml = (section: number, para: number, control: Control): string | undefined => {
     let props: any;
     try { props = JSON.parse(doc.getPictureProperties(section, para, control.controlIndex)); } catch { return; }
     if (props.treatAsChar) return;
-    if (!picturePositions) {
-      picturePositions = new Map();
-      for (let page = 0; page < doc.pageCount(); page++) for (const c of JSON.parse(doc.getPageControlLayout(page)).controls ?? [])
-        if (c.type === 'image') picturePositions.set(`${c.secIdx}:${c.paraIdx}:${c.controlIdx}`, { ...c, page });
-    }
-    const position = picturePositions.get(`${section}:${para}:${control.controlIndex}`);
+    const position = controlPosition(section, para, control.controlIndex);
     if (!position) return;
     let images = overlays.get(position.page);
     if (!images) {
@@ -195,11 +208,59 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     }
     const image = images.find(i => Math.abs(i.bbox.x - position.x) < 1 && Math.abs(i.bbox.y - position.y) < 1 && Math.abs(i.bbox.width - position.w) < 1);
     if (!image || !/^image\/(png|jpeg|bmp|gif|webp)$/.test(image.mime)) return;
-    const geometry = { horizontalPosition: { relative: 'page', offset: Math.round(position.x * 9525) },
-      verticalPosition: { relative: 'page', offset: Math.round(position.y * 9525) },
-      wrap: { type: ['BehindText', 'InFrontOfText'].includes(props.textWrap) ? 0 : props.textWrap === 'TopAndBottom' ? 3 : 1 },
-      behindDocument: props.textWrap === 'BehindText', allowOverlap: props.allowOverlap, layoutInCell: true };
+    const geometry = floatingGeometry(position, props);
     return `<img data-inline-image="true" data-image-floating="${escape(JSON.stringify(geometry))}" src="data:${image.mime};base64,${image.base64}" width="${position.w}" height="${position.h}" alt="${escape(props.description || '그림')}" />`;
+  };
+  let layerPage = -1, layerRoot: any;
+  const shapeHtml = (section: number, para: number, control: Control): string | undefined => {
+    try {
+      const props = JSON.parse(doc.getShapeProperties(section, para, control.controlIndex));
+      if (props.treatAsChar) return;
+      const position = controlPosition(section, para, control.controlIndex);
+      if (!position || !['shape', 'line', 'ellipse', 'polygon'].includes(position.type)) return;
+      if (layerPage !== position.page) {
+        const tree = JSON.parse(doc.getPageLayerTreeWithProfile(position.page, 'print', true, true));
+        if (tree.schemaVersion !== 1 || tree.unit !== 'px' || tree.coordinateSystem !== 'page-top-left-y-down') return;
+        layerPage = position.page; layerRoot = tree.root;
+      }
+      // Select one object subtree, never crop a page: a crop would also copy
+      // unrelated text and background pictures underneath the shape.
+      const matches: any[] = [];
+      const find = (node: any, depth = 0) => {
+        if (!node || depth > 40) return;
+        const b = node.bounds;
+        if (node.layer?.zOrder === position.zOrder && b &&
+          [b.x - position.x, b.y - position.y, b.width - position.w, b.height - position.h].every(n => Math.abs(n) < 1)) {
+          matches.push(node); return;
+        }
+        node.children?.forEach((child: any) => find(child, depth + 1));
+        if (node.child) find(node.child, depth + 1);
+      };
+      find(layerRoot);
+      if (matches.length !== 1) return;
+      const node = matches[0], text: string[] = [];
+      let count = 0, stroke = 0;
+      const supported = (node: any, depth = 0): boolean => {
+        if (++count > 10000 || depth > 40) return false;
+        if (node.kind === 'group') return Array.isArray(node.children) && node.children.every((child: any) => supported(child, depth + 1));
+        if (node.kind === 'clipRect') return supported(node.child, depth + 1);
+        return node.kind === 'leaf' && Array.isArray(node.ops) && node.ops.every((op: any) => {
+          if (++count > 10000) return false;
+          stroke = Math.max(stroke, Number(op.style?.strokeWidth ?? op.style?.width) || 0);
+          if (op.type === 'textRun') text.push(op.displayText ?? op.text ?? '');
+          return ['rectangle', 'ellipse', 'line', 'polygon', 'path', 'textRun'].includes(op.type);
+        });
+      };
+      if (!supported(node)) return;
+      const padding = Math.max(2, Math.ceil(stroke / 2 + 1));
+      if (!Number.isFinite(padding) || padding > 1000) return;
+      const payload = JSON.stringify({ ...node, previewPadding: padding });
+      if (payload.length > 4 * 1024 * 1024) return;
+      const b = node.bounds;
+      const geometry = floatingGeometry({ x: b.x - padding, y: b.y - padding }, props);
+      warnings.add('도형·글상자는 원래 위치와 모양의 그림으로 가져옵니다. 글상자 내용은 그림 설명에 보존하지만 개체 내부는 편집할 수 없습니다.');
+      return `<img data-inline-image="true" data-hwp-object="${escape(payload)}" data-image-floating="${escape(JSON.stringify(geometry))}" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==" width="${b.width + padding * 2}" height="${b.height + padding * 2}" alt="${escape([control.userDesc || '도형', text.join('')].filter(Boolean).join(': '))}" />`;
+    } catch { return; }
   };
   const byParagraph = new Map<number, Control[]>();
   for (const c of controls) {
@@ -243,7 +304,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         appendInline(inline(range(cursor, pos))); cursor = pos;
         onProgress?.({ label: c.ctrlId === 'tbl' ? '표를 변환하는 중…' : c.ctrlId === 'gso' ? '그림·도형을 변환하는 중…' : '문서 개체를 변환하는 중…' });
         let controlHtml = fragment(doc.exportControlHtml(section, para, '[]', c.controlIndex));
-        if (c.ctrlId === 'gso') controlHtml = pictureHtml(section, para, c) ?? controlHtml;
+        if (c.ctrlId === 'gso') controlHtml = pictureHtml(section, para, c) ?? shapeHtml(section, para, c) ?? controlHtml;
         if (c.ctrlId === 'tbl') controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches);
         if (c.ctrlId === 'eqed') {
           const equation = JSON.parse(doc.getEquationProperties(section, para, c.controlIndex, -1, -1));

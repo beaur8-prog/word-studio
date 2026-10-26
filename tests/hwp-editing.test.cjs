@@ -151,6 +151,31 @@ test('equations retain their SVG appearance and original script before raster pr
   } finally { doc.free(); }
 });
 
+test('floating shapes keep isolated drawing subtrees and body anchors despite colliding header indexes', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const source = HwpDocument.createEmpty();
+  try {
+    require('./hwp-shape-fixture.cjs').populateShapes(source);
+    for (const format of ['hwp', 'hwpx']) {
+      const doc = new HwpDocument(format === 'hwp' ? source.exportHwp() : source.exportHwpx());
+      try {
+        const layout = doc.getPageControlLayout.bind(doc);
+        doc.getPageControlLayout = page => {
+          const body = JSON.parse(layout(page));
+          body.controls.push(...body.controls.map(c => ({ ...c, x: 1, y: 1, zOrder: 999, headerFooter: { kind: 'header' } })));
+          return JSON.stringify(body);
+        };
+        const result = editableHwp(doc);
+        assert.equal((result.html.match(/data-hwp-object=/g) || []).length, 2, format);
+        assert.match(result.html, /TITLE 한글/); assert.match(result.html, /BODY TEXT/);
+        assert.match(result.html, /&quot;relative&quot;:&quot;page&quot;/);
+        assert.ok(!result.html.includes('원본 보기에서 확인]'));
+        assert.ok(result.warnings.some(w => w.includes('개체 내부는 편집할 수 없습니다')));
+      } finally { doc.free(); }
+    }
+  } finally { source.free(); }
+});
+
 test('single-paragraph style survives repeated saves without accumulating sentinel paragraphs', async () => {
   const { HwpDocument, serializeHwp, editableHwp } = await setup;
   let html = '<p style="text-align:center;line-height:150%"><b>SINGLE 문단</b></p>';
