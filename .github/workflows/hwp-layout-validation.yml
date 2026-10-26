@@ -1,0 +1,25 @@
+name: HWP layout validation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-layout:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Test font metrics, paragraph pagination and inline tables
+        run: npx playwright test tests/paragraph-flow.spec.ts tests/footnote-flow.spec.ts tests/hwp-textflow.spec.ts tests/hwp-inline-tables.spec.ts --reporter=line
+        env:
+          HWP_LAYOUT_DIAGNOSTICS: '1'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-layout-evidence
+          path: test-results/

@@ -12,13 +12,15 @@ for (const font of ['inherit', 'Studio Text']) test(`${font}: a body paragraph c
     const loaded = await importFile(new File([`<p style="line-height:400px;margin:0">LEAD</p><p style="font-size:10pt;line-height:20px;margin:0;text-indent:12px">${text}</p>`], 'flow.html'));
     const doc = { ...loaded.document, page: { ...defaultPage, size: 'Custom', width: 150, height: 180, margin: 10 }, content: parseDocumentHtml(loaded.html!) };
     const print = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
-    try { return { doc, pages: [...print.element.querySelectorAll('.print-content')].map(p => p.textContent!.replace(/\s/g, '')) }; }
+    try { const p = print.element.querySelectorAll('.print-content p')[1] as HTMLElement; const range = document.createRange(); range.selectNodeContents(p); return { doc, metrics: { css: p.style.cssText, font: getComputedStyle(p).font, width: p.getBoundingClientRect().width, height: p.getBoundingClientRect().height, rects: [...range.getClientRects()].slice(0,3).map(r => ({x:r.x,y:r.y,w:r.width,h:r.height})) }, pages: [...print.element.querySelectorAll('.print-content')].map(p => p.textContent!.replace(/\s/g, '')) }; }
     finally { print.dispose(); }
   });
   await page.locator('input[type=file]').first().setInputFiles({ name: 'flow.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state.doc)) });
   const editor = page.getByRole('textbox', { name: '문서 편집 영역' });
+  if (process.env.HWP_LAYOUT_DIAGNOSTICS) console.log('PRINT METRICS', state.metrics);
   for (const zoom of [100, 50, 125, 200, 100]) {
     const slider = page.getByRole('slider', { name: '확대 축소' }); await slider.fill(String(zoom)); await slider.dispatchEvent('input'); await slider.dispatchEvent('change');
+    if (process.env.HWP_LAYOUT_DIAGNOSTICS) console.log('EDITOR METRICS', zoom, await editor.evaluate(root => { const p = root.querySelectorAll('p')[1] as HTMLElement, range = document.createRange(); range.selectNodeContents(p); return { css:p.style.cssText, font:getComputedStyle(p).font, width:p.getBoundingClientRect().width, height:p.getBoundingClientRect().height, rects:[...range.getClientRects()].slice(0,3).map(r=>({x:r.x,y:r.y,w:r.width,h:r.height})) }; }));
     await expect.poll(() => editor.evaluate((root, zoom) => {
       const sheet = root.closest<HTMLElement>('.document-stack')!, origin = root.getBoundingClientRect().top;
       const height = Number(sheet.dataset.pageHeight), top = Number(sheet.dataset.margin), bottom = Number(sheet.dataset.bottomMargin);
