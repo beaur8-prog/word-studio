@@ -7,6 +7,7 @@ import { imageFloating } from './image-floating';
 import { paginateCellRow, paginateMergedRows } from './editor-cell-pagination';
 import { layoutColumns } from './column-layout';
 import { layoutTableAnchors } from './table-anchor';
+import { paginateParagraph } from './editor-paragraph-pagination';
 
 const key = new PluginKey('studioPagination');
 type RepeatingHeader = { table: HTMLTableElement; rows: HTMLTableRowElement[]; height: number };
@@ -190,6 +191,13 @@ export const Pagination = Extension.create({
                 if (piece.cellRow && y + piece.height > end + .5) {
                   const flow = paginateCellRow(view, piece.cellRow, piece.pos, { origin, scale, top, bottom, height: h, extra, removed, repeatAt });
                   if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
+                }
+                if (!piece.columns && !piece.explicit && y + piece.height > end + .5 && !piece.references?.length) {
+                  const paragraph = view.nodeDOM(piece.pos);
+                  if (paragraph instanceof HTMLElement && paragraph.tagName === 'P') {
+                    const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed });
+                    if (flow) { dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
+                  }
                 }
                 if (piece.explicit || (y + piece.height > end + .5 && piece.height <= usable)) {
                   let destination = page + 1;

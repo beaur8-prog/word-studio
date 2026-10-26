@@ -27,6 +27,39 @@ const setup = (async () => {
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
+for (const format of ['hwp', 'hwpx']) test(`${format}: native footnote/endnote imports retain their story and reference through two saves`, async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  const native = HwpDocument.createEmpty();
+  let bytes;
+  try {
+    native.createBlankDocument(); native.insertText(0, 0, 0, 'BEFORE AFTER');
+    const foot = JSON.parse(native.insertFootnote(0, 0, 6));
+    assert.ok(foot.ok);
+    assert.ok(JSON.parse(native.insertTextInFootnote(0, 0, foot.controlIdx, 0, 1, 'Native 각주 😀')).ok);
+    const end = JSON.parse(native.insertEndnote(0, 0, 0));
+    assert.ok(end.ok);
+    assert.ok(JSON.parse(native.insertTextInFootnote(0, 0, end.controlIdx, 0, 1, 'Native 미주 설명')).ok);
+    bytes = format === 'hwp' ? native.exportHwp() : native.exportHwpx();
+  } finally { native.free(); }
+  for (let round = 0; round < 3; round++) {
+    const source = new HwpDocument(bytes);
+    let converted;
+    try {
+      const zip = await JSZip.loadAsync(source.exportHwpx()), xml = await zip.file('Contents/section0.xml').async('string');
+      assert.equal((xml.match(/<hp:footNote\b/g) || []).length, 1);
+      assert.equal((xml.match(/<hp:endNote\b/g) || []).length, 1);
+      assert.equal((xml.match(/Native 각주/g) || []).length, 1);
+      assert.equal((xml.match(/Native 미주/g) || []).length, 1);
+      converted = editableHwp(source);
+      assert.equal((converted.html.match(/data-note-reference=/g) || []).length, 2);
+      assert.equal((converted.html.match(/data-document-note=/g) || []).length, 2);
+      assert.match(converted.html, /Native 각주 😀/); assert.match(converted.html, /Native 미주 설명/);
+      assert.doesNotMatch(converted.html, /WORDSTUDIO-NOTE|원본 보기에서 확인|변환하지 못한/);
+    } finally { source.free(); }
+    if (round < 2) bytes = serializeHwp(HwpDocument, converted.html, converted.page, format).bytes;
+  }
+});
+
 for (const format of ['hwp', 'hwpx']) test(`${format}: live PAGE/NUMPAGES survive body, cell, nested cell and two saves after astral Unicode`, async () => {
   const { HwpDocument, serializeHwp, editableHwp } = await setup;
   const field = kind => `<span data-page-number="${kind}">37</span>`;

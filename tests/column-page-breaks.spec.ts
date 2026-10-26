@@ -1,4 +1,37 @@
 import { test, expect } from '@playwright/test';
+import fs from 'node:fs/promises';
+
+for (const leading of [600, 700]) test(`a table overflowing the last column starts on the same sheet as print after ${leading}px of preceding table`, async ({ page }) => {
+  await page.goto('/');
+  const state = await page.evaluate(async leading => {
+    const { importFile } = await import('/src/document-io.ts'), { defaultPage } = await import('/src/types.ts');
+    const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts'), { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js');
+    const { createPrintLayout } = await import('/src/print-layout.ts');
+    const table = (name: string, height: number) => `<table style="margin:0"><tr style="height:${height}px"><td><p style="margin:0;line-height:20px">${name}</p></td></tr></table>`;
+    const html = `<div data-column-count="2" data-column-space="24" data-column-balance="false">${table('FIRST FORM', leading)}${table('NEXT FORM', 620)}<p>TAIL</p></div>`;
+    const imported = await importFile(new File([html], 'forms.html'));
+    const doc = { ...imported.document, page: { ...defaultPage, size: 'Custom', width: 150, height: 180, margin: 10 }, content: parseDocumentHtml(imported.html!) };
+    const layout = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+    try { return { doc, pages: layout.pages, starts: [...layout.element.querySelectorAll('p')].filter(p => p.textContent!.trim()).map(p => ({ text: p.textContent, page: Number(p.closest<HTMLElement>('.print-page')!.dataset.page) })) }; }
+    finally { layout.dispose(); }
+  }, leading);
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'forms.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state.doc)) });
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역' });
+  for (const zoom of [100, 50, 125, 200, 100]) {
+    const slider = page.getByRole('slider', { name: '확대 축소' }); await slider.fill(String(zoom)); await slider.dispatchEvent('input'); await slider.dispatchEvent('change');
+    await expect.poll(() => page.locator('.document-stack').getAttribute('data-pages')).toBe(String(state.pages));
+    await expect.poll(() => editor.evaluate((root, zoom) => {
+      const sheet = root.closest<HTMLElement>('.document-stack')!, origin = root.getBoundingClientRect().top;
+      const stride = Number(sheet.dataset.pageHeight) + 24;
+      return [...root.querySelectorAll('p')].filter(p => p.textContent!.trim()).map(p => ({ text: p.textContent, page: Math.floor(((p.getBoundingClientRect().top - origin) / (zoom / 100) + .5) / stride) + 1 }));
+    }, zoom)).toEqual(state.starts);
+  }
+  const paragraph = editor.getByText('NEXT FORM', { exact: true }); await paragraph.fill('EDIT FORM');
+  await page.keyboard.press('ControlOrMeta+z'); await expect(paragraph).toHaveText('NEXT FORM');
+  const download = page.waitForEvent('download'); await page.keyboard.press('ControlOrMeta+s');
+  const saved = JSON.parse(await fs.readFile((await (await download).path())!, 'utf8'));
+  expect(saved.content).toEqual(state.doc.content);
+});
 
 test('explicit page breaks in unbalanced columns retain all physical pages through two DOCX saves', async ({ page }) => {
   await page.goto('/');

@@ -3,8 +3,8 @@
   "baselineCommit": "e694647",
   "status": "in_progress",
   "build": "passed",
-  "unitTests": 54,
-  "browserTests": 173,
+  "unitTests": 56,
+  "browserTests": 181,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -181,28 +181,75 @@
   "limitations": [
     "Prior-model text equality is not a whole-original-content audit.",
     "The independent PDFs cover samples 03–10; full-page visual correspondence is not complete.",
-    "Rules editor/print count is 167/167, but 20 first-body-paragraph page anchors still differ.",
     "Source-reader and converted print counts differ for rules (163/167), language plan (35/36), notice (35/39), English (8/9).",
     "Rules DOCX reopening changes 167 to 166; other nine samples keep their current counts through two saves.",
     "Language-specific font size, tracking and width remain under investigation; diagnostic variants are not shipped.",
-    "HWP/HWPX native PAGE/NUMPAGES now survive, but section/column/note/floating object/rich furniture export limitations remain explicitly warned.",
+    "HWP/HWPX native PAGE/NUMPAGES now survive, but section/column/floating object/rich furniture export limitations remain explicitly warned.",
     "Microsoft Word, Hancom office and a Windows runtime are unavailable on this Mac."
   ],
   "evidence": {
     "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
-    "browser": "browser-verified.log",
-    "unit": "unit-verified.log",
-    "build": "build-verified.log",
+    "browser": "browser-layout-verified.log",
+    "unit": "unit-notes-verified.log",
+    "build": "build-layout-verified.log",
     "nativeLarge": "native-large-completion.log",
-    "nativeFourDocuments": "native-verified.log",
+    "nativeFourDocuments": "native-layout-verified.log",
     "docx": "docx-verified.log",
     "cropAlignment": "empty-cell-slots.log",
-    "largeGlyph": "korean-ink.json"
+    "largeGlyph": "korean-ink.json",
+    "sourceTextAudit": "source-text-audit.json",
+    "notesIntegration": "notes-integration.log",
+    "nativeNoteControls": "notes-native.log",
+    "rulesPageStarts": "rules-columns-final.log",
+    "nestedFormBefore": "nested-form-before.log",
+    "nestedFormAfter": "nested-form-after.log",
+    "columnAndReserve": "column-forms.log"
   },
   "falsePositivesCorrected": [
     "Korean large glyph: font rectangle extends into margin, actual ink does not.",
     "Reserved-row test must measure row/paper intersections, not subtract full cell widgets (which include repeated padding).",
     "Page-relative title text is intentionally above the body margin, while remaining inside paper bounds.",
     "Parallel Playwright output directory collision caused a teardown failure; isolated full run passed 173 tests."
-  ]
+  ],
+  "sourceXmlTextAudit": {
+    "minimumNonWhitespaceChars": 5,
+    "paragraphs": 5125,
+    "substringMatches": 5124,
+    "explainedExceptions": [
+      {
+        "sample": "05-return-form",
+        "reason": "One paragraph crosses an inline table; 100 cut-line glyphs and seal text remain in separate body paragraphs."
+      }
+    ],
+    "limitations": [
+      "Does not verify all short fragments, multiplicity, order or complete visual fidelity."
+    ]
+  },
+  "nativeNotes": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "nativeSourceRoundtrips": 2,
+    "editableBodyAndNestedCellRoundtrips": 2,
+    "richContent": [
+      "multiple paragraphs",
+      "bold",
+      "italic",
+      "picture",
+      "table"
+    ],
+    "relatedBrowserTests": 16,
+    "limitations": [
+      "Custom labels become numeric with a warning.",
+      "Unreferenced or multiply referenced note stories abort export instead of being silently lost."
+    ]
+  },
+  "rulesEditorPrint": {
+    "editorPages": 167,
+    "printPages": 167,
+    "firstBodyParagraphMatches": 167,
+    "mismatchesBeforeAndAfterPrint": 0,
+    "scope": "First non-header body paragraph per physical page, not a pixel-perfect original-page audit."
+  }
 }

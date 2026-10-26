@@ -83,7 +83,8 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const warnings: string[] = [];
   const warn = (selector: string, message: string) => { if (root.querySelector(selector)) warnings.push(message); };
   warn('[data-section-page], [data-section-content], [data-column-count]', '구역별 용지·다단 설정은 첫 용지 설정으로 통합합니다.');
-  warn('[data-document-note], [data-note-reference]', '각주·미주는 본문 텍스트 표시로 바뀝니다.');
+  const notes = [...root.querySelectorAll<HTMLElement>('[data-document-note]')].map(note => note.cloneNode(true) as HTMLElement);
+  if (notes.some(note => !/^\d+$/.test(note.dataset.noteLabel || ''))) warnings.push('각주·미주의 사용자 지정 표시는 한글의 숫자 번호로 바뀝니다. 본문 참조와 각주·미주 내용은 유지합니다.');
   warn('[data-docx-bookmark], a', '책갈피·링크는 표시된 텍스트만 저장합니다.');
   warn('[data-image-floating]', '떠 있는 그림은 본문 흐름 안으로 옮깁니다. 자르기·회전·겹침은 유지되지 않습니다.');
   warn('[data-word-overlap]', '겹쳐 쓰기와 특수 문자는 표시된 텍스트로 저장합니다.');
@@ -105,6 +106,10 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       return body + (sheet.querySelector('.print-footnotes')?.innerHTML || '');
     }).join('<div data-page-break="true"></div>');
     root.innerHTML = sanitizeImportedHtml(root.innerHTML).html;
+    // Print places footnotes at page bottoms. Save their complete source
+    // stories once, including notes that continued onto another print page.
+    root.querySelectorAll('[data-document-note]').forEach(note => note.remove());
+    root.append(...notes);
     root.querySelectorAll('[data-section-page]').forEach(el => el.remove());
     root.querySelectorAll('[data-docx-tab]').forEach(el => el.replaceWith(document.createTextNode('\t')));
     root.querySelectorAll('img').forEach(img => { img.removeAttribute('data-image-floating'); });

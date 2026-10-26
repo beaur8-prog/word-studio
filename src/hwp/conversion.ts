@@ -8,6 +8,7 @@ import { serializedParts } from './serialized-parts';
 import { olePreview } from './ole-preview';
 import { headerDefinitions, headerPreviewPage, headerLayer, hiddenStories } from './header-stories';
 import { stageHwpFields } from './export-fields';
+import { importHwpNotes, stageHwpNotes } from './note-stories';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -216,7 +217,7 @@ function pageSettings(doc: HwpDocument, section: number, warnings: Set<string>):
 
 /** The engine's selection HTML intentionally omits controls. Interleave their
  * HTML at the raw paragraph offsets instead of losing tables and pictures. */
-export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, metadata?: HwpLayoutMetadata): EditableHwp {
+export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, metadata?: HwpLayoutMetadata, noteStory = false): EditableHwp {
   onProgress?.({ label: '문서의 표·그림 구조를 확인하는 중…' });
   const warnings = new Set<string>(metadata?.warnings);
   const controls: Control[] = JSON.parse(doc.getControls());
@@ -229,6 +230,12 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     catch { warnings.add('일부 개체의 보조 서식 정보를 읽지 못했습니다. 원본 보기와 비교하세요.'); return parts = {}; }
   };
   const equationMetadata = () => equations ??= cellContents(doc, serialized());
+  const noteStories = noteStory ? { notes: [], warnings: [] } : importHwpNotes(doc, serialized(), noteDoc => editableHwp(noteDoc, undefined, undefined, true));
+  for (const warning of noteStories.warnings) warnings.add(warning);
+  const noteReference = (control: { noteId?: string }) => {
+    const note = noteStories.notes.find(n => n.id === control.noteId);
+    return note ? `<span data-note-reference="${note.id}" data-note-kind="${note.kind}" data-note-label="${escape(note.label)}">${escape(note.label)}</span>` : undefined;
+  };
   const equationHtml = (equation: { script: string; fontSize: number; color: number; width: number; height: number }) => {
     const svg = doc.renderEquationPreview(equation.script, equation.fontSize || 1200, equation.color || 0);
     const width = equation.width > 0 ? px(equation.width) : Number(svg.match(/\bwidth="([\d.]+)"/)?.[1]);
@@ -523,6 +530,12 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         appendInline(inline(range(cursor, pos))); cursor = pos;
         onProgress?.({ label: c.ctrlId === 'tbl' ? '표를 변환하는 중…' : c.ctrlId === 'gso' ? '그림·도형을 변환하는 중…' : '문서 개체를 변환하는 중…' });
         let controlHtml = fragment(doc.exportControlHtml(section, para, '[]', c.controlIndex));
+        if (c.ctrlId === 'fn' || c.ctrlId === 'en') {
+          const kind = c.ctrlId === 'fn' ? 'footNote' : 'endNote';
+          const ordinal = paragraphControls.filter(x => x.ctrlId === c.ctrlId).indexOf(c);
+          const note = equationMetadata().get(`${section}:${para}`)?.controls.filter(x => x.kind === kind)[ordinal];
+          if (note) controlHtml = noteReference(note) ?? controlHtml;
+        }
         if (c.ctrlId === 'atno') {
           const ordinal = paragraphControls.filter(c => c.ctrlId === 'atno').indexOf(c);
           const type = equationMetadata().get(`${section}:${para}`)?.controls.filter(c => c.kind === 'autoNum')[ordinal]?.numberType;
@@ -553,7 +566,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
           }, warnings, equationMetadata, restoredHeaders.has(`${section}:${para}`), (path, index, html) => {
             try { return croppedPicture(html, JSON.parse(doc.getCellPicturePropertiesByPath(section, para, JSON.stringify(path), index))); }
             catch { return html; }
-          });
+          }, noteReference);
           controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches);
           const background = tableBackgrounds.get(c.controlIndex);
           if (background) {
@@ -614,6 +627,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     }
     closeColumns();
   }
+  for (const note of noteStories.notes) append(`<div data-document-note="${note.id}" data-note-kind="${note.kind}" data-note-label="${escape(note.label)}">${note.html}</div>`);
   onProgress?.({ label: '변환한 본문과 그림을 정리하는 중…' });
   let html = pieces.join('\n').replace(/<!--\s*rhwp:\s*셀 안 (ColumnDef|Bookmark|PageHide)\b[\s\S]*?-->/g, (_, type: string) => {
     warnings.add(type === 'ColumnDef' ? '표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.'
@@ -689,7 +703,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     // A real Hancom template supplies valid HWP 5.1 DocInfo and default styles.
     doc.createBlankDocument();
     const breakToken = 'WORDSTUDIO-PAGE-BREAK-' + crypto.randomUUID();
-    const fields = stageHwpFields(html);
+    const notes = stageHwpNotes(html);
+    const fields = stageHwpFields(notes.html);
     const converted = fields.html.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
     // The first pasted paragraph inherits the host's paragraph shape even on
     // the multi-paragraph path. Sacrifice a leading blank, then remove both
@@ -710,6 +725,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     setHwpPage(doc, page);
     const withFields = fields.restore(Core, doc);
     if (withFields !== doc) { doc.free(); doc = withFields; }
+    const withNotes = notes.restore(Core, doc);
+    if (withNotes !== doc) { doc.free(); doc = withNotes; }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {

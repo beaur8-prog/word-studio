@@ -1,7 +1,7 @@
 import type { EditorView } from '@tiptap/pm/view';
 import { Decoration } from '@tiptap/pm/view';
 
-type Line = { top: number; bottom: number; pos: () => number; before?: number; after?: number };
+import { measureParagraphLines } from './editor-lines';
 type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number };
 
 /** Insert view-only gaps in each column of a continuing row. The row and its
@@ -31,74 +31,50 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
     }, { side: -1, key: `cell-gap-${pos}-${gap}`, ignoreSelection: true }));
     signatures.push(`${pos}:${gap}`);
   };
-  const paragraphLines = (block: HTMLElement) => {
-      const firstPos = view.posAtDOM(block, 0) - 1;
-      const blockLines: Line[] = [];
-      const add = (top: number, bottom: number, pos: () => number) => {
-        const previous = blockLines.at(-1);
-        if (previous && Math.min(previous.bottom, bottom) - Math.max(previous.top, top) > Math.min(previous.bottom - previous.top, bottom - top) * .4) {
-          previous.top = Math.min(previous.top, top); previous.bottom = Math.max(previous.bottom, bottom); return;
-        }
-        blockLines.push({ top, bottom, pos });
-      };
-      const walker = document.createTreeWalker(block, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        if (node instanceof HTMLElement) {
-          if (node.tagName !== 'IMG') continue;
-          const box = node.getBoundingClientRect();
-          add(naturalY(box.top), naturalY(box.bottom), () => view.posAtDOM(node.parentNode!, [...node.parentNode!.childNodes].indexOf(node)));
-        } else if (node instanceof Text && node.data && !node.parentElement?.closest('.pagination-gap,[data-flow-widget]')) {
-          const range = document.createRange(); range.selectNodeContents(node);
-          for (const box of range.getClientRects()) {
-            if (box.width < .1 || box.height < 1) continue;
-            const top = naturalY(box.top), bottom = naturalY(box.bottom), target = box.top;
-            add(top, bottom, () => {
-              // Find the first character on this visual line only if a page
-              // gap is needed. Keep surrogate pairs and combining clusters.
-              const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(node.data)].map(s => s.index);
-              let low = 0, high = offsets.length - 1, first = 0;
-              while (low <= high) {
-                const mid = (low + high) >> 1, end = offsets[mid + 1] ?? node.length;
-                range.setStart(node, offsets[mid]); range.setEnd(node, end);
-                if (range.getBoundingClientRect().top < target - .5) { first = mid + 1; low = mid + 1; } else high = mid - 1;
-              }
-              return view.posAtDOM(node, offsets[Math.min(first, offsets.length - 1)]);
-            });
-          }
-        }
-      }
-      if (!blockLines.length) { const box = block.getBoundingClientRect(); blockLines.push({ top: naturalY(box.top), bottom: naturalY(box.bottom), pos: () => firstPos }); }
-      else blockLines[0].pos = () => firstPos;
-      const inset = Math.max(0, blockLines[0].top - naturalY(block.getBoundingClientRect().top));
-      const pitch = parseFloat(getComputedStyle(block).lineHeight);
-      for (const line of blockLines) { line.before = inset; line.after = Number.isFinite(pitch) ? Math.max(0, pitch - inset - (line.bottom - line.top)) : 0; }
-      return blockLines;
-  };
-  const flowRow = (current: HTMLTableRowElement, pos: number, offset: number): number | null => {
+  const flowRow = (current: HTMLTableRowElement, pos: number, offset: number, outerBefore = 0, outerAfter = 0): number | null => {
     let flowedContentBottom = 0, physicalGaps = 0;
     for (const cell of [...current.cells]) {
       let extra = 0, cellGaps = 0;
       const cellStyle = getComputedStyle(cell);
-      const before = (parseFloat(cellStyle.paddingTop) || 0) + (parseFloat(cellStyle.borderTopWidth) || 0);
-      const after = (parseFloat(cellStyle.paddingBottom) || 0) + (parseFloat(cellStyle.borderBottomWidth) || 0);
+      const before = outerBefore + (parseFloat(cellStyle.paddingTop) || 0) + (parseFloat(cellStyle.borderTopWidth) || 0);
+      const after = outerAfter + (parseFloat(cellStyle.paddingBottom) || 0) + (parseFloat(cellStyle.borderBottomWidth) || 0);
       const visit = (block: HTMLElement): boolean => {
         if (block.matches('table')) {
-          const table = block as HTMLTableElement, rows = [...table.rows];
+          // View-only page gutters are TR widgets too. Counting them as source
+          // rows changes a one-row form into a multi-row table on the next pass,
+          // alternately moving it whole and splitting it on every animation frame.
+          const table = block as HTMLTableElement, rows = [...table.rows].filter(row => !row.classList.contains('ProseMirror-widget'));
+          // The editor keeps tables inside a wrapper; printed fragments carry
+          // these margins on the table itself. Both reserve the same enclosing
+          // cell padding and table spacing at a page boundary.
+          const wrapper = table.parentElement?.classList.contains('tableWrapper') ? table.parentElement : table;
+          const tableStyle = getComputedStyle(wrapper);
+          const nestedBefore = before + (parseFloat(tableStyle.marginTop) || 0);
+          const nestedAfter = after + (parseFloat(tableStyle.marginBottom) || 0);
           let headerEnd = 0;
           while (headerEnd < rows.length && rows[headerEnd].cells.length && [...rows[headerEnd].cells].every(c => c.tagName === 'TH')) headerEnd++;
           for (let i = 0; i < rows.length;) {
             let end = i === 0 ? Math.max(1, Math.min(rows.length, headerEnd + 1)) : i + 1;
             for (let j = i; j < end; j++) for (const c of rows[j].cells) end = Math.min(rows.length, Math.max(end, j + c.rowSpan));
             const first = rows[i], top = naturalY(first.getBoundingClientRect().top), bottom = naturalY(rows[end - 1].getBoundingClientRect().bottom);
-            const gap = gapFor(top, bottom, offset + extra);
+            const gap = gapFor(top, bottom, offset + extra, nestedBefore, nestedAfter);
             if (gap) {
-              if (bottom - top <= g.height - g.top - g.bottom) {
-                addGap(view.posAtDOM(first, 0) - 1, gap, [...first.cells].reduce((n, c) => n + c.colSpan, 0)); extra += gap; cellGaps += gap;
-              } else if (end === i + 1 && first.dataset.rowSplit === 'allow' && first.dataset.wordRowRule !== 'exact') {
-                const more = flowRow(first, view.posAtDOM(first, 0) - 1, offset + extra);
+              const wholeForm = rows.length === 1 && table.getBoundingClientRect().height / g.scale <= g.height - g.top - g.bottom + .5;
+              // Print can continue a single-cell row inside a multi-row form
+              // at its paragraph/line boundaries. Moving the whole nested row
+              // here leaves an extra blank area and shifts all later rows.
+              if (!wholeForm && end === i + 1 && first.dataset.rowSplit !== 'avoid' && first.dataset.wordRowRule !== 'exact' &&
+                (first.dataset.rowSplit === 'allow' || first.cells.length === 1)) {
+                const more = flowRow(first, view.posAtDOM(first, 0) - 1, offset + extra, nestedBefore, nestedAfter);
                 if (more === null) return false;
                 extra += more; cellGaps += more;
+              } else if (bottom - top <= g.height - g.top - g.bottom) {
+                const page = Math.max(0, Math.floor((top + g.extra + offset + extra - g.top + .5) / stride));
+                // The unused body area before a form moves consumes an outer
+                // row's minimum-height reserve. Only the physical paper gutter
+                // and repeated header extend that reserve onto the next sheet.
+                const gutter = g.top + g.bottom + 24 + (g.repeatAt?.(page + 1) ?? 0);
+                addGap(view.posAtDOM(first, 0) - 1, gap, [...first.cells].reduce((n, c) => n + c.colSpan, 0)); extra += gap; cellGaps += Math.min(gap, gutter);
               } else return false;
             }
             i = end;
@@ -106,7 +82,7 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
           return true;
         }
         if (!block.matches('p,h1,h2,h3,h4,h5,h6,pre')) return [...block.children].every(child => visit(child as HTMLElement));
-        for (const line of paragraphLines(block)) {
+        for (const line of measureParagraphLines(view, block, naturalY)) {
           if (line.bottom - line.top > g.height - g.top - g.bottom) return false;
           const gap = gapFor(line.top, line.bottom, offset + extra, before + (line.before || 0), after + (line.after || 0));
           if (gap) { addGap(line.pos(), gap); extra += gap; cellGaps += Math.max(0, gap - before - after); }

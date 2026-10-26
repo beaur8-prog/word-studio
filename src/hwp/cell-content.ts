@@ -4,7 +4,7 @@ import { serializedParts } from './serialized-parts';
 
 export type CellPath = { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
 type Equation = { script: string; fontSize: number; color: number; width: number; height: number };
-export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string };
+export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string; noteId?: string; noteLabel?: string };
 type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[] };
 type Paragraph = { key: string; tables: number; cell: boolean; offset: number };
 type Cell = { key: string; paragraphs: number };
@@ -26,7 +26,7 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
   for (const [name, bytes] of Object.entries(files)) {
     if (!/^Contents\/section\d+\.xml$/.test(name)) continue;
     const section = Number(name.match(/section(\d+)/)![1]), stack: Frame[] = [];
-    let paragraph = -1;
+    let paragraph = -1, note = 0;
     for (const token of strFromU8(bytes).matchAll(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<[^>]+>|[^<]+/g)) {
       const text = token[0], parent = stack.at(-1);
       if (text.startsWith('<!--') || text.startsWith('<?')) continue;
@@ -67,6 +67,7 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
         if (name === 'autoNum') control.numberType = attr('numType');
         if (name === 'header') control.emptyHeader = true;
         if (name === 'ole') control.binaryItem = attr('binaryItemIDRef');
+        if (name === 'footNote' || name === 'endNote') { control.noteId = `hwp-note-${section}-${note++}`; control.noteLabel = attr('number') || '1'; }
         result.get(parent.paragraph.key)!.controls.push(control); frame.control = control;
       }
       if (parent?.name === 't' && parent.paragraph && ['tab', 'lineBreak', 'hyphen', 'nbSpace', 'fwSpace'].includes(name)) {
@@ -84,7 +85,7 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
  * HTML. Cell paths distinguish nested tables and separate document stories. */
 export function restoreCellContent(doc: HwpDocument, section: number, para: number, tableControl: number, tableOrdinal: number, html: string,
   equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
-  picture?: (path: CellPath, index: number, html: string) => string) {
+  picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined) {
   const repair = (source: string, parents: CellPath, control: number, key: string, depth = 0): string => {
     if (!/<!--\s*rhwp:|<img\b/.test(source) || depth > 12) return source;
     const tablePath = [...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }];
@@ -121,6 +122,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
           }
           const data = metadata().get(paragraphKey);
           const known = (value: SerializedControl | undefined): string | undefined => {
+            if (value?.noteId) return note?.(value);
             if (value?.kind === 'autoNum' && ['PAGE', 'TOTAL_PAGE'].includes(value.numberType ?? ''))
               return `<span data-page-number="${value.numberType === 'PAGE' ? 'PAGE' : 'NUMPAGES'}">1</span>`;
             // An empty header definition is not a visible body object. Rich
