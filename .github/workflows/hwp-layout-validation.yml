@@ -1,6 +1,16 @@
 name: HWP layout validation
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/hwp-layout-validation.yml'
+      - 'src/hwp/**'
+      - 'src/*pagination.ts'
+      - 'src/editor-lines.ts'
+      - 'src/print-layout.ts'
+      - 'tests/hwp-*'
+      - 'tests/paragraph-flow.spec.ts'
+      - 'tests/footnote-flow.spec.ts'
 permissions:
   contents: read
 jobs:
