@@ -3,8 +3,8 @@
   "baselineCommit": "e694647",
   "status": "in_progress",
   "build": "passed",
-  "unitTests": 68,
-  "browserTests": 212,
+  "unitTests": 70,
+  "browserTests": 221,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -181,7 +181,7 @@
   "limitations": [
     "Prior-model text equality is not a whole-original-content audit.",
     "The independent PDFs cover samples 03–10; full-page visual correspondence is not complete.",
-    "Source-reader and converted print counts differ for rules (163/167), language plan (35/36), notice (35/39), English (8/9).",
+    "Source-reader and converted print counts differ for rules (163/167), language plan (35/35 with title-boundary differences), notice (35/39), English (8/9).",
     "Language-specific font size, tracking and width remain under investigation; diagnostic variants are not shipped.",
     "HWP/HWPX native PAGE/NUMPAGES now survive, but floating object/complex drawing furniture export limitations remain explicitly warned.",
     "Microsoft Word, Hancom office and a Windows runtime are unavailable on this Mac.",
@@ -189,12 +189,12 @@
   ],
   "evidence": {
     "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
-    "browser": "browser-floating-final.log",
-    "unit": "unit-floating-alt-final.log",
-    "build": "build-floating-final.log",
+    "browser": "browser-cell-paper-full.log",
+    "unit": "unit-cell-paper-after.log",
+    "build": "build-cell-paper.log",
     "nativeLarge": "native-large-completion.log",
-    "nativeFourDocuments": "native-floating-final.log",
-    "docx": "docx-floating-corpus.json",
+    "nativeFourDocuments": "native-cell-paper-flow.log",
+    "docx": "docx-cell-paper-corpus.json",
     "cropAlignment": "empty-cell-slots.log",
     "largeGlyph": "korean-ink.json",
     "sourceTextAudit": "source-text-audit.json",
@@ -206,7 +206,7 @@
     "columnAndReserve": "column-forms.log",
     "nativeColumns": "columns-roundtrip.log",
     "tableGapAndFontInheritance": "spacing-inheritance-final.log",
-    "freshImport": "fresh-floating.log",
+    "freshImport": "fresh-cell-paper.log",
     "fullSourceBody": "tests/hwp-source-text-audit.json"
   },
   "falsePositivesCorrected": [
@@ -354,9 +354,9 @@
   },
   "footnoteReserve": {
     "cases": [
-      "paragraph",
-      "multi-paragraph row",
-      "vertical merge"
+      "prior references: paragraph, row, vertical merge",
+      "own paragraph: start, middle, end",
+      "own row: start, middle, end, boundary, multiple columns"
     ],
     "zooms": [
       100,
@@ -367,12 +367,11 @@
     ],
     "before": "3 failed: overlap or editor/print page mismatch",
     "after": "3 passed: page-wise text, no note overlap, editing/undo/save model invariance",
-    "limitations": [
-      "References inside the long flowing paragraph/row remain pending."
-    ],
+    "limitations": [],
     "evidence": [
       "footnote-flow-before.log",
-      "footnote-flow-reserve-final.log"
+      "footnote-flow-reserve-final.log",
+      "row-notes-regression.log"
     ]
   },
   "nativePictures": {
@@ -385,17 +384,19 @@
       "body paper coordinates and size",
       "behind/in-front and square/top-and-bottom wrap",
       "outer margins",
-      "alternative text including inline pictures"
+      "alternative text including inline pictures",
+      "paper coordinates in ordinary and nested cells, including wrapping and vertical alignment"
     ],
     "printedCoordinateTolerancePx": 0.2,
     "limitations": [
       "paragraph/column anchoring becomes fixed page coordinates",
       "tight/through wrapping becomes rectangular",
-      "floating tables and nested-cell pictures still pending"
+      "floating tables and complex cell shapes remain pending"
     ],
     "evidence": [
       "tests/hwp-floating-export.spec.ts",
-      "tests/hwp-editing.test.cjs"
+      "tests/hwp-editing.test.cjs",
+      "tests/hwp-floating-cells.spec.ts"
     ]
   },
   "sourceBodyStreamAudit": {
@@ -420,12 +421,11 @@
   },
   "crossPlatformValidation": {
     "windowsFocused": {
-      "runId": 40348104533,
-      "commit": "6ae960b",
-      "result": "passed",
-      "tests": 15
+      "runId": 40354520566,
+      "commit": "eefd588",
+      "result": "passed"
     },
-    "fullInstallValidation": "pending: desktop smoke selector corrected after Linux repeated-header overlay count failure",
+    "fullInstallValidation": "pending: full Windows/Linux browser and native units passed at 3ef6ff4, desktop gutter-row test selector corrected in 3a88b58",
     "actualMicrosoftWord": "unavailable",
     "actualHancom": "unavailable"
   },

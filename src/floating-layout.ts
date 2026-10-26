@@ -543,6 +543,11 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       insertWidgets(p, widgets);
       result.push({ index: pi, widgets, pictures: own });
     }
+    // Flow widgets can change a vertically aligned cell's content height and
+    // move its anchor paragraph. Resolve absolute picture offsets against
+    // that final geometry, not the paragraph's pre-wrap position.
+    for (const paragraph of result) paragraph.pictures = paragraph.pictures.map(picture =>
+      imagePosition(images[picture.index], picture.index, copy) || picture);
     return result;
   } finally {
     host.remove();
@@ -564,6 +569,7 @@ export function applyFloatingLayout(root: HTMLElement) {
     }
     insertWidgets(p, paragraph.widgets);
   }
+  images.forEach((img, index) => imagePosition(img, index, root));
 }
 
 const key = new PluginKey("floatingLayout");

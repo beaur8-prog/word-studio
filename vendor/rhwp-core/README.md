@@ -2,7 +2,8 @@
 
 MIT-licensed RHWP 0.8.7, built from
 [`1a76570e833917d15817415a53c09ad61ab3203f`](https://github.com/edwardkim/rhwp/tree/1a76570e833917d15817415a53c09ad61ab3203f)
-with `pagination.patch` and `manifest-paths.patch` (`0.8.7-wordstudio.2`). This is a
+with `pagination.patch`, `manifest-paths.patch` and `cell-paper-pictures.patch`
+(`0.8.7-wordstudio.3`). This is a
 local Word Studio build, not an upstream release.
 The package is vendored so installers use the exact same engine offline, without
 requiring Rust on users' machines or downloading a replacement during CI.
@@ -32,6 +33,15 @@ This does not relocate content.hpf/header.xml or change pagination rules.
 `tests/hwpx-manifest.test.cjs` checks the two-paragraph relative-path fixture,
 unchanged rendering against its root-path control, a conflicting root copy,
 subdirectories/spine order, and missing/invalid paths.
+
+`cell-paper-pictures.patch` preserves paper-relative coordinates of floating
+pictures whose anchors are inside ordinary or nested table cells. The two cell
+rendering paths previously passed the cell rectangle as the paper rectangle,
+then constrained the result to the cell. The patch resolves only explicit Paper
+axes against the physical page after cell-local placement, including outer
+picture margins as in the body renderer. Paragraph, column and inline positions
+keep their existing behavior. Synthetic HWP/HWPX round trips cover behind-text,
+square and top/bottom wrapping, nested cells, alternative text and margins.
 
 Build toolchain: Rust 1.93.1 (`wasm32-unknown-unknown`), wasm-pack 0.15.0,
 wasm-bindgen CLI 0.2.127, upstream locked Cargo dependencies and wasm-opt settings.

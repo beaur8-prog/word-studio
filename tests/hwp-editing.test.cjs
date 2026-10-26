@@ -9,7 +9,7 @@ const { createRequire } = require('node:module');
 const ts = require('typescript');
 const JSZip = require('jszip');
 const setup = (async () => {
-  const directory = path.dirname(require.resolve('@rhwp/core'));
+  const directory = process.env.WORD_STUDIO_TEST_HWP_CORE || path.dirname(require.resolve('@rhwp/core'));
   const { default: init, HwpDocument } = await import(pathToFileURL(path.join(directory, 'rhwp.js')).href);
   await init({ module_or_path: await fs.readFile(path.join(directory, 'rhwp_bg.wasm')) });
   // Exercise the same DOM-free conversion module used by the browser Worker.
@@ -65,6 +65,33 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: floating pictures keep pa
       assert.equal((html.match(/data-image-floating=/g) || []).length, 3); assert.doesNotMatch(html, /WORDSTUDIO-PICTURE/);
       for (let i = 0; i < 3; i++) { assert.ok(html.includes(`BEFORE${i}`)); assert.ok(html.includes(`AFTER${i}`)); }
     } finally { doc.free(); }
+  }
+});
+
+for (const format of ['hwp', 'hwpx']) test(`${format}: paper-relative cell pictures use page coordinates in native layout and retain their metadata`, async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  for (const nested of [false, true]) for (const type of [0, 1, 3]) {
+    const geometry = { horizontalPosition: { relative: 'page', offset: 200 * 9525 }, verticalPosition: { relative: 'page', offset: 160 * 9525 }, wrap: { type }, behindDocument: type === 0,
+      margins: { left: 3 * 9525, right: 4 * 9525, top: 5 * 9525, bottom: 6 * 9525 } };
+    const picture = `<p>BEFORE<img data-image-floating="${JSON.stringify(geometry).replaceAll('"', '&quot;')}" src="data:image/png;base64,${png}" width="80" height="40" alt="Cell picture">AFTER</p>`;
+    let html = `<table style="width:500px"><tr style="height:180px"><td>${nested ? `<p>OUTER</p><table style="width:350px"><tr><td>${picture}</td></tr></table>` : picture}</td></tr></table>`;
+    for (let round = 0; round < 2; round++) {
+      const out = serializeHwp(HwpDocument, html, { ...paper, header: '', footer: '' }, format), doc = new HwpDocument(out.bytes);
+      try {
+        const pictures = JSON.parse(doc.getPageControlLayout(0)).controls.filter(c => c.type === 'image');
+        assert.equal(pictures.length, 1);
+        const c = pictures[0];
+        assert.equal(c.cellPath.length, nested ? 2 : 1, JSON.stringify({nested,type,round,c}));
+        assert.ok(Math.abs(c.x - 200) < .1, JSON.stringify(c)); assert.ok(Math.abs(c.y - 160) < .1, JSON.stringify(c));
+        const props = JSON.parse(doc.getCellPicturePropertiesByPath(c.secIdx, c.paraIdx, JSON.stringify(c.cellPath), c.controlIdx));
+        assert.equal(props.treatAsChar, false); assert.equal(props.description, 'Cell picture');
+        assert.equal(props.textWrap, ['BehindText', 'Square', '', 'TopAndBottom'][type]);
+        assert.equal(props.outerMarginLeft, 225); assert.equal(props.outerMarginBottom, 450);
+        const converted = editableHwp(doc); html = converted.html;
+        assert.equal((html.match(/data-image-floating=/g) || []).length, 1);
+        assert.match(html, /alt="Cell picture"/); assert.ok(html.includes('BEFORE')); assert.ok(html.includes('AFTER'));
+      } finally { doc.free(); }
+    }
   }
 });
 

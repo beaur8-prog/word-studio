@@ -1,7 +1,7 @@
 {
   "name": "@rhwp/core",
-  "version": "0.8.7-wordstudio.2",
-  "description": "RHWP 0.8.7 with Word Studio pagination and HWPX manifest path fixes",
+  "version": "0.8.7-wordstudio.3",
+  "description": "RHWP 0.8.7 with Word Studio pagination, manifest path and cell picture positioning fixes",
   "type": "module",
   "main": "rhwp.js",
   "types": "rhwp.d.ts",
@@ -19,7 +19,7 @@
     "hml",
     "hancom",
     "hangul",
-    "\ud55c\uae00",
+    "한글",
     "document",
     "parser",
     "renderer",

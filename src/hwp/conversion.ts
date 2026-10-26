@@ -577,7 +577,17 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
               return objectHtml(cellShapePosition(section, para, path, index, props), props, props.description || '도형', true);
             } catch { return; }
           }, warnings, equationMetadata, restoredHeaders.has(`${section}:${para}`), (path, index, html) => {
-            try { return croppedPicture(html, JSON.parse(doc.getCellPicturePropertiesByPath(section, para, JSON.stringify(path), index))); }
+            try {
+              const props = JSON.parse(doc.getCellPicturePropertiesByPath(section, para, JSON.stringify(path), index));
+              let picture = html.replace(/\s(?:alt|data-image-floating)="[^"]*"/g, '')
+                .replace(/\s*\/?>$/, ` alt="${escape(props.description || '')}" />`);
+              if (!props.treatAsChar) {
+                const position = controlPosition(section, para, index, path);
+                if (position) picture = picture.replace(/<img\b/, `<img data-image-floating="${escape(JSON.stringify(floatingGeometry(position, props)))}"`);
+                else warnings.add('셀 안의 떠 있는 그림 위치를 확인하지 못해 일반 그림으로 가져왔습니다. 원본 배치를 확인하세요.');
+              }
+              return croppedPicture(picture, props);
+            }
             catch { return html; }
           }, noteReference);
           controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches);
