@@ -27,11 +27,46 @@ const setup = (async () => {
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
-test('Hancom furniture uses paper-edge distances and bottom-aligns the footer in its reserved area', async () => {
+test('inline picture alternative text retains literal XML and replacement characters in both native writers', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  for (const format of ['hwp', 'hwpx']) {
+    const html = `<p><img src="data:image/png;base64,${png}" width="20" height="20" alt="Picture $&amp; &lt;tag&gt; &quot;한글&quot;"></p>`;
+    const out = serializeHwp(HwpDocument, html, { ...paper, header: '', footer: '' }, format), doc = new HwpDocument(out.bytes);
+    try {
+      const image = JSON.parse(doc.getPageControlLayout(0)).controls.find(c => c.type === 'image');
+      assert.equal(JSON.parse(doc.getPictureProperties(image.secIdx, image.paraIdx, image.controlIdx)).description, 'Picture $& <tag> "한글"');
+    } finally { doc.free(); }
+  }
+});
+
+for (const format of ['hwp', 'hwpx']) test(`${format}: floating pictures keep paper coordinates, wrapping, margins and alternative text through two saves`, async () => {
   const { HwpDocument, serializeHwp, editableHwp } = await setup;
-  const page = { ...paper, size: 'A4', orientation: 'portrait', margin: 30, margins: { top: 30, right: 20, bottom: 35, left: 20 }, headerDistance: 5, footerDistance: 7,
-    headerHtml: '<p style="font-size:9pt;line-height:100%;margin:0">HEADER</p>', footerHtml: '<p style="font-size:9pt;line-height:100%;margin:0">FOOTER</p>' };
-  test('a standalone centered footer table stays centered in native layout after two saves', async () => {
+  let html = [0, 1, 3].map((type, i) => {
+    const g = { horizontalPosition: { relative: 'page', offset: (120 + 100 * i) * 9525 }, verticalPosition: { relative: 'page', offset: 160 * 9525 }, wrap: { type }, behindDocument: type === 0,
+      margins: { left: 3 * 9525, right: 4 * 9525, top: 5 * 9525, bottom: 6 * 9525 } };
+    return `<p>BEFORE${i}<img data-image-floating="${JSON.stringify(g).replaceAll('"', '&quot;')}" src="data:image/png;base64,${png}" width="80" height="40" alt="그림 &amp; ${i}">AFTER${i}</p>`;
+  }).join('');
+  for (let round = 0; round < 2; round++) {
+    const out = serializeHwp(HwpDocument, html, { ...paper, header: '', footer: '' }, format), doc = new HwpDocument(out.bytes);
+    try {
+      const controls = JSON.parse(doc.getPageControlLayout(0)).controls.filter(c => c.type === 'image');
+      assert.equal(controls.length, 3);
+      for (const [i, c] of controls.entries()) {
+        assert.ok(Math.abs(c.x - (120 + 100 * i)) < .1, JSON.stringify(c)); assert.ok(Math.abs(c.y - 160) < .1, JSON.stringify(c));
+        assert.equal(c.w, 80); assert.equal(c.h, 40);
+        const props = JSON.parse(doc.getPictureProperties(c.secIdx, c.paraIdx, c.controlIdx));
+        assert.equal(props.treatAsChar, false); assert.equal(props.description, `그림 & ${i}`);
+        assert.equal(props.outerMarginLeft, 225); assert.equal(props.outerMarginBottom, 450);
+        assert.equal(props.textWrap, ['BehindText', 'Square', 'TopAndBottom'][i]);
+      }
+      const imported = editableHwp(doc); html = imported.html;
+      assert.equal((html.match(/data-image-floating=/g) || []).length, 3); assert.doesNotMatch(html, /WORDSTUDIO-PICTURE/);
+      for (let i = 0; i < 3; i++) { assert.ok(html.includes(`BEFORE${i}`)); assert.ok(html.includes(`AFTER${i}`)); }
+    } finally { doc.free(); }
+  }
+});
+
+test('a standalone centered footer table stays centered in native layout after two saves', async () => {
   const { HwpDocument, serializeHwp, editableHwp } = await setup;
   let page = { ...paper, size: 'A4', orientation: 'portrait', margins: { top: 25, right: 20, bottom: 30, left: 20 }, footerDistance: 10,
     header: '', footer: '', footerHtml: '<table style="width:90px;margin-left:auto;margin-right:auto"><tr><td style="width:90px;padding:0"><p style="font-size:9pt;line-height:100%;margin:0"><span data-page-number="PAGE">9</span></p></td></tr></table>' };
@@ -44,6 +79,12 @@ test('Hancom furniture uses paper-edge distances and bottom-aligns the footer in
     } finally { doc.free(); }
   }
 });
+
+test('Hancom furniture uses paper-edge distances and bottom-aligns the footer in its reserved area', async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  const page = { ...paper, size: 'A4', orientation: 'portrait', margin: 30, margins: { top: 30, right: 20, bottom: 35, left: 20 }, headerDistance: 5, footerDistance: 7,
+    headerHtml: '<p style="font-size:9pt;line-height:100%;margin:0">HEADER</p>', footerHtml: '<p style="font-size:9pt;line-height:100%;margin:0">FOOTER</p>' };
+
 
 for (const format of ['hwp', 'hwpx']) {
     const out = serializeHwp(HwpDocument, '<p>BODY</p>', page, format), doc = new HwpDocument(out.bytes);

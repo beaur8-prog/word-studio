@@ -6,6 +6,7 @@ import { HwpReaderSession } from './reader';
 import { checkHwpHtmlSize, hwpHtmlBytes, type EditableHwp } from './conversion';
 import { createPrintLayout } from '../print-layout';
 import { pageMargins, paperDimensions } from '../types';
+import { imageFloating } from '../image-floating';
 import { paintHwpProgress, type HwpProgressReporter } from './progress';
 
 function renderedBody(root: HTMLElement, doc: StudioDocument): string {
@@ -86,7 +87,8 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const notes = [...root.querySelectorAll<HTMLElement>('[data-document-note]')].map(note => note.cloneNode(true) as HTMLElement);
   if (notes.some(note => !/^\d+$/.test(note.dataset.noteLabel || ''))) warnings.push('각주·미주의 사용자 지정 표시는 한글의 숫자 번호로 바뀝니다. 본문 참조와 각주·미주 내용은 유지합니다.');
   warn('[data-docx-bookmark], a', '책갈피·링크는 표시된 텍스트만 저장합니다.');
-  warn('[data-image-floating]', '떠 있는 그림은 본문 흐름 안으로 옮깁니다. 자르기·회전·겹침은 유지되지 않습니다.');
+  warn('[data-image-floating]', '떠 있는 그림은 현재 인쇄 위치를 용지 기준 좌표로 저장합니다. 원래 문단·단에 연결된 이동 규칙은 바뀝니다.');
+  if ([...root.querySelectorAll<HTMLElement>('[data-image-floating]')].some(el => { const g = imageFloating(el.dataset.imageFloating); return g?.polygon || g?.wrap?.type === 2 || g?.wrap?.type === 4; })) warnings.push('그림 윤곽을 따르는 감싸기는 사각형 감싸기로 저장합니다. 표시된 그림과 쪽 위치는 유지합니다.');
   warn('[data-word-overlap]', '겹쳐 쓰기와 특수 문자는 표시된 텍스트로 저장합니다.');
   warn('table', '표의 병합과 내용은 저장하지만 복잡한 셀 너비·테두리·쪽 나눔은 달라질 수 있습니다.');
   warn('h1,h2,h3,h4,h5,h6', '제목은 글자·문단 서식으로 저장합니다. Word 제목 수준은 유지되지 않습니다.');
@@ -105,6 +107,17 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     // reflow in the engine can collapse hundreds of pages into a few dozen.
     let previousPage = doc.page;
     root.innerHTML = [...layout.element.querySelectorAll('.print-page')].map((sheet, index) => {
+      const paper = sheet.getBoundingClientRect();
+      for (const image of sheet.querySelectorAll<HTMLElement>('.print-content img[data-image-floating]')) {
+        const g = imageFloating(image.dataset.imageFloating); if (!g) continue;
+        const box = image.getBoundingClientRect();
+        // Resolve paragraph/column/margin anchors on the printed sheet before
+        // its body is detached. Native page coordinates also survive section
+        // sizes and the explicit page fragments used by this writer.
+        image.dataset.imageFloating = JSON.stringify({ ...g,
+          horizontalPosition: { relative: 'page', offset: Math.round((box.left - paper.left) * 9525) },
+          verticalPosition: { relative: 'page', offset: Math.round((box.top - paper.top) * 9525) } });
+      }
       const body = sheet.querySelector('.print-content')?.innerHTML || '<p></p>';
       const original = layout.pageSettings.get(sheet) ?? previousPage;
       const first = sheet.getAttribute('data-section-first') === 'true';
@@ -119,13 +132,13 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       previousPage = settings;
       return (index ? marker.outerHTML : '') + body + (sheet.querySelector('.print-footnotes')?.innerHTML || '');
     }).join('');
+    root.querySelectorAll('[data-flow-widget]').forEach(widget => widget.remove());
     root.innerHTML = sanitizeImportedHtml(root.innerHTML).html;
     // Print places footnotes at page bottoms. Save their complete source
     // stories once, including notes that continued onto another print page.
     root.querySelectorAll('[data-document-note]').forEach(note => note.remove());
     root.append(...notes);
     root.querySelectorAll('[data-docx-tab]').forEach(el => el.replaceWith(document.createTextNode('\t')));
-    root.querySelectorAll('img').forEach(img => { img.removeAttribute('data-image-floating'); });
     html = renderedBody(root, doc);
   } finally { layout.dispose(); }
   const session = new HwpReaderSession();

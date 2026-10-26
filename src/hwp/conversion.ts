@@ -12,6 +12,7 @@ import { importHwpNotes, stageHwpNotes } from './note-stories';
 import { stageHwpColumns } from './export-columns';
 import { stageHwpSections } from './export-sections';
 import { stageHwpFurniture } from './export-furniture';
+import { stageHwpPictures } from './export-pictures';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -266,6 +267,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     verticalPosition: { relative: 'page', offset: Math.round(position.y * 9525) },
     wrap: { type: ['BehindText', 'InFrontOfText'].includes(props.textWrap) ? 0 : props.textWrap === 'TopAndBottom' ? 3 : 1 },
     behindDocument: props.textWrap === 'BehindText', allowOverlap: props.allowOverlap, layoutInCell: true,
+    margins: Object.fromEntries(['left', 'right', 'top', 'bottom'].map(side => [side, Math.round((props['outerMargin' + side[0].toUpperCase() + side.slice(1)] || 0) * 127)])),
   });
   const overlays = new Map<number, any[]>();
   const croppedPicture = (html: string, props: any) => {
@@ -287,9 +289,14 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       images = [...page.behind ?? [], ...page.front ?? []]; overlays.set(position.page, images);
     }
     const image = images.find(i => Math.abs(i.bbox.x - position.x) < 1 && Math.abs(i.bbox.y - position.y) < 1 && Math.abs(i.bbox.width - position.w) < 1);
-    if (!image || !/^image\/(png|jpeg|bmp|gif|webp)$/.test(image.mime)) return;
     const geometry = floatingGeometry(position, props);
-    return `<img data-inline-image="true" data-image-floating="${escape(JSON.stringify(geometry))}" src="data:${image.mime};base64,${image.base64}" width="${position.w}" height="${position.h}" alt="${escape(props.description || '그림')}" />`;
+    if (image && /^image\/(png|jpeg|bmp|gif|webp)$/.test(image.mime))
+      return `<img data-inline-image="true" data-image-floating="${escape(JSON.stringify(geometry))}" src="data:${image.mime};base64,${image.base64}" width="${position.w}" height="${position.h}" alt="${escape(props.description || '그림')}" />`;
+    // Square/top-and-bottom pictures are part of text flow, not overlay
+    // planes. Their asset is still available from the individual control.
+    const raw = fragment(doc.exportControlHtml(section, para, '[]', control.controlIndex)).match(/<img\b[^>]*>/)?.[0];
+    if (!raw) return;
+    return croppedPicture(raw.replace(/\s(?:width|height|alt|data-inline-image)="[^"]*"/g, '').replace(/\s*\/?>$/, ` data-inline-image="true" data-image-floating="${escape(JSON.stringify(geometry))}" width="${position.w}" height="${position.h}" alt="${escape(props.description || '그림')}" />`), props);
   };
   let layerPage = -1, layerRoot: any;
   const pageLayer = (page: number) => {
@@ -711,7 +718,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     const sections = stageHwpSections(html, page);
     const furniture = stageHwpFurniture(sections.html, sections.settings);
     const notes = stageHwpNotes(furniture.html);
-    const fields = stageHwpFields(notes.html);
+    const pictures = stageHwpPictures(notes.html);
+    const fields = stageHwpFields(pictures.html);
     const columns = stageHwpColumns(fields.html, page);
     const converted = columns.html.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
     checkHwpHtmlSize(hwpHtmlBytes(converted));
@@ -732,6 +740,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
       doc.applyParaFormat(0, p, JSON.stringify({ pageBreakBefore: true }));
     }
     setHwpPage(doc, page);
+    const withPictures = pictures.restore(Core, doc);
+    if (withPictures !== doc) { doc.free(); doc = withPictures; }
     const withFields = fields.restore(Core, doc);
     if (withFields !== doc) { doc.free(); doc = withFields; }
     const withColumns = columns.restore(Core, doc);

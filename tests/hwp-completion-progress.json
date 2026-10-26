@@ -3,8 +3,8 @@
   "baselineCommit": "e694647",
   "status": "in_progress",
   "build": "passed",
-  "unitTests": 65,
-  "browserTests": 199,
+  "unitTests": 68,
+  "browserTests": 201,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -189,12 +189,12 @@
   ],
   "evidence": {
     "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
-    "browser": "browser-note-reserve-final.log",
-    "unit": "unit-furniture-alignment-final.log",
-    "build": "build-note-reserve-final.log",
+    "browser": "browser-floating-final.log",
+    "unit": "unit-floating-alt-final.log",
+    "build": "build-floating-final.log",
     "nativeLarge": "native-large-completion.log",
-    "nativeFourDocuments": "native-note-reserve-final.log",
-    "docx": "docx-furniture-corpus.json",
+    "nativeFourDocuments": "native-floating-final.log",
+    "docx": "docx-floating-corpus.json",
     "cropAlignment": "empty-cell-slots.log",
     "largeGlyph": "korean-ink.json",
     "sourceTextAudit": "source-text-audit.json",
@@ -206,7 +206,7 @@
     "columnAndReserve": "column-forms.log",
     "nativeColumns": "columns-roundtrip.log",
     "tableGapAndFontInheritance": "spacing-inheritance-final.log",
-    "freshImport": "fresh-furniture-alignment-final.log"
+    "freshImport": "fresh-floating.log"
   },
   "falsePositivesCorrected": [
     "Korean large glyph: font rectangle extends into margin, actual ink does not.",
@@ -372,6 +372,29 @@
     "evidence": [
       "footnote-flow-before.log",
       "footnote-flow-reserve-final.log"
+    ]
+  },
+  "nativePictures": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "saves": 2,
+    "preserved": [
+      "body paper coordinates and size",
+      "behind/in-front and square/top-and-bottom wrap",
+      "outer margins",
+      "alternative text including inline pictures"
+    ],
+    "printedCoordinateTolerancePx": 0.2,
+    "limitations": [
+      "paragraph/column anchoring becomes fixed page coordinates",
+      "tight/through wrapping becomes rectangular",
+      "floating tables and nested-cell pictures still pending"
+    ],
+    "evidence": [
+      "tests/hwp-floating-export.spec.ts",
+      "tests/hwp-editing.test.cjs"
     ]
   }
 }
