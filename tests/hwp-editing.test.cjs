@@ -22,6 +22,25 @@ const setup = (async () => {
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
+test('custom physical paper and column spacing survive both Hancom writers and the edit bridge', async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  const page = { ...paper, size: 'Custom', width: 272, height: 394, orientation: 'portrait', columns: { count: 2, space: 18 } };
+  for (const format of ['hwp', 'hwpx']) {
+    const output = serializeHwp(HwpDocument, '<p>CUSTOM PAPER 한글</p>', page, format);
+    const doc = new HwpDocument(output.bytes);
+    try {
+      const result = editableHwp(doc);
+      assert.equal(result.page.size, 'Custom');
+      assert.ok(Math.abs(result.page.width - 272) < .02);
+      assert.ok(Math.abs(result.page.height - 394) < .02);
+      assert.equal(result.page.columns.count, 2);
+      assert.ok(Math.abs(result.page.columns.space - 18) < .02);
+      assert.match(result.html, /data-column-count="2"/);
+      assert.ok(!result.warnings.some(w => /A4로|단일 본문/.test(w)));
+    } finally { doc.free(); }
+  }
+});
+
 test('measured conversion progress reaches the actual paragraph count without changing document content', async () => {
   const { HwpDocument, editableHwp } = await setup;
   const doc = new HwpDocument(await fs.readFile(path.join(__dirname, 'fixtures/hwp/reader.hwp')));
@@ -120,14 +139,15 @@ for (const fixture of [
   });
 }
 
-test('unsupported equations remain visible as text and are reported before conversion', async () => {
+test('equations retain their SVG appearance and original script before raster preparation', async () => {
   const { HwpDocument, editableHwp } = await setup;
   const doc = HwpDocument.createEmpty();
   try {
     doc.createBlankDocument(); doc.insertEquation(0, 0, 0, 'a over b', 1100, 0);
     const result = editableHwp(doc);
     assert.match(result.html, /수식: a over b/);
-    assert.ok(result.warnings.some(warning => warning.includes('수식 개체')));
+    assert.match(result.html, /data-hwp-svg="&lt;svg/);
+    assert.ok(result.warnings.some(warning => warning.includes('수식은 원래 모양')));
   } finally { doc.free(); }
 });
 
@@ -149,4 +169,24 @@ test('conversion refuses oversized input and invalid format', async () => {
   for (const value of ['ASCII', '한글 문서 😀', '\ud800', '\udc00', 'a😀b가']) assert.equal(hwpHtmlBytes(value), Buffer.byteLength(value));
   assert.throws(() => serializeHwp(HwpDocument, '가'.repeat(Math.floor(HWP_HTML_LIMIT / 3) + 1), paper, 'hwpx'), /변환 데이터.*256 MiB/);
   assert.throws(() => serializeHwp(HwpDocument, '<p>x</p>', paper, 'exe'), /형식/);
+});
+
+test('queried HWP paragraph values normalize mixed units without double-scaling margins or fixed leading', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const source = HwpDocument.createEmpty();
+  try {
+    source.createBlankDocument(); source.insertText(0, 0, 0, 'HANGING 한글');
+    source.applyParaFormat(0, 0, JSON.stringify({ marginLeft: 2400, marginRight: 1200, indent: -1200,
+      spacingBefore: 1800, spacingAfter: 600, lineSpacingType: 'Fixed', lineSpacing: 3000 }));
+    for (const format of ['hwp', 'hwpx']) {
+      const doc = new HwpDocument(format === 'hwp' ? source.exportHwp() : source.exportHwpx());
+      try {
+        const html = editableHwp(doc).html;
+        assert.match(html, /margin-left:24px;margin-right:8px;text-indent:-8px/);
+        assert.match(html, /margin-top:12px;margin-bottom:4px/);
+        assert.match(html, /line-height:20px/);
+        assert.match(html, /HANGING 한글/);
+      } finally { doc.free(); }
+    }
+  } finally { source.free(); }
 });

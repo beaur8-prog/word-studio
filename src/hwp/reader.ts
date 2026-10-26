@@ -4,6 +4,7 @@ import type { PageSettings } from '../types';
 import documentLimits from '../../electron/document-limits.json';
 import { checkHwpHtmlSize, hwpHtmlBytes } from './conversion';
 import type { HwpProgressReporter } from './progress';
+import { prepareEditableHwp } from './svg-images';
 
 export interface HwpPageSize { width: number; height: number }
 export interface HwpInfo { count: number; fonts: string[]; version: string; warnings: number; pages: HwpPageSize[] }
@@ -44,6 +45,7 @@ export class HwpReaderSession {
   private worker = new Worker(new URL('./reader-worker.ts', import.meta.url), { type: 'module' });
   private next = 0;
   private closed = false;
+  private previewAbort = new AbortController();
   private active?: number;
   private queue: number[] = [];
   private pending = new Map<number, { action: string; payload: object; transfer: Transferable[]; onProgress?: HwpProgressReporter; resolve(value: unknown): void; reject(error: Error): void; timer?: ReturnType<typeof setTimeout> }>();
@@ -112,9 +114,11 @@ export class HwpReaderSession {
   text(): Promise<string> { return this.call('text'); }
   pageText(index: number): Promise<string> { return this.call('pageText', { page: index }); }
   async editable(onProgress?: HwpProgressReporter): Promise<EditableHwp> {
+    const started = performance.now();
     const result = await this.call<Omit<EditableHwp, 'html'> & { htmlBytes: ArrayBuffer }>('editable', {}, [], onProgress);
     onProgress?.({ label: '변환한 편집 데이터를 준비하는 중…' });
-    return { page: result.page, warnings: result.warnings, html: new TextDecoder().decode(result.htmlBytes) };
+    return prepareEditableHwp({ page: result.page, warnings: result.warnings, html: new TextDecoder().decode(result.htmlBytes) }, onProgress, AbortSignal.any([this.previewAbort.signal,
+      AbortSignal.timeout(Math.max(1, Math.ceil(180000 - (performance.now() - started))))]));
   }
   export(html: string, page: PageSettings, format: 'hwp' | 'hwpx', onProgress?: HwpProgressReporter): Promise<{ bytes: Uint8Array; pages: number; warnings: string[] }> {
     checkHwpHtmlSize(hwpHtmlBytes(html));
@@ -122,6 +126,7 @@ export class HwpReaderSession {
     return this.call('export', { htmlBytes, page, format }, [htmlBytes], onProgress);
   }
   close(message = '읽기 작업이 취소됐습니다.') {
+    this.previewAbort.abort(new Error(message));
     if (this.closed) return;
     this.closed = true; this.worker.terminate();
     for (const request of this.pending.values()) { clearTimeout(request.timer); request.reject(new Error(message)); }

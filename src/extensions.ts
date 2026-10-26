@@ -37,6 +37,11 @@ export const PageBreak = Node.create({
     ["span", {}, "페이지 나누기"],
   ],
 });
+export const ColumnBreak = Node.create({
+  name: 'columnBreak', group: 'block', atom: true,
+  parseHTML: () => [{ tag: 'div[data-column-break]' }],
+  renderHTML: () => ['div', { 'data-column-break': 'true', class: 'column-break', title: '단 나누기' }],
+});
 export const CommentAnchor = Mark.create({
   name: 'commentAnchor', inclusive: false,
   addAttributes: () => ({ ids: { default: '', parseHTML: el => el.getAttribute('data-comment-ids'), renderHTML: a => ({ 'data-comment-ids': a.ids }) } }),
@@ -102,6 +107,7 @@ export const editorExtensions = [
   Superscript,
   Placeholder.configure({ placeholder: "여기에 문서를 작성하세요…" }),
   PageBreak,
+  ColumnBreak,
   SectionBreak,
   CommentAnchor,
   ParagraphFormat,

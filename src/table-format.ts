@@ -8,6 +8,7 @@ export const cellStyleProperties = {
   borderTop: 'border-top', borderRight: 'border-right', borderBottom: 'border-bottom', borderLeft: 'border-left',
   paddingTop: 'padding-top', paddingRight: 'padding-right', paddingBottom: 'padding-bottom', paddingLeft: 'padding-left',
   fontFamily: 'font-family', fontSize: 'font-size', textColor: 'color',
+  whiteSpace: 'white-space',
 } as const;
 export type CellStyle = keyof typeof cellStyleProperties;
 

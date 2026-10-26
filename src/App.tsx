@@ -74,7 +74,7 @@ import { HwpProgressPanel } from './hwp/ProgressPanel';
 import { paintHwpProgress, type HwpOperation, type HwpProgressReporter } from './hwp/progress';
 import type { EditableHwp } from './hwp/conversion';
 import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
-import { defaultPage, pageMargins, pageFurniture } from "./types";
+import { defaultPage, pageMargins, pageFurniture, paperSize } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
 import type { StudioDocument, PageSettings, Comment } from "./types";
@@ -910,7 +910,7 @@ export default function App() {
         .run();
     reader.readAsDataURL(file);
   };
-  const dims = page.size === "A4" ? [793.7, 1122.52] : [816, 1056],
+  const dims = paperSize(page).map(n => Math.round(n * 96 / 25.4 * 100) / 100),
     pageWidth = page.orientation === "portrait" ? dims[0] : dims[1],
     pageHeight = page.orientation === "portrait" ? dims[1] : dims[0],
     margin = (pageMargins(page).top * 96) / 25.4;

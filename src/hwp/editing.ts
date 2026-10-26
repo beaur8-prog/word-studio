@@ -5,14 +5,14 @@ import type { StudioDocument } from '../types';
 import { HwpReaderSession } from './reader';
 import { checkHwpHtmlSize, hwpHtmlBytes, type EditableHwp } from './conversion';
 import { createPrintLayout } from '../print-layout';
-import { pageMargins } from '../types';
+import { pageMargins, paperDimensions } from '../types';
 import { paintHwpProgress, type HwpProgressReporter } from './progress';
 
 function renderedBody(root: HTMLElement, doc: StudioDocument): string {
   // HTML does not carry editor CSS. Resolve the document defaults and heading
   // appearance before handing it to a parser that understands inline styles.
-  const margins = pageMargins(doc.page), landscape = doc.page.orientation === 'landscape';
-  const width = doc.page.size === 'Letter' ? (landscape ? 279.4 : 215.9) : (landscape ? 297 : 210);
+  const margins = pageMargins(doc.page);
+  const [width] = paperDimensions(doc.page);
   root.className = 'tiptap';
   root.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;left:-100000px;top:0;padding:0;min-height:0;width:${(width - margins.left - margins.right) * 96 / 25.4}px;`;
   document.body.append(root);

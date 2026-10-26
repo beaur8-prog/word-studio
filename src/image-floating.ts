@@ -136,7 +136,7 @@ export function floatingCss(value: unknown, width: number) {
       : horizontal.align === "right"
         ? `calc(100% - ${width}px)`
         : `${(horizontal.offset || 0) / 9525}px`;
-  return `position:absolute;float:none;left:${left};top:${vertical.relative === "paragraph" ? (vertical.offset || 0) / 9525 : 0}px;margin:0;z-index:${data.behindDocument ? 0 : 1}`;
+  return `position:absolute;float:none;left:${left};top:${vertical.relative === "paragraph" ? (vertical.offset || 0) / 9525 : 0}px;margin:0;z-index:${data.behindDocument ? -1 : 1}`;
 }
 
 export function drawingFloating(drawing: Element) {

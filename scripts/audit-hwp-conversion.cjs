@@ -47,8 +47,18 @@ async function main() {
   }).outputText;
   const bridge = { exports: {} };
   new Function('require', 'module', 'exports', compiled)(createRequire(sourceFile), bridge, bridge.exports);
+  const metadataFile = path.join(root, 'src/hwp/layout-metadata.ts'), metadataBridge = { exports: {} };
+  new Function('require', 'module', 'exports', ts.transpileModule(await fs.readFile(metadataFile, 'utf8'), {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true },
+  }).outputText)(createRequire(metadataFile), metadataBridge, metadataBridge.exports);
   await fs.mkdir(path.join(output, 'converted'), { recursive: true });
   await fs.mkdir(path.join(output, 'evidence'), { recursive: true });
+  const codeHash = crypto.createHash('sha256');
+  const codeFiles = execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8' })
+    .split('\0').filter(name => /^(?:src\/|electron\/|vendor\/|package(?:-lock)?\.json$)/.test(name)).sort();
+  for (const file of codeFiles) codeHash.update(file + '\0').update(await fs.readFile(path.join(root, file)));
+  const sourceTreeSHA256 = codeHash.digest('hex');
+  const workingTreeDirty = !!execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim();
   const results = [];
   for (const sample of manifest.samples) {
     const bytes = await fs.readFile(path.join(output, sample.hwp.file));
@@ -64,7 +74,8 @@ async function main() {
         (JSON.parse(doc.getPageTextLayout(p)).runs || []).map(run => run.text).join('\n'));
       const selectedPages = [...new Set([0, Math.min(1, sourcePages - 1), Math.floor(sourcePages / 2), sourcePages - 1])];
       for (const p of selectedPages) await fs.writeFile(path.join(output, 'evidence', `${sample.id}-source-${p + 1}.svg`), doc.renderPageSvg(p));
-      const editable = bridge.exports.editableHwp(doc);
+      const metadata = await metadataBridge.exports.readHwpLayoutMetadata(bytes);
+      const editable = bridge.exports.editableHwp(doc, undefined, metadata);
       await fs.writeFile(path.join(output, 'converted', sample.id + '.editable.json'), JSON.stringify(editable));
       await fs.writeFile(path.join(output, 'converted', sample.id + '.source-text.json'), JSON.stringify(sourceText));
       await fs.writeFile(path.join(output, 'converted', sample.id + '.controls.json'), JSON.stringify(controls, null, 2));
@@ -86,10 +97,12 @@ async function main() {
   try {
     for (const entry of ['src', 'index.html', 'package.json', 'vite.config.ts', 'vendor', 'electron'])
       await fs.cp(path.join(root, entry), path.join(snapshot, entry), { recursive: true });
-    await fs.symlink(path.join(root, 'node_modules'), path.join(snapshot, 'node_modules'), 'dir');
+    await fs.mkdir(path.join(snapshot, 'node_modules'));
+    for (const dependency of await fs.readdir(path.join(root, 'node_modules'))) if (!['.vite', '.cache'].includes(dependency))
+      await fs.symlink(path.join(root, 'node_modules', dependency), path.join(snapshot, 'node_modules', dependency));
     await fs.writeFile(path.join(snapshot, 'src/hwp-conversion-audit.ts'), "export { generateHTML } from '@tiptap/core';\nexport { default as JSZip } from 'jszip';\n");
     const { createServer } = await import('vite');
-    server = await createServer({ root: snapshot, server: { host: '127.0.0.1', port: 5193, strictPort: true, hmr: false, watch: { ignored: ['**'] } } });
+    server = await createServer({ root: snapshot, server: { host: '127.0.0.1', port: 5193, strictPort: true, hmr: false, watch: { ignored: ['**'] }, fs: { allow: [snapshot, root] } } });
     await server.listen();
     browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome', headless: true });
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 }, deviceScaleFactor: 1 });
@@ -98,6 +111,7 @@ async function main() {
     page.on('pageerror', error => rendererErrors.push(error.message));
     await page.goto('http://127.0.0.1:5193');
     await page.locator('.tiptap').waitFor();
+    await page.addStyleTag({ content: '#root{display:none!important} body{overflow:visible!important}' });
     if (process.env.HWP_AUDIT_EXPERIMENTS === '1') {
       const experiments = [];
       for (const id of ['03-health-table', '05-return-form']) {
@@ -169,10 +183,12 @@ async function main() {
       const source = JSON.parse(await fs.readFile(path.join(output, 'converted', result.id + '.editable.json'), 'utf8'));
       const converted = await page.evaluate(async ({ source, name }) => {
         const { importEditableHwp } = await import('/src/hwp/editing.ts');
+        const { prepareEditableHwp } = await import('/src/hwp/svg-images.ts');
         const { exportDocx } = await import('/src/document-io.ts');
         const { generateHTML } = await import('/src/hwp-conversion-audit.ts');
         const { editorExtensions } = await import('/src/extensions.ts');
         const { createPrintLayout } = await import('/src/print-layout.ts');
+        source = await prepareEditableHwp(source);
         const doc = importEditableHwp(source, name + '.hwp');
         const html = generateHTML(doc.content, editorExtensions);
         const layout = await createPrintLayout(html, doc.page, () => {});
@@ -205,7 +221,7 @@ async function main() {
       Object.assign(result, { studioPages: converted.studioPages, editorNodes: converted.stats, htmlCounts: converted.htmlCounts, layoutWarnings: converted.layoutWarnings });
       console.log(result.id + ': Word Studio ' + result.studioPages + ' pages; ' + JSON.stringify(converted.stats));
       await fs.writeFile(path.join(output, 'results.json'), JSON.stringify({ corpusDate: manifest.date, runAtUTC: new Date().toISOString(),
-        sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), appVersion: require('../package.json').version,
+        sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(), sourceTreeSHA256, workingTreeDirty, appVersion: require('../package.json').version,
         engine: require('../vendor/rhwp-core/package.json').version, browser: await browser.version(), rendererErrors, results }, null, 2));
     }
     if (rendererErrors.length) throw Error('Renderer errors: ' + rendererErrors.join('; '));

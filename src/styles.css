@@ -750,6 +750,8 @@ button:hover:not(:disabled) {
   margin: 0 0 10px;
   min-height: 1.65em;
 }
+.tiptap { isolation: isolate; }
+.column-break { break-before: column; height: 0; margin: 0; padding: 0; }
 .tiptap h1,
 .tiptap h2,
 .tiptap h3 {

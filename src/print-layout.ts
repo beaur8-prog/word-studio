@@ -1,4 +1,4 @@
-import { pageMargins, pageFurniture, type PageSettings } from './types';
+import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
@@ -8,10 +8,7 @@ import { applyFloatingLayout } from './floating-layout';
 export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
 const PX = 96 / 25.4;
-const dimensions = (p: PageSettings) => {
-  const size = p.size === 'Letter' ? [215.9, 279.4] : [210, 297];
-  return p.orientation === 'landscape' ? size.reverse() : size;
-};
+const dimensions = paperDimensions;
 function splitText(element: HTMLElement, offset: number): [HTMLElement, HTMLElement] {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   let remaining = offset, node: Node | null = walker.nextNode();
@@ -114,7 +111,11 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     const last = content.lastElementChild as HTMLElement | null;
     return (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
       && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img => img.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)
-      && [...content.querySelectorAll<HTMLElement>('[data-column-count]')].every(group => group.scrollWidth <= group.clientWidth + 1);
+      // Page-relative floating pictures can extend past a column box without
+      // overflowing its text. scrollWidth includes those absolute descendants
+      // and would move otherwise fitting columns onto another sheet.
+      && [...content.querySelectorAll<HTMLElement>('[data-column-count]')].every(group =>
+        [...group.children].every(child => [...child.getClientRects()].every(rect => rect.right <= group.getBoundingClientRect().right + .5)));
   }
   function scaleOversized(element: HTMLElement) {
     const available = content.getBoundingClientRect().bottom - element.getBoundingClientRect().top;
@@ -221,15 +222,45 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
     if (element.hasAttribute('data-section-content')) { for (const child of [...element.children]) append(child as HTMLElement); return; }
     if (element.hasAttribute('data-column-count')) {
+      if (Number(element.dataset.columnCount) === 1) { for (const child of [...element.children]) append(child as HTMLElement); return; }
       content.append(element); if (fits()) return;
-      const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(element.textContent || '')].map(s => s.index).slice(1);
-      element.remove(); let low = 0, high = offsets.length - 1, best = 0;
+      // Split at block boundaries first. Character-only ranges lose the
+      // position of empty paragraphs, pictures and forced column breaks.
+      const children = [...element.children] as HTMLElement[];
+      const fragment = (count: number) => {
+        const part = element.cloneNode(false) as HTMLElement;
+        part.replaceChildren(...children.slice(0, count).map(child => child.cloneNode(true)));
+        return part;
+      };
+      element.remove(); let low = 1, high = children.length, best = 0;
       while (low <= high) {
-        const mid = (low + high) >> 1, [head] = splitText(element, offsets[mid]); content.append(head);
-        if (fits()) { best = offsets[mid]; low = mid + 1; } else high = mid - 1;
+        const mid = (low + high) >> 1, head = fragment(mid); content.append(head);
+        if (fits()) { best = mid; low = mid + 1; } else high = mid - 1;
         head.remove();
       }
-      if (best) { const [head, tail] = splitText(element, best); content.append(head); fits(); newPage(); append(tail); return; }
+      const head = fragment(best), tail = element.cloneNode(false) as HTMLElement;
+      tail.replaceChildren(...children.slice(best).map(child => child.cloneNode(true)));
+      content.append(head);
+      const next = tail.firstElementChild as HTMLElement | null;
+      if (next?.matches('p,h1,h2,h3,h4,h5,h6') && (next.textContent?.length ?? 0) > 1) {
+        const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(next.textContent!)].map(s => s.index).slice(1);
+        let left = 0, right = offsets.length - 1, cut = 0;
+        while (left <= right) {
+          const mid = (left + right) >> 1, [part] = splitText(next, offsets[mid]); head.append(part);
+          if (fits()) { cut = offsets[mid]; left = mid + 1; } else right = mid - 1;
+          part.remove();
+        }
+        if (cut) { const [part, rest] = splitText(next, cut); head.append(part); next.replaceWith(rest); }
+      }
+      if (head.children.length) {
+        fits(); newPage();
+        // The break that overflowed the last column is fulfilled by this new
+        // sheet. Applying it again at its start would skip the first column.
+        if (tail.firstElementChild?.hasAttribute('data-column-break')) tail.firstElementChild.remove();
+        if (tail.children.length) append(tail);
+        return;
+      }
+      head.remove();
       if (content.children.length) { newPage(); append(element); return; }
       content.append(element); fits(); scaleOversized(element); return;
     }
@@ -281,6 +312,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   }
   try {
     onProgress?.({ label: '문서의 글꼴을 준비하는 중…' });
+    const sample = source.textContent || '한글';
+    for (const family of ['Noto Serif KR', 'Noto Sans KR']) if (html.includes(family))
+      await Promise.all([400, 700].map(weight => document.fonts.load(`${weight} 12px "${family}"`, sample)));
     if (source.querySelector('[data-symbol-font]')) await Promise.all(['Studio Symbols 2','Studio Symbols','Studio Math','Studio Text','Studio Devanagari','Studio Emoji'].map(font => document.fonts.load(`12px "${font}"`)));
     await document.fonts.ready;
     signal?.throwIfAborted();

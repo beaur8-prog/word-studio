@@ -1,18 +1,16 @@
 import type { Node as PMNode } from '@tiptap/pm/model';
-import { defaultPage, pageMargins, pageFurniture, type PageSettings } from './types';
+import { defaultPage, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { sanitizeImportedHtml } from './document-html';
 
 export function sectionSettings(raw: unknown): PageSettings {
   try {
     const page = JSON.parse(String(raw));
-    if (!page || !['A4','Letter'].includes(page.size) || !['portrait','landscape'].includes(page.orientation) || !Number.isFinite(page.margin)) return defaultPage;
+    if (!page || !['A4','Letter','Custom'].includes(page.size) || !['portrait','landscape'].includes(page.orientation) || !Number.isFinite(page.margin)) return defaultPage;
+    if (page.size === 'Custom' && (![page.width, page.height].every(n => Number.isFinite(n) && n >= 25 && n <= 1320))) return defaultPage;
     return page;
   } catch { return defaultPage; }
 }
-export const pageDimensions = (page: PageSettings) => {
-  const size = page.size === 'Letter' ? [816, 1056] : [210 * 96 / 25.4, 297 * 96 / 25.4];
-  return page.orientation === 'landscape' ? size.reverse() : size;
-};
+export const pageDimensions = (page: PageSettings) => paperDimensions(page).map(n => Math.round(n * 96 / 25.4 * 100) / 100);
 
 /** Give each imported section its own editable text width and page furniture.
  * Backgrounds are outside contentDOM, so they never become document content. */

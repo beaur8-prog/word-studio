@@ -1,5 +1,5 @@
 import type JSZip from 'jszip';
-import { pageMargins, type Comment, type PageSettings } from './types';
+import { pageMargins, paperDimensions, type Comment, type PageSettings } from './types';
 import { W, all, val, child, ancestor, docxFormat } from './docx-format';
 import { overlapInstruction } from './word-overlap';
 import { symbolFont, symbolElement } from './document-symbols';
@@ -108,9 +108,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     const end = `ws_marker_${sequence}`;
     markers.set(end, { kind: 'runEnd' }); run.after(bookmark(end));
   }
-  for (const br of all(body, 'br').filter(el => val(el, 'type') === 'page')) {
+  for (const br of all(body, 'br').filter(el => ['page', 'column'].includes(val(el, 'type')))) {
     const name = `ws_marker_${sequence}`;
-    markers.set(name, { kind: 'pageBreak' }); br.replaceWith(bookmark(name));
+    markers.set(name, { kind: val(br, 'type') === 'column' ? 'columnBreak' : 'pageBreak' }); br.replaceWith(bookmark(name));
   }
   let section = 0;
   for (const paragraph of all(body, 'p')) {
@@ -224,7 +224,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const parent = table.parentElement?.closest<HTMLTableCellElement>('td,th');
         const parentWidth = parent?.getAttribute('colwidth')?.split(',').reduce((n, s) => n + Number(s), 0);
         const available = Math.max(1, parentWidth ? parentWidth - (parseFloat(parent!.style.paddingLeft) || 0) - (parseFloat(parent!.style.paddingRight) || 0) - 2
-          : page && margins ? ((page.orientation === 'landscape' ? (page.size === 'Letter' ? 279.4 : 297) : (page.size === 'Letter' ? 215.9 : 210)) - margins.left - margins.right) * 96 / 25.4 - Math.max(0, parseFloat(table.style.marginLeft) || 0) - 1 : 624);
+          : page && margins ? (paperDimensions(page)[0] - margins.left - margins.right) * 96 / 25.4 - Math.max(0, parseFloat(table.style.marginLeft) || 0) - 1 : 624);
         const grid = Array.from(child(source, 'tblGrid')?.children ?? []).map(c => Number(val(c, 'w')) / 15);
         const total = grid.reduce((n, w) => n + w, 0); if (!total || !grid.every(n => n > 0)) continue;
         const preferred = child(child(source, 'tblPr'), 'tblW');
@@ -251,7 +251,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       for (const item of items) {
         if (item instanceof HTMLElement && markers.has(item.getAttribute('data-ws-marker')!)) {
           const marker = markers.get(item.getAttribute('data-ws-marker')!)!;
-          if (marker.kind === 'pageBreak') continue;
+          if (marker.kind === 'pageBreak' || marker.kind === 'columnBreak') continue;
           if (marker.kind === 'overlap') {
             const span = document.createElement('span'); span.dataset.wordOverlap = JSON.stringify(marker.parts);
             span.style.cssText = marker.style || ''; span.textContent = marker.parts!.join('');
@@ -293,12 +293,13 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         }
       }
       for (const anchor of template.content.querySelectorAll('[data-ws-marker]')) {
-        if (markers.get(anchor.getAttribute('data-ws-marker')!)?.kind !== 'pageBreak') continue;
+        const kind = markers.get(anchor.getAttribute('data-ws-marker')!)?.kind;
+        if (kind !== 'pageBreak' && kind !== 'columnBreak') continue;
         const p = anchor.closest('p,h1,h2,h3,h4,h5,h6');
         if (!p) { anchor.remove(); continue; }
         const range = document.createRange(); range.selectNodeContents(p); range.setStartAfter(anchor);
         const after = p.cloneNode(false); after.appendChild(range.extractContents()); anchor.remove();
-        const pageBreak = document.createElement('div'); pageBreak.setAttribute('data-page-break', 'true');
+        const pageBreak = document.createElement('div'); pageBreak.setAttribute(kind === 'columnBreak' ? 'data-column-break' : 'data-page-break', 'true');
         p.after(pageBreak);
         if (after.textContent || (after as Element).querySelector('img,br')) pageBreak.after(after);
         if (!p.textContent && !p.querySelector('img,br')) p.remove();

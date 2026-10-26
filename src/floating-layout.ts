@@ -261,7 +261,7 @@ function imagePosition(
     margin: "0",
     left: `${left - rect.left}px`,
     top: `${y - rect.top}px`,
-    zIndex: g.behindDocument ? "0" : "1",
+    zIndex: g.behindDocument ? "-1" : "1",
   });
   return {
     index,
@@ -550,7 +550,7 @@ export function applyFloatingLayout(root: HTMLElement) {
     for (const picture of paragraph.pictures) {
       const img = images[picture.index];
       const own = imagePosition(img, picture.index, root);
-      if (own) img.style.zIndex = own.geometry.behindDocument ? "0" : "1";
+      if (own) img.style.zIndex = own.geometry.behindDocument ? "-1" : "1";
     }
     insertWidgets(p, paragraph.widgets);
   }
@@ -613,7 +613,7 @@ export const FloatingLayout = Extension.create({
                   );
                   if (!token) continue;
                   const g = picture.geometry;
-                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${picture.cssTop}px;z-index:${g.behindDocument ? 0 : 1}`;
+                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${picture.cssTop}px;z-index:${g.behindDocument ? -1 : 1}`;
                   decorations.push(
                     Decoration.node(position + 1 + token.from, position + 1 + token.to, { style }),
                   );

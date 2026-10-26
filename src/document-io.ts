@@ -18,6 +18,7 @@ import {
   LineRuleType,
   Packer,
   PageBreak,
+  ColumnBreak,
   PageNumber,
   PageOrientation,
   Paragraph,
@@ -41,7 +42,7 @@ import type {
   ParagraphChild,
   ITableCellBorders,
 } from "docx";
-import { defaultPage, pageMargins, basePageMargins } from "./types";
+import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
 import { prepareDocxMetadata } from './docx-metadata';
 import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
@@ -51,6 +52,7 @@ import { storyHtml, documentNotes, attachDocumentNotes, structureDocxSections } 
 import { parseDocumentHtml } from './extensions';
 import { imageFloating, restoreImageGeometry, type ImageGeometryRecord } from './image-floating';
 import type { PageSettings, StudioDocument } from "./types";
+import { PreservedTableCell } from './docx-table-cell';
 import documentLimits from '../electron/document-limits.json';
 
 export interface ImportResult {
@@ -75,6 +77,7 @@ const BLOCKS = new Set([
   "codeBlock",
   "horizontalRule",
   "pageBreak",
+  "columnBreak",
   "sectionBreak",
   "image",
   "table",
@@ -143,14 +146,14 @@ export function validateDocument(input: unknown): StudioDocument {
   if (!object(page)) fail("용지 설정이 없습니다.");
   keysOnly(
     page,
-    ["size", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
+    ["size", "width", "height", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
       'differentFirstPage', 'differentOddEven', 'firstHeader', 'firstFooter', 'evenHeader', 'evenFooter',
       'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop', 'breakType', 'columns',
       'headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'],
     "용지 설정",
   );
   if (
-    !["A4", "Letter"].includes(String(page.size)) ||
+    !["A4", "Letter", "Custom"].includes(String(page.size)) ||
     !["portrait", "landscape"].includes(String(page.orientation)) ||
     !finite(page.margin, 0, 75) ||
     !boundedString(page.header, 10000) ||
@@ -158,6 +161,8 @@ export function validateDocument(input: unknown): StudioDocument {
     typeof page.pageNumbers !== "boolean"
   )
     fail("용지 설정이 올바르지 않습니다.");
+  if ((page.size === 'Custom' || page.width !== undefined || page.height !== undefined) &&
+    (![page.width, page.height].every(n => finite(n, 25, 1320)))) fail('사용자 용지 크기가 올바르지 않습니다.');
   if (page.margins !== undefined) {
     if (!object(page.margins)) fail('방향별 여백이 올바르지 않습니다.');
     keysOnly(page.margins, ['top', 'right', 'bottom', 'left'], '방향별 여백');
@@ -333,6 +338,7 @@ export function validateDocument(input: unknown): StudioDocument {
       "hardBreak",
       "horizontalRule",
       "pageBreak",
+      "columnBreak",
       "sectionBreak",
       "image",
       "inlineImage",
@@ -490,7 +496,7 @@ async function readDocxPage(
     width &&
     (Math.abs(smaller - 11906) > 150 || Math.abs(larger - 16838) > 150)
   )
-    warnings.push("지원하지 않는 용지 크기를 A4로 표시합니다.");
+    { page.size = 'Custom'; page.width = smaller * 25.4 / 1440; page.height = larger * 25.4 / 1440; }
   const margin = elements(section, "pgMar")[0];
   const enabled = (el: Element | undefined) => !!el && !['0', 'false', 'off'].includes(attr(el, 'val') || '');
   page.differentFirstPage = enabled(elements(section, 'titlePg')[0]);
@@ -823,11 +829,15 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150): IParagraphOpti
     node.content
       ?.flatMap((n) => n.marks ?? [])
       .find((m) => m.type === "textStyle")?.attrs?.lineHeight;
-  const line = Number.parseFloat(lineHeight);
+  const parsedLine = Number.parseFloat(lineHeight);
+  const line = typeof lineHeight === 'string' && lineHeight.endsWith('%') ? parsedLine / 100 : parsedLine;
   const indent = Number(node.attrs?.indent);
   const right = Number.parseFloat(node.attrs?.rightIndent), first = Number.parseFloat(node.attrs?.firstLineIndent);
   const before = Number.parseFloat(node.attrs?.spaceBefore), after = Number.parseFloat(node.attrs?.spaceAfter);
   const exact = typeof lineHeight === 'string' && /(?:pt|px)$/.test(lineHeight);
+  // Fixed text leading must not crop taller inline equations/pictures. Keep
+  // explicit OOXML exact rules, but let imported CSS image lines grow.
+  const inlinePicture = !node.attrs?.wordLineRule && node.content?.some(n => n.type === 'inlineImage' && !n.attrs?.floating);
   // Plain authored paragraphs inherit 11pt / 1.65em in the editor. Falling
   // through to docx's 1.15-line / 6pt defaults shrinks long documents on reopen.
   // A minimum physical line height preserves that CSS baseline while allowing
@@ -852,7 +862,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150): IParagraphOpti
       after: Number.isFinite(after) ? Math.round(after * 15) : node.type === 'paragraph' ? defaultAfter : 120,
       ...(Number.isFinite(before) ? { before: Math.round(before * 15) } : {}),
       ...(authoredDefault ? { line: defaultLine, lineRule: LineRuleType.AT_LEAST } : {}),
-      ...(exact && Number.isFinite(line) && line > 0 ? { line: Math.round(line * (lineHeight.endsWith('pt') ? 20 : 15)), lineRule: node.attrs?.wordLineRule === 'atLeast' ? LineRuleType.AT_LEAST : LineRuleType.EXACT } : {}),
+      ...(exact && Number.isFinite(line) && line > 0 ? { line: Math.round(line * (lineHeight.endsWith('pt') ? 20 : 15)), lineRule: node.attrs?.wordLineRule === 'atLeast' || inlinePicture ? LineRuleType.AT_LEAST : LineRuleType.EXACT } : {}),
       ...(!exact && Number.isFinite(line) && line > 0 && line < 10
         ? { line: Math.round(line * 240), lineRule: LineRuleType.AUTO }
         : {}),
@@ -926,8 +936,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const page = document.page;
   const geometries = new Map<string, ImageGeometryRecord>();
   const mmToTwip = (mm: number) => Math.round((mm * 1440) / 25.4);
-  const portraitWidth = page.size === "Letter" ? 215.9 : 210;
-  const portraitHeight = page.size === "Letter" ? 279.4 : 297;
+  const [portraitWidth, portraitHeight] = paperSize(page);
   let contentWidth = mmToTwip(
     (page.orientation === "landscape" ? portraitHeight : portraitWidth) -
       pageMargins(page).left - pageMargins(page).right,
@@ -1056,7 +1065,9 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           }),
         );
       else if (node.type === "pageBreak")
-        output.push(new Paragraph({ children: [new PageBreak()] }));
+        output.push(new Paragraph({ children: [new PageBreak()], spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } }));
+      else if (node.type === 'columnBreak')
+        output.push(new Paragraph({ children: [new ColumnBreak()], spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } }));
       else if (node.type === "horizontalRule")
         output.push(
           new Paragraph({
@@ -1176,7 +1187,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               cell.attrs?.backgroundColor === 'transparent' ? undefined : rgb(cell.attrs?.backgroundColor) ??
               (cell.type === "tableHeader" ? "E8EEF7" : undefined);
             cells.push(
-              new TableCell({
+              new PreservedTableCell({
                 children,
                 columnSpan: Number(cell.attrs?.colspan) || 1,
                 rowSpan: Number(cell.attrs?.rowspan) || 1,
@@ -1187,7 +1198,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
                   const padding = Number.parseFloat(cell.attrs?.[`padding${side[0].toUpperCase()}${side.slice(1)}`]);
                   return [side, Number.isFinite(padding) ? Math.round(Math.max(0, padding) * 15) : ['left', 'right'].includes(side) ? 150 : 120];
                 })),
-              }),
+              }, cell.attrs?.whiteSpace === 'nowrap'),
             );
           }
           rows.push(
@@ -1213,9 +1224,20 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     return output;
   };
   const groups: { page: PageSettings; nodes: JSONContent[] }[] = [{ page, nodes: [] }];
+  let sectionPage = page;
+  const columnSignature = (p: PageSettings) => JSON.stringify(p.columns ?? { count: 1, space: 0 });
+  const appendGroup = (settings: PageSettings, nodes: JSONContent[]) => {
+    const current = groups[groups.length - 1];
+    if (!current.nodes.length) { current.page = settings; current.nodes.push(...nodes); }
+    else if (columnSignature(current.page) === columnSignature(settings)) current.nodes.push(...nodes);
+    else groups.push({ page: { ...settings, breakType: 'continuous' }, nodes: [...nodes] });
+  };
   for (const node of document.content.content ?? []) {
-    if (node.type === 'sectionBreak') groups.push({ page: JSON.parse(node.attrs!.page), nodes: [] });
-    else groups[groups.length - 1].nodes.push(node);
+    if (node.type === 'sectionBreak') {
+      sectionPage = JSON.parse(node.attrs!.page); groups.push({ page: sectionPage, nodes: [] });
+    } else if (node.type === 'columnGroup') {
+      appendGroup({ ...sectionPage, columns: { count: Number(node.attrs?.count) || 1, space: Number(node.attrs?.space) || 0, balance: node.attrs?.balance !== false } }, node.content || []);
+    } else appendGroup(sectionPage, [node]);
   }
   const sections = [];
   const footnotes: Record<string, { children: Paragraph[] }> = {}, endnotes: Record<string, { children: Paragraph[] }> = {};
@@ -1227,10 +1249,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   }
   for (const group of groups) {
   const page = group.page;
-  const portraitWidth = page.size === 'Letter' ? 215.9 : 210;
-  const portraitHeight = page.size === 'Letter' ? 279.4 : 297;
+  const [portraitWidth, portraitHeight] = paperSize(page);
   const margins = pageMargins(page);
-  contentWidth = mmToTwip((page.orientation === 'landscape' ? portraitHeight : portraitWidth) - margins.left - margins.right);
+  const fullWidth = mmToTwip((page.orientation === 'landscape' ? portraitHeight : portraitWidth) - margins.left - margins.right);
+  const count = page.columns?.count || 1;
+  contentWidth = Math.max(1, Math.floor((fullWidth - Math.round((page.columns?.space || 0) * 15) * (count - 1)) / count));
   const children = await blocks(group.nodes);
   const richBlocks = async (html: string) => blocks(parseDocumentHtml(sanitizeImportedHtml(html).html).content || []);
   const footer = async (text: string, numbers: boolean, html?: string, headerHtml?: string) => new Footer({ children: [
