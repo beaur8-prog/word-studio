@@ -8,7 +8,7 @@ import { imageFloating } from './image-floating';
 import { layoutFurnitureImages } from './furniture-layout';
 import { layoutTableAnchors } from './table-anchor';
 
-export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
+export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
 const PX = 96 / 25.4;
 const dimensions = paperDimensions;
@@ -50,6 +50,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       table.style.width = `${columns.reduce((sum, c) => sum + parseFloat(c.style.width), 0)}px`;
   }
   const warnings = new Set<string>();
+  const pageSettings = new WeakMap<Element, PageSettings>();
   const noteBodies = new Map<string, HTMLElement>();
   for (const note of source.querySelectorAll<HTMLElement>('[data-document-note][data-note-kind="footnote"]')) {
     noteBodies.set(note.dataset.documentNote!, note); note.remove();
@@ -77,6 +78,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     pageStyles.push(`@page ${pageName} { size:${width}mm ${height}mm; margin:0; }`);
     style.textContent = [...new Set(pageStyles)].join('\n');
     const paper = document.createElement('section'); paper.className = 'print-page';
+    pageSettings.set(paper, settings);
     paper.dataset.page = String(++pageNumber);
     if (keepBlank) paper.dataset.keepBlank = 'true';
     const furniture = pageFurniture(settings, pageNumber, ++sectionPage === 1);
@@ -447,6 +449,6 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
     for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="NUMPAGES"]')) field.textContent = String(pageNumber);
     for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="PAGE"]')) field.textContent = field.closest<HTMLElement>('.print-page')!.dataset.page!;
-    return { element: host, pages: pageNumber, warnings: [...warnings], dispose: () => host.remove() };
+    return { element: host, pages: pageNumber, pageSettings, warnings: [...warnings], dispose: () => host.remove() };
   } catch (error) { host.remove(); throw error; }
 }

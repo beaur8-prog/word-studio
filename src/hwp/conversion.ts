@@ -10,6 +10,7 @@ import { headerDefinitions, headerPreviewPage, headerLayer, hiddenStories } from
 import { stageHwpFields } from './export-fields';
 import { importHwpNotes, stageHwpNotes } from './note-stories';
 import { stageHwpColumns } from './export-columns';
+import { stageHwpSections } from './export-sections';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -679,19 +680,19 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   return { html: html || '<p></p>', page: firstPage, warnings: [...warnings] };
 }
 
-export function setHwpPage(doc: HwpDocument, page: PageSettings) {
+export function setHwpPage(doc: HwpDocument, page: PageSettings, section = 0) {
   const m = page.margins ?? { top: page.margin, right: page.margin, bottom: page.margin, left: page.margin };
   const letter = page.size === 'Letter';
   const header = Math.min(m.top, page.headerDistance ?? Math.max(0, m.top / 2 - 3));
   const footer = Math.min(m.bottom, page.footerDistance ?? Math.max(0, m.bottom / 2 - 3));
-  doc.setPageDef(0, JSON.stringify({ width: page.size === 'Custom' ? hu(page.width!) : letter ? 61200 : 59528, height: page.size === 'Custom' ? hu(page.height!) : letter ? 79200 : 84188, landscape: page.orientation === 'landscape',
+  doc.setPageDef(section, JSON.stringify({ width: page.size === 'Custom' ? hu(page.width!) : letter ? 61200 : 59528, height: page.size === 'Custom' ? hu(page.height!) : letter ? 79200 : 84188, landscape: page.orientation === 'landscape',
     // HWP body top = marginHeader + marginTop, unlike Word's body margin.
     marginTop: hu(m.top - header), marginRight: hu(m.right), marginBottom: hu(m.bottom - footer), marginLeft: hu(m.left),
     marginHeader: hu(header), marginFooter: hu(footer), marginGutter: hu(page.gutter ?? 0) }));
-  if (page.columns) doc.setColumnDef(0, page.columns.count, page.columns.balance ? 1 : 0, 1, Math.round(page.columns.space * 75));
+  if (page.columns) doc.setColumnDef(section, page.columns.count, page.columns.balance ? 1 : 0, 1, Math.round(page.columns.space * 75));
   for (const isHeader of [true, false]) {
     const text = page[isHeader ? 'header' : 'footer'];
-    if (text) { doc.createHeaderFooter(0, isHeader, 0); doc.insertTextInHeaderFooter(0, isHeader, 0, 0, 0, text); }
+    if (text) { doc.createHeaderFooter(section, isHeader, 0); doc.insertTextInHeaderFooter(section, isHeader, 0, 0, 0, text); }
   }
 }
 
@@ -704,7 +705,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     // A real Hancom template supplies valid HWP 5.1 DocInfo and default styles.
     doc.createBlankDocument();
     const breakToken = 'WORDSTUDIO-PAGE-BREAK-' + crypto.randomUUID();
-    const notes = stageHwpNotes(html);
+    const sections = stageHwpSections(html, page);
+    const notes = stageHwpNotes(sections.html);
     const fields = stageHwpFields(notes.html);
     const columns = stageHwpColumns(fields.html, page);
     const converted = columns.html.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
@@ -731,6 +733,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withColumns !== doc) { doc.free(); doc = withColumns; }
     const withNotes = notes.restore(Core, doc);
     if (withNotes !== doc) { doc.free(); doc = withNotes; }
+    const withSections = sections.restore(Core, doc, setHwpPage);
+    if (withSections !== doc) { doc.free(); doc = withSections; }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {

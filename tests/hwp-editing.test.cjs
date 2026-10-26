@@ -27,6 +27,46 @@ const setup = (async () => {
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
+for (const format of ['hwp', 'hwpx']) test(`${format}: sections keep paper, margins, headers and shared notes/images through two saves`, async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  const second = { ...paper, size: 'Custom', width: 240, height: 320, orientation: 'portrait', margins: { top: 30, right: 17, bottom: 25, left: 19 }, header: 'SECOND HEADER', footer: 'SECOND FOOTER', columns: { count: 2, space: 24, balance: false } };
+  const marker = `<div data-section-page="${JSON.stringify(second).replaceAll('"', '&quot;')}"></div>`;
+  let html = `<p><b>FIRST 한글</b></p>${marker}<div data-column-count="2" data-column-space="24" data-column-balance="false"><p>SECOND <span data-note-reference="n1" data-note-kind="footnote" data-note-label="1">1</span></p><p><img src="data:image/png;base64,${png}" width="24" height="24"></p><p>PAGE <span data-page-number="PAGE">1</span></p></div><div data-document-note="n1" data-note-kind="footnote" data-note-label="1"><p>NOTE BODY</p></div>`;
+  let first = paper;
+  for (let round = 0; round < 2; round++) {
+    const out = serializeHwp(HwpDocument, html, first, format), doc = new HwpDocument(out.bytes);
+    try {
+      assert.equal(doc.getSectionCount(), 2);
+      assert.equal(JSON.parse(doc.getColumnDef(1)).columnCount, 2);
+      assert.equal(JSON.parse(doc.getParaPropertiesAt(1, 0)).pageBreakBefore, false);
+      const a = JSON.parse(doc.getPageDef(0)), b = JSON.parse(doc.getPageDef(1));
+      assert.equal(a.width, 61200); assert.equal(a.landscape, true);
+      assert.ok(Math.abs(b.width * 25.4 / 7200 - 240) < .02); assert.equal(b.landscape, false);
+      assert.ok(Math.abs((b.marginTop + b.marginHeader) * 25.4 / 7200 - 30) < .02);
+      assert.equal(JSON.parse(doc.getHeaderFooter(0, true, 0)).text, paper.header);
+      assert.equal(JSON.parse(doc.getHeaderFooter(1, true, 0)).text, second.header);
+      assert.equal(JSON.parse(doc.getHeaderFooter(1, false, 0)).text, second.footer);
+      const zip = await JSZip.loadAsync(doc.exportHwpx()), xml = await zip.file('Contents/section1.xml').async('string');
+      assert.match(xml, /<hp:footNote/); assert.match(xml, /NOTE BODY/); assert.match(xml, /<hp:pic/); assert.match(xml, /numType="PAGE"/);
+      assert.doesNotMatch(xml, /WORDSTUDIO-SECTION|WORDSTUDIO-COLUMNS|WORDSTUDIO-NOTE/);
+      const converted = editableHwp(doc); html = converted.html; first = converted.page;
+      assert.match(html, /FIRST 한글/); assert.match(html, /SECOND/); assert.match(html, /data-section-page=/);
+    } finally { doc.free(); }
+  }
+});
+
+test('empty HWP sections remain intentional pages and nested section markers fail explicitly', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  const blank = { ...paper, header: '', footer: '' };
+  const section = `<div data-section-page="${JSON.stringify(blank).replaceAll('"', '&quot;')}"></div>`;
+  for (const format of ['hwp', 'hwpx']) {
+    const out = serializeHwp(HwpDocument, section + section + '<p>THIRD</p>', blank, format), doc = new HwpDocument(out.bytes);
+    try { assert.equal(doc.getSectionCount(), 3); assert.equal(doc.pageCount(), 3); assert.equal(doc.getTextRange(2, 0, 0, 100), 'THIRD'); }
+    finally { doc.free(); }
+    assert.throws(() => serializeHwp(HwpDocument, `<table><tr><td><p>BEFORE</p>${section}<p>AFTER</p></td></tr></table>`, blank, format), /구역 나누기/);
+  }
+});
+
 for (const format of ['hwp', 'hwpx']) test(`${format}: native column groups and breaks retain first-page settings and text without marker paragraphs`, async () => {
   const { HwpDocument, serializeHwp } = await setup;
   const html = '<div data-column-count="1" data-column-space="0" data-column-balance="false"><p>FULL WIDTH</p></div>' +

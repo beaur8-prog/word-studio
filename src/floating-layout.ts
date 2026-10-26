@@ -333,6 +333,11 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
         const i = pictures.findIndex((v) => v.index === picture.index);
         if (i >= 0) pictures[i] = picture;
       }
+      // Behind/in-front artwork needs positioning but does not exclude text.
+      // Its often page-sized bounds must not trigger a manual re-layout of
+      // unrelated paragraphs, which changes justification and mixed-font
+      // line endings even though every line still has its full width.
+      const flowing = pictures.filter(pic => pic.geometry.wrap?.type !== 0);
       const style = getComputedStyle(p),
         box = p.getClientRects()[0] || p.getBoundingClientRect();
       const lh = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3,
@@ -349,12 +354,13 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       let x = box.left,
         y = box.top;
       const relevant = () =>
-        pictures.some((pic) => exclusion(pic, y, lh).some(([a, b]) => b > x && a < x + width));
+        flowing.some((pic) => exclusion(pic, y, lh).some(([a, b]) => b > x && a < x + width));
       if (
-        !own.length &&
-        !pictures.some((pic) => pic.top + pic.height >= y - 0.5 && pic.top < box.bottom + 0.5)
-      )
+        !flowing.some((pic) => pic.top + pic.height >= y - 0.5 && pic.top < box.bottom + 0.5)
+      ) {
+        if (own.length) result.push({ index: pi, widgets: [], pictures: own });
         continue;
+      }
       const tokens = units(p),
         widgets: Widget[] = [],
         cache = new Map<string, { width: number; height: number }>();
@@ -435,7 +441,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
           !relevant() &&
           y >
             Math.max(
-              ...pictures.map(
+              ...flowing.map(
                 (pic) => pic.top + pic.height + (pic.geometry.margins?.bottom || 0) / 9525,
               ),
             )
@@ -448,7 +454,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
         let lineHeight = metrics(start, fit(start, end, width - indent)).height;
         const arrange = (height: number) => {
           const lineWidgets: Widget[] = [];
-          const spans = slots(pictures, x + indent, y, width - indent, height);
+          const spans = slots(flowing, x + indent, y, width - indent, height);
           let nextStart = lineStart,
             cursor = x + indent;
           for (const [left, right] of spans) {
@@ -491,7 +497,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
           const jump = Math.max(
             lineHeight,
             Math.min(
-              ...pictures
+              ...flowing
                 .filter((pic) => pic.top + pic.height > y)
                 .map(
                   (pic) => pic.top + pic.height - y + (pic.geometry.margins?.bottom || 0) / 9525,

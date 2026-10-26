@@ -82,7 +82,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   root.innerHTML = sanitizeImportedHtml(source).html;
   const warnings: string[] = [];
   const warn = (selector: string, message: string) => { if (root.querySelector(selector)) warnings.push(message); };
-  warn('[data-section-page], [data-section-content]', '구역별 용지 설정은 첫 용지 설정으로 통합합니다. 다단 설정과 단 나누기는 유지합니다.');
+  if ([...root.querySelectorAll<HTMLElement>('[data-section-page]')].some(el => JSON.parse(el.dataset.sectionPage!).breakType === 'continuous')) warnings.push('같은 쪽의 연속 구역은 인쇄 쪽 단위로 저장합니다. 쪽 안에서 바뀌는 여백·머리말은 첫 구역 설정을 따를 수 있습니다.');
   const notes = [...root.querySelectorAll<HTMLElement>('[data-document-note]')].map(note => note.cloneNode(true) as HTMLElement);
   if (notes.some(note => !/^\d+$/.test(note.dataset.noteLabel || ''))) warnings.push('각주·미주의 사용자 지정 표시는 한글의 숫자 번호로 바뀝니다. 본문 참조와 각주·미주 내용은 유지합니다.');
   warn('[data-docx-bookmark], a', '책갈피·링크는 표시된 텍스트만 저장합니다.');
@@ -93,7 +93,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   if (doc.comments.length) warnings.push(`검토 메모 ${doc.comments.length}개는 한글 파일에 저장되지 않습니다. Word Studio 백업을 함께 보관하세요.`);
   if (doc.page.differentFirstPage || doc.page.differentOddEven || doc.page.headerHtml || doc.page.footerHtml || doc.page.pageNumbers) warnings.push('머리말·꼬리말은 기본 텍스트만 저장하며 자동 쪽 번호와 첫 쪽·홀짝 구분은 유지되지 않습니다.');
   const layout = await createPrintLayout(source, doc.page, onProgress);
-  let html: string;
+  let html: string, exportPage = doc.page;
   const wordPages = layout.pages;
   try {
     if (onProgress) { onProgress({ label: '한글 문서의 쪽 나누기를 준비하는 중…' }); await paintHwpProgress(); }
@@ -101,23 +101,30 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     if (wordPages > 1) warnings.push('Word 인쇄 쪽 경계를 유지하도록 표·문단을 쪽 단위로 나누어 저장합니다. 이어진 표가 여러 표로 나뉘고 반복 머리행이 각 표에 포함될 수 있습니다.');
     // Preserve Word's measured page boundaries. Letting one enormous HTML table
     // reflow in the engine can collapse hundreds of pages into a few dozen.
-    root.innerHTML = [...layout.element.querySelectorAll('.print-page')].map(sheet => {
+    let previousPage = doc.page;
+    root.innerHTML = [...layout.element.querySelectorAll('.print-page')].map((sheet, index) => {
       const body = sheet.querySelector('.print-content')?.innerHTML || '<p></p>';
-      return body + (sheet.querySelector('.print-footnotes')?.innerHTML || '');
-    }).join('<div data-page-break="true"></div>');
+      const settings = layout.pageSettings.get(sheet) ?? previousPage;
+      if (!index) exportPage = settings;
+      const section = JSON.stringify(settings) !== JSON.stringify(previousPage);
+      const marker = document.createElement('div');
+      if (section) marker.dataset.sectionPage = JSON.stringify(settings);
+      else marker.dataset.pageBreak = 'true';
+      previousPage = settings;
+      return (index ? marker.outerHTML : '') + body + (sheet.querySelector('.print-footnotes')?.innerHTML || '');
+    }).join('');
     root.innerHTML = sanitizeImportedHtml(root.innerHTML).html;
     // Print places footnotes at page bottoms. Save their complete source
     // stories once, including notes that continued onto another print page.
     root.querySelectorAll('[data-document-note]').forEach(note => note.remove());
     root.append(...notes);
-    root.querySelectorAll('[data-section-page]').forEach(el => el.remove());
     root.querySelectorAll('[data-docx-tab]').forEach(el => el.replaceWith(document.createTextNode('\t')));
     root.querySelectorAll('img').forEach(img => { img.removeAttribute('data-image-floating'); });
     html = renderedBody(root, doc);
   } finally { layout.dispose(); }
   const session = new HwpReaderSession();
   try {
-    const result = await session.export(html, doc.page, format, onProgress);
+    const result = await session.export(html, exportPage, format, onProgress);
     warnings.push(`쪽 수 비교: Word 인쇄 ${wordPages}쪽 → ${format.toUpperCase()} 원본 보기 ${result.pages}쪽.` + (wordPages !== result.pages ? ' 쪽 배치가 달라졌습니다. 정확한 쪽 참조가 필요한 문서는 원본과 대조하세요.' : ' 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'));
     return { blob: new Blob([new Uint8Array(result.bytes)], { type: format === 'hwp' ? 'application/x-hwp' : 'application/vnd.hancom.hwpx' }), warnings: [...new Set([...warnings, ...result.warnings])] };
   } finally { session.close(); }

@@ -3,8 +3,8 @@
   "baselineCommit": "e694647",
   "status": "in_progress",
   "build": "passed",
-  "unitTests": 58,
-  "browserTests": 185,
+  "unitTests": 61,
+  "browserTests": 189,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -272,6 +272,41 @@
     "limitations": [
       "Column groups nested inside table/note stories are explicitly rejected.",
       "Section paper sizes, floating objects and rich header stories remain separate pending work."
+    ]
+  },
+  "nativeSections": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "saves": 2,
+    "preserved": [
+      "paper size and orientation",
+      "margins",
+      "plain header/footer per section",
+      "shared notes/images/fields",
+      "intentional empty sections"
+    ],
+    "limitations": [
+      "continuous changes inside one printed sheet",
+      "rich furniture",
+      "floating objects"
+    ],
+    "evidence": [
+      "tests/hwp-sections.spec.ts",
+      "tests/hwp-editing.test.cjs"
+    ]
+  },
+  "nonWrappingArt": {
+    "regressionTests": 2,
+    "bodyGlyphPositions": "unchanged for left/center/right/justify mixed-font paragraphs",
+    "nativeDocuments": 4,
+    "zoomLevels": [
+      100,
+      50,
+      125,
+      200,
+      100
     ]
   }
 }
