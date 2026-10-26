@@ -1,3 +1,4 @@
+import { documentScale } from './document-scale';
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 const escapeHtml = (text: string) => { const el = document.createElement('span'); el.textContent = text; return el.innerHTML; };
@@ -479,7 +480,7 @@ export default function App() {
     const update = () => {
       cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
         const margins = pageMargins(page), px = 96 / 25.4;
-        const scale = stack.getBoundingClientRect().width / stack.offsetWidth || 1;
+        const scale = documentScale(stack);
         const occupied = (selector: string, distance: number) => Math.max(0, ...[...stack.querySelectorAll<HTMLElement>(selector)].map(el =>
           el.textContent?.trim() || el.querySelector('img,table') ? distance * px + el.getBoundingClientRect().height / scale + 2 : 0));
         const top = Math.max(margins.top * px, occupied('.paper-header', page.headerDistance ?? Math.max(0, margins.top / 2 - 3)));

@@ -1,3 +1,4 @@
+import { documentScale } from './document-scale';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
@@ -81,7 +82,7 @@ export const TableRowResize = Extension.create({
     };
     const show = (hit: Hit) => {
       const bounds = hit.table.getBoundingClientRect(), row = hit.row.getBoundingClientRect();
-      const scale = view.dom.getBoundingClientRect().width / view.dom.offsetWidth || 1;
+      const scale = documentScale(view.dom);
       guide.hidden = false;
       guide.style.left = `${bounds.left}px`;
       guide.style.top = `${row.bottom}px`;
@@ -165,7 +166,7 @@ export const TableRowResize = Extension.create({
             const hit = hitAt(current, event);
             if (!hit) return false;
             event.preventDefault();
-            const scale = current.dom.getBoundingClientRect().width / current.dom.offsetWidth || 1;
+            const scale = documentScale(current.dom);
             const height = hit.row.getBoundingClientRect().height / scale;
             drag = { ...hit, startY: event.clientY, startHeight: height, scale, height, doc: current.state.doc };
             current.dom.classList.add('table-row-resizing');

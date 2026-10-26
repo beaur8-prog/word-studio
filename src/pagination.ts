@@ -1,3 +1,4 @@
+import { documentScale } from './document-scale';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
@@ -41,8 +42,10 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const rowPos = pos + 1 + offset, rowDom = view.nodeDOM(rowPos) as HTMLElement;
       if (rowDom) rows.push({ node: row, pos: rowPos, dom: rowDom });
     });
+    let headerEnd = 0;
+    while (headerEnd < rows.length && rows[headerEnd].node.childCount > 0 && rows[headerEnd].node.content.content.every(cell => cell.type.name === 'tableHeader')) headerEnd++;
     for (let i = 0; i < rows.length;) {
-      let end = i + 1;
+      let end = i === 0 && headerEnd ? Math.min(rows.length, headerEnd + 1) : i + 1;
       for (let j = i; j < end; j++) rows[j].node.forEach(cell => { end = Math.min(rows.length, Math.max(end, j + Number(cell.attrs.rowspan || 1))); });
       const first = rect(rows[i].dom), last = rect(rows[end - 1].dom);
       const height = last.top + last.height - first.top;
@@ -99,7 +102,7 @@ export const Pagination = Extension.create({
               const h = Number(context.sheet.dataset.pageHeight) || Number(sheet.dataset.pageHeight) || 1122.52;
               const top = Number(context.sheet.dataset.margin ?? sheet.dataset.margin ?? 96);
               const bottom = Number(context.sheet.dataset.bottomMargin ?? sheet.dataset.bottomMargin ?? top), stride = h + 24, usable = h - top - bottom;
-              const origin = context.dom.getBoundingClientRect().top, scale = context.dom.getBoundingClientRect().width / context.dom.offsetWidth || 1;
+              const origin = context.dom.getBoundingClientRect().top, scale = documentScale(context.dom);
               const removed = [...context.dom.querySelectorAll<HTMLElement>('.pagination-gap,.page-break,.section-break')].map(el => {
                 const r = el.getBoundingClientRect(); return { top: (r.top - origin) / scale, height: r.height / scale };
               });
@@ -134,7 +137,7 @@ export const Pagination = Extension.create({
                     const parity = piece.breakType === 'oddPage' ? 1 : 0;
                     if ((totalCount + destination + 1) % 2 !== parity) destination++;
                   }
-                  const gap = Math.max(0, destination * stride + top - y);
+                  const gap = Math.max(0, Math.ceil((destination * stride + top - y) * 64) / 64);
                   if (piece.explicit) dec.push(Decoration.node(piece.pos, piece.end, { style: `height:${gap}px` }));
                   else dec.push(Decoration.widget(piece.pos, () => {
                     const el = document.createElement(piece.columns ? 'tr' : 'div');

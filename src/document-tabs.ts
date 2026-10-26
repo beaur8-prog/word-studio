@@ -1,3 +1,4 @@
+import { documentScale } from './document-scale';
 import { Extension, Node } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 
@@ -19,7 +20,7 @@ export function layoutTabs(root: HTMLElement) {
     if (!tabs.length) continue;
     const stops = parseTabStops(paragraph.dataset.tabStops);
     const paragraphStyle = getComputedStyle(paragraph);
-    const scale = paragraph.getBoundingClientRect().width / paragraph.offsetWidth || 1;
+    const scale = documentScale(paragraph);
     const origin = paragraph.getBoundingClientRect().left - (parseFloat(paragraphStyle.marginLeft) || 0) * scale;
     for (const tab of tabs) tab.style.width = '0px';
     for (const tab of tabs) {

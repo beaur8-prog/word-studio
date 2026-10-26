@@ -1,0 +1,512 @@
+{
+  "runAtUTC": "2026-10-26T05:40:02.787Z",
+  "sourceCommit": "ecfca7bf1b99e5a9c9909f4403961a47efc60279",
+  "sourceTreeSHA256": "5d27c411e50a1a65fa1d1cd25000163a12a79d6cc25cbaf0ed0a0d8e0551e89e",
+  "workingTreeDirty": true,
+  "browser": "155.0.8059.85",
+  "rendererErrors": [],
+  "scope": "Keep leading header rows with the first body/vertical-merge group in the editable canvas. Normalize layout with the actual ancestor CSS transforms and zoom instead of rect.width / rounded offsetWidth. Do not claim full editor/print pagination equivalence.",
+  "inputs": "The same ten cached editable models produced from the pinned public HWP corpus in the previous pass. The native Mac target freshly opens the original work-rules HWP.",
+  "results": [
+    {
+      "id": "01-employment-contract",
+      "sourcePages": 7,
+      "beforePrintPages": 7,
+      "editorPages": 7,
+      "printPages": 7,
+      "layoutWarnings": []
+    },
+    {
+      "id": "02-work-rules",
+      "sourcePages": 163,
+      "beforePrintPages": 167,
+      "editorPages": 170,
+      "printPages": 167,
+      "layoutWarnings": []
+    },
+    {
+      "id": "03-health-table",
+      "sourcePages": 4,
+      "beforePrintPages": 4,
+      "editorPages": 4,
+      "printPages": 4,
+      "layoutWarnings": []
+    },
+    {
+      "id": "04-language-plan",
+      "sourcePages": 35,
+      "beforePrintPages": 36,
+      "editorPages": 36,
+      "printPages": 36,
+      "layoutWarnings": []
+    },
+    {
+      "id": "05-return-form",
+      "sourcePages": 1,
+      "beforePrintPages": 1,
+      "editorPages": 1,
+      "printPages": 1,
+      "layoutWarnings": []
+    },
+    {
+      "id": "06-mixed-document",
+      "sourcePages": 35,
+      "beforePrintPages": 41,
+      "editorPages": 40,
+      "printPages": 41,
+      "layoutWarnings": [
+        "한 페이지보다 큰 그림·병합 셀 묶음은 잘리지 않도록 축소했습니다."
+      ]
+    },
+    {
+      "id": "07-english-exam",
+      "sourcePages": 8,
+      "beforePrintPages": 10,
+      "editorPages": 12,
+      "printPages": 10,
+      "layoutWarnings": []
+    },
+    {
+      "id": "08-math-exam",
+      "sourcePages": 20,
+      "beforePrintPages": 22,
+      "editorPages": 21,
+      "printPages": 22,
+      "layoutWarnings": []
+    },
+    {
+      "id": "09-korean-exam",
+      "sourcePages": 15,
+      "beforePrintPages": 15,
+      "editorPages": 15,
+      "printPages": 15,
+      "layoutWarnings": []
+    },
+    {
+      "id": "10-lh-plan",
+      "sourcePages": 5,
+      "beforePrintPages": 5,
+      "editorPages": 5,
+      "printPages": 5,
+      "layoutWarnings": []
+    }
+  ],
+  "workRulesBefore": {
+    "editorPages": 170,
+    "printPages": 167
+  },
+  "workRulesAfter": {
+    "editorPages": 170,
+    "printPages": 167
+  },
+  "tocHeaderChecks": [
+    {
+      "tableIndex": 1,
+      "expectedPrintPage": 6,
+      "before": {
+        "headerPage": 5,
+        "firstBodyPage": 6
+      },
+      "after": {
+        "headerPage": 6,
+        "firstBodyPage": 6
+      },
+      "headerOnlyPrototypePageStartErrorPx": -0.375,
+      "finalPageStartErrorPx": 0.0
+    },
+    {
+      "tableIndex": 2,
+      "expectedPrintPage": 7,
+      "before": {
+        "headerPage": 6,
+        "firstBodyPage": 6
+      },
+      "after": {
+        "headerPage": 7,
+        "firstBodyPage": 7
+      },
+      "headerOnlyPrototypePageStartErrorPx": -0.6218750000007276,
+      "finalPageStartErrorPx": 0.0031249999992724042
+    },
+    {
+      "tableIndex": 3,
+      "expectedPrintPage": 8,
+      "before": {
+        "headerPage": 7,
+        "firstBodyPage": 7
+      },
+      "after": {
+        "headerPage": 8,
+        "firstBodyPage": 8
+      },
+      "headerOnlyPrototypePageStartErrorPx": -0.8687500000005457,
+      "finalPageStartErrorPx": 0.006249999999454303
+    },
+    {
+      "tableIndex": 4,
+      "expectedPrintPage": 9,
+      "before": {
+        "headerPage": 8,
+        "firstBodyPage": 9
+      },
+      "after": {
+        "headerPage": 9,
+        "firstBodyPage": 9
+      },
+      "headerOnlyPrototypePageStartErrorPx": -0.6312500000003638,
+      "finalPageStartErrorPx": 0.5093749999996362
+    }
+  ],
+  "verification": {
+    "browserTestsPassed": 146,
+    "unitTestsPassed": 46,
+    "productionBuildPassed": true,
+    "actualMacElectron": {
+      "passed": true,
+      "states": [
+        {
+          "zoom": 100,
+          "pages": 170,
+          "toc": [
+            [
+              {
+                "page": 6,
+                "y": 4184.5
+              },
+              {
+                "page": 6,
+                "y": 4215.234375
+              },
+              {
+                "page": 6,
+                "y": 4221.609375
+              }
+            ],
+            [
+              {
+                "page": 7,
+                "y": 5002.203125
+              },
+              {
+                "page": 7,
+                "y": 5032.9375
+              },
+              {
+                "page": 7,
+                "y": 5039.3125
+              }
+            ],
+            [
+              {
+                "page": 8,
+                "y": 5819.90625
+              },
+              {
+                "page": 8,
+                "y": 5850.640625
+              },
+              {
+                "page": 8,
+                "y": 5857.015625
+              }
+            ],
+            [
+              {
+                "page": 9,
+                "y": 6638.109375
+              },
+              {
+                "page": 9,
+                "y": 6668.84375
+              },
+              {
+                "page": 9,
+                "y": 6675.21875
+              }
+            ]
+          ]
+        },
+        {
+          "zoom": 50,
+          "pages": 170,
+          "toc": [
+            [
+              {
+                "page": 6,
+                "y": 4184.5
+              },
+              {
+                "page": 6,
+                "y": 4215.234375
+              },
+              {
+                "page": 6,
+                "y": 4221.609375
+              }
+            ],
+            [
+              {
+                "page": 7,
+                "y": 5002.203125
+              },
+              {
+                "page": 7,
+                "y": 5032.9375
+              },
+              {
+                "page": 7,
+                "y": 5039.3125
+              }
+            ],
+            [
+              {
+                "page": 8,
+                "y": 5819.90625
+              },
+              {
+                "page": 8,
+                "y": 5850.640625
+              },
+              {
+                "page": 8,
+                "y": 5857.015625
+              }
+            ],
+            [
+              {
+                "page": 9,
+                "y": 6638.109375
+              },
+              {
+                "page": 9,
+                "y": 6668.84375
+              },
+              {
+                "page": 9,
+                "y": 6675.21875
+              }
+            ]
+          ]
+        },
+        {
+          "zoom": 125,
+          "pages": 170,
+          "toc": [
+            [
+              {
+                "page": 6,
+                "y": 4184.5
+              },
+              {
+                "page": 6,
+                "y": 4215.234375
+              },
+              {
+                "page": 6,
+                "y": 4221.609375
+              }
+            ],
+            [
+              {
+                "page": 7,
+                "y": 5002.203125
+              },
+              {
+                "page": 7,
+                "y": 5032.9375
+              },
+              {
+                "page": 7,
+                "y": 5039.3125
+              }
+            ],
+            [
+              {
+                "page": 8,
+                "y": 5819.90625
+              },
+              {
+                "page": 8,
+                "y": 5850.640625
+              },
+              {
+                "page": 8,
+                "y": 5857.015625
+              }
+            ],
+            [
+              {
+                "page": 9,
+                "y": 6638.109375
+              },
+              {
+                "page": 9,
+                "y": 6668.84375
+              },
+              {
+                "page": 9,
+                "y": 6675.21875
+              }
+            ]
+          ]
+        },
+        {
+          "zoom": 200,
+          "pages": 170,
+          "toc": [
+            [
+              {
+                "page": 6,
+                "y": 4184.5
+              },
+              {
+                "page": 6,
+                "y": 4215.234375
+              },
+              {
+                "page": 6,
+                "y": 4221.609375
+              }
+            ],
+            [
+              {
+                "page": 7,
+                "y": 5002.203125
+              },
+              {
+                "page": 7,
+                "y": 5032.9375
+              },
+              {
+                "page": 7,
+                "y": 5039.3125
+              }
+            ],
+            [
+              {
+                "page": 8,
+                "y": 5819.90625
+              },
+              {
+                "page": 8,
+                "y": 5850.640625
+              },
+              {
+                "page": 8,
+                "y": 5857.015625
+              }
+            ],
+            [
+              {
+                "page": 9,
+                "y": 6638.109375
+              },
+              {
+                "page": 9,
+                "y": 6668.84375
+              },
+              {
+                "page": 9,
+                "y": 6675.21875
+              }
+            ]
+          ]
+        },
+        {
+          "zoom": 100,
+          "pages": 170,
+          "toc": [
+            [
+              {
+                "page": 6,
+                "y": 4184.5
+              },
+              {
+                "page": 6,
+                "y": 4215.234375
+              },
+              {
+                "page": 6,
+                "y": 4221.609375
+              }
+            ],
+            [
+              {
+                "page": 7,
+                "y": 5002.203125
+              },
+              {
+                "page": 7,
+                "y": 5032.9375
+              },
+              {
+                "page": 7,
+                "y": 5039.3125
+              }
+            ],
+            [
+              {
+                "page": 8,
+                "y": 5819.90625
+              },
+              {
+                "page": 8,
+                "y": 5850.640625
+              },
+              {
+                "page": 8,
+                "y": 5857.015625
+              }
+            ],
+            [
+              {
+                "page": 9,
+                "y": 6638.109375
+              },
+              {
+                "page": 9,
+                "y": 6668.84375
+              },
+              {
+                "page": 9,
+                "y": 6675.21875
+              }
+            ]
+          ]
+        }
+      ],
+      "printPages": 167,
+      "rendererErrors": []
+    },
+    "nativeHwpHwpxSaveCancelReopenPassed": true,
+    "newRegressionCoverage": [
+      "Leading headers and the first vertically merged body group stay on one paper, remain editable, undo/redo, and save without view-only gaps.",
+      "400 single-line paragraphs keep 14 pages and avoid the paper margins at 50/100/125/200 percent zoom.",
+      "Fractional-width elements use exact nested CSS transform/zoom scale, not an integer width ratio."
+    ],
+    "baselineReproduction": {
+      "revision": "ecfca7b",
+      "headerAndFractionalWidthTestsFailedAsExpected": 2,
+      "headerRowPagesBefore": [
+        1,
+        1,
+        2,
+        2
+      ],
+      "headerRowPagesAfter": [
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    "finalExpandedEditingScenariosPassed": 3
+  },
+  "limitations": [
+    "The editable canvas still lacks the print engine multi-cell row continuation layout and repeated-header fragments. Work-rules remains 170 editor / 167 print pages versus source 163.",
+    "Multicolumn layout and large merged/unsupported structures also remain different; English has 12 editor / 10 print pages, math 21 / 22.",
+    "No font-size reduction, content deletion or footer-count substitution is used to make the counts appear equal.",
+    "The ten models have unchanged print counts; this pass does not regenerate or independently render ten new DOCXs. Existing browser export/reopen scenarios and native HWP/HWPX scenarios passed.",
+    "Actual Microsoft Word and Windows installed app were not tested in this pass. No release or Lithos update."
+  ]
+}
