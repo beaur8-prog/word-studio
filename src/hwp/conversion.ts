@@ -531,7 +531,9 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const inline = (html: string) => html.replace(/^<p\b[^>]*>\s*/, '').replace(/<\/p>\s*$/, '');
       const onlyFloating = (html: string) => html.includes('data-image-floating') && !html.replace(/<[^>]*>/g, '').trim() &&
         [...html.matchAll(/<img\b[^>]*>/g)].every(m => m[0].includes('data-image-floating'));
-      let cursor = 0, content = '', contentBytes = 0;
+      const onlyWhitespace = (html: string) => !/<(?:br|img|table|svg)\b|data-(?:note-reference|page-number|symbol-font)/i.test(html) &&
+        !entities(html.replace(/<[^>]*>/g, '')).trim();
+      let cursor = 0, content = '', contentBytes = 0, lastInlineTable = false;
       const appendInline = (value: string) => { contentBytes += hwpHtmlBytes(value); checkHwpHtmlSize(size + contentBytes); content += value; };
       for (const c of byParagraph.get(globalPara) ?? []) {
         if (backgroundControls.has(c.controlIndex)) continue;
@@ -611,9 +613,18 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
           warnings.add(`${c.userDesc || c.ctrlId} 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.`);
         }
         if (/^<(?:table|p)\b/.test(controlHtml)) {
-          if (content.trim()) append((onlyFloating(content) ? cssStyle(open, 'line-height:1px;margin-top:0;margin-bottom:0;') : open) + content + '</p>');
+          const inlineTable = c.ctrlId === 'tbl' && !!JSON.parse(doc.getTableProperties(section, para, c.controlIndex)).treatAsChar;
+          // Spaces before an inline table share the table's line. Keep their
+          // text, but do not turn them into an additional full-height line.
+          // A positive subpixel pitch also survives DOCX exact-line spacing.
+          if (content.trim()) append((inlineTable && onlyWhitespace(content) ? cssStyle(open, 'line-height:0.1px;margin-bottom:0px;')
+            : onlyFloating(content) ? cssStyle(open, 'line-height:1px;margin-top:0;margin-bottom:0;') : open) + content + '</p>');
           const tableWidth = Number(controlHtml.match(/^<table[^>]*style="[^"]*width:([\d.]+)px/)?.[1]);
           const pd: PageDef = JSON.parse(doc.getPageDef(section));
+          if (inlineTable && columnCount === 1) {
+            const position = controlPosition(section, para, c.controlIndex);
+            if (position) controlHtml = controlHtml.replace(/^<table\b[^>]*>/, tag => cssStyle(tag, `margin-left:${Math.round((position.x - px(pd.marginLeft)) * 100) / 100}px;`));
+          }
           const fullWidth = columnCount > 1 && tableWidth > px((pd.landscape ? pd.height : pd.width) - pd.marginLeft - pd.marginRight) / columnCount * 1.35;
           if (para === 0 && /^<table\b/.test(controlHtml) && tableWidth >= px((pd.landscape ? pd.height : pd.width) - pd.marginLeft - pd.marginRight) * .8) {
             const props = JSON.parse(doc.getTableProperties(section, para, c.controlIndex)), position = controlPosition(section, para, c.controlIndex);
@@ -625,12 +636,14 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
           append(controlHtml);
           if (fullWidth) { append('</div>'); openColumns(); }
           content = ''; contentBytes = 0;
-        } else appendInline(controlHtml.replace(/<img /g, '<img data-inline-image="true" '));
+          lastInlineTable = inlineTable;
+        } else { appendInline(controlHtml.replace(/<img /g, '<img data-inline-image="true" ')); lastInlineTable = false; }
       }
       appendInline(inline(range(cursor, 0xffffffff)));
       // Keep real blank paragraphs, but avoid an extra empty paragraph after a table.
       if (content.trim() || !(byParagraph.get(globalPara) ?? []).some(c => c.ctrlId === 'tbl')) {
-        if (onlyFloating(content))
+        if (lastInlineTable && onlyWhitespace(content)) open = cssStyle(open, 'line-height:0.1px;margin-top:0px;');
+        else if (onlyFloating(content))
           open = cssStyle(open, 'line-height:1px;margin-top:0;margin-bottom:0;');
         append(open + content + '</p>');
       }

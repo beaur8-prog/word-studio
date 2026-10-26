@@ -4,7 +4,7 @@
   "status": "in_progress",
   "build": "passed",
   "unitTests": 68,
-  "browserTests": 205,
+  "browserTests": 207,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -62,11 +62,11 @@
       "id": "04-language-plan",
       "sha256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
       "sourceReaderPages": 35,
-      "printPages": 36,
+      "printPages": 35,
       "docxRoundtripPages": [
-        36,
-        36,
-        36
+        35,
+        35,
+        35
       ],
       "priorBodyTextRetained": true,
       "docxBodyTextRetained": true,
@@ -420,7 +420,7 @@
   },
   "crossPlatformValidation": {
     "run": 40337301112,
-    "status": "failed_then_fixed_locally",
+    "status": "in_progress",
     "remaining": "Windows/Linux rerun and installed-package verification",
     "findings": [
       "Print split a wrapping word mid-word and disagreed with editor pages",
@@ -428,6 +428,30 @@
       "One Windows Vite request failed with ERR_NO_BUFFER_SPACE before app startup"
     ],
     "localTargeted": "10 passed",
-    "localFull": "205 passed"
+    "localFull": "205 passed",
+    "rerun": 40341958143
+  },
+  "inlineTableSpacing": {
+    "status": "fixed_prefix_suffix_and_horizontal_position",
+    "browserTests": 2,
+    "languagePlan": {
+      "editorPages": 35,
+      "printPages": 35,
+      "zooms": [
+        100,
+        50,
+        125,
+        200,
+        100
+      ],
+      "marginLineRects": 0,
+      "docxPages": [
+        35,
+        35,
+        35
+      ],
+      "matchingLongParagraphPageStarts": 35,
+      "remaining": "short title table page starts, inline object line leading and font metrics"
+    }
   }
 }
