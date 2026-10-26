@@ -83,6 +83,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     noteBodies.set(note.dataset.documentNote!, note); note.remove();
   }
   let settings = initialPage, pageNumber = 0, content: HTMLElement, footnotes: HTMLElement;
+  let deferredNotes = new Set<string>();
   let sectionNumber = 0;
   let sectionPage = 0;
   let sectionJustStarted = false;
@@ -90,9 +91,22 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   function refreshNotes() {
     if (!content?.isConnected) return;
     const current = content.closest('.print-page')!;
-    const ids = [...new Set([...content.querySelectorAll<HTMLElement>('[data-note-reference]')].map(el => el.dataset.noteReference!))]
-      .filter(id => noteBodies.has(id) && ![...host.querySelectorAll<HTMLElement>('.print-footnotes [data-document-note]')].some(el => el.dataset.documentNote === id && el.closest('.print-page') !== current));
+    const fullBottom = content.getBoundingClientRect().top + Number(content.dataset.bodyHeight);
+    const references = [...content.querySelectorAll<HTMLElement>('[data-note-reference]')];
+    let ids = [...new Set(references
+      .filter(el => el.getBoundingClientRect().top < fullBottom - .5).map(el => el.dataset.noteReference!))]
+      .filter(id => !deferredNotes.has(id) && noteBodies.has(id) && ![...host.querySelectorAll<HTMLElement>('.print-footnotes [data-document-note]')].some(el => el.dataset.documentNote === id && el.closest('.print-page') !== current));
     if (footnotes.dataset.notes !== ids.join('|')) {
+      footnotes.replaceChildren(...ids.map(id => noteBodies.get(id)!.cloneNode(true))); footnotes.dataset.notes = ids.join('|');
+    }
+    const noteBoundary = fullBottom - (ids.length ? footnotes.getBoundingClientRect().height + 12 : 0);
+    // A later reference in a continuing row must move with its note. Keep
+    // that decision while filling the other columns up to the page bottom;
+    // otherwise a late note reserves blank space on the preceding page.
+    for (const ref of references) if (ids.includes(ref.dataset.noteReference!) && ref.closest('tr[data-row-split="allow"]') &&
+      ref.getBoundingClientRect().bottom > noteBoundary + .5) deferredNotes.add(ref.dataset.noteReference!);
+    if (ids.some(id => deferredNotes.has(id))) {
+      ids = ids.filter(id => !deferredNotes.has(id));
       footnotes.replaceChildren(...ids.map(id => noteBodies.get(id)!.cloneNode(true))); footnotes.dataset.notes = ids.join('|');
     }
     const reserve = ids.length ? footnotes.getBoundingClientRect().height + 12 : 0;
@@ -100,6 +114,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   }
   function newPage(keepBlank = false) {
     refreshNotes();
+    deferredNotes = new Set();
     const [width, height] = dimensions(settings), margins = pageMargins(settings);
     const pageName = `studioSection${sectionNumber}`;
     pageStyles.push(`@page ${pageName} { size:${width}mm ${height}mm; margin:0; }`);
@@ -133,7 +148,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     const bottom = Math.max(margins.bottom * PX, meaningful(footer) ? parseFloat(footer.style.bottom) + footer.getBoundingClientRect().height + 2 : 0);
     content.style.top = `${top}px`; content.style.height = `${Math.max(1, height * PX - top - bottom)}px`;
     content.dataset.bodyHeight = String(Math.max(1, height * PX - top - bottom));
-    footnotes = document.createElement('div'); footnotes.className = 'print-footnotes';
+    footnotes = document.createElement('div'); footnotes.className = 'tiptap print-footnotes';
     Object.assign(footnotes.style, { left: `${margins.left * PX}px`, right: `${margins.right * PX}px`, bottom: `${bottom}px` });
     paper.append(footnotes);
   }
@@ -145,7 +160,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutColumns(content, content.getBoundingClientRect().bottom);
     applyFloatingLayout(content);
     const last = content.lastElementChild as HTMLElement | null;
-    return (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
+    return !hasDeferredNote(content) && (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
       // Behind/in-front objects do not consume text flow. A page decoration
       // extending into the margin must not push its anchor onto another page.
       && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img =>
@@ -155,6 +170,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       // and would move otherwise fitting columns onto another sheet.
       && [...content.querySelectorAll<HTMLElement>('[data-column-count]')].every(group =>
         [...group.children].every(child => [...child.getClientRects()].every(rect => rect.right <= group.getBoundingClientRect().right + .5)));
+  }
+  function hasDeferredNote(element: HTMLElement) {
+    return [...element.querySelectorAll<HTMLElement>('[data-note-reference]')].some(ref => deferredNotes.has(ref.dataset.noteReference!));
   }
   function scaleOversized(element: HTMLElement) {
     const available = content.getBoundingClientRect().bottom - element.getBoundingClientRect().top;
@@ -169,7 +187,17 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   function splitElement(element: HTMLElement, boundary: number, depth = 0): HTMLElement | null {
     if (depth > 30) return null;
     if (element.matches('p,h1,h2,h3,h4,h5,h6') && (element.textContent?.length ?? 0) > 1) {
-      const offsets = paragraphLineOffsets(element);
+      let offsets = paragraphLineOffsets(element);
+      if (hasDeferredNote(element)) {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT); let offset = 0;
+        while (walker.nextNode()) {
+          const text = walker.currentNode as Text, ref = text.parentElement?.closest<HTMLElement>('[data-note-reference]');
+          if (ref && deferredNotes.has(ref.dataset.noteReference!)) break;
+          offset += text.length;
+        }
+        const limit = Math.max(0, ...offsets.filter(n => n <= offset));
+        offsets = offsets.filter(n => n <= limit);
+      }
       let low = 0, high = offsets.length - 1, best = 0;
       const marker = document.createComment('split'); element.replaceWith(marker);
       while (low <= high) {
@@ -198,7 +226,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
           const next = cell.cloneNode(false) as HTMLTableCellElement; tail.append(next);
           const rest = splitElement(cell, boundary, depth + 1);
           if (rest) { next.append(...rest.childNodes); moved = true; }
-          else if ([...cell.children].some(child => child.getBoundingClientRect().bottom > boundary - (parseFloat(getComputedStyle(cell).paddingBottom) || 0) + .5)) {
+          else if (hasDeferredNote(cell) || [...cell.children].some(child => child.getBoundingClientRect().bottom > boundary - (parseFloat(getComputedStyle(cell).paddingBottom) || 0) + .5)) {
             next.append(...cell.childNodes); moved = true;
           }
         }
@@ -226,7 +254,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     const children = [...element.children] as HTMLElement[];
     const style = getComputedStyle(element);
     const innerBoundary = boundary - (parseFloat(style.paddingBottom) || 0) - (parseFloat(style.borderBottomWidth) || 0);
-    const index = children.findIndex(child => !child.matches('colgroup') && child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0) > innerBoundary + .5);
+    const index = children.findIndex(child => !child.matches('colgroup') && (hasDeferredNote(child) || child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0) > innerBoundary + .5));
     if (index < 0) return null;
     const child = children[index], tail = element.cloneNode(false) as HTMLElement;
     const childTail = splitElement(child, innerBoundary - (parseFloat(getComputedStyle(child).marginBottom) || 0), depth + 1);

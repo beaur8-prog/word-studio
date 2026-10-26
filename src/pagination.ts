@@ -142,7 +142,12 @@ export const Pagination = Extension.create({
               view.state.doc.descendants((node, position) => {
                 if (node.type.name !== 'documentNote' || node.attrs.kind !== 'footnote') return;
                 const pos = position, dom = view.nodeDOM(pos) as HTMLElement;
-                if (dom) noteNodes.set(String(node.attrs.id), { pos, end: pos + node.nodeSize, height: dom.offsetHeight + 4 });
+                if (dom) {
+                  const css = getComputedStyle(dom);
+                  const height = dom.getBoundingClientRect().height / scale - ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth']
+                    .reduce((sum, property) => sum + (parseFloat(css[property as 'paddingTop']) || 0), 0);
+                  noteNodes.set(String(node.attrs.id), { pos, end: pos + node.nodeSize, height });
+                }
                 return false;
               });
               const assigned = new Map<string, number>(), onPage = new Map<number, Set<string>>();
@@ -153,7 +158,9 @@ export const Pagination = Extension.create({
               };
               const reserve = (page: number, candidate: { id: string; page: number }[]) => {
                 const ids = new Set([...(onPage.get(page) || []), ...candidate.filter(ref => ref.page === page).map(ref => ref.id)]);
-                return ids.size ? 12 + [...ids].reduce((sum, id) => sum + (noteNodes.get(id)?.height || 0), 0) : 0;
+                // Match the printed note group: 12px separation, 1px rule,
+                // 6px padding and a 4px gap before each note.
+                return ids.size ? 19 + [...ids].reduce((sum, id) => sum + 4 + (noteNodes.get(id)?.height || 0), 0) : 0;
               };
               let extra = 0, sectionJustStarted = false;
               const tablePages = new Map<HTMLTableElement, number>(), headerPages = new Map<HTMLTableElement, Set<number>>();
@@ -194,8 +201,10 @@ export const Pagination = Extension.create({
                   if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }
                 if (piece.cellRow && y + piece.height > end + .5) {
-                  const flow = paginateCellRow(view, piece.cellRow, piece.pos, { origin, scale, top, bottom, height: h, extra, removed, repeatAt, reserveAt: page => reserve(page, refs) });
-                  if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
+                  const flow = paginateCellRow(view, piece.cellRow, piece.pos, { origin, scale, top, bottom, height: h, extra, removed, repeatAt,
+                    references: (piece.references ?? []).filter(ref => refs.some(r => r.id === ref.id)).map(ref => ({ id: ref.id, top: piece.top + ref.offset })),
+                    reserveAt: (page, own) => reserve(page, own ?? []) });
+                  if (flow) { assignNotes(flow.references); commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }
                 if (!piece.columns && !piece.explicit && y + piece.height > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
@@ -232,12 +241,14 @@ export const Pagination = Extension.create({
               const globalTop = (context.dom.getBoundingClientRect().top - view.dom.getBoundingClientRect().top) / scale;
               const globalLeft = (context.dom.getBoundingClientRect().left - view.dom.getBoundingClientRect().left) / scale;
               for (const [page, ids] of onPage) {
-                let y = page * stride + h - bottom - reserve(page, []);
+                let y = page * stride + h - bottom - reserve(page, []) + 12, first = true;
                 for (const id of ids) {
                   const note = noteNodes.get(id)!;
-                  dec.push(Decoration.node(note.pos, note.end, { style: `position:absolute;top:${globalTop + y}px;left:${globalLeft + left}px;width:${width}px;margin:0` }));
+                  if (!first) y += 4;
+                  dec.push(Decoration.node(note.pos, note.end, { class: 'pagination-footnote',
+                    style: `position:absolute;top:${globalTop + y}px;left:${globalLeft + left}px;width:${width}px;margin:0;border:${first ? '1px solid #77818b' : '0'};border-width:${first ? '1px 0 0' : '0'};padding:${first ? '10px 0 0' : '0'}` }));
                   placedNotes.add(id);
-                  y += note.height; signatures.push(`note:${id}:${page}:${note.height}`);
+                  y += note.height + (first ? 11 : 0); first = false; signatures.push(`note:${id}:${page}:${note.height}`);
                 }
               }
               const last = [...context.dom.children].filter(el => !el.matches('[data-document-note][data-note-kind="footnote"]')).at(-1) as HTMLElement | undefined;
