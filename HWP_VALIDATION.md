@@ -26,7 +26,9 @@
 
 - 떠 있는 본문 그림의 용지 좌표·크기·감싸기·바깥 여백과 그림 설명을 HWP/HWPX에서 보존한다. 문단/단 상대 위치는 현재 인쇄 쪽 좌표로 변환하며 윤곽 감싸기는 사각형으로 바뀐다. 두 번 저장 후 인쇄 좌표 오차 0.2px 이내를 검사했다. 일반 인라인 그림 설명도 보존한다. 근거: `browser-floating-final.log`(201개), `unit-floating-alt-final.log`(68개), `build-floating-final.log`, `native-floating-final.log`, `fresh-floating.log`, `docx-floating-corpus.json`. 마지막 그림 설명의 특수문자 보정은 최종 단위 68개로 추가 확인했다.
 
-원본 XML의 5자 이상 문단 5,125개 중 5,124개를 정규화된 본문/개체 설명에서 확인했다. 나머지 절취선 문단은 표 앞뒤로 나뉜 대시 100개와 인장 문구를 확인했다. 짧은 조각·중복 횟수·순서·모든 페이지의 시각 검증은 별도로 남는다.
+원본 XML의 5자 이상 문단 5,125개 중 5,124개를 정규화된 본문/개체 설명에서 확인했다. 나머지 절취선 문단은 표 앞뒤로 나뉜 대시 100개와 인장 문구를 확인했다. 후속 전체 본문 검사는 공백과 전용 문자 2종의 표기를 정규화한 218,797자의 순서·개수·짧은 조각까지 10개 모두 일치했다. 원본 SHA-256과 두 텍스트 해시는 `tests/hwp-source-text-audit.json`에 기록했다. 네이티브 파서를 공유하므로 파서 자체의 정확성, 도형·필드·별도 이야기 및 모든 페이지의 시각 검증은 별도로 남는다.
+
+재현: `node scripts/export-hwp-audit-source.cjs` 후 `python3 scripts/audit-hwp-source-text.py`. 로컬 공개 샘플과 최신 `converted-current/*.wordstudio.gz`가 필요하다.
 
 실제 Mac Electron에서 규정/공고/영어/수학의 다섯 확대율 쪽 수와 본문 여백 침범 0건을 재확인했다. 21MB HWP 및 40MiB 초과 백업의 열기·저장·복구·취소·재열기를 확인했다. 별도 실제 Microsoft Word·한컴 앱·Windows 검증 환경은 없다. 배포는 실행하지 않았다.
 

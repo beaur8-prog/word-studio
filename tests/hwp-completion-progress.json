@@ -206,7 +206,8 @@
     "columnAndReserve": "column-forms.log",
     "nativeColumns": "columns-roundtrip.log",
     "tableGapAndFontInheritance": "spacing-inheritance-final.log",
-    "freshImport": "fresh-floating.log"
+    "freshImport": "fresh-floating.log",
+    "fullSourceBody": "tests/hwp-source-text-audit.json"
   },
   "falsePositivesCorrected": [
     "Korean large glyph: font rectangle extends into margin, actual ink does not.",
@@ -395,6 +396,26 @@
     "evidence": [
       "tests/hwp-floating-export.spec.ts",
       "tests/hwp-editing.test.cjs"
+    ]
+  },
+  "sourceBodyStreamAudit": {
+    "samples": 10,
+    "sourceCharacters": 218797,
+    "identical": 10,
+    "includes": [
+      "short fragments",
+      "multiplicity",
+      "logical order"
+    ],
+    "normalization": [
+      "whitespace",
+      "U+F081C -> U+2508",
+      "U+F012B -> (인)"
+    ],
+    "evidence": "tests/hwp-source-text-audit.json",
+    "limitations": [
+      "native source parser shared",
+      "separate stories/drawings/fields and full visual audit pending"
     ]
   }
 }
