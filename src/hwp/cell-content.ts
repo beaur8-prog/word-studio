@@ -1,15 +1,17 @@
 import type { HwpDocument } from '@rhwp/core';
-import { strFromU8, unzipSync } from 'fflate';
+import { strFromU8 } from 'fflate';
+import { serializedParts } from './serialized-parts';
 
 export type CellPath = { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
 type Equation = { script: string; fontSize: number; color: number; width: number; height: number };
-type CellContent = { equations: Equation[]; controls: { offset: number; kind: string }[]; breaks: number[] };
+export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string };
+type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[] };
 type Paragraph = { key: string; tables: number; cell: boolean; offset: number };
 type Cell = { key: string; paragraphs: number };
 type Table = { key: string; cells: number };
-type Frame = { name: string; paragraph?: Paragraph; table?: Table; cell?: Cell; equation?: Equation };
+type Frame = { name: string; paragraph?: Paragraph; table?: Table; cell?: Cell; equation?: Equation; control?: SerializedControl };
 const fragment = (html: string) => html.match(/<!--StartFragment-->([\s\S]*?)<!--EndFragment-->/)?.[1].trim() ?? html;
-const entities = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/gi, value => {
+export const entities = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/gi, value => {
   const names: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" };
   if (names[value]) return names[value];
   const n = value[2].toLowerCase() === 'x' ? parseInt(value.slice(3, -1), 16) : Number(value.slice(2, -1));
@@ -19,15 +21,10 @@ const entities = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x
 /** The flat equation API exposes only the first equation of a cell paragraph.
  * Read the engine's own serialization to preserve every equation, including
  * nested cells, without changing the document or guessing from display text. */
-export function cellContents(doc: HwpDocument): Map<string, CellContent> {
+export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Map<string, CellContent> {
   const result = new Map<string, CellContent>();
-  let size = 0;
-  const files = unzipSync(doc.exportHwpx(), { filter: file => {
-    if (!/^Contents\/section\d+\.xml$/.test(file.name)) return false;
-    if (file.originalSize > 32 * 1024 * 1024 || (size += file.originalSize) > 64 * 1024 * 1024) throw Error('Cell equation metadata too large');
-    return true;
-  } });
   for (const [name, bytes] of Object.entries(files)) {
+    if (!/^Contents\/section\d+\.xml$/.test(name)) continue;
     const section = Number(name.match(/section(\d+)/)![1]), stack: Frame[] = [];
     let paragraph = -1;
     for (const token of strFromU8(bytes).matchAll(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<[^>]+>|[^<]+/g)) {
@@ -35,6 +32,7 @@ export function cellContents(doc: HwpDocument): Map<string, CellContent> {
       if (text.startsWith('<!--') || text.startsWith('<?')) continue;
       if (text[0] !== '<' || text.startsWith('<![CDATA[')) {
         const decoded = text.startsWith('<![CDATA[') ? text.slice(9, -3) : entities(text);
+        if (parent?.control?.kind === 'header' && decoded.trim()) parent.control.emptyHeader = false;
         if (parent?.name === 'script' && parent.equation) parent.equation.script += decoded;
         if (parent?.name === 't' && stack.at(-2)?.name === 'run' && parent.paragraph) parent.paragraph.offset += decoded.length;
         continue;
@@ -44,7 +42,10 @@ export function cellContents(doc: HwpDocument): Map<string, CellContent> {
       const attr = (key: string) => text.match(new RegExp(`\\b${key}=["']([^"']*)["']`))?.[1] ?? '';
       const frame: Frame = { ...parent, name };
       if (name === 'p') {
-        if (parent?.name === 'sec') frame.paragraph = { key: `${section}:${++paragraph}`, tables: 0, cell: false, offset: 0 };
+        if (parent?.name === 'sec') {
+          frame.paragraph = { key: `${section}:${++paragraph}`, tables: 0, cell: false, offset: 0 };
+          result.set(frame.paragraph.key, { equations: [], controls: [], breaks: [] });
+        }
         else if (parent?.name === 'subList' && stack.at(-2)?.name === 'tc' && parent.cell) {
           frame.paragraph = { key: `${parent.cell.key}/p${parent.cell.paragraphs++}`, tables: 0, cell: true, offset: 0 };
           result.set(frame.paragraph.key, { equations: [], controls: [], breaks: [] });
@@ -60,8 +61,14 @@ export function cellContents(doc: HwpDocument): Map<string, CellContent> {
       } else if (name === 'sz' && parent?.name === 'equation' && frame.equation) {
         frame.equation.width = Number(attr('width')); frame.equation.height = Number(attr('height'));
       }
-      if (parent?.paragraph?.cell && ((parent.name === 'run' && !['t', 'ctrl'].includes(name)) || parent.name === 'ctrl'))
-        result.get(parent.paragraph.key)!.controls.push({ offset: parent.paragraph.offset, kind: name });
+      if (parent?.control?.kind === 'header' && ['rect', 'line', 'pic', 'ellipse', 'polygon', 'container', 'tbl', 'equation', 'ole', 'autoNum', 'fieldBegin'].includes(name)) parent.control.emptyHeader = false;
+      if (parent?.paragraph && ((parent.name === 'run' && !['t', 'ctrl'].includes(name)) || parent.name === 'ctrl')) {
+        const control: SerializedControl = { offset: parent.paragraph.offset, kind: name };
+        if (name === 'autoNum') control.numberType = attr('numType');
+        if (name === 'header') control.emptyHeader = true;
+        if (name === 'ole') control.binaryItem = attr('binaryItemIDRef');
+        result.get(parent.paragraph.key)!.controls.push(control); frame.control = control;
+      }
       if (parent?.name === 't' && parent.paragraph && ['tab', 'lineBreak', 'hyphen', 'nbSpace', 'fwSpace'].includes(name)) {
         if (name === 'lineBreak' && parent.paragraph.cell) result.get(parent.paragraph.key)!.breaks.push(parent.paragraph.offset);
         parent.paragraph.offset++;
@@ -76,7 +83,8 @@ export function cellContents(doc: HwpDocument): Map<string, CellContent> {
  * paragraph by the clipboard exporter. Ordinary paragraphs keep the original
  * HTML. Cell paths distinguish nested tables and separate document stories. */
 export function restoreCellContent(doc: HwpDocument, section: number, para: number, tableControl: number, tableOrdinal: number, html: string,
-  equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>) {
+  equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
+  picture?: (path: CellPath, index: number, html: string) => string) {
   const repair = (source: string, parents: CellPath, control: number, key: string, depth = 0): string => {
     if (!/<!--\s*rhwp:|<img\b/.test(source) || depth > 12) return source;
     const tablePath = [...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }];
@@ -101,23 +109,31 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
         path[path.length - 1].cellParaIndex = p;
         const json = JSON.stringify(path), paragraphKey = `${key}/c${current.index}/p${p}`;
         let content = fragment(doc.exportSelectionInCellHtmlByPath(section, para, json, p, 0, p, 0xffffffff));
-        const needsRepair = /<!--\s*rhwp:/.test(content) || (/<img\b/.test(content) && !!content.replace(/<[^>]*>/g, '').trim());
+        const needsRepair = /<!--\s*rhwp:/.test(content) || (/<img\b/.test(content) && (!!picture || !!content.replace(/<[^>]*>/g, '').trim()));
         if (needsRepair) {
           const controls: { index: number; type: string; html: string }[] = [];
           for (let index = 0; index < 1024; index++) {
             try {
               const html = fragment(doc.exportControlHtml(section, para, json, index));
-              controls.push({ index, html, type: /^<table\b/.test(html) ? 'Table' : html.match(/^<!--\s*rhwp:\s*셀 안 (\w+)/)?.[1] ?? '' });
+              controls.push({ index, html: (/^<img\b/.test(html) && picture ? picture(path, index, html) : html).replace(/<img\b(?![^>]*\bdata-inline-image=)/g, '<img data-inline-image="true"'),
+                type: /^<table\b/.test(html) ? 'Table' : html.match(/^<!--\s*rhwp:\s*셀 안 (\w+)/)?.[1] ?? '' });
             } catch { break; }
           }
           const data = metadata().get(paragraphKey);
+          const known = (value: SerializedControl | undefined): string | undefined => {
+            if (value?.kind === 'autoNum' && ['PAGE', 'TOTAL_PAGE'].includes(value.numberType ?? ''))
+              return `<span data-page-number="${value.numberType === 'PAGE' ? 'PAGE' : 'NUMPAGES'}">1</span>`;
+            // An empty header definition is not a visible body object. Rich
+            // headers stay explicit until their separate story is preserved.
+            if (value?.kind === 'header' && (value.emptyHeader || headerPreserved)) return '';
+          };
           if (controls.length && !controls.some(c => c.type === 'Table') && data?.controls.length === controls.length) {
             // Selection HTML appends omitted controls after all paragraph text.
             // Reinsert at the serialized model's logical text offsets instead
             // of trusting that placeholder order as the inline position.
             let eq = 0;
             const replacements = controls.map((c, i) => ({ offset: data.controls[i].offset, html: c.type === 'Equation' && data.equations[eq]
-              ? equation(data.equations[eq++]) : c.type === 'Shape' ? shape(path, c.index) ?? c.html : c.html }));
+              ? equation(data.equations[eq++]) : c.type === 'Shape' ? shape(path, c.index) ?? c.html : known(data.controls[i]) ?? c.html }));
             const paragraph = content.match(/<p\b[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '<p></p>';
             let offset = 0, next = 0, nextBreak = 0, output = '', spanDepth = 0;
             const emit = () => {
@@ -155,6 +171,9 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
             if (tableRanges.some(([from, to]) => offset >= from && offset < to)) return comment;
             const index = controls.findIndex((c, i) => i >= next && c.type === type);
             if (index < 0) return comment; next = index + 1;
+            if (data?.controls.length === controls.length) {
+              const restored = known(data.controls[index]); if (restored !== undefined) return restored;
+            }
             if (type === 'Equation') {
               const value = data?.equations[eq++];
               if (value) return equation(value);
@@ -176,10 +195,15 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
           }
           content = fixed + content.slice(at);
         }
+        // Empty paragraphs also disappear from native selection HTML. Keep
+        // their slots: tableGeometry applies the source paragraph formats by
+        // index, so losing one gives every following picture/text the wrong
+        // alignment, leading and indent.
+        if (!content.trim()) content = '<p></p>';
         // Control-only paragraphs have no P in the clipboard HTML. Give their
         // inline previews the same paragraph slot as the original source.
         if (needsRepair && /^<img\b/.test(content)) content = `<p>${content}</p>`;
-        parts.push(content);
+        parts.push(content.replace(/<img\b(?![^>]*\bdata-inline-image=)/g, '<img data-inline-image="true"'));
       }
       output += source.slice(cursor, start) + parts.join('\n'); cursor = match.index!;
     }

@@ -31,7 +31,7 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: inline cell controls reta
           let count = 0; for (let i = 3; i < data.length; i += 4) if (data[i]) count++;
           painted.push(count);
         }
-        states.push({ order, painted, scripts: [...root.querySelectorAll('img')].map(i => i.alt), text: root.textContent, raw: /data-hwp-(svg|object)=/.test(html) });
+        states.push({ order, painted, scripts: [...root.querySelectorAll('img')].map(i => i.alt), fields: root.querySelectorAll('[data-page-number="PAGE"]').length, text: root.textContent, raw: /data-hwp-(svg|object)=/.test(html) });
         if (save < 2) { const reopened = await importFile(new File([await exportDocx(doc)], 'again.docx')); doc = { ...reopened.document, content: parseDocumentHtml(reopened.html!) }; }
       }
       return states;
@@ -42,5 +42,6 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: inline cell controls reta
     expect(state.painted).toHaveLength(7); expect(state.painted.every(n => n > 10)).toBe(true);
     for (const script of ['a over b', 'x^2', 'y over z', 'sqrt {q}']) expect(state.scripts).toContain('수식: ' + script);
     expect(state.text).toContain('UNCHANGED 한글'); expect(state.text).not.toContain('변환하지 못한'); expect(state.raw).toBe(false);
+    expect(state.fields).toBe(1);
   }
 });

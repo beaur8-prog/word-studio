@@ -84,7 +84,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const warn = (selector: string, message: string) => { if (root.querySelector(selector)) warnings.push(message); };
   warn('[data-section-page], [data-section-content], [data-column-count]', '구역별 용지·다단 설정은 첫 용지 설정으로 통합합니다.');
   warn('[data-document-note], [data-note-reference]', '각주·미주는 본문 텍스트 표시로 바뀝니다.');
-  warn('[data-page-number], [data-docx-bookmark], a', '쪽 번호·필드·책갈피·링크는 표시된 텍스트만 저장합니다.');
+  warn('[data-docx-bookmark], a', '책갈피·링크는 표시된 텍스트만 저장합니다.');
   warn('[data-image-floating]', '떠 있는 그림은 본문 흐름 안으로 옮깁니다. 자르기·회전·겹침은 유지되지 않습니다.');
   warn('[data-word-overlap]', '겹쳐 쓰기와 특수 문자는 표시된 텍스트로 저장합니다.');
   warn('table', '표의 병합과 내용은 저장하지만 복잡한 셀 너비·테두리·쪽 나눔은 달라질 수 있습니다.');

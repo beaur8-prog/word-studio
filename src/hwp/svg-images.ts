@@ -3,13 +3,49 @@ import type { EditableHwp } from './conversion';
 import type { HwpProgressReporter } from './progress';
 import { RASTER_DATA } from '../document-html';
 import { rasterizeHwpObject } from './object-preview';
+import type { PageSettings } from '../types';
 
 /** Rasterize only the parser's explicit equation and shape previews. The common image
  * importer continues to reject arbitrary SVGs and external image resources. */
 export async function prepareEditableHwp(source: EditableHwp, onProgress?: HwpProgressReporter, signal?: AbortSignal): Promise<EditableHwp> {
+  const result = await prepareBody(source, onProgress, signal);
+  const warnings = new Set(result.warnings);
+  const preparePage = async (input: PageSettings) => {
+    const page = { ...input };
+    for (const key of ['headerHtml', 'footerHtml', 'firstHeaderHtml', 'firstFooterHtml', 'evenHeaderHtml', 'evenFooterHtml'] as const) {
+      if (!page[key]) continue;
+      const story = await prepareBody({ ...source, html: page[key]! }, onProgress, signal);
+      page[key] = story.html; story.warnings.forEach(w => warnings.add(w));
+    }
+    return page;
+  };
+  const root = document.createElement('template'); root.innerHTML = result.html;
+  for (const marker of root.content.querySelectorAll('[data-section-page],[data-section-content]')) {
+    const attribute = marker.hasAttribute('data-section-page') ? 'data-section-page' : 'data-section-content';
+    const page = await preparePage(JSON.parse(marker.getAttribute(attribute)!));
+    marker.setAttribute(attribute, JSON.stringify(page));
+  }
+  return { ...result, html: root.innerHTML, page: await preparePage(result.page), warnings: [...warnings] };
+}
+
+async function prepareBody(source: EditableHwp, onProgress?: HwpProgressReporter, signal?: AbortSignal): Promise<EditableHwp> {
   signal?.throwIfAborted();
-  if (!/data-hwp-(?:svg|object|zero-line)=/.test(source.html)) return source;
+  if (!/data-hwp-(?:svg|object|zero-line|image-crop)=/.test(source.html)) return source;
   const root = document.createElement('template'); root.innerHTML = source.html;
+  for (const image of root.content.querySelectorAll<HTMLImageElement>('img[data-hwp-image-crop]')) {
+    signal?.throwIfAborted();
+    const crop = image.getAttribute('data-hwp-image-crop')!.split(',').map(Number);
+    if (crop.length !== 4 || !crop.every(n => Number.isFinite(n) && n >= 0 && n < 1) || crop[0] + crop[2] >= 1 || crop[1] + crop[3] >= 1 || !RASTER_DATA.test(image.src))
+      throw Error('한글 그림의 자르기 정보가 올바르지 않습니다.');
+    const bitmap = new Image(); bitmap.src = image.src; await bitmap.decode(); signal?.throwIfAborted();
+    const width = Number(image.getAttribute('width')), height = Number(image.getAttribute('height'));
+    if (!(width > 0 && height > 0 && width <= 10000 && height <= 10000)) throw Error('한글 그림의 크기가 올바르지 않습니다.');
+    const scale = Math.min(2, Math.sqrt(4_000_000 / (width * height))), canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.ceil(width * scale)); canvas.height = Math.max(1, Math.ceil(height * scale));
+    canvas.getContext('2d')!.drawImage(bitmap, crop[0] * bitmap.naturalWidth, crop[1] * bitmap.naturalHeight,
+      (1 - crop[0] - crop[2]) * bitmap.naturalWidth, (1 - crop[1] - crop[3]) * bitmap.naturalHeight, 0, 0, canvas.width, canvas.height);
+    image.src = canvas.toDataURL('image/png'); image.removeAttribute('data-hwp-image-crop'); canvas.width = canvas.height = 0;
+  }
   // A zero-advance heading can share its source baseline with a following
   // whitespace paragraph that reserves its height. CSS zero leading instead
   // raises the ink into the previous line. Preserve that reserved space as a

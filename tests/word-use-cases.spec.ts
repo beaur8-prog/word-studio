@@ -114,7 +114,7 @@ test('long tables repeat enabled header rows and preserve all body rows when pri
   const grid = '<w:tblGrid><w:gridCol w:w="3500"/><w:gridCol w:w="3500"/></w:tblGrid>';
   const body = `<w:tbl>${grid}<w:tr><w:trPr><w:tblHeader/></w:trPr>${cell('Item')}${cell('Amount')}</w:tr>${Array.from({ length: 80 }, (_, i) => `<w:tr>${cell(`Row ${i}`)}${cell(String(i * 100))}</w:tr>`).join('')}</w:tbl>`;
   await page.locator('input[type=file]').first().setInputFiles({ name: 'report.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: await fixture(body) });
-  await expect(page.locator('.tiptap th')).toHaveCount(2);
+  await expect(page.getByRole('textbox', { name: '문서 편집 영역' }).locator('th')).toHaveCount(2);
   await page.getByRole('button', { name: '보기', exact: true }).click();
   await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
   await expect.poll(() => page.locator('.print-page').count()).toBeGreaterThan(1);

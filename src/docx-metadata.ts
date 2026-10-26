@@ -170,6 +170,15 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             sizedTables.set(table, sourceTable);
             table.style.marginLeft = `${Number(val(child(child(sourceTable, 'tblPr'), 'tblInd'), 'w')) / 15}px`;
             table.style.marginBottom = '0px';
+            const floating = child(child(sourceTable, 'tblPr'), 'tblpPr');
+            // Page-relative tables spanning the text area can wrap only above
+            // and below. Narrow/sided floats require a separate wrap layout.
+            const grid = child(sourceTable, 'tblGrid');
+            const gridWidth = (grid ? all(grid, 'gridCol') : []).reduce((sum, col) => sum + Number(val(col, 'w')), 0) / 15;
+            const page = pages[0], margins = pageMargins(page), bodyWidth = (paperDimensions(page)[0] - margins.left - margins.right) * 96 / 25.4;
+            if (floating && val(floating, 'horzAnchor') === 'page' && val(floating, 'vertAnchor') === 'page' &&
+              !val(floating, 'tblpXSpec') && !val(floating, 'tblpYSpec') && gridWidth >= bodyWidth * .8)
+              table.dataset.tableAnchor = JSON.stringify({ x: Number(val(floating, 'tblpX')) / 15, y: Number(val(floating, 'tblpY')) / 15, bottom: Number(val(floating, 'bottomFromText')) / 15 });
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);

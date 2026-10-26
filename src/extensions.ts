@@ -22,6 +22,7 @@ import { NoteReference, DocumentNote, DocumentField, ColumnGroup, SectionContent
 import { DocumentSymbol } from './document-symbols';
 import { ColumnLayout } from './column-layout';
 import { FloatingLayout } from './floating-layout';
+import { TableAnchorLayout } from './table-anchor';
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { getSchema } from '@tiptap/core';
 
@@ -82,6 +83,9 @@ export const editorExtensions = [
   StarterKit.configure({
     link: { openOnClick: false, protocols: ["https", "http", "mailto"] },
     underline: false, strike: false,
+    // These containers already have an editable end. A synthetic paragraph
+    // outside a full final column row otherwise creates an extra blank page.
+    trailingNode: { notAfter: ['columnGroup', 'sectionContent'] },
   }),
   Underline.extend({ parseHTML() { return [...(this.parent?.() || []), { style: 'text-decoration-line', consuming: false, getAttrs: value => String(value).includes('underline') ? {} : false }]; } }),
   Strike.extend({ parseHTML() { return [...(this.parent?.() || []), { style: 'text-decoration-line', consuming: false, getAttrs: value => String(value).includes('line-through') ? {} : false }]; } }),
@@ -94,6 +98,7 @@ export const editorExtensions = [
   }),
   CellAppearance,
   TableRowResize,
+  TableAnchorLayout,
   BlockImage.configure({ allowBase64: true }),
   InlineImage,
   DocumentTab,

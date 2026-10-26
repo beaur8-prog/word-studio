@@ -28,3 +28,22 @@ module.exports = async function createShapeFixture(directory) {
   } finally { doc.free(); }
 };
 module.exports.populateShapes = populateShapes;
+module.exports.grouped = async function createGroupedFixture(directory) {
+  const core = path.dirname(require.resolve('@rhwp/core'));
+  const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
+  await init({ module_or_path: await fs.readFile(path.join(core, 'rhwp_bg.wasm')) });
+  const doc = HwpDocument.createEmpty();
+  try {
+    populateShapes(doc);
+    const targets = JSON.parse(doc.getControls()).filter(c => c.list === 0 && c.ctrlId === 'gso').map(c => ({ paraIdx: c.para, controlIdx: c.controlIndex }));
+    const group = JSON.parse(doc.groupShapes(JSON.stringify({ sectionIdx: 0, targets })));
+    if (!group.ok) throw Error('Could not create group fixture');
+    doc.setShapeProperties(0, group.paraIdx, group.controlIdx, JSON.stringify({ treatAsChar: true }));
+    const files = {};
+    for (const format of ['hwp', 'hwpx']) {
+      files[format] = path.join(directory, 'group.' + format);
+      await fs.writeFile(files[format], format === 'hwp' ? doc.exportHwp() : doc.exportHwpx());
+    }
+    return files;
+  } finally { doc.free(); }
+};

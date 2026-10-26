@@ -5,6 +5,8 @@ import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
 import { imageFloating } from './image-floating';
+import { layoutFurnitureImages } from './furniture-layout';
+import { layoutTableAnchors } from './table-anchor';
 
 export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
@@ -89,11 +91,12 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (furniture.footerHtml) footerText.innerHTML = sanitizeImportedHtml(furniture.footerHtml).html; else footerText.textContent = furniture.footer;
     footer.append(footerText);
     for (const field of [...header.querySelectorAll('[data-page-number]'), ...footer.querySelectorAll('[data-page-number]')]) field.textContent = String(pageNumber);
-    if (furniture.pageNumbers && !header.querySelector('[data-page-number]') && !footer.querySelector('[data-page-number]')) { const number = document.createElement('span'); number.textContent = String(pageNumber); footer.append(number); }
+    if (furniture.pageNumbers && !header.querySelector('[data-page-number]') && !footer.querySelector('[data-page-number]')) { const number = document.createElement('span'); number.className = 'print-automatic-number'; number.textContent = String(pageNumber); footer.append(number); }
     for (const el of [header, footer]) { el.style.left = `${margins.left * PX}px`; el.style.right = `${margins.right * PX}px`; }
     header.style.top = `${(settings.headerDistance ?? Math.max(0, margins.top / 2 - 3)) * PX}px`;
     footer.style.bottom = `${(settings.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)) * PX}px`;
     paper.append(header, content, footer); host.append(paper);
+    layoutFurnitureImages(paper);
     const meaningful = (element: HTMLElement) => element.textContent?.trim() || element.querySelector('img,table');
     const top = Math.max(margins.top * PX, meaningful(header) ? header.offsetTop + header.getBoundingClientRect().height + 2 : 0);
     const bottom = Math.max(margins.bottom * PX, meaningful(footer) ? parseFloat(footer.style.bottom) + footer.getBoundingClientRect().height + 2 : 0);
@@ -105,6 +108,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   }
   function fits() {
     refreshNotes();
+    layoutTableAnchors(content);
     layoutWordLines(content);
     layoutTabs(content);
     layoutColumns(content, content.getBoundingClientRect().bottom);
@@ -282,7 +286,19 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       const next = JSON.parse(element.getAttribute('data-section-page')!) as PageSettings;
       const sameSize = dimensions(settings).join(',') === dimensions(next).join(',');
       settings = next; sectionNumber++; sectionPage = 0;
-      if (next.breakType === 'continuous' && sameSize) { sectionPage = 1; return; }
+      if (next.breakType === 'continuous' && sameSize) {
+        sectionPage = 1;
+        const paper = content.closest<HTMLElement>('.print-page')!, furniture = pageFurniture(settings, pageNumber, true);
+        const header = paper.querySelector<HTMLElement>('.print-header')!, footer = paper.querySelector<HTMLElement>('.print-footer .document-furniture')!;
+        if (furniture.headerHtml) header.innerHTML = sanitizeImportedHtml(furniture.headerHtml).html; else header.textContent = furniture.header;
+        if (furniture.footerHtml) footer.innerHTML = sanitizeImportedHtml(furniture.footerHtml).html; else footer.textContent = furniture.footer;
+        paper.querySelector('.print-automatic-number')?.remove();
+        if (furniture.pageNumbers && !header.querySelector('[data-page-number]') && !footer.querySelector('[data-page-number]')) {
+          const number = document.createElement('span'); number.className = 'print-automatic-number'; number.textContent = String(pageNumber); footer.parentElement!.append(number);
+        }
+        layoutFurnitureImages(paper);
+        return;
+      }
       const meaningful = content.textContent?.trim() || content.querySelector('img,table,[data-note-reference]');
       if (!meaningful) { content.closest('.print-page')!.remove(); pageNumber--; }
       if (next.breakType === 'oddPage' || next.breakType === 'evenPage') {
@@ -297,6 +313,16 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
     if (element.hasAttribute('data-section-content')) { for (const child of [...element.children]) append(child as HTMLElement); return; }
     if (element.hasAttribute('data-column-count')) {
+      if ([...element.children].some(child => child.hasAttribute('data-page-break') || child.hasAttribute('data-section-page'))) {
+        let part = element.cloneNode(false) as HTMLElement;
+        for (const child of [...element.children]) {
+          if (child.hasAttribute('data-page-break') || child.hasAttribute('data-section-page')) {
+            if (part.children.length) append(part); append(child as HTMLElement); part = element.cloneNode(false) as HTMLElement;
+          } else part.append(child);
+        }
+        if (part.children.length) append(part);
+        return;
+      }
       if (Number(element.dataset.columnCount) === 1) { for (const child of [...element.children]) append(child as HTMLElement); return; }
       content.append(element); if (fits()) return;
       // Split at block boundaries first. Character-only ranges lose the

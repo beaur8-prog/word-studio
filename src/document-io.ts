@@ -23,6 +23,7 @@ import {
   PageOrientation,
   Paragraph,
   Table,
+  TableAnchorType,
   TableCell,
   TableRow,
   TextRun,
@@ -53,6 +54,7 @@ import { parseDocumentHtml } from './extensions';
 import { imageFloating, restoreImageGeometry, type ImageGeometryRecord } from './image-floating';
 import type { PageSettings, StudioDocument } from "./types";
 import { PreservedTableCell } from './docx-table-cell';
+import { tableAnchor } from './table-anchor';
 import documentLimits from '../electron/document-limits.json';
 
 export interface ImportResult {
@@ -1240,12 +1242,15 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             }),
           );
         }
+        const anchor = tableAnchor(node.attrs?.tableAnchor);
         output.push(
           new Table({
             rows,
             width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
             ...(node.attrs?.tableIndent ? { indent: { size: Math.round(Number.parseFloat(node.attrs.tableIndent) * 15) || 0, type: WidthType.DXA } } : {}),
             columnWidths,
+            ...(anchor ? { float: { horizontalAnchor: TableAnchorType.PAGE, verticalAnchor: TableAnchorType.PAGE,
+              absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round(anchor.y * 15), bottomFromText: Math.round(anchor.bottom * 15) } } : {}),
           }),
         );
       }

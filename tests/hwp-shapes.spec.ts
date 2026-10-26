@@ -3,9 +3,43 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 const createFixture = createRequire(import.meta.url)('./hwp-shape-fixture.cjs');
-let directory: string, files: Record<string, string>;
-test.beforeAll(async () => { directory = await fs.mkdtemp(path.resolve('.cache/hwp-shapes-')); files = await createFixture(directory); });
+let directory: string, files: Record<string, string>, grouped: Record<string, string>;
+test.beforeAll(async () => { directory = await fs.mkdtemp(path.resolve('.cache/hwp-shapes-')); files = await createFixture(directory); grouped = await createFixture.grouped(directory); });
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
+
+for (const format of ['hwp', 'hwpx']) test(`${format}: a grouped drawing remains one inline image through two DOCX saves`, async ({ page }) => {
+  await page.goto('/');
+  const states = await page.evaluate(async ({ bytes, format }) => {
+    const { HwpReaderSession } = await import('/src/hwp/reader.ts');
+    const { importEditableHwp } = await import('/src/hwp/editing.ts');
+    const { exportDocx, importFile } = await import('/src/document-io.ts');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js');
+    const { editorExtensions, parseDocumentHtml } = await import('/src/extensions.ts');
+    const session = new HwpReaderSession();
+    try {
+      await session.open(new File([new Uint8Array(bytes)], 'group.' + format));
+      let doc = importEditableHwp(await session.editable(), 'group.' + format);
+      const states = [];
+      for (let save = 0; save < 3; save++) {
+        const root = document.createElement('div'); root.innerHTML = generateHTML(doc.content, editorExtensions);
+        const images = [...root.querySelectorAll('img')];
+        states.push({ text: root.textContent, images: await Promise.all(images.map(async img => {
+          await img.decode(); const canvas = document.createElement('canvas'); canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext('2d')!; ctx.drawImage(img, 0, 0); const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+          let painted = 0; for (let i = 3; i < pixels.length; i += 4) if (pixels[i]) painted++;
+          return { src: img.src, alt: img.alt, floating: img.hasAttribute('data-image-floating'), painted };
+        })) });
+        if (save < 2) { const reopened = await importFile(new File([await exportDocx(doc)], 'again.docx')); doc = { ...reopened.document, content: parseDocumentHtml(reopened.html!) }; }
+      }
+      return states;
+    } finally { session.close(); }
+  }, { bytes: [...await fs.readFile(grouped[format])], format });
+  for (const state of states) {
+    expect(state.text).toContain('BODY TEXT'); expect(state.text).not.toContain('원본 보기'); expect(state.images).toHaveLength(1);
+    expect(state.images[0].alt).toContain('TITLE 한글'); expect(state.images[0].floating).toBe(false); expect(state.images[0].painted).toBeGreaterThan(100);
+    expect(state.images[0].src).toBe(states[0].images[0].src);
+  }
+});
 
 for (const format of ['hwp', 'hwpx']) test(`${format}: floating textbox and ellipse keep their pixels, page anchors and descriptions through DOCX`, async ({ page }) => {
   await page.goto('/');

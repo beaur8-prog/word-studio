@@ -58,9 +58,22 @@ export function structureDocxSections(html: string, pages: PageSettings[]) {
     if (!children.length) return;
     let nodes = children; children = [];
     if ((page?.columns?.count || 1) > 1) {
-      const columns = document.createElement('div'); columns.dataset.columnCount = String(page.columns!.count);
-      columns.dataset.columnSpace = String(page.columns!.space); columns.append(...nodes); nodes = [columns];
-      columns.dataset.columnBalance = String(page.columns!.balance !== false);
+      // A Word page break ends every column on the current sheet. Keeping it
+      // inside a CSS multicol box merely advances/extends that box and loses
+      // the physical page boundary on reopen. Preserve the section wrapper,
+      // but put each break between its column groups.
+      const output: Element[] = [];
+      let columns: HTMLDivElement | undefined;
+      for (const child of nodes) {
+        if (child.hasAttribute('data-page-break')) { columns = undefined; output.push(child); continue; }
+        if (!columns) {
+          columns = document.createElement('div'); columns.dataset.columnCount = String(page.columns!.count);
+          columns.dataset.columnSpace = String(page.columns!.space); columns.dataset.columnBalance = String(page.columns!.balance !== false);
+          output.push(columns);
+        }
+        columns.append(child);
+      }
+      nodes = output;
     }
     if (differentSizes && page) {
       const section = document.createElement('div'); section.dataset.sectionContent = JSON.stringify(page); section.append(...nodes); nodes = [section];

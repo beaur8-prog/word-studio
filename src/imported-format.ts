@@ -1,6 +1,7 @@
 import { Extension } from '@tiptap/core';
 import { TableView } from '@tiptap/extension-table';
 import type { Node } from '@tiptap/pm/model';
+import { tableAnchor } from './table-anchor';
 
 const properties = {
   spaceBefore: 'margin-top', spaceAfter: 'margin-bottom', rightIndent: 'margin-right', firstLineIndent: 'text-indent',
@@ -40,6 +41,8 @@ export const ImportedFormat = Extension.create({
         renderHTML: (a: Record<string, unknown>) => ['solid','double','dotted','dashed','wavy'].includes(String(a.decorationStyle)) ? { style: `text-decoration-style:${a.decorationStyle}` } : {} },
       } },
       { types: ['table'], attributes: {
+        tableAnchor: { default: null, parseHTML: (el: HTMLElement) => { const a = tableAnchor(el.dataset.tableAnchor); return a ? JSON.stringify(a) : null; },
+          renderHTML: (a: Record<string, unknown>) => tableAnchor(a.tableAnchor) ? { 'data-table-anchor': a.tableAnchor } : {} },
         tableIndent: { default: null, parseHTML: (el: HTMLElement) => el.style.marginLeft || null,
           renderHTML: (a: Record<string, unknown>) => a.tableIndent ? { style: `margin-left:${css('margin-left', a.tableIndent)}` } : {} },
         tableSpacing: { default: null, parseHTML: (el: HTMLElement) => el.style.marginBottom || null,
@@ -53,8 +56,13 @@ export const ImportedFormat = Extension.create({
 export class StudioTableView extends TableView {
   constructor(...args: ConstructorParameters<typeof TableView>) { super(...args); this.applyFormat(); }
   applyFormat() {
+    const anchor = tableAnchor(this.node.attrs.tableAnchor);
+    if (anchor) this.table.dataset.tableAnchor = JSON.stringify(anchor); else { delete this.table.dataset.tableAnchor; this.dom.style.removeProperty('margin-top'); }
     this.dom.style.marginBottom = css('margin-bottom', this.node.attrs.tableSpacing);
     this.dom.style.marginLeft = css('margin-left', this.node.attrs.tableIndent);
   }
   update(node: Node) { const updated = super.update(node); if (updated) this.applyFormat(); return updated; }
+  ignoreMutation(mutation: Parameters<TableView['ignoreMutation']>[0]) {
+    return mutation.type === 'attributes' && (mutation.target === this.dom || mutation.target === this.table) || super.ignoreMutation(mutation);
+  }
 }

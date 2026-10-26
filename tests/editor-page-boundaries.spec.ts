@@ -154,8 +154,18 @@ test('editable page gutters preserve a continuing row minimum height and saved m
   await page.locator('input[type=file]').first().setInputFiles({ name: 'reserve.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(doc)) });
   await expect.poll(() => page.locator('.tiptap tr.pagination-split-row').evaluateAll(rows => {
     const row = rows[0]; if (!row) return 0;
-    const gap = [...row.querySelectorAll<HTMLElement>('.pagination-cell-gap')].reduce((n, g) => n + g.getBoundingClientRect().height, 0);
-    return row.getBoundingClientRect().height - gap;
+    // Count the row's visible space on paper, including repeated cell padding.
+    // A cell widget contains that padding as well as the physical paper gutter;
+    // subtracting its entire height incorrectly removes part of the form.
+    const root = row.closest<HTMLElement>('.tiptap')!, sheet = root.closest<HTMLElement>('.document-stack')!;
+    const origin = root.getBoundingClientRect().top, box = row.getBoundingClientRect();
+    const height = Number(sheet.dataset.pageHeight), top = Number(sheet.dataset.margin), bottom = Number(sheet.dataset.bottomMargin);
+    let visible = 0;
+    for (let page = 0; page < Number(sheet.dataset.pages); page++) {
+      const start = origin + page * (height + 24);
+      visible += Math.max(0, Math.min(box.bottom, start + height - bottom) - Math.max(box.top, start + top));
+    }
+    return visible;
   })).toBeGreaterThanOrEqual(1099.5);
   const download = page.waitForEvent('download'); await page.keyboard.press('ControlOrMeta+s');
   const saved = JSON.parse(await (await import('node:fs/promises')).readFile((await (await download).path())!, 'utf8'));

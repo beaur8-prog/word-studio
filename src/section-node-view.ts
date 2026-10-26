@@ -1,6 +1,7 @@
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { defaultPage, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { sanitizeImportedHtml } from './document-html';
+import { layoutFurnitureImages } from './furniture-layout';
 
 export function sectionSettings(raw: unknown): PageSettings {
   try {
@@ -49,6 +50,7 @@ export class SectionNodeView {
         header.style.top = `${(page.headerDistance ?? Math.max(0, margins.top / 2 - 3)) * px}px`;
         footer.style.bottom = `${(page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)) * px}px`;
         paper.append(header, footer); this.backgrounds.append(paper);
+        layoutFurnitureImages(paper);
         this.observer.observe(header); this.observer.observe(footer);
         for (const field of paper.querySelectorAll<HTMLElement>('[data-page-number]')) field.textContent = String(field.dataset.pageNumber === 'NUMPAGES' ? count : i + 1);
       }

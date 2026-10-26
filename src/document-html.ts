@@ -87,6 +87,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-comment-ids",
       "data-inline-image",
       "data-image-floating",
+      "data-table-anchor",
       "data-docx-tab", "data-tab-stops",
       "data-word-line-rule", "data-word-line",
       "data-word-row-rule",

@@ -3,7 +3,11 @@ import type { PageSettings } from '../types';
 import documentLimits from '../../electron/document-limits.json';
 import type { HwpProgressReporter } from './progress';
 import type { HwpLayoutMetadata } from './layout-metadata';
-import { cellContents, restoreCellContent, type CellPath } from './cell-content';
+import { cellContents, restoreCellContent, entities, type CellPath } from './cell-content';
+import { serializedParts } from './serialized-parts';
+import { olePreview } from './ole-preview';
+import { headerDefinitions, headerPreviewPage, headerLayer, hiddenStories } from './header-stories';
+import { stageHwpFields } from './export-fields';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -60,6 +64,7 @@ function paragraphCss(properties: Record<string, any>, char?: Record<string, any
   const spacing = Number.isFinite(cap) && Number.isFinite(height) && height > cap! && cap! >= fontPx ? `${cap}px`
     : properties.lineSpacingType === 'Percent' ? `${line}%` : Number.isFinite(height) ? `${height}px` : '';
   return `margin-left:${left}px;margin-right:${(Number(properties.marginRight) || 0)}px;text-indent:${indent}px;` +
+    (['left', 'center', 'right', 'justify'].includes(properties.alignment) ? `text-align:${properties.alignment};` : '') +
     (includeSpacing ? `margin-top:${(Number(properties.spacingBefore) || 0) / 2}px;margin-bottom:${(Number(properties.spacingAfter) || 0) / 2}px;` : '') +
     (char?.fontSize ? `font-size:${char.fontSize / 100}pt;font-family:${escape(JSON.stringify(char.fontFamily || 'serif'))};` : '') +
     (spacing ? `line-height:${spacing};` : '');
@@ -217,7 +222,13 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   const controls: Control[] = JSON.parse(doc.getControls());
   const pitches = sourceLinePitches(doc);
   let equations: ReturnType<typeof cellContents> | undefined;
-  const equationMetadata = () => equations ??= cellContents(doc);
+  let parts: ReturnType<typeof serializedParts> | undefined;
+  const serialized = () => {
+    if (parts) return parts;
+    try { return parts = serializedParts(doc); }
+    catch { warnings.add('일부 개체의 보조 서식 정보를 읽지 못했습니다. 원본 보기와 비교하세요.'); return parts = {}; }
+  };
+  const equationMetadata = () => equations ??= cellContents(doc, serialized());
   const equationHtml = (equation: { script: string; fontSize: number; color: number; width: number; height: number }) => {
     const svg = doc.renderEquationPreview(equation.script, equation.fontSize || 1200, equation.color || 0);
     const width = equation.width > 0 ? px(equation.width) : Number(svg.match(/\bwidth="([\d.]+)"/)?.[1]);
@@ -248,10 +259,17 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     behindDocument: props.textWrap === 'BehindText', allowOverlap: props.allowOverlap, layoutInCell: true,
   });
   const overlays = new Map<number, any[]>();
+  const croppedPicture = (html: string, props: any) => {
+    const crop = [props.cropLeft / props.originalWidth, props.cropTop / props.originalHeight,
+      props.cropRight / props.originalWidth, props.cropBottom / props.originalHeight];
+    if (crop.every(n => Number.isFinite(n) && n >= 0 && n < 1) && crop.some(n => n > 0) && crop[0] + crop[2] < 1 && crop[1] + crop[3] < 1)
+      return html.replace(/<img\b/, `<img data-hwp-image-crop="${crop.join(',')}"`);
+    return html;
+  };
   const pictureHtml = (section: number, para: number, control: Control): string | undefined => {
     let props: any;
     try { props = JSON.parse(doc.getPictureProperties(section, para, control.controlIndex)); } catch { return; }
-    if (props.treatAsChar) return;
+    if (props.treatAsChar) return croppedPicture(fragment(doc.exportControlHtml(section, para, '[]', control.controlIndex)), props);
     const position = controlPosition(section, para, control.controlIndex);
     if (!position) return;
     let images = overlays.get(position.page);
@@ -293,13 +311,13 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       if (matches.length === 1) { const b = matches[0].bounds; return { type: 'shape', page: box.pageIndex, x: b.x, y: b.y, w: b.width, h: b.height }; }
     }
   };
-  const objectHtml = (position: any, props: any, label: string, cell = false): string | undefined => {
+  const objectHtml = (position: any, props: any, label: string, cell = false, subtree?: any): string | undefined => {
     try {
-      if (!position || !['shape', 'line', 'ellipse', 'polygon'].includes(position.type)) return;
+      if (!position || !['shape', 'line', 'ellipse', 'polygon', 'group'].includes(position.type)) return;
       if (!pageLayer(position.page)) return;
       // Select one object subtree, never crop a page: a crop would also copy
       // unrelated text and background pictures underneath the shape.
-      const matches: any[] = [];
+      const matches: any[] = subtree ? [subtree] : [];
       const find = (node: any, depth = 0) => {
         if (!node || depth > 40) return;
         const b = node.bounds;
@@ -310,7 +328,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         node.children?.forEach((child: any) => find(child, depth + 1));
         if (node.child) find(node.child, depth + 1);
       };
-      find(layerRoot);
+      if (!subtree) find(layerRoot);
       if (matches.length !== 1) return;
       const node = matches[0], text: string[] = [];
       let count = 0, stroke = 0;
@@ -345,6 +363,68 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       return objectHtml(controlPosition(section, para, control.controlIndex), props, control.userDesc, !!props.treatAsChar);
     } catch { return; }
   };
+  const storyChanges = new Map<string, Partial<PageSettings>>(), restoredHeaders = new Set<string>();
+  // The raw selection exporter omits rich header stories. Reuse the isolated
+  // header layer (never a page crop), with PAGE controls kept as live fields.
+  for (const definition of headerDefinitions(serialized())) {
+    const key = `${definition.section}:${definition.para}`, page = pageSettings(doc, definition.section, warnings);
+    const names = definition.apply === 0 ? [definition.kind, definition.kind === 'header' ? 'evenHeader' : 'evenFooter']
+      : [definition.apply === 1 ? definition.kind === 'header' ? 'evenHeader' : 'evenFooter' : definition.kind];
+    const text = [...definition.xml.matchAll(/<hp:t>([^<]*)<\/hp:t>/g)].map(m => m[1]).join('');
+    const rich = /<hp:(?:rect|line|pic|ellipse|polygon|container|tbl|equation|ole|autoNum)\b/.test(definition.xml);
+    let html = text ? `<p>${text}</p>` : '', preserved = !rich;
+    if (rich) {
+      const index = headerPreviewPage(doc, definition);
+      const original = index === undefined ? undefined : headerLayer(pageLayer(index), definition.kind);
+      if (original) {
+        const layer = JSON.parse(JSON.stringify(original)), fields: any[] = [];
+        const fieldCount = [...definition.xml.matchAll(/<hp:autoNum\b[^>]*numType="PAGE"/g)].length;
+        const visit = (node: any) => {
+          for (const op of node.ops ?? []) if (op.type === 'textRun' && op.displayText && op.displayText !== op.text) {
+            const original = Array.from(op.text as string), display = Array.from(op.displayText as string);
+            let from = 0, suffix = 0;
+            while (from < Math.min(original.length, display.length) && original[from] === display[from]) from++;
+            while (suffix < Math.min(original.length, display.length) - from && original.at(-suffix - 1) === display.at(-suffix - 1)) suffix++;
+            const end = display.length - suffix, positions = op.displayPositions ?? op.positions;
+            if (!original.slice(from, original.length - suffix).join('').trim() && /^\d+$/.test(display.slice(from, end).join('')) && positions?.length === display.length + 1) {
+              fields.push({ op, from, end, bbox: { ...op.bbox, x: op.bbox.x + positions[from], width: positions[end] - positions[from] } });
+            }
+          }
+          node.children?.forEach(visit); if (node.child) visit(node.child);
+        };
+        visit(layer);
+        // Require an exact count; symbol projections must not be mistaken for
+        // page fields in a story with unrelated special characters.
+        if (fields.length === fieldCount) {
+          const dynamic = fields.map(field => {
+            const op = field.op, s = op.paintStyle ?? op.style, b = field.bbox;
+            const left = b.x - (page.margins?.left ?? page.margin) * 96 / 25.4;
+            const top = b.y - (page.headerDistance ?? 0) * 96 / 25.4;
+            return `<p style="margin-left:${left}px;margin-top:${top}px;margin-bottom:0;line-height:${b.height}px;font-size:${s.fontSize}px;"><span style="font-family:${escape(JSON.stringify(s.fontFamily))};font-size:${s.fontSize}px;color:${s.color};${s.bold ? 'font-weight:bold;' : ''}"><span data-page-number="PAGE">1</span></span></p>`;
+          }).join('');
+          for (const field of fields) {
+            const glyphs = Array.from(field.op.displayText as string);
+            glyphs.fill(' ', field.from, field.end); field.op.displayText = glyphs.join('');
+          }
+          const b = layer.bounds;
+          const image = objectHtml({ type: 'group', page: index, x: b.x, y: b.y, w: b.width, h: b.height }, { textWrap: 'InFrontOfText' }, definition.kind === 'header' ? '머리말' : '꼬리말', false, layer);
+          if (image) { html = dynamic + `<p style="line-height:1px;margin:0;font-size:1px">${image}</p>`; preserved = true; }
+        }
+      }
+    }
+    if (!preserved) { warnings.add('일부 머리말·꼬리말의 개체를 복원하지 못했습니다. 원본 보기와 비교하세요.'); continue; }
+    const patch = storyChanges.get(key) ?? { differentFirstPage: false };
+    if (definition.apply) patch.differentOddEven = true;
+    for (const name of names) { (patch as any)[name] = entities(text); (patch as any)[name + 'Html'] = rich ? html : undefined; }
+    storyChanges.set(key, patch); restoredHeaders.add(key);
+  }
+  for (const hidden of hiddenStories(serialized())) {
+    const key = `${hidden.section}:${hidden.para}`;
+    const patch: Partial<PageSettings> = { ...storyChanges.get(key), differentFirstPage: true };
+    if (hidden.header) { patch.firstHeader = ''; patch.firstHeaderHtml = ''; }
+    if (hidden.footer) { patch.firstFooter = ''; patch.firstFooterHtml = ''; patch.firstPageNumbers = false; }
+    storyChanges.set(key, patch);
+  }
   const byParagraph = new Map<number, Control[]>();
   for (const c of controls) {
     if (c.list === 0) { const list = byParagraph.get(c.para) ?? []; list.push(c); byParagraph.set(c.para, list); }
@@ -354,10 +434,12 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   let globalPara = 0, size = 0;
   const append = (value: string) => { size += hwpHtmlBytes(value) + (pieces.length ? 1 : 0); checkHwpHtmlSize(size); pieces.push(value); };
   const firstPage = pageSettings(doc, 0, warnings);
+  Object.assign(firstPage, storyChanges.get('0:0'));
   const total = Array.from({ length: doc.getSectionCount() }, (_, section) => doc.getParagraphCount(section)).reduce((sum, count) => sum + count, 0);
   onProgress?.({ label: '본문·표·그림을 변환하는 중…', completed: 0, total, unit: '문단' });
   for (let section = 0; section < doc.getSectionCount(); section++) {
-    if (section) { const page = pageSettings(doc, section, warnings); append(`<div data-section-page="${escape(JSON.stringify(page))}"></div>`); }
+    let currentPage = section ? { ...pageSettings(doc, section, warnings), ...storyChanges.get(`${section}:0`) } : firstPage;
+    if (section) append(`<div data-section-page="${escape(JSON.stringify(currentPage))}"></div>`);
     const column = JSON.parse(doc.getColumnDef(section));
     let columnCount = column.columnCount ?? column.count ?? 1, columnSpace = px(column.spacing ?? 0);
     const hasColumns = columnCount > 1 || Object.entries(metadata?.paragraphs ?? {}).some(([key, p]) => key.startsWith(section + ':') && (p.columns?.count ?? 1) > 1);
@@ -371,6 +453,11 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       if (structure?.columns) { closeColumns(); columnCount = structure.columns.count; columnSpace = structure.columns.space; openColumns(); }
       if (properties.pageBreakBefore || structure?.pageBreak) { closeColumns(); append('<div data-page-break="true"></div>'); openColumns(); }
       else if (structure?.columnBreak) append('<div data-column-break="true"></div>');
+      const stories = storyChanges.get(`${section}:${para}`);
+      if (para && stories) {
+        closeColumns(); currentPage = { ...currentPage, ...stories, breakType: 'continuous' };
+        append(`<div data-section-page="${escape(JSON.stringify(currentPage))}"></div>`); openColumns();
+      }
       // Some forms are editable text tables over a paper/background picture
       // in the same anchor paragraph. Stacking both blocks doubles their
       // height. Preserve an unambiguous one-cell overlay as a local backdrop.
@@ -424,6 +511,8 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const pitch = pitches.get(`${section}:${para}`);
       if (pitch) open = cssStyle(open, `line-height:${pitch}px;`);
       const inline = (html: string) => html.replace(/^<p\b[^>]*>\s*/, '').replace(/<\/p>\s*$/, '');
+      const onlyFloating = (html: string) => html.includes('data-image-floating') && !html.replace(/<[^>]*>/g, '').trim() &&
+        [...html.matchAll(/<img\b[^>]*>/g)].every(m => m[0].includes('data-image-floating'));
       let cursor = 0, content = '', contentBytes = 0;
       const appendInline = (value: string) => { contentBytes += hwpHtmlBytes(value); checkHwpHtmlSize(size + contentBytes); content += value; };
       for (const c of byParagraph.get(globalPara) ?? []) {
@@ -434,7 +523,26 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         appendInline(inline(range(cursor, pos))); cursor = pos;
         onProgress?.({ label: c.ctrlId === 'tbl' ? '표를 변환하는 중…' : c.ctrlId === 'gso' ? '그림·도형을 변환하는 중…' : '문서 개체를 변환하는 중…' });
         let controlHtml = fragment(doc.exportControlHtml(section, para, '[]', c.controlIndex));
-        if (c.ctrlId === 'gso') controlHtml = pictureHtml(section, para, c) ?? shapeHtml(section, para, c) ?? controlHtml;
+        if (c.ctrlId === 'atno') {
+          const ordinal = paragraphControls.filter(c => c.ctrlId === 'atno').indexOf(c);
+          const type = equationMetadata().get(`${section}:${para}`)?.controls.filter(c => c.kind === 'autoNum')[ordinal]?.numberType;
+          if (type === 'PAGE' || type === 'TOTAL_PAGE') controlHtml = `<span data-page-number="${type === 'PAGE' ? 'PAGE' : 'NUMPAGES'}">1</span>`;
+        }
+        if (c.ctrlId === 'gso') {
+          controlHtml = pictureHtml(section, para, c) ?? shapeHtml(section, para, c) ?? controlHtml;
+          if (c.userDesc === 'OLE' && c.props.TreatAsChar) {
+            const ordinal = paragraphControls.filter(c => c.userDesc === 'OLE').indexOf(c);
+            const info = equationMetadata().get(`${section}:${para}`)?.controls.filter(c => c.kind === 'ole')[ordinal];
+            const bytes = info?.binaryItem && serialized()[`BinData/${info.binaryItem}.OLE`];
+            const preview = bytes ? olePreview(bytes) : undefined;
+            const width = px((c.props as any).Width), height = px((c.props as any).Height);
+            if (preview && width > 0 && height > 0 && width <= 10000 && height <= 10000) {
+              let binary = ''; for (let i = 0; i < preview.bytes.length; i += 8192) binary += String.fromCharCode(...preview.bytes.subarray(i, i + 8192));
+              controlHtml = `<img data-inline-image="true" src="data:image/bmp;base64,${btoa(binary)}" width="${width}" height="${height}" alt="${escape('OLE 미리보기' + (preview.description ? ': ' + preview.description : ''))}" />`;
+              warnings.add('OLE 개체는 파일에 저장된 미리보기 그림으로 가져옵니다. 원본 OLE 데이터는 원본 한글 파일에 남아 있으며 편집본에서는 개체 내부를 편집할 수 없습니다.');
+            }
+          }
+        }
         if (c.ctrlId === 'tbl') {
           const ordinal = (byParagraph.get(globalPara) ?? []).filter(c => c.ctrlId === 'tbl').indexOf(c);
           controlHtml = restoreCellContent(doc, section, para, c.controlIndex, ordinal, controlHtml, equationHtml, (path, index) => {
@@ -442,7 +550,10 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
               const props = JSON.parse(doc.getCellShapePropertiesByPath(section, para, JSON.stringify(path), index));
               return objectHtml(cellShapePosition(section, para, path, index, props), props, props.description || '도형', true);
             } catch { return; }
-          }, warnings, equationMetadata);
+          }, warnings, equationMetadata, restoredHeaders.has(`${section}:${para}`), (path, index, html) => {
+            try { return croppedPicture(html, JSON.parse(doc.getCellPicturePropertiesByPath(section, para, JSON.stringify(path), index))); }
+            catch { return html; }
+          });
           controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches);
           const background = tableBackgrounds.get(c.controlIndex);
           if (background) {
@@ -476,10 +587,16 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
           warnings.add(`${c.userDesc || c.ctrlId} 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.`);
         }
         if (/^<(?:table|p)\b/.test(controlHtml)) {
-          if (content.trim()) append(open + content + '</p>');
+          if (content.trim()) append((onlyFloating(content) ? cssStyle(open, 'line-height:1px;margin-top:0;margin-bottom:0;') : open) + content + '</p>');
           const tableWidth = Number(controlHtml.match(/^<table[^>]*style="[^"]*width:([\d.]+)px/)?.[1]);
           const pd: PageDef = JSON.parse(doc.getPageDef(section));
           const fullWidth = columnCount > 1 && tableWidth > px((pd.landscape ? pd.height : pd.width) - pd.marginLeft - pd.marginRight) / columnCount * 1.35;
+          if (para === 0 && /^<table\b/.test(controlHtml) && tableWidth >= px((pd.landscape ? pd.height : pd.width) - pd.marginLeft - pd.marginRight) * .8) {
+            const props = JSON.parse(doc.getTableProperties(section, para, c.controlIndex)), position = controlPosition(section, para, c.controlIndex);
+            const pages = new Set(JSON.parse(doc.getTableCellBboxes(section, para, c.controlIndex)).map((b: any) => b.pageIndex));
+            if (!props.treatAsChar && props.textWrap === 'TopAndBottom' && props.vertRelTo === 'Paper' && props.horzRelTo === 'Paper' && position && pages.size === 1)
+              controlHtml = controlHtml.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify({ x: position.x, y: position.y, bottom: px(props.outerBottom || 0) }))}"`);
+          }
           if (fullWidth) { closeColumns(); append('<div data-column-count="1" data-column-space="0">'); }
           append(controlHtml);
           if (fullWidth) { append('</div>'); openColumns(); }
@@ -489,7 +606,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       appendInline(inline(range(cursor, 0xffffffff)));
       // Keep real blank paragraphs, but avoid an extra empty paragraph after a table.
       if (content.trim() || !(byParagraph.get(globalPara) ?? []).some(c => c.ctrlId === 'tbl')) {
-        if (content.includes('data-image-floating') && !content.replace(/<[^>]*>/g, '').trim() && !pitches.has(`flow:${section}:${para}`))
+        if (onlyFloating(content))
           open = cssStyle(open, 'line-height:1px;margin-top:0;margin-bottom:0;');
         append(open + content + '</p>');
       }
@@ -567,12 +684,13 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
   if (typeof html !== 'string' || !html) throw new Error('저장할 편집 문서가 없습니다.');
   checkHwpHtmlSize(hwpHtmlBytes(html));
   if (!['hwp', 'hwpx'].includes(format)) throw new Error('지원하지 않는 한글 저장 형식입니다.');
-  const doc = Core.createEmpty();
+  let doc = Core.createEmpty();
   try {
     // A real Hancom template supplies valid HWP 5.1 DocInfo and default styles.
     doc.createBlankDocument();
     const breakToken = 'WORDSTUDIO-PAGE-BREAK-' + crypto.randomUUID();
-    const converted = html.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
+    const fields = stageHwpFields(html);
+    const converted = fields.html.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
     // The first pasted paragraph inherits the host's paragraph shape even on
     // the multi-paragraph path. Sacrifice a leading blank, then remove both
     // sentinels. The writer rebuilds section controls from the section model.
@@ -590,6 +708,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
       doc.applyParaFormat(0, p, JSON.stringify({ pageBreakBefore: true }));
     }
     setHwpPage(doc, page);
+    const withFields = fields.restore(Core, doc);
+    if (withFields !== doc) { doc.free(); doc = withFields; }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {

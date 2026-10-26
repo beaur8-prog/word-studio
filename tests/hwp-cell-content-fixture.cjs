@@ -23,7 +23,8 @@ module.exports = async function createCellContentFixture(directory) {
     xml = xml.replace('<hp:t>FIRST</hp:t>', `<hp:t>BEFORE </hp:t>${eq('x^2')}<hp:t> MIDDLE </hp:t>${eq('y over z')}<hp:t> AFTER</hp:t>`)
       .replace('<hp:t>NESTED</hp:t>', eq('sqrt {q}'))
       .replace('<hp:t>SHAPE</hp:t>', rect())
-      .replace('<hp:t>NESTED_SHAPE</hp:t>', rect());
+      .replace('<hp:t>NESTED_SHAPE</hp:t>', rect())
+      .replace('<hp:t>UNCHANGED 한글</hp:t>', '<hp:t>UNCHANGED 한글</hp:t><hp:ctrl><hp:header id="100500" applyPageType="BOTH"><hp:subList id="0" textDirection="HORIZONTAL" lineWrap="BREAK" vertAlign="TOP" linkListIDRef="0" linkListNextIDRef="0" textWidth="0" textHeight="0" hasTextRef="0" hasNumRef="0"><hp:p id="100501" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:t/></hp:run></hp:p></hp:subList></hp:header></hp:ctrl><hp:ctrl><hp:autoNum num="37" numType="PAGE"><hp:autoNumFormat type="DIGIT" userChar="" prefixChar="" suffixChar="" supScript="0"/></hp:autoNum></hp:ctrl>');
     zip.file('Contents/section0.xml', xml);
     const source = new HwpDocument(await zip.generateAsync({ type: 'uint8array' }));
     try {

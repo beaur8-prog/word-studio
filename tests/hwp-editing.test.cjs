@@ -13,18 +13,40 @@ const setup = (async () => {
   await init({ module_or_path: await fs.readFile(path.join(directory, 'rhwp_bg.wasm')) });
   // Exercise the same DOM-free conversion module used by the browser Worker.
   const sourceFile = path.join(__dirname, '../src/hwp/conversion.ts');
-  const source = await fs.readFile(sourceFile, 'utf8');
-  const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
-  const bridge = { exports: {} };
-  const nativeRequire = createRequire(sourceFile);
-  const helperFile = path.join(__dirname, '../src/hwp/cell-content.ts'), helper = { exports: {} };
-  const helperCode = ts.transpileModule(await fs.readFile(helperFile, 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
-  new Function('require', 'module', 'exports', helperCode)(nativeRequire, helper, helper.exports);
-  new Function('require', 'module', 'exports', compiled)(name => name === './cell-content' ? helper.exports : nativeRequire(name), bridge, bridge.exports);
-  return { HwpDocument, ...bridge.exports };
+  const cache = new Map();
+  const load = file => {
+    if (cache.has(file)) return cache.get(file).exports;
+    const module = { exports: {} }; cache.set(file, module);
+    const nativeRequire = createRequire(file);
+    const code = ts.transpileModule(require('node:fs').readFileSync(file, 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, esModuleInterop: true } }).outputText;
+    new Function('require', 'module', 'exports', code)(name => name.startsWith('.') && !path.extname(name) ? load(path.resolve(path.dirname(file), name + '.ts')) : nativeRequire(name), module, module.exports);
+    return module.exports;
+  };
+  return { HwpDocument, ...load(sourceFile) };
 })();
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
+
+for (const format of ['hwp', 'hwpx']) test(`${format}: live PAGE/NUMPAGES survive body, cell, nested cell and two saves after astral Unicode`, async () => {
+  const { HwpDocument, serializeHwp, editableHwp } = await setup;
+  const field = kind => `<span data-page-number="${kind}">37</span>`;
+  let html = `<p>START 😀 ${field('PAGE')} / ${field('NUMPAGES')} END</p><table><tr><td><p>CELL ${field('PAGE')} AFTER</p><table><tr><td><p>NESTED 😀 ${field('NUMPAGES')} END</p></td></tr></table></td></tr></table>`;
+  for (let save = 0; save < 2; save++) {
+    const out = serializeHwp(HwpDocument, html, { ...paper, header: '', footer: '' }, format);
+    const doc = new HwpDocument(out.bytes);
+    try {
+      const parts = await JSZip.loadAsync(doc.exportHwpx()), xml = await parts.file('Contents/section0.xml').async('string');
+      assert.equal((xml.match(/<hp:autoNum\s/g) || []).length, 4);
+      assert.equal((xml.match(/numType="PAGE"/g) || []).length, 2);
+      assert.equal((xml.match(/numType="TOTAL_PAGE"/g) || []).length, 2);
+      assert.ok(!xml.includes('WORDSTUDIO-FIELD-')); assert.doesNotMatch(xml, /<hp:t>37<\/hp:t>/);
+      html = editableHwp(doc).html;
+      assert.equal((html.match(/data-page-number="PAGE"/g) || []).length, 2);
+      assert.equal((html.match(/data-page-number="NUMPAGES"/g) || []).length, 2);
+      for (const text of ['START 😀', 'END', 'CELL', 'AFTER', 'NESTED 😀']) assert.ok(html.includes(text), text);
+    } finally { doc.free(); }
+  }
+});
 
 test('custom physical paper and column spacing survive both Hancom writers and the edit bridge', async () => {
   const { HwpDocument, serializeHwp, editableHwp } = await setup;

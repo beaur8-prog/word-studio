@@ -1,8 +1,8 @@
 import type { EditorView } from '@tiptap/pm/view';
 import { Decoration } from '@tiptap/pm/view';
 
-type Line = { top: number; bottom: number; pos: () => number };
-type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[] };
+type Line = { top: number; bottom: number; pos: () => number; before?: number; after?: number };
+type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number };
 
 /** Insert view-only gaps in each column of a continuing row. The row and its
  * cells remain single editable model nodes, so selection/history/save do not
@@ -15,10 +15,10 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
     return value - g.removed.filter(r => r.top < value - .5).reduce((sum, r) => sum + r.height, 0);
   };
   const decorations: Decoration[] = [], signatures: string[] = [];
-  const gapFor = (top: number, bottom: number, offset: number) => {
+  const gapFor = (top: number, bottom: number, offset: number, before = 0, after = 0) => {
     const y = top + g.extra + offset, page = Math.max(0, Math.floor((y - g.top + .5) / stride));
-    if (bottom + g.extra + offset <= page * stride + g.height - g.bottom + .5) return 0;
-    return Math.max(0, Math.ceil(((page + 1) * stride + g.top - y) * 64) / 64);
+    if (bottom + after + g.extra + offset <= page * stride + g.height - g.bottom + .5) return 0;
+    return Math.max(0, Math.ceil(((page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) + before - y) * 64) / 64);
   };
   const addGap = (pos: number, gap: number, columns = 0) => {
     decorations.push(Decoration.widget(pos, () => {
@@ -70,12 +70,18 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
       }
       if (!blockLines.length) { const box = block.getBoundingClientRect(); blockLines.push({ top: naturalY(box.top), bottom: naturalY(box.bottom), pos: () => firstPos }); }
       else blockLines[0].pos = () => firstPos;
+      const inset = Math.max(0, blockLines[0].top - naturalY(block.getBoundingClientRect().top));
+      const pitch = parseFloat(getComputedStyle(block).lineHeight);
+      for (const line of blockLines) { line.before = inset; line.after = Number.isFinite(pitch) ? Math.max(0, pitch - inset - (line.bottom - line.top)) : 0; }
       return blockLines;
   };
   const flowRow = (current: HTMLTableRowElement, pos: number, offset: number): number | null => {
-    let naturalContentBottom = 0, flowedContentBottom = 0;
+    let flowedContentBottom = 0, physicalGaps = 0;
     for (const cell of [...current.cells]) {
-      let extra = 0;
+      let extra = 0, cellGaps = 0;
+      const cellStyle = getComputedStyle(cell);
+      const before = (parseFloat(cellStyle.paddingTop) || 0) + (parseFloat(cellStyle.borderTopWidth) || 0);
+      const after = (parseFloat(cellStyle.paddingBottom) || 0) + (parseFloat(cellStyle.borderBottomWidth) || 0);
       const visit = (block: HTMLElement): boolean => {
         if (block.matches('table')) {
           const table = block as HTMLTableElement, rows = [...table.rows];
@@ -88,11 +94,11 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
             const gap = gapFor(top, bottom, offset + extra);
             if (gap) {
               if (bottom - top <= g.height - g.top - g.bottom) {
-                addGap(view.posAtDOM(first, 0) - 1, gap, [...first.cells].reduce((n, c) => n + c.colSpan, 0)); extra += gap;
+                addGap(view.posAtDOM(first, 0) - 1, gap, [...first.cells].reduce((n, c) => n + c.colSpan, 0)); extra += gap; cellGaps += gap;
               } else if (end === i + 1 && first.dataset.rowSplit === 'allow' && first.dataset.wordRowRule !== 'exact') {
                 const more = flowRow(first, view.posAtDOM(first, 0) - 1, offset + extra);
                 if (more === null) return false;
-                extra += more;
+                extra += more; cellGaps += more;
               } else return false;
             }
             i = end;
@@ -102,18 +108,34 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
         if (!block.matches('p,h1,h2,h3,h4,h5,h6,pre')) return [...block.children].every(child => visit(child as HTMLElement));
         for (const line of paragraphLines(block)) {
           if (line.bottom - line.top > g.height - g.top - g.bottom) return false;
-          const gap = gapFor(line.top, line.bottom, offset + extra);
-          if (gap) { addGap(line.pos(), gap); extra += gap; }
+          const gap = gapFor(line.top, line.bottom, offset + extra, before + (line.before || 0), after + (line.after || 0));
+          if (gap) { addGap(line.pos(), gap); extra += gap; cellGaps += Math.max(0, gap - before - after); }
         }
         return true;
       };
       if (![...cell.children].every(block => visit(block as HTMLElement))) return null;
       const style = getComputedStyle(cell), last = cell.lastElementChild;
       const bottom = naturalY((last || cell).getBoundingClientRect().bottom) + (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0);
-      naturalContentBottom = Math.max(naturalContentBottom, bottom);
       flowedContentBottom = Math.max(flowedContentBottom, bottom + extra);
+      physicalGaps = Math.max(physicalGaps, cellGaps);
     }
-    const extra = Math.max(0, flowedContentBottom - naturalContentBottom);
+    const naturalBottom = naturalY(current.getBoundingClientRect().bottom);
+    // Repeated cell padding consumes existing minimum-height reserve. Only
+    // space between row fragments extends that reserve; actual content can
+    // still require a taller row when there is no spare height.
+    let extra = Math.max(physicalGaps, flowedContentBottom - naturalBottom, 0);
+    // A form may reserve blank space below its last paragraph. That space
+    // continues on the next sheet too: paper margins and repeated headings
+    // must not silently consume the stored minimum row height.
+    let cursor = flowedContentBottom + g.extra + offset;
+    let page = Math.max(0, Math.floor((cursor - g.top + .5) / stride));
+    while (naturalBottom + g.extra + offset + extra > page * stride + g.height - g.bottom + .5) {
+      const boundary = page * stride + g.height - g.bottom;
+      if (cursor > boundary + .5) { page++; continue; }
+      const next = (page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0);
+      extra += next - boundary;
+      cursor = next; page++;
+    }
     // Page gutters must not consume a form's saved minimum row height. Keep
     // that reserve, and measure again against the original height next time.
     const height = current.getBoundingClientRect().height / g.scale + extra;
@@ -145,7 +167,7 @@ export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[]
     const box = row.getBoundingClientRect(), top = y(box.top) + g.extra + extra, height = box.height / g.scale;
     const page = Math.max(0, Math.floor((top - g.top + .5) / stride)), boundary = page * stride + g.height - g.bottom;
     if (top + height > boundary + .5) {
-      const gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top - top) * 64) / 64);
+      const gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) - top) * 64) / 64);
       for (const cell of [...row.cells]) {
         const pos = view.posAtDOM(cell, 0) - 1;
         const padding = parseFloat(getComputedStyle(cell).paddingTop) || 0;
