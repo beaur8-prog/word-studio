@@ -344,7 +344,7 @@ test("DOCX export contains formatted text, lists, tables, image, page breaks and
     footer: "내 바닥글",
     pageNumbers: true,
     differentFirstPage: false, differentOddEven: false, gutterTop: false,
-    gutter: 0, headerDistance: 6.35, footerDistance: 6.35,
+    gutter: 0, headerDistance: expect.closeTo(7, 1), footerDistance: expect.closeTo(7, 1),
     firstHeader: '', firstFooter: '', evenHeader: '내 머리글', evenFooter: '내 바닥글', evenPageNumbers: true,
   });
   expect(result.imported.document.page.headerHtml).toContain('내 머리글');

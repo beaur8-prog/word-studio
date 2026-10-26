@@ -3,20 +3,8 @@ import { strFromU8, strToU8, zipSync, unzipSync } from 'fflate';
 import documentLimits from '../../electron/document-limits.json';
 import { entities } from './cell-content';
 
-type Range = { start: number; end: number; open: string; inner: string };
-/** Match complete elements, including paragraphs containing nested tables.
- * Inputs are sanitized HTML or the engine's bounded, normalized HWPX. */
-function ranges(source: string, name: string): Range[] {
-  const result: Range[] = [], stack: { start: number; inner: number; open: string }[] = [];
-  for (const m of source.matchAll(new RegExp(`<!--[\\s\\S]*?-->|<!\\[CDATA\\[[\\s\\S]*?\\]\\]>|<\\/?${name}\\b[^>]*>`, 'g'))) {
-    const tag = m[0]; if (tag.startsWith('<!')) continue;
-    if (tag.startsWith('</')) {
-      const start = stack.pop();
-      if (start && !stack.length) result.push({ start: start.start, end: m.index! + tag.length, open: start.open, inner: source.slice(start.inner, m.index) });
-    } else if (!tag.endsWith('/>')) stack.push({ start: m.index!, inner: m.index! + tag.length, open: tag });
-  }
-  return result;
-}
+import { elementRanges as ranges } from './markup-ranges';
+
 const attr = (tag: string, name: string) => entities(tag.match(new RegExp(`\\b${name}=["']([^"']*)["']`))?.[1] ?? '');
 const plain = (xml: string) => entities(xml.replace(/<[^>]*>/g, ''));
 const paragraph = (text: string) => `<hp:p id="0" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:t>${text}</hp:t></hp:run></hp:p>`;

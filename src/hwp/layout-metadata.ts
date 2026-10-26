@@ -2,7 +2,7 @@ import * as CFB from 'cfb';
 import JSZip from 'jszip';
 import { Inflate } from 'fflate';
 
-export type HwpParagraphLayout = { pageBreak: boolean; columnBreak: boolean; columns?: { count: number; space: number } };
+export type HwpParagraphLayout = { pageBreak: boolean; columnBreak: boolean; columns?: { count: number; space: number; balance?: boolean } };
 export type HwpLayoutMetadata = { paragraphs: Record<string, HwpParagraphLayout>; warnings: string[] };
 const LIMIT = 32 * 1024 * 1024;
 const columns = (count: number, gap: number) => count >= 1 && count <= 12 && gap >= 0 && gap <= 75000
@@ -28,7 +28,9 @@ export function parseHwpSection(bytes: Uint8Array, section: number): Record<stri
       current = { pageBreak: !!(flags & 4), columnBreak: !!(flags & 8) };
       result[`${section}:${++paragraph}`] = current;
     } else if (tag === 71 && level === 1 && length >= 8 && current && view.getUint32(offset, true) === 0x636f6c64) {
-      current.columns = columns((view.getUint16(offset + 4, true) >>> 2) & 255, view.getUint16(offset + 6, true));
+      const flags = view.getUint16(offset + 4, true);
+      current.columns = columns((flags >>> 2) & 255, view.getUint16(offset + 6, true));
+      if (current.columns && (flags & 3) === 1) current.columns.balance = true;
     }
     offset += length;
   }
@@ -49,7 +51,10 @@ export function parseHwpxSection(xml: string, section: number): Record<string, H
         result[`${section}:${++paragraph}`] = current;
       }
       if (!tag.endsWith('/>')) depth++;
-    } else if (depth === 1 && current) current.columns = columns(Number(attr(tag, 'colCount')), Number(attr(tag, 'sameGap') || 0));
+    } else if (depth === 1 && current) {
+      current.columns = columns(Number(attr(tag, 'colCount')), Number(attr(tag, 'sameGap') || 0));
+      if (current.columns && /balanced/i.test(attr(tag, 'type') || '')) current.columns.balance = true;
+    }
   }
   if (depth !== 0) throw new Error('Invalid HWPX paragraph nesting');
   return result;

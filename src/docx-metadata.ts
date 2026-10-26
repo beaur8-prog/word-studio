@@ -320,6 +320,18 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         if (after.textContent || (after as Element).querySelector('img,br')) pageBreak.after(after);
         if (!p.textContent && !p.querySelector('img,br')) p.remove();
       }
+      // An inline table's following-paragraph spacing represents the gap
+      // after the table. Keep it with that table when the next paragraph
+      // flows onto a new page. Explicit breaks above have already inserted
+      // a separate node, so their intentional top spacing stays untouched.
+      for (const table of template.content.querySelectorAll<HTMLTableElement>('table')) {
+        const next = table.nextElementSibling as HTMLElement | null;
+        if (!next?.matches('p,h1,h2,h3,h4,h5,h6')) continue;
+        const gap = parseFloat(next.style.marginTop);
+        if (!(gap > 0)) continue;
+        table.style.marginBottom = `${Math.max(parseFloat(table.style.marginBottom) || 0, gap)}px`;
+        next.style.marginTop = '0px';
+      }
       return template.innerHTML;
     },
   };

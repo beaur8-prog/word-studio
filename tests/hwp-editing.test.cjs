@@ -27,6 +27,24 @@ const setup = (async () => {
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
+for (const format of ['hwp', 'hwpx']) test(`${format}: native column groups and breaks retain first-page settings and text without marker paragraphs`, async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  const html = '<div data-column-count="1" data-column-space="0" data-column-balance="false"><p>FULL WIDTH</p></div>' +
+    '<div data-column-count="2" data-column-space="24" data-column-balance="true"><p>LEFT</p><div data-column-break="true"></div><p>RIGHT</p></div><div data-page-break="true"></div><div data-column-count="2" data-column-space="24" data-column-balance="true"><p>NEW PAGE</p></div><p>AFTER</p>';
+  const output = serializeHwp(HwpDocument, html, paper, format), doc = new HwpDocument(output.bytes);
+  try {
+    const files = await JSZip.loadAsync(doc.exportHwpx()), xml = await files.file('Contents/section0.xml').async('string');
+    assert.doesNotMatch(xml, /WORDSTUDIO-COLUMNS|WORDSTUDIO-PAGE-BREAK/);
+    assert.equal(doc.getParagraphCount(0), 5);
+    assert.match(xml, /type="BalancedNewspaper"[^>]*colCount="2"[^>]*sameGap="1800"/);
+    assert.match(xml, /<hp:p[^>]*columnBreak="1"[^>]*>[\s\S]*?RIGHT/);
+    assert.ok(JSON.parse(doc.getParaPropertiesAt(0, 3)).pageBreakBefore);
+    const def = JSON.parse(doc.getPageDef(0)); assert.equal(def.landscape, true); assert.equal(def.width, 61200); assert.equal(def.height, 79200);
+    assert.equal(JSON.parse(doc.getHeaderFooter(0, true, 0)).text, paper.header);
+    for (const text of ['FULL WIDTH', 'LEFT', 'RIGHT', 'NEW PAGE', 'AFTER']) assert.equal(xml.split(`<hp:t>${text}</hp:t>`).length - 1, 1);
+  } finally { doc.free(); }
+});
+
 for (const format of ['hwp', 'hwpx']) test(`${format}: native footnote/endnote imports retain their story and reference through two saves`, async () => {
   const { HwpDocument, serializeHwp, editableHwp } = await setup;
   const native = HwpDocument.createEmpty();

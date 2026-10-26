@@ -9,6 +9,7 @@ import { olePreview } from './ole-preview';
 import { headerDefinitions, headerPreviewPage, headerLayer, hiddenStories } from './header-stories';
 import { stageHwpFields } from './export-fields';
 import { importHwpNotes, stageHwpNotes } from './note-stories';
+import { stageHwpColumns } from './export-columns';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -202,7 +203,7 @@ function pageSettings(doc: HwpDocument, section: number, warnings: Set<string>):
   const custom = !letter && (Math.abs(p.width - 59528) > 150 || Math.abs(p.height - 84188) > 150);
   const column = JSON.parse(doc.getColumnDef(section));
   const page: PageSettings = { size: custom ? 'Custom' : letter ? 'Letter' : 'A4', ...(custom ? { width: mm(p.width), height: mm(p.height) } : {}), orientation: p.landscape ? 'landscape' : 'portrait',
-    ...(column.columnCount > 1 ? { columns: { count: column.columnCount, space: px(column.spacing), balance: false } } : {}),
+    ...(column.columnCount > 1 ? { columns: { count: column.columnCount, space: px(column.spacing), balance: column.columnType === 1 } } : {}),
     margin: mm(p.marginLeft), margins: { top: mm(p.marginTop + p.marginHeader), right: mm(p.marginRight), bottom: mm(p.marginBottom + p.marginFooter), left: mm(p.marginLeft) },
     header: '', footer: '', pageNumbers: false, headerDistance: mm(p.marginHeader), footerDistance: mm(p.marginFooter), gutter: mm(p.marginGutter) };
   for (const isHeader of [true, false]) {
@@ -448,16 +449,16 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     let currentPage = section ? { ...pageSettings(doc, section, warnings), ...storyChanges.get(`${section}:0`) } : firstPage;
     if (section) append(`<div data-section-page="${escape(JSON.stringify(currentPage))}"></div>`);
     const column = JSON.parse(doc.getColumnDef(section));
-    let columnCount = column.columnCount ?? column.count ?? 1, columnSpace = px(column.spacing ?? 0);
+    let columnCount = column.columnCount ?? column.count ?? 1, columnSpace = px(column.spacing ?? 0), columnBalance = column.columnType === 1;
     const hasColumns = columnCount > 1 || Object.entries(metadata?.paragraphs ?? {}).some(([key, p]) => key.startsWith(section + ':') && (p.columns?.count ?? 1) > 1);
     let columnOpen = false;
-    const openColumns = () => { if (hasColumns && !columnOpen) { append(`<div data-column-count="${columnCount}" data-column-space="${columnSpace}" data-column-balance="false">`); columnOpen = true; } };
+    const openColumns = () => { if (hasColumns && !columnOpen) { append(`<div data-column-count="${columnCount}" data-column-space="${columnSpace}" data-column-balance="${columnBalance}">`); columnOpen = true; } };
     const closeColumns = () => { if (columnOpen) { append('</div>'); columnOpen = false; } };
     openColumns();
     for (let para = 0; para < doc.getParagraphCount(section); para++, globalPara++) {
       const properties = JSON.parse(doc.getParaPropertiesAt(section, para));
       const structure = metadata?.paragraphs[`${section}:${para}`];
-      if (structure?.columns) { closeColumns(); columnCount = structure.columns.count; columnSpace = structure.columns.space; openColumns(); }
+      if (structure?.columns) { closeColumns(); columnCount = structure.columns.count; columnSpace = structure.columns.space; columnBalance = !!structure.columns.balance; openColumns(); }
       if (properties.pageBreakBefore || structure?.pageBreak) { closeColumns(); append('<div data-page-break="true"></div>'); openColumns(); }
       else if (structure?.columnBreak) append('<div data-column-break="true"></div>');
       const stories = storyChanges.get(`${section}:${para}`);
@@ -687,7 +688,7 @@ export function setHwpPage(doc: HwpDocument, page: PageSettings) {
     // HWP body top = marginHeader + marginTop, unlike Word's body margin.
     marginTop: hu(m.top - header), marginRight: hu(m.right), marginBottom: hu(m.bottom - footer), marginLeft: hu(m.left),
     marginHeader: hu(header), marginFooter: hu(footer), marginGutter: hu(page.gutter ?? 0) }));
-  if (page.columns) doc.setColumnDef(0, page.columns.count, 0, 1, Math.round(page.columns.space * 75));
+  if (page.columns) doc.setColumnDef(0, page.columns.count, page.columns.balance ? 1 : 0, 1, Math.round(page.columns.space * 75));
   for (const isHeader of [true, false]) {
     const text = page[isHeader ? 'header' : 'footer'];
     if (text) { doc.createHeaderFooter(0, isHeader, 0); doc.insertTextInHeaderFooter(0, isHeader, 0, 0, 0, text); }
@@ -705,7 +706,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     const breakToken = 'WORDSTUDIO-PAGE-BREAK-' + crypto.randomUUID();
     const notes = stageHwpNotes(html);
     const fields = stageHwpFields(notes.html);
-    const converted = fields.html.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
+    const columns = stageHwpColumns(fields.html, page);
+    const converted = columns.html.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
     // The first pasted paragraph inherits the host's paragraph shape even on
     // the multi-paragraph path. Sacrifice a leading blank, then remove both
     // sentinels. The writer rebuilds section controls from the section model.
@@ -725,6 +727,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     setHwpPage(doc, page);
     const withFields = fields.restore(Core, doc);
     if (withFields !== doc) { doc.free(); doc = withFields; }
+    const withColumns = columns.restore(Core, doc);
+    if (withColumns !== doc) { doc.free(); doc = withColumns; }
     const withNotes = notes.restore(Core, doc);
     if (withNotes !== doc) { doc.free(); doc = withNotes; }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });

@@ -725,9 +725,10 @@ function rgb(value: unknown): string | undefined {
   return names[value.toLowerCase()];
 }
 function fontPoints(value: unknown): number | undefined {
-  const parsed = Number.parseFloat(String(value));
-  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
-  return Math.min(400, String(value).endsWith("px") ? parsed * 0.75 : parsed);
+  const match = String(value).trim().match(/^((?:\d+(?:\.\d*)?|\.\d+))(pt|px|mm|cm|in|pc)?$/i);
+  if (!match) return undefined;
+  const scale = { pt: 1, px: .75, mm: 72 / 25.4, cm: 72 / 2.54, in: 72, pc: 12 };
+  return Math.min(400, Number(match[1]) * scale[(match[2]?.toLowerCase() || 'pt') as keyof typeof scale]);
 }
 
 function cellBorders(attrs: Record<string, unknown> = {}): ITableCellBorders {
@@ -752,7 +753,11 @@ function inheritCellText(nodes: JSONContent[], attrs: Record<string, unknown> = 
       return { ...node, marks: [...(node.marks ?? []).filter(mark => mark.type !== 'textStyle'),
         { type: 'textStyle', attrs: { ...defaults, ...Object.fromEntries(Object.entries(existing).filter(([, value]) => value != null)) } }] };
     }
-    return node.content ? { ...node, content: inheritCellText(node.content, attrs) } : node;
+    const inherited = ['paragraph', 'heading'].includes(node.type || '') ? { ...attrs,
+      fontFamily: node.attrs?.paragraphFont || attrs.fontFamily,
+      fontSize: node.attrs?.paragraphSize || attrs.fontSize,
+      textColor: node.attrs?.paragraphColor || attrs.textColor } : attrs;
+    return node.content ? { ...node, content: inheritCellText(node.content, inherited) } : node;
   });
 }
 function runOptions(node: JSONContent): IRunOptions {
@@ -970,7 +975,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   count(document.content);
   const opened = new Set<string>();
   let wroteUnanchored = false;
-  const inline = async (nodes: JSONContent[], width: number): Promise<ParagraphChild[]> => {
+  const inline = async (nodes: JSONContent[], width: number, defaults: IRunOptions = {}): Promise<ParagraphChild[]> => {
     const runs: ParagraphChild[] = [];
     if (!wroteUnanchored) {
       wroteUnanchored = true;
@@ -981,7 +986,10 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       if (node.type === "text") {
         const ids = anchored(node);
         for (const id of ids) if (!opened.has(id)) { runs.push(new CommentRangeStart(commentIds.get(id)!)); opened.add(id); }
-        const run = new TextRun(runOptions(node));
+        // Paragraph rPr formats the paragraph mark in OOXML, not every text
+        // run. Materialize inherited CSS font/size/color on otherwise plain
+        // text, while retaining each run's explicit overrides.
+        const run = new TextRun({ ...defaults, ...runOptions(node) });
         const link = node.marks?.find((m) => m.type === "link");
         if (
           link &&
@@ -998,11 +1006,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           if (!remaining.get(id)) runs.push(new CommentRangeEnd(commentIds.get(id)!), new TextRun({ children: [new CommentReference(commentIds.get(id)!)] }));
         }
       } else if (node.type === "hardBreak")
-        runs.push(new TextRun({ break: 1 }));
-      else if (node.type === 'documentTab') runs.push(new TextRun({ children: [new Tab()] }));
+        runs.push(new TextRun({ ...defaults, break: 1 }));
+      else if (node.type === 'documentTab') runs.push(new TextRun({ ...defaults, children: [new Tab()] }));
       else if (node.type === 'documentBookmark') runs.push(new Bookmark({ id: String(node.attrs?.name || ''), children: [] }));
-      else if (node.type === 'documentField') runs.push(new TextRun({ children: [node.attrs?.kind === 'NUMPAGES' ? PageNumber.TOTAL_PAGES : PageNumber.CURRENT] }));
-      else if (node.type === 'documentSymbol') runs.push(new SymbolRun({ ...runOptions(node), symbolfont: String(node.attrs?.font || 'Symbol'), char: Number(node.attrs?.code).toString(16).padStart(4, '0') }));
+      else if (node.type === 'documentField') runs.push(new TextRun({ ...defaults, children: [node.attrs?.kind === 'NUMPAGES' ? PageNumber.TOTAL_PAGES : PageNumber.CURRENT] }));
+      else if (node.type === 'documentSymbol') runs.push(new SymbolRun({ ...defaults, ...runOptions(node), symbolfont: String(node.attrs?.font || 'Symbol'), char: Number(node.attrs?.code).toString(16).padStart(4, '0') }));
       else if (node.type === 'noteReference') {
         const id = noteIds.get(String(node.attrs?.id));
         if (id) runs.push(node.attrs?.kind === 'endnote' ? new EndnoteReferenceRun(id) : new FootnoteReferenceRun(id));
@@ -1010,7 +1018,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       else if (node.type === 'wordOverlap') {
         const parts = overlapParts(node.attrs?.parts);
         const field = new SimpleField(`EQ \\o\\ac(${parts.join(',')})`);
-        field.addChildElement(new TextRun({ ...runOptions(node), text: parts.join('') }));
+        field.addChildElement(new TextRun({ ...defaults, ...runOptions(node), text: parts.join('') }));
         runs.push(field);
       }
       else if (node.type === "image" || node.type === "inlineImage")
@@ -1027,7 +1035,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   };
   // Consumers coalesce adjacent tables when no paragraph separates them. The
   // later narrow table can then resize every preceding row of the long table.
-  const tableBoundary = () => new Paragraph({ spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT }, run: { size: 2 } });
+  const tableBoundary = (gap = 0) => new Paragraph({ spacing: { before: 0, after: 0, line: Math.max(1, Math.round(gap * 15)), lineRule: LineRuleType.EXACT }, run: { size: 2 } });
+  const tableSpacing = new WeakMap<Table, number>();
   const blocks = async (
     nodes: JSONContent[],
     context: Context = {},
@@ -1048,11 +1057,17 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           HeadingLevel.HEADING_5,
           HeadingLevel.HEADING_6,
         ];
-        const paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150);
+        let paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150);
+        const previous = output.at(-1);
+        const gap = previous instanceof Table ? tableSpacing.get(previous) || 0 : 0;
+        // Inline OOXML tables have no bottom-margin property. Carry their CSS
+        // gap as the next paragraph's spacing, which Word and other readers
+        // render too. Do not silently drop it at a page boundary.
+        if (gap) paragraph = { ...paragraph, spacing: { ...paragraph.spacing, before: Math.max(Number(paragraph.spacing?.before) || 0, Math.round(gap * 15)) } };
         output.push(
           new Paragraph({
             ...paragraph,
-            children: await inline(node.content ?? [], width),
+            children: await inline(node.content ?? [], width, { ...context.cellRun, ...paragraph.run }),
             ...(context.cellRun ? { run: { ...context.cellRun, ...paragraph.run } } : {}),
             ...(node.type === "heading"
               ? { heading: headings[(node.attrs?.level ?? 1) - 1] }
@@ -1243,20 +1258,20 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           );
         }
         const anchor = tableAnchor(node.attrs?.tableAnchor);
-        output.push(
-          new Table({
+        const table = new Table({
             rows,
             width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
             ...(node.attrs?.tableIndent ? { indent: { size: Math.round(Number.parseFloat(node.attrs.tableIndent) * 15) || 0, type: WidthType.DXA } } : {}),
             columnWidths,
             ...(anchor ? { float: { horizontalAnchor: TableAnchorType.PAGE, verticalAnchor: TableAnchorType.PAGE,
               absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round(anchor.y * 15), bottomFromText: Math.round(anchor.bottom * 15) } } : {}),
-          }),
-        );
+          });
+        tableSpacing.set(table, anchor ? 0 : Math.max(0, fontPoints(node.attrs?.tableSpacing) ?? 0) * 4 / 3);
+        output.push(table);
       }
     }
     return output.flatMap((block, i) => i > 0 && block instanceof Table && output[i - 1] instanceof Table
-      ? [tableBoundary(), block] : [block]);
+      ? [tableBoundary(tableSpacing.get(output[i - 1] as Table)), block] : [block]);
   };
   const groups: { page: PageSettings; nodes: JSONContent[] }[] = [{ page, nodes: [] }];
   let sectionPage = page;
@@ -1291,12 +1306,13 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   contentWidth = Math.max(1, Math.floor((fullWidth - Math.round((page.columns?.space || 0) * 15) * (count - 1)) / count));
   const children = await blocks(group.nodes);
   const richBlocks = async (html: string) => blocks(parseDocumentHtml(sanitizeImportedHtml(html).html).content || []);
+  const plainFurniture: IParagraphOptions = { run: { size: 18, color: '697386' }, spacing: { before: 0, after: 0, line: 336, lineRule: LineRuleType.AUTO } };
   const footer = async (text: string, numbers: boolean, html?: string, headerHtml?: string) => new Footer({ children: [
-    ...(html ? await richBlocks(html) : [new Paragraph({ text, alignment: AlignmentType.CENTER, run: { size: 18, color: '697386' } })]),
-    ...(numbers && !/data-page-number/.test((html || '') + (headerHtml || '')) ? [new Paragraph({ alignment: AlignmentType.CENTER,
+    ...(html ? await richBlocks(html) : text || !numbers ? [new Paragraph({ ...plainFurniture, text, alignment: AlignmentType.CENTER })] : []),
+    ...(numbers && !/data-page-number/.test((html || '') + (headerHtml || '')) ? [new Paragraph({ ...plainFurniture, alignment: AlignmentType.CENTER,
       children: [new TextRun({ children: [PageNumber.CURRENT], size: 18, color: '697386' })] })] : []),
   ] });
-  const header = async (text: string, html?: string) => new Header({ children: html ? await richBlocks(html) : [new Paragraph({ text, run: { size: 18, color: '697386' } })] });
+  const header = async (text: string, html?: string) => new Header({ children: html ? await richBlocks(html) : [new Paragraph({ ...plainFurniture, text })] });
   const baseMargins = basePageMargins(page);
   sections.push(
       {
@@ -1320,8 +1336,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               bottom: mmToTwip(baseMargins.bottom),
               left: mmToTwip(baseMargins.left),
               gutter: mmToTwip(page.gutterTop ? 0 : page.gutter ?? 0),
-              header: mmToTwip(page.headerDistance ?? 6.35),
-              footer: mmToTwip(page.footerDistance ?? 6.35),
+              header: mmToTwip(page.headerDistance ?? Math.max(0, margins.top / 2 - 3)),
+              footer: mmToTwip(page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)),
             },
           },
         },

@@ -3,8 +3,8 @@
   "baselineCommit": "e694647",
   "status": "in_progress",
   "build": "passed",
-  "unitTests": 56,
-  "browserTests": 181,
+  "unitTests": 58,
+  "browserTests": 185,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -31,8 +31,8 @@
       "printPages": 167,
       "docxRoundtripPages": [
         167,
-        166,
-        166
+        167,
+        167
       ],
       "priorBodyTextRetained": true,
       "docxBodyTextRetained": true,
@@ -182,19 +182,19 @@
     "Prior-model text equality is not a whole-original-content audit.",
     "The independent PDFs cover samples 03–10; full-page visual correspondence is not complete.",
     "Source-reader and converted print counts differ for rules (163/167), language plan (35/36), notice (35/39), English (8/9).",
-    "Rules DOCX reopening changes 167 to 166; other nine samples keep their current counts through two saves.",
     "Language-specific font size, tracking and width remain under investigation; diagnostic variants are not shipped.",
-    "HWP/HWPX native PAGE/NUMPAGES now survive, but section/column/floating object/rich furniture export limitations remain explicitly warned.",
-    "Microsoft Word, Hancom office and a Windows runtime are unavailable on this Mac."
+    "HWP/HWPX native PAGE/NUMPAGES now survive, but section/floating object/rich furniture export limitations remain explicitly warned.",
+    "Microsoft Word, Hancom office and a Windows runtime are unavailable on this Mac.",
+    "All 10 samples retain current DOCX page counts; a few rules page-start lines still differ by one or two characters after saving."
   ],
   "evidence": {
     "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
-    "browser": "browser-layout-verified.log",
-    "unit": "unit-notes-verified.log",
-    "build": "build-layout-verified.log",
+    "browser": "browser-docx-final.log",
+    "unit": "unit-docx-verified.log",
+    "build": "build-docx-final.log",
     "nativeLarge": "native-large-completion.log",
-    "nativeFourDocuments": "native-layout-verified.log",
-    "docx": "docx-verified.log",
+    "nativeFourDocuments": "native-docx-final.log",
+    "docx": "docx-spacing-final.log",
     "cropAlignment": "empty-cell-slots.log",
     "largeGlyph": "korean-ink.json",
     "sourceTextAudit": "source-text-audit.json",
@@ -203,7 +203,10 @@
     "rulesPageStarts": "rules-columns-final.log",
     "nestedFormBefore": "nested-form-before.log",
     "nestedFormAfter": "nested-form-after.log",
-    "columnAndReserve": "column-forms.log"
+    "columnAndReserve": "column-forms.log",
+    "nativeColumns": "columns-roundtrip.log",
+    "tableGapAndFontInheritance": "spacing-inheritance-final.log",
+    "freshImport": "fresh-current.log"
   },
   "falsePositivesCorrected": [
     "Korean large glyph: font rectangle extends into margin, actual ink does not.",
@@ -251,5 +254,24 @@
     "firstBodyParagraphMatches": 167,
     "mismatchesBeforeAndAfterPrint": 0,
     "scope": "First non-header body paragraph per physical page, not a pixel-perfect original-page audit."
+  },
+  "nativeColumns": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "roundtrips": 2,
+    "preserved": [
+      "column count",
+      "column gap",
+      "balance",
+      "column break",
+      "page break",
+      "initial paper and header"
+    ],
+    "limitations": [
+      "Column groups nested inside table/note stories are explicitly rejected.",
+      "Section paper sizes, floating objects and rich header stories remain separate pending work."
+    ]
   }
 }

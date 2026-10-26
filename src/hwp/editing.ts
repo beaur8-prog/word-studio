@@ -82,7 +82,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   root.innerHTML = sanitizeImportedHtml(source).html;
   const warnings: string[] = [];
   const warn = (selector: string, message: string) => { if (root.querySelector(selector)) warnings.push(message); };
-  warn('[data-section-page], [data-section-content], [data-column-count]', '구역별 용지·다단 설정은 첫 용지 설정으로 통합합니다.');
+  warn('[data-section-page], [data-section-content]', '구역별 용지 설정은 첫 용지 설정으로 통합합니다. 다단 설정과 단 나누기는 유지합니다.');
   const notes = [...root.querySelectorAll<HTMLElement>('[data-document-note]')].map(note => note.cloneNode(true) as HTMLElement);
   if (notes.some(note => !/^\d+$/.test(note.dataset.noteLabel || ''))) warnings.push('각주·미주의 사용자 지정 표시는 한글의 숫자 번호로 바뀝니다. 본문 참조와 각주·미주 내용은 유지합니다.');
   warn('[data-docx-bookmark], a', '책갈피·링크는 표시된 텍스트만 저장합니다.');
