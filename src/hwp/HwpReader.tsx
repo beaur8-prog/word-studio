@@ -189,7 +189,8 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     {operation && <HwpProgressPanel operation={operation} />}
     {editable && <section className="hwp-conversion-panel" aria-label="한글 편집 변환 안내">
       <h2>Word 편집본 만들기</h2><p>{HWP_CONVERSION_NOTICE}</p>
-      <p><strong>쪽 수 비교: 원본 보기 {info?.count}쪽 → Word 편집본 {editable.editorPages}쪽</strong>{info?.count !== editable.editorPages ? ' · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.' : ' · 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'}</p>
+      <p><strong>쪽 수 비교: 원본 보기 {info?.count}쪽 → Word 인쇄 {editable.editorPages}쪽</strong>{info?.count !== editable.editorPages ? ' · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.' : ' · 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'}</p>
+      <p>Word 쪽 수는 인쇄 미리보기 기준입니다. 편집 화면의 쪽 표시와 다를 수 있습니다.</p>
       <ul>{editable.warnings.map((warning, i) => <li key={i}>{warning}</li>)}</ul>
       <button disabled={converting || exporting} onClick={() => void openEditing()}>편집본 만들기</button>
       <button disabled={converting || exporting} onClick={() => { setEditable(undefined); setStatus('원본 보기를 계속합니다.'); }}>원본 보기로 돌아가기</button>

@@ -146,7 +146,41 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       if (!best) return null;
       const [head, tail] = splitText(element, best); element.replaceChildren(...head.childNodes); element.style.marginBottom = '0'; return tail;
     }
-    if (element.matches('tr') && (element as HTMLTableRowElement).cells.length !== 1) return null;
+    if (element.matches('tr')) {
+      if (element.dataset.rowSplit === 'avoid' || element.dataset.wordRowRule === 'exact') return null;
+      const row = element as HTMLTableRowElement;
+      if (row.cells.length > 1) {
+        if (row.dataset.rowSplit !== 'allow' || [...row.cells].some(c => c.rowSpan > 1)) return null;
+        const original = row.cloneNode(true) as HTMLTableRowElement, height = row.getBoundingClientRect().height;
+        const available = boundary - row.getBoundingClientRect().top;
+        if (available <= .5) return null;
+        const tail = row.cloneNode(false) as HTMLTableRowElement;
+        row.style.removeProperty('height');
+        let moved = false, reservedSpace = false;
+        // Split every column against the same physical boundary. Even a
+        // finished column needs its empty continuation cell to keep the grid.
+        for (const cell of [...row.cells]) {
+          const next = cell.cloneNode(false) as HTMLTableCellElement; tail.append(next);
+          const rest = splitElement(cell, boundary, depth + 1);
+          if (rest) { next.append(...rest.childNodes); moved = true; }
+          else if ([...cell.children].some(child => child.getBoundingClientRect().bottom > boundary - (parseFloat(getComputedStyle(cell).paddingBottom) || 0) + .5)) {
+            next.append(...cell.childNodes); moved = true;
+          }
+        }
+        // A stored minimum height can reserve space after the text. Divide
+        // that reserve too; repeating the full height on the continuation
+        // would enlarge the row, while dropping it would shorten the form.
+        if (!moved && height > available + .5) {
+          row.style.height = `${available}px`; moved = reservedSpace = true;
+        }
+        const progress = reservedSpace || [...row.cells].some(c => c.textContent?.trim() || c.querySelector('img,table'));
+        if (!moved || !progress || row.getBoundingClientRect().bottom > boundary + .5) {
+          row.replaceChildren(...original.childNodes); row.style.cssText = original.style.cssText; return null;
+        }
+        tail.style.height = `${Math.max(0, height - row.getBoundingClientRect().height)}px`;
+        return tail;
+      }
+    }
     if (element.matches('table')) {
       const table = element as HTMLTableElement;
       // A nested form table that fits a sheet moves as a unit. Splitting its
@@ -189,8 +223,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       const group = rows.slice(i, end).map(row => row.cloneNode(true) as HTMLTableRowElement);
       group.forEach(row => part.body.append(row));
       const split = () => {
-        if (group.length !== 1 || group[0].cells.length !== 1 || group[0].cells[0].rowSpan !== 1) return;
-        if (!group[0].querySelector('table') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
+        if (group.length !== 1 || [...group[0].cells].some(c => c.rowSpan !== 1)) return;
+        if (group[0].dataset.rowSplit !== 'allow' && !group[0].querySelector('table') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
         const tail = splitElement(group[0], content.getBoundingClientRect().bottom);
         if (tail) rows.splice(end, 0, tail as HTMLTableRowElement);
       };

@@ -65,6 +65,8 @@ export const TableRowResize = Extension.create({
       },
       wordRowRule: { default: null, parseHTML: el => el.getAttribute('data-word-row-rule'),
         renderHTML: a => a.wordRowRule === 'exact' ? { 'data-word-row-rule': 'exact' } : {} },
+      rowSplit: { default: null, parseHTML: el => ['allow', 'avoid'].includes(el.getAttribute('data-row-split') || '') ? el.getAttribute('data-row-split') : null,
+        renderHTML: a => ['allow', 'avoid'].includes(a.rowSplit) ? { 'data-row-split': a.rowSplit } : {} },
     } }];
   },
   addProseMirrorPlugins() {

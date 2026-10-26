@@ -273,6 +273,8 @@ export function validateDocument(input: unknown): StudioDocument {
     if (type === 'wordOverlap' && !overlapParts(attrs?.parts).length) fail('겹친 글자 형식이 올바르지 않습니다.');
     if (type === 'tableRow' && attrs?.rowHeight != null && !rowHeight(attrs.rowHeight))
       fail(`표 행 높이는 0보다 크고 ${MAX_ROW_HEIGHT}px 이하여야 합니다.`);
+    if (type === 'tableRow' && attrs?.rowSplit != null && !['allow', 'avoid'].includes(String(attrs.rowSplit)))
+      fail('표 행의 쪽 나누기 설정이 올바르지 않습니다.');
     if (type === 'sectionBreak' || type === 'sectionContent') {
       if (parent !== 'doc') fail('구역 나누기는 문서의 최상위에 있어야 합니다.');
       if (typeof attrs?.page !== 'string' || attrs.page.length > MAX_FILE_BYTES) fail('구역 설정이 올바르지 않습니다.');
@@ -1224,6 +1226,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           rows.push(
             new TableRow({
               children: cells,
+              ...(row.attrs?.rowSplit ? { cantSplit: row.attrs.rowSplit === 'avoid' } : {}),
               ...(rowHeight(row.attrs?.rowHeight) ? { height: { value: Math.max(1, Math.round((row.attrs!.rowHeight - (row.attrs?.wordRowRule === 'exact' ? 0 : rowPadding + rowBorder)) * 15)), rule: row.attrs?.wordRowRule === 'exact' ? HeightRule.EXACT : HeightRule.ATLEAST } } : {}),
               ...((row.content?.length ?? 0) > 0 && (row.content ?? []).every(
                 (cell) => cell.type === "tableHeader",

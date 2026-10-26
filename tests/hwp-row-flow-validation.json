@@ -1,0 +1,293 @@
+{
+  "runAtUTC": "2026-10-26T05:05:09.040Z",
+  "sourceCommit": "af2a99093a76de5d88c170ebcac730635b359035",
+  "sourceTreeSHA256": "86e03ee4ef6c9c41963006e7b50b4266cf83dda4f22de47e9ec654f3c8f5b46a",
+  "workingTreeDirty": true,
+  "appVersion": "1.4.7",
+  "engine": "0.8.7-wordstudio.2",
+  "browser": "155.0.8059.85",
+  "rendererErrors": [],
+  "scope": "Print preview, PDF and native printing now split geometry-confirmed multi-cell HWP row continuations. The separate editable canvas pagination engine was not changed. No release or Lithos update.",
+  "pageCountDefinition": "studioPages is createPrintLayout output from the editable model, not the editable canvas footer page count. docxLibreOfficePages is the rendered DOCX count, not actual Microsoft Word.",
+  "measurementRevisionNote": "The ten-file audit preceded a label-only HwpReader change from Word editable copy to Word print, with a note that editor page count can differ. Core layout and document export code are identical; that label is checked separately.",
+  "docxRenderer": "Bundled LibreOfficeDev 26.8.0.0.alpha0 2c87e51eeaa2b413ff4ae097b2705eea1995d8e5",
+  "rendererFontsTemporarilyAdded": [
+    "AppleMyungjo",
+    "AppleGothic",
+    "Nanum Myeongjo"
+  ],
+  "results": [
+    {
+      "id": "01-employment-contract",
+      "title": "고용노동부 2025 표준근로계약서",
+      "sourcePages": 7,
+      "before": {
+        "studioPages": 7,
+        "docxLibreOfficePages": 7
+      },
+      "after": {
+        "studioPages": 7,
+        "docxLibreOfficePages": 7
+      },
+      "observedContinuationRows": 0,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "02-work-rules",
+      "title": "고용노동부 2025 표준취업규칙",
+      "sourcePages": 163,
+      "before": {
+        "studioPages": 182,
+        "docxLibreOfficePages": 169
+      },
+      "after": {
+        "studioPages": 167,
+        "docxLibreOfficePages": 169
+      },
+      "observedContinuationRows": 104,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "03-health-table",
+      "title": "보건소 분장사무",
+      "sourcePages": 4,
+      "before": {
+        "studioPages": 4,
+        "docxLibreOfficePages": 4
+      },
+      "after": {
+        "studioPages": 4,
+        "docxLibreOfficePages": 4
+      },
+      "observedContinuationRows": 0,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "04-language-plan",
+      "title": "국립국어원 업무계획",
+      "sourcePages": 35,
+      "before": {
+        "studioPages": 36,
+        "docxLibreOfficePages": 38
+      },
+      "after": {
+        "studioPages": 36,
+        "docxLibreOfficePages": 38
+      },
+      "observedContinuationRows": 0,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "05-return-form",
+      "title": "복학원서",
+      "sourcePages": 1,
+      "before": {
+        "studioPages": 1,
+        "docxLibreOfficePages": 1
+      },
+      "after": {
+        "studioPages": 1,
+        "docxLibreOfficePages": 1
+      },
+      "observedContinuationRows": 0,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "06-mixed-document",
+      "title": "부천옥길 A1 영구임대주택 예비입주자 모집공고",
+      "sourcePages": 35,
+      "before": {
+        "studioPages": 39,
+        "docxLibreOfficePages": 39
+      },
+      "after": {
+        "studioPages": 41,
+        "docxLibreOfficePages": 39
+      },
+      "observedContinuationRows": 6,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "07-english-exam",
+      "title": "영어 시험지",
+      "sourcePages": 8,
+      "before": {
+        "studioPages": 10,
+        "docxLibreOfficePages": 10
+      },
+      "after": {
+        "studioPages": 10,
+        "docxLibreOfficePages": 10
+      },
+      "observedContinuationRows": 0,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "08-math-exam",
+      "title": "수학 시험지",
+      "sourcePages": 20,
+      "before": {
+        "studioPages": 22,
+        "docxLibreOfficePages": 21
+      },
+      "after": {
+        "studioPages": 22,
+        "docxLibreOfficePages": 21
+      },
+      "observedContinuationRows": 0,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "09-korean-exam",
+      "title": "국어 시험지 편집본",
+      "sourcePages": 15,
+      "before": {
+        "studioPages": 15,
+        "docxLibreOfficePages": 17
+      },
+      "after": {
+        "studioPages": 15,
+        "docxLibreOfficePages": 17
+      },
+      "observedContinuationRows": 0,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    },
+    {
+      "id": "10-lh-plan",
+      "title": "LH 2025 업무계획 보도자료",
+      "sourcePages": 5,
+      "before": {
+        "studioPages": 5,
+        "docxLibreOfficePages": 5
+      },
+      "after": {
+        "studioPages": 5,
+        "docxLibreOfficePages": 5
+      },
+      "observedContinuationRows": 0,
+      "exactOrderedTextEqualToPriorEditorModel": true,
+      "orderedNonWhitespaceTextEqualFromEditorModelToDocxXml": true
+    }
+  ],
+  "printIsolationChecks": [
+    {
+      "id": "02-work-rules",
+      "before": {
+        "pages": 182,
+        "scaledTables": 30,
+        "minimumScale": 0.448816
+      },
+      "after": {
+        "pages": 167,
+        "scaledTables": 0
+      },
+      "printedCellTextChecks": {
+        "cells": 769,
+        "mismatches": []
+      }
+    },
+    {
+      "id": "06-mixed-document",
+      "before": {
+        "pages": 39,
+        "scaledTables": 3,
+        "minimumScale": 0.339601
+      },
+      "after": {
+        "pages": 41,
+        "scaledTables": 2
+      },
+      "printedCellTextChecks": {
+        "cells": 879,
+        "mismatches": []
+      }
+    }
+  ],
+  "verification": {
+    "browserTestsPassedBeforeLabelOnlyChange": 143,
+    "unitTestsPassed": 46,
+    "productionBuildPassed": true,
+    "nativeHwpHwpxSaveCancelReopenPassed": true,
+    "actualMacElectronTargetFiles": {
+      "passed": true,
+      "productionBuild": true,
+      "results": [
+        {
+          "id": "02-work-rules",
+          "pages": 167,
+          "comparison": "쪽 수 비교: 원본 보기 163쪽 → Word 편집본 167쪽 · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.",
+          "zoomed": 0
+        },
+        {
+          "id": "06-mixed-document",
+          "pages": 41,
+          "comparison": "쪽 수 비교: 원본 보기 35쪽 → Word 편집본 41쪽 · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.",
+          "zoomed": 2
+        },
+        {
+          "id": "05-return-form",
+          "pages": 1,
+          "comparison": "쪽 수 비교: 원본 보기 1쪽 → Word 편집본 1쪽 · 쪽 수가 같아도 세부 배치는 다를 수 있습니다.",
+          "zoomed": 0
+        },
+        {
+          "id": "08-math-exam",
+          "pages": 22,
+          "comparison": "쪽 수 비교: 원본 보기 20쪽 → Word 편집본 22쪽 · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.",
+          "heading": {
+            "upperBottom": 266.265625,
+            "headingTop": 269.671875
+          },
+          "zoomed": 0
+        }
+      ],
+      "rendererErrors": []
+    },
+    "newSyntheticCases": [
+      "HWP and HWPX imports, independently reconstructed column text, no overflow or zoom, repeating headers and equal widths after two DOCX saves.",
+      "Minimum row height is divided between fragments; a completed column keeps an empty continuation cell.",
+      "Unmarked forms, exact row heights, vertical merges and explicit keep-together rows stay intact.",
+      "Explicit allow/avoid flags survive two DOCX saves."
+    ],
+    "labelFollowupBrowserTestsPassed": 2,
+    "finalNativeLabelAndEditorPageInspection": {
+      "passed": true,
+      "productionBuild": true,
+      "results": [
+        {
+          "id": "02-work-rules",
+          "editorPageTimeline": [
+            "1/170 페이지",
+            "1/170 페이지",
+            "1/170 페이지",
+            "1/170 페이지",
+            "1/170 페이지",
+            "1/170 페이지"
+          ],
+          "pages": 167,
+          "comparison": "쪽 수 비교: 원본 보기 163쪽 → Word 인쇄 167쪽 · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.",
+          "zoomed": 0
+        }
+      ],
+      "rendererErrors": []
+    }
+  },
+  "limitations": [
+    "Editable canvas pagination is a separate existing engine and was not changed. Its stabilized native inspection displayed 1/170 페이지, while the print preview has 167 pages. The conversion notice now names print pages explicitly.",
+    "The mixed public notice grows from 39 to 41 print pages after removing a 0.339601 scale on a long row. Two other unsupported large/merged structures still scale. Its original is 35 pages and DOCX LibreOffice stays 39.",
+    "The work-rules sample still differs by four print pages and six LibreOffice pages from its 163-page source view.",
+    "Source-continuation evidence excludes repeated header cells. Vertical merges and exact-height rows are deliberately not split by this new path.",
+    "Stored row minimum height and font substitutions can leave large gaps. No font scaling or text deletion is used to force a page count match.",
+    "Actual Microsoft Word and Windows installed app were not tested; not every page was visually inspected."
+  ],
+  "finalSourceTreeSHA256": "a6de209c1f9f5079806b1a1c1057f6ad9fe76346896d7eeb8c14dd998755d6ce"
+}

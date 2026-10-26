@@ -196,6 +196,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const rows = all(sourceTable, 'tr').filter(row => ancestor(row, 'tbl') === sourceTable);
         if (rows.length !== table.rows.length) continue;
         rows.forEach((source, index) => {
+          const split = child(child(source, 'trPr'), 'cantSplit');
+          if (split) table.rows[index].dataset.rowSplit = ['0', 'false', 'off'].includes(val(split)) ? 'allow' : 'avoid';
           const property = child(child(source, 'trPr'), 'trHeight'), height = Number(val(property));
           if (height <= 0 || val(property, 'hRule') === 'auto') return;
           const row = table.rows[index], exact = val(property, 'hRule') === 'exact';

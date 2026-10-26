@@ -113,6 +113,17 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
   };
   const columns = grid('col', dims.colCount), rows = grid('row', dims.rowCount);
   const tableProperties = JSON.parse(doc.getTableProperties(section, para, control));
+  // Some stored HWP row layouts continue their cell contents onto later
+  // sheets even under RowBreak. Keep that observed behavior, rather than
+  // treating every multi-cell row as an indivisible form or guessing from
+  // the enum alone. Repeated header cells are not continuation evidence.
+  const continuationRows = new Set<number>();
+  const cellPages = new Map<number, Set<number>>();
+  for (const box of JSON.parse(doc.getTableCellBboxes(section, para, control))) {
+    const pages = cellPages.get(box.cellIdx) ?? new Set<number>(); pages.add(box.pageIndex); cellPages.set(box.cellIdx, pages);
+  }
+  for (const c of cells) if ((!c.isHeader || !tableProperties.repeatHeader) && c.rowSpan === 1 &&
+    (cellPages.get(c.index)?.size ?? 0) > 1) continuationRows.add(c.row);
   const borderWidths = [.1, .12, .15, .2, .25, .3, .4, .5, .6, .7, 1, 1.5, 2, 3, 4, 5];
   const style = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old}${css}"`) : tag.replace(/>$/, ` style="${css}">`);
   let depth = 0, cellIndex = 0, row = 0, cellParagraph = 0, header = false, paragraphStyle = '';
@@ -153,7 +164,10 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
       } catch { return tag; }
     }
     if (tag === '</td>') return `${cellParagraph ? '' : `<p style="${paragraphStyle}"></p>`}</${header ? 'th' : 'td'}>`;
-    if (/^<tr\b/.test(tag)) return style(tag, `height:${rows[row++] ?? 1}px;`);
+    if (/^<tr\b/.test(tag)) {
+      if (continuationRows.has(row)) tag = tag.replace(/>$/, ' data-row-split="allow">');
+      return style(tag, `height:${rows[row++] ?? 1}px;`);
+    }
     if (!/^<td\b/.test(tag)) return tag;
     const c = cells[cellIndex++]; if (!c) return tag;
     cellParagraph = 0; header = !!c.isHeader && !!tableProperties.repeatHeader;

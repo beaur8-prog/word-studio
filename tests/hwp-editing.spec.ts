@@ -27,6 +27,8 @@ async function editFile(page: Page, file: string, timeout = 15000) {
   await reader.getByRole('button', { name: 'Word 화면에서 편집', exact: true }).click();
   const notice = reader.getByRole('region', { name: '한글 편집 변환 안내' });
   await expect(notice).toBeVisible({ timeout });
+  await expect(notice).toContainText(/쪽 수 비교: 원본 보기 \d+쪽 → Word 인쇄 \d+쪽/);
+  await expect(notice).toContainText('편집 화면의 쪽 표시와 다를 수 있습니다.');
   await notice.getByRole('button', { name: '편집본 만들기', exact: true }).click();
   // Opening the editable document now yields to paint its progress. Large inputs
   // need the same explicit budget here as conversion and the editor title below.

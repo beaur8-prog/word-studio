@@ -254,3 +254,21 @@ test('zero-leading titles identify a coincident spacer, and Hancom cut-line glyp
     }
   } finally { source.free(); }
 });
+
+test('only observed cell continuations enable row splitting, rather than repeated header occurrences', async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const source = HwpDocument.createEmpty();
+  try {
+    const c = require('./hwp-row-flow-fixture.cjs').populate(source);
+    for (const format of ['hwp', 'hwpx']) {
+      const doc = new HwpDocument(format === 'hwp' ? source.exportHwp() : source.exportHwpx());
+      try {
+        const boxes = JSON.parse(doc.getTableCellBboxes(0, c.paraIdx, c.controlIdx));
+        assert.ok(new Set(boxes.filter(b => b.cellIdx === 2).map(b => b.pageIndex)).size > 1);
+        const { html } = editableHwp(doc);
+        assert.equal((html.match(/data-row-split="allow"/g) || []).length, 1);
+        assert.match(html, /<th\b/); assert.match(html, /LEFT 109/); assert.match(html, /RIGHT 74/);
+      } finally { doc.free(); }
+    }
+  } finally { source.free(); }
+});
