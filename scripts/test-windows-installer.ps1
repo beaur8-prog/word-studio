@@ -17,6 +17,48 @@ $desktopLink = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Word Studio.
 $startLink = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs/Word Studio.lnk'
 $reportPath = Join-Path $root '.cache/installer-test.json'
 $report = [ordered]@{ version = $version; passed = $false }
+$extensions = @((& node -e 'console.log(JSON.stringify([...require(process.argv[1]).OPEN_EXTENSIONS]))' (Join-Path $root 'electron/document-types.cjs')) | ConvertFrom-Json)
+if ($LASTEXITCODE -ne 0 -or $extensions.Count -eq 0) { throw 'Could not read the supported document types.' }
+$classes = 'HKCU:/Software/Classes'
+$capabilities = 'HKCU:/Software/WordStudio/Capabilities'
+$application = "$classes/Applications/Word Studio.exe"
+$existingHandler = 'WordStudio.AssociationTest.Existing'
+$userChoices = @{}
+
+function Registry-Value([string] $key, [string] $name) {
+  $item = Get-Item -LiteralPath $key -ErrorAction SilentlyContinue
+  if ($null -ne $item) { return $item.GetValue($name, $null) }
+  return $null
+}
+
+function Assert-OtherAssociations {
+  foreach ($ext in $extensions) {
+    if ((Registry-Value "$classes/.$ext" '') -ne $existingHandler) { throw "Installation changed the .$ext default." }
+    $other = Get-Item -LiteralPath "$classes/.$ext/OpenWithProgids"
+    if ($other.GetValueNames() -notcontains $existingHandler) { throw "Installation removed another .$ext handler." }
+    $choice = "HKCU:/Software/Microsoft/Windows/CurrentVersion/Explorer/FileExts/.$ext/UserChoice"
+    foreach ($name in @('ProgId', 'Hash')) {
+      if ((Registry-Value $choice $name) -ne $userChoices[$ext][$name]) { throw "Installation changed the .$ext user choice." }
+    }
+  }
+}
+
+function Assert-DocumentHandlers {
+  if ((Registry-Value 'HKCU:/Software/RegisteredApplications' 'Word Studio') -ne 'Software\WordStudio\Capabilities') { throw 'Missing Default Apps registration.' }
+  if ((Registry-Value $capabilities 'ApplicationName') -ne 'Word Studio' -or -not (Registry-Value $capabilities 'ApplicationDescription')) { throw 'Missing application capabilities.' }
+  $command = '"' + $executable + '" "%1"'
+  if ((Registry-Value "$application/shell/open/command" '') -ne $command) { throw 'The executable or document path is not quoted.' }
+  foreach ($ext in $extensions) {
+    $progId = "WordStudio.Document.$ext"
+    $openWith = Get-Item -LiteralPath "$classes/.$ext/OpenWithProgids"
+    if ($openWith.GetValueNames() -notcontains $progId) { throw "Missing .$ext Open With candidate." }
+    if ((Registry-Value "$capabilities/FileAssociations" ".$ext") -ne $progId) { throw "Missing .$ext Default Apps capability." }
+    if ((Get-Item -LiteralPath "$application/SupportedTypes").GetValueNames() -notcontains ".$ext") { throw "Missing .$ext supported type." }
+    if ((Registry-Value "$classes/$progId/shell/open/command" '') -ne $command) { throw "Incorrect .$ext document-open command." }
+    if (-not (Registry-Value "$classes/$progId/DefaultIcon" '')) { throw "Missing .$ext icon." }
+  }
+  Assert-OtherAssociations
+}
 
 function Run-Installer([string] $file, [string[]] $arguments) {
   $process = Start-Process -FilePath $file -ArgumentList $arguments -PassThru
@@ -40,6 +82,7 @@ function Assert-Installed {
   if ($entry.Count -ne 1 -or $entry[0].DisplayVersion -ne $version) {
     throw 'Expected one current-user installed-app entry with the release version.'
   }
+  Assert-DocumentHandlers
 }
 
 function Assert-Preserved {
@@ -52,6 +95,15 @@ function Assert-Preserved {
 
 if (Test-Path $installDir) { throw 'This runner already has Word Studio installed.' }
 try {
+  # Seed a different candidate and extension default on this disposable runner.
+  # Install/reinstall/remove must leave both and Explorer's existing choice intact.
+  foreach ($ext in $extensions) {
+    $choice = "HKCU:/Software/Microsoft/Windows/CurrentVersion/Explorer/FileExts/.$ext/UserChoice"
+    $userChoices[$ext] = @{ ProgId = (Registry-Value $choice 'ProgId'); Hash = (Registry-Value $choice 'Hash') }
+    New-Item -Path "$classes/.$ext/OpenWithProgids" -Force | Out-Null
+    Set-Item -LiteralPath "$classes/.$ext" -Value $existingHandler
+    New-ItemProperty -LiteralPath "$classes/.$ext/OpenWithProgids" -Name $existingHandler -Value '' -PropertyType String -Force | Out-Null
+  }
   New-Item -ItemType Directory -Path (Split-Path $recovery -Parent), (Split-Path $document -Parent) -Force | Out-Null
   Set-Content $recovery 'PRESERVE WORD STUDIO USER DATA'
   Set-Content $document 'PRESERVE WORD STUDIO USER DATA'
@@ -61,6 +113,9 @@ try {
   $report.freshInstall = $true
   $report.shortcuts = $true
   $report.installedAppsEntry = $true
+  $report.registeredDocumentTypes = $extensions
+  $report.openWithAndDefaultApps = $true
+  $report.existingDefaultsPreserved = $true
 
   $env:WORD_STUDIO_EXECUTABLE = $executable
   & node (Join-Path $root 'scripts/desktop-smoke.cjs')
@@ -97,6 +152,13 @@ try {
   $remaining = @(Get-ItemProperty 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/*' |
     Where-Object { $_.PSObject.Properties['DisplayName'] -and $_.DisplayName -eq 'Word Studio' })
   if ($remaining.Count -ne 0) { throw 'Uninstall left the installed-app registration.' }
+  foreach ($ext in $extensions) {
+    if (Test-Path "$classes/WordStudio.Document.$ext") { throw "Uninstall left the .$ext ProgID." }
+    if ((Get-Item -LiteralPath "$classes/.$ext/OpenWithProgids").GetValueNames() -contains "WordStudio.Document.$ext") { throw "Uninstall left the .$ext Open With registration." }
+  }
+  if ((Registry-Value 'HKCU:/Software/RegisteredApplications' 'Word Studio') -or (Test-Path $capabilities) -or (Test-Path $application)) { throw 'Uninstall left application file capabilities.' }
+  Assert-OtherAssociations
+  $report.handlerUnregistration = $true
   Assert-Preserved
   $report.uninstall = $true
   $report.userDataPreserved = $true

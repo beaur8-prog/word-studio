@@ -28,6 +28,8 @@ Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마�
 
 `npm run package:win:dir`은 앱 폴더만, `npm run package:win:setup`은 이미 만든 앱 폴더로 설치 파일만 생성합니다. 설치 파일 빌드와 실제 설치·재설치·제거 시험은 Windows GitHub Actions에서 수행합니다. 빌드 설정은 [electron-builder.config.cjs](electron-builder.config.cjs), 격리된 CI 시험은 [scripts/test-windows-installer.ps1](scripts/test-windows-installer.ps1)에 있습니다. NSIS 옵션은 [electron-builder 공식 문서](https://www.electron.build/docs/nsis/)를 따릅니다. 설치·재설치·제거는 `%APPDATA%\Word Studio` 복구 데이터와 사용자가 저장한 문서를 지우지 않습니다.
 
+다음 설치본부터 Windows의 **연결 프로그램**과 **설정 → 앱 → 기본 앱**에 Word Studio가 `.docx`, `.hwp`, `.hwpx`, `.wordstudio`, `.html`, `.htm`, `.txt`를 지원하는 앱으로 등록됩니다. 기존 기본 앱은 유지하며, Word Studio를 기본으로 쓰려면 해당 OS 화면에서 직접 선택합니다. 재설치 시 등록을 갱신하고 제거 시 Word Studio의 등록만 지웁니다. Mac은 앱 번들의 문서 형식 선언으로 Finder의 **다음으로 열기**, Linux는 설치된 데스크톱 항목의 MIME 선언으로 **다른 프로그램으로 열기**를 지원합니다.
+
 Mac에서는 `npm run package:mac`으로 기존 파란 문서·연필 아이콘을 적용한 `Word Studio.app`을 만듭니다. 검증된 앱은 `~/Library/Caches/WordStudioBuild/Word Studio.app`, 배포 ZIP은 `release/Word-Studio-mac-arm64.zip`(Intel Mac은 `x64`)에 생성됩니다. 앱을 응용 프로그램 폴더에 복사해 실행할 수 있습니다. 이 빌드는 로컬 사용을 위한 임시 서명이며 Apple 공증은 포함하지 않습니다. `npm start` 개발 실행에서도 같은 Dock 아이콘을 사용합니다.
 
 ## Linux 패키징
