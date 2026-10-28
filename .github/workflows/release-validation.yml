@@ -14,12 +14,17 @@ on:
         description: 'Retry Linux checks after unchanged Windows application checks pass'
         type: boolean
         default: false
+      windows_only:
+        description: 'Only Windows checks after unchanged Linux package checks pass'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   linux:
+    if: ${{ !inputs.windows_only }}
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:

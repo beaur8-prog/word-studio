@@ -22,8 +22,12 @@ const { Document, Paragraph, Packer } = require('docx');
   const run = (command, args) => execFileSync(command, args, { stdio: 'pipe' });
   try {
     run('/usr/bin/ditto', [source, bundle]);
+    // File-provider folders can add Finder metadata to an unpacked build.
+    // Remove it only from this disposable copy before giving it a QA identity.
+    run('/usr/bin/xattr', ['-cr', bundle]);
     const info = path.join(bundle, 'Contents/Info.plist');
     run('/usr/bin/plutil', ['-replace', 'CFBundleIdentifier', '-string', `local.wordstudio.fileopen.qa${process.pid}`, info]);
+    for (const key of ['CFBundleName', 'CFBundleDisplayName']) run('/usr/bin/plutil', ['-replace', key, '-string', 'Word File Open QA', info]);
     run('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', '--timestamp=none', bundle]);
     run('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle]);
     const metadata = JSON.parse(run('/usr/bin/plutil', ['-convert', 'json', '-o', '-', info]));
@@ -41,9 +45,13 @@ const { Document, Paragraph, Packer } = require('docx');
     }
     run(lsregister, ['-f', bundle]);
     const query = path.join(temporary, 'document-handlers');
-    run('/usr/bin/xcrun', ['swiftc', path.join(__dirname, 'query-mac-document-handlers.swift'), '-o', query]);
-    const handlers = JSON.parse(run(query, candidates));
-    for (const filename of candidates) expect(handlers[filename], path.extname(filename) + ' Finder Open With').toContain(await fs.realpath(bundle));
+    run('/usr/bin/xcrun', ['clang', '-fobjc-arc', '-framework', 'AppKit', path.join(__dirname, 'query-mac-document-handlers.m'), '-o', query]);
+    const registeredBundle = await fs.realpath(bundle);
+    const checkHandlers = async () => { await expect.poll(() => {
+      const handlers = JSON.parse(run(query, candidates));
+      fs.writeFile(path.join(output, 'open-with-handlers.json'), JSON.stringify(handlers, null, 2)).catch(() => {});
+      return candidates.filter(filename => !handlers[filename]?.includes(registeredBundle)).map(filename => path.extname(filename));
+    }, { timeout: 10000, message: 'Every supported extension must offer the isolated app in Finder Open With' }).toEqual([]); };
     const server = net.createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const port = server.address().port; await new Promise(resolve => server.close(resolve));
     run('/usr/bin/open', ['-n', '-a', bundle, first, '--args', '--user-data-dir=' + profile, '--remote-debugging-port=' + port]);
@@ -53,6 +61,7 @@ const { Document, Paragraph, Packer } = require('docx');
     browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`);
     const page = browser.contexts()[0].pages()[0]; page.setDefaultTimeout(15000);
     await expect(page.locator('.document-stack .tiptap')).toHaveText('Finder 더블클릭 첫 번째 DOCX 본문');
+    await checkHandlers();
     // Finder returns decomposed Unicode filenames on macOS.
     await expect.poll(async () => (await page.getByRole('textbox', { name: '문서 제목' }).inputValue()).normalize('NFC')).toBe('Finder 첫 번째 한글 문서');
     run('/usr/bin/open', ['-a', bundle, second]);

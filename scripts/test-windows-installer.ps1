@@ -101,8 +101,8 @@ try {
     $choice = "HKCU:/Software/Microsoft/Windows/CurrentVersion/Explorer/FileExts/.$ext/UserChoice"
     $userChoices[$ext] = @{ ProgId = (Registry-Value $choice 'ProgId'); Hash = (Registry-Value $choice 'Hash') }
     New-Item -Path "$classes/.$ext/OpenWithProgids" -Force | Out-Null
-    (Get-Item -LiteralPath "$classes/.$ext").SetValue('', $existingHandler)
-    (Get-Item -LiteralPath "$classes/.$ext/OpenWithProgids").SetValue($existingHandler, '')
+    Set-Item -LiteralPath "$classes/.$ext" -Value $existingHandler
+    New-ItemProperty -LiteralPath "$classes/.$ext/OpenWithProgids" -Name $existingHandler -Value '' -PropertyType String -Force | Out-Null
   }
   New-Item -ItemType Directory -Path (Split-Path $recovery -Parent), (Split-Path $document -Parent) -Force | Out-Null
   Set-Content $recovery 'PRESERVE WORD STUDIO USER DATA'
