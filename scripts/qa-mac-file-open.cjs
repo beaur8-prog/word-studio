@@ -14,7 +14,9 @@ const { Document, Paragraph, Packer } = require('docx');
   if (process.platform !== 'darwin') throw new Error('Launch Services requires macOS.');
   const source = process.argv[2]; if (!source) throw new Error('Pass a packaged .app bundle.');
   const output = path.resolve(process.argv[3] || '.cache/file-open/launch-services'); await fs.mkdir(output, { recursive: true });
-  const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'word-launch-services-'));
+  // Launch Services deliberately omits apps in the OS temp directory from
+  // Open With. Use a disposable cache bundle so this tests real candidates.
+  const temporary = await fs.mkdtemp(path.join(os.homedir(), 'Library/Caches/word-launch-services-'));
   const bundle = path.join(temporary, 'Word File Open QA.app'), profile = path.join(temporary, 'profile');
   const first = path.join(temporary, 'Finder 첫 번째 한글 문서.docx'), second = path.join(temporary, 'Finder 두 번째 문서.txt');
   let browser, pid;
@@ -27,7 +29,9 @@ const { Document, Paragraph, Packer } = require('docx');
     run('/usr/bin/xattr', ['-cr', bundle]);
     const info = path.join(bundle, 'Contents/Info.plist');
     run('/usr/bin/plutil', ['-replace', 'CFBundleIdentifier', '-string', `local.wordstudio.fileopen.qa${process.pid}`, info]);
-    for (const key of ['CFBundleName', 'CFBundleDisplayName']) run('/usr/bin/plutil', ['-replace', key, '-string', 'Word File Open QA', info]);
+    // Electron locates its helper executables using CFBundleName. Keep that
+    // name and give only the QA display identity a distinct visible label.
+    run('/usr/bin/plutil', ['-replace', 'CFBundleDisplayName', '-string', 'Word File Open QA', info]);
     run('/usr/bin/codesign', ['--force', '--deep', '--sign', '-', '--timestamp=none', bundle]);
     run('/usr/bin/codesign', ['--verify', '--deep', '--strict', bundle]);
     const metadata = JSON.parse(run('/usr/bin/plutil', ['-convert', 'json', '-o', '-', info]));
@@ -54,7 +58,8 @@ const { Document, Paragraph, Packer } = require('docx');
     }, { timeout: 10000, message: 'Every supported extension must offer the isolated app in Finder Open With' }).toEqual([]); };
     const server = net.createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const port = server.address().port; await new Promise(resolve => server.close(resolve));
-    run('/usr/bin/open', ['-n', '-a', bundle, first, '--args', '--user-data-dir=' + profile, '--remote-debugging-port=' + port]);
+    run('/usr/bin/open', ['-n', '--stderr', path.join(output, 'app-stderr.log'), '--stdout', path.join(output, 'app-stdout.log'),
+      '-a', bundle, first, '--args', '--user-data-dir=' + profile, '--remote-debugging-port=' + port]);
     await expect.poll(async () => {
       try { const response = await fetch(`http://127.0.0.1:${port}/json/version`); return response.status; } catch { return 0; }
     }, { timeout: 30000 }).toBe(200);

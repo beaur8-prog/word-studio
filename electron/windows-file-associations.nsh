@@ -26,8 +26,8 @@
 
 !macro WordStudioUnregisterDocument EXT DESCRIPTION
   DeleteRegValue SHELL_CONTEXT "Software\Classes\.${EXT}\OpenWithProgids" "WordStudio.Document.${EXT}"
-  DeleteRegKey /ifempty SHELL_CONTEXT "Software\Classes\.${EXT}\OpenWithProgids"
-  DeleteRegKey /ifempty SHELL_CONTEXT "Software\Classes\.${EXT}"
+  ; These keys are shared. NSIS /ifempty checks subkeys, not values, and
+  ; would erase another handler or extension default during an upgrade.
   DeleteRegKey SHELL_CONTEXT "Software\Classes\WordStudio.Document.${EXT}"
 !macroend
 
@@ -46,7 +46,6 @@
   !insertmacro WordStudioDocumentTypes WordStudioUnregisterDocument
   DeleteRegValue SHELL_CONTEXT "Software\RegisteredApplications" "Word Studio"
   DeleteRegKey SHELL_CONTEXT "${WORD_STUDIO_CAPABILITIES}"
-  DeleteRegKey /ifempty SHELL_CONTEXT "Software\WordStudio"
   DeleteRegKey SHELL_CONTEXT "${WORD_STUDIO_APPLICATION}"
   System::Call 'shell32::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)'
 !macroend
