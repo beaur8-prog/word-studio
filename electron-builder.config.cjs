@@ -14,6 +14,9 @@ module.exports = {
     signAndEditExecutable: false,
   },
   nsis: {
+    // Register supported handlers without replacing the user's default app.
+    // electron-builder's APP_ASSOCIATE also overwrites the extension default.
+    include: 'electron/windows-file-associations.nsh',
     artifactName: 'Word-Studio-${version}-windows-${arch}-setup.${ext}',
     oneClick: false,
     perMachine: false,

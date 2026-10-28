@@ -48,6 +48,12 @@ Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 D
 
 기존 ZIP 배포본을 사용했다면 문서를 저장하고 이전 앱을 완전히 종료한 뒤 Setup을 실행하세요. 기존 자동 복구 경로는 그대로 사용합니다. 설치된 앱이 정상 실행되는 것을 확인한 뒤 이전 포터블 폴더와 바로 가기를 정리할 수 있습니다.
 
+### 문서의 연결 프로그램 선택
+
+**다음 Windows 설치본부터 적용됩니다.** 설치하면 `.docx`, `.hwp`, `.hwpx`, `.wordstudio`, `.html`, `.htm`, `.txt`의 지원 앱 목록에 Word Studio가 등록됩니다. 파일을 우클릭해 **연결 프로그램 → 다른 앱 선택 → Word Studio**로 열 수 있습니다. 항상 Word Studio로 열려면 해당 화면에서 기본 앱으로 선택하거나 **설정 → 앱 → 기본 앱 → Word Studio**에서 확장자별로 지정하세요. 기존 기본 앱은 설치만으로 바뀌지 않습니다.
+
+Mac은 앱을 응용 프로그램에 넣은 뒤 파일 우클릭 **다음으로 열기 → Word Studio**를, Linux는 DEB 설치 후 파일 우클릭 **다른 프로그램으로 열기 → Word Studio**를 사용합니다.
+
 Windows 배포 파일은 코드 서명을 받지 않았습니다. SmartScreen은 서명과 파일의 다운로드 평판을 확인하며, 브라우저도 잘 알려지지 않은 다운로드에 경고를 표시할 수 있습니다. 위 실행 절차는 출처와 파일을 확인한 뒤에 진행하세요. **‘실행’ 버튼이 없거나 회사·학교 PC의 정책으로 차단되는 경우 관리자에게 문의하세요.** 자세한 내용은 Microsoft의 [SmartScreen 평판 안내](https://learn.microsoft.com/ko-kr/windows/apps/package-and-deploy/smartscreen-reputation)와 [Edge 다운로드 경고 안내](https://support.microsoft.com/ko-kr/edge/how-can-smartscreen-help-protect-me-in-microsoft-edge)를 참고하세요.
 
 ## 3. Mac 설치 및 실행
