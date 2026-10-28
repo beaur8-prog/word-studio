@@ -7,6 +7,7 @@ import { applyFloatingLayout } from './floating-layout';
 import { imageFloating } from './image-floating';
 import { layoutFurnitureImages } from './furniture-layout';
 import { layoutTableAnchors } from './table-anchor';
+import { paragraphFitBottom } from './paragraph-fit';
 
 export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
@@ -56,6 +57,8 @@ function splitText(element: HTMLElement, offset: number): [HTMLElement, HTMLElem
   else after.collapse(false);
   const a = element.cloneNode(false) as HTMLElement, b = element.cloneNode(false) as HTMLElement;
   a.append(before.cloneContents()); b.append(after.cloneContents());
+  // Fragment boundaries retain the same line budget as editor continuation.
+  a.dataset.printParagraphFragment = 'true'; b.dataset.printParagraphFragment = 'true';
   a.style.marginBottom = '0'; b.style.marginTop = '0'; b.style.textIndent = '0';
   return [a, b];
 }
@@ -161,7 +164,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutColumns(content, content.getBoundingClientRect().bottom);
     applyFloatingLayout(content);
     const last = content.lastElementChild as HTMLElement | null;
-    return !hasDeferredNote(content) && (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
+    return !hasDeferredNote(content) && (!last || paragraphFitBottom(last) <= content.getBoundingClientRect().bottom + 0.5)
       // Behind/in-front objects do not consume text flow. A page decoration
       // extending into the margin must not push its anchor onto another page.
       && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img =>
@@ -494,7 +497,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   try {
     onProgress?.({ label: '문서의 글꼴을 준비하는 중…' });
     const sample = source.textContent || '한글';
-    for (const family of ['Noto Serif KR', 'Noto Sans KR']) if (html.includes(family))
+    for (const family of ['Noto Serif KR', 'Noto Sans KR', 'Studio Text', 'Studio Math', 'Studio Symbols', 'Studio Symbols 2', 'Studio Devanagari', 'Studio Emoji']) if (html.includes(family))
       await Promise.all([400, 700].map(weight => document.fonts.load(`${weight} 12px "${family}"`, sample)));
     if (source.querySelector('[data-symbol-font]')) await Promise.all(['Studio Symbols 2','Studio Symbols','Studio Math','Studio Text','Studio Devanagari','Studio Emoji'].map(font => document.fonts.load(`12px "${font}"`)));
     await document.fonts.ready;

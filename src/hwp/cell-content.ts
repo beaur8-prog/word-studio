@@ -111,9 +111,9 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
     });
   };
   const repair = (source: string, parents: CellPath, control: number, key: string, depth = 0): string => {
-    if (parents.length && nestedTable && depth <= 12)
-      source = nestedTable([...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }], source);
-    if ((!/<!--\s*rhwp:|<img\b/.test(source) && !/<table\b[\s\S]*<table\b/.test(source)) || depth > 12) return source;
+    const finish = (html: string) => parents.length && nestedTable && depth <= 12
+      ? nestedTable([...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }], html) : html;
+    if ((!/<!--\s*rhwp:|<img\b/.test(source) && !/<table\b[\s\S]*<table\b/.test(source)) || depth > 12) return finish(source);
     const tablePath = [...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }];
     const dims = parents.length ? JSON.parse(doc.getTableDimensionsByPath(section, para, JSON.stringify(tablePath))) : JSON.parse(doc.getTableDimensions(section, para, control));
     if (dims.cellCount > 50000) throw Error('편집할 표의 셀 수가 너무 많습니다.');
@@ -240,7 +240,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
       }
       output += source.slice(cursor, start) + parts.join('\n'); cursor = match.index!;
     }
-    return output + source.slice(cursor);
+    return finish(output + source.slice(cursor));
   };
   try { return repair(html, [], tableControl, `${section}:${para}/t${tableOrdinal}`); }
   catch { warnings.add('일부 표 안 개체를 복원하지 못했습니다. 원본 보기의 해당 개체와 비교하세요.'); return html; }

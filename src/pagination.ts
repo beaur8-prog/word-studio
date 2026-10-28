@@ -8,6 +8,7 @@ import { paginateCellRow, paginateMergedRows } from './editor-cell-pagination';
 import { layoutColumns } from './column-layout';
 import { layoutTableAnchors } from './table-anchor';
 import { paginateParagraph } from './editor-paragraph-pagination';
+import { paragraphFitBottom } from './paragraph-fit';
 
 const key = new PluginKey('studioPagination');
 type RepeatingHeader = { table: HTMLTableElement; rows: HTMLTableRowElement[]; height: number };
@@ -216,7 +217,12 @@ export const Pagination = Extension.create({
                     reserveAt: (page, own) => reserve(page, own ?? []) });
                   if (flow) { assignNotes(flow.references); commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }
-                if (!piece.columns && !piece.explicit && y + piece.height > end + .5) {
+                let fitHeight = piece.height;
+                if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
+                  const paragraph = view.nodeDOM(piece.pos);
+                  if (paragraph instanceof HTMLElement) fitHeight -= Math.max(0, paragraph.getBoundingClientRect().bottom - paragraphFitBottom(paragraph)) / scale;
+                }
+                if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
                   if (paragraph instanceof HTMLElement && paragraph.tagName === 'P') {
                     const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed,
@@ -228,7 +234,7 @@ export const Pagination = Extension.create({
                 // Multi-column groups already fragment across paper rows in
                 // layoutColumns. Moving their outer box as an atomic block
                 // adds a second page gap and feeds it back into column-prefix.
-                if (piece.explicit || (!piece.columnFlow && y + piece.height > end + .5 && piece.height <= usable)) {
+                if (piece.explicit || (!piece.columnFlow && y + fitHeight > end + .5 && piece.height <= usable)) {
                   let destination = page + 1;
                   if (piece.breakType === 'oddPage' || piece.breakType === 'evenPage') {
                     const parity = piece.breakType === 'oddPage' ? 1 : 0;

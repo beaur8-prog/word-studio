@@ -2,8 +2,9 @@
 
 MIT-licensed RHWP 0.8.7, built from
 [`1a76570e833917d15817415a53c09ad61ab3203f`](https://github.com/edwardkim/rhwp/tree/1a76570e833917d15817415a53c09ad61ab3203f)
-with `pagination.patch`, `manifest-paths.patch`, `cell-paper-pictures.patch` and `cell-padding.patch`
-(`0.8.7-wordstudio.4`). This is a
+with `pagination.patch`, `manifest-paths.patch`, `cell-paper-pictures.patch`,
+`cell-padding.patch`, `cell-paragraph-query.patch` and `paragraph-roundtrip.patch`
+(`0.8.7-wordstudio.6`). This is a
 local Word Studio build, not an upstream release.
 The package is vendored so installers use the exact same engine offline, without
 requiring Rust on users' machines or downloading a replacement during CI.
@@ -51,6 +52,16 @@ and two successive saves. Blank cell paragraphs retain their format and source
 slots. Fixed leading uses the native doubled units, preserving both CSS px and
 pt lengths. CSS declarations follow last-wins order while inner elements override
 inherited formatting; nested bold/italic and duplicate declarations are tested.
+
+`cell-paragraph-query.patch` adds read-only paragraph formatting at arbitrary
+cell paths and stored line-box metrics for body and nested paragraphs. These
+queries do not alter document text, formatting, or layout. Stored metrics are
+import/diagnostic evidence, not fixed line breaks after editing.
+
+`paragraph-roundtrip.patch` writes plain paragraph margin units according to the
+emitted HWPX package version. A style copied from an older template into a modern
+package previously doubled hanging indents and before/after spacing on reopening.
+Modern HTML imports, legacy plain HWPX and binary HWP are checked through two saves.
 
 Build toolchain: Rust 1.93.1 (`wasm32-unknown-unknown`), wasm-pack 0.15.0,
 wasm-bindgen CLI 0.2.127, upstream locked Cargo dependencies and wasm-opt settings.

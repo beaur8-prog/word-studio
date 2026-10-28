@@ -16,6 +16,7 @@ import { stageHwpPictures } from './export-pictures';
 import { hwpBookmark, hwpTabAttribute, stageHwpTextNavigation } from './text-navigation';
 import { hwpTableGrid } from './table-grid';
 import { nestedTableGeometry } from './nested-tables';
+import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss } from './paragraph-layout';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -51,56 +52,6 @@ const hu = (value: number) => Math.round(value * 7200 / 25.4);
 const px = (value: number) => Math.round(value / 75 * 100) / 100;
 const cssStyle = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old};${css}"`) : tag.replace(/>$/, ` style="${css}">`);
 
-function physicalLineHeight(properties: Record<string, any>, char?: Record<string, any>): number {
-  const fontPx = Number(char?.fontSize) / 75;
-  const line = Number(properties.lineSpacing);
-  return properties.lineSpacingType === 'Percent' ? fontPx * line / 100
-    : properties.lineSpacingType === 'Fixed' ? line
-    : properties.lineSpacingType === 'SpaceOnly' ? fontPx + line
-    : properties.lineSpacingType === 'Minimum' ? Math.max(fontPx, line) : NaN;
-}
-
-function paragraphCss(properties: Record<string, any>, char?: Record<string, any>, cap?: number, includeSpacing = true): string {
-  const fontPx = Number(char?.fontSize) / 75;
-  const line = Number(properties.lineSpacing);
-  // The query API mixes units: margins/indent and fixed leading are
-  // already physical pixels, but before/after retain ParaShape's 2x scale.
-  // See build_para_properties_json and style_resolver at the corpus revision.
-  const height = physicalLineHeight(properties, char);
-  const indent = Number(properties.indent) || 0;
-  const left = (Number(properties.marginLeft) || 0) + Math.max(0, -indent);
-  const spacing = Number.isFinite(cap) && Number.isFinite(height) && height > cap! && cap! >= fontPx ? `${cap}px`
-    : properties.lineSpacingType === 'Percent' ? `${line}%` : Number.isFinite(height) ? `${height}px` : '';
-  return `margin-left:${left}px;margin-right:${(Number(properties.marginRight) || 0)}px;text-indent:${indent}px;` +
-    (['left', 'center', 'right', 'justify'].includes(properties.alignment) ? `text-align:${properties.alignment};` : '') +
-    (includeSpacing ? `margin-top:${(Number(properties.spacingBefore) || 0) / 2}px;margin-bottom:${(Number(properties.spacingAfter) || 0) / 2}px;` : '') +
-    (char?.fontSize ? `font-size:${char.fontSize / 100}pt;font-family:${escape(JSON.stringify(char.fontFamily || 'serif'))};` : '') +
-    (spacing ? `line-height:${spacing};` : '');
-}
-
-function sourceLinePitches(doc: HwpDocument): Map<string, number> {
-  const lines = new Map<string, { y: number; h: number; page: number }[]>();
-  const pitches = new Map<string, number>();
-  for (let page = 0; page < doc.pageCount(); page++) for (const run of JSON.parse(doc.getPageTextLayout(page)).runs ?? []) {
-    if (run.parentParaIdx === undefined && typeof run.secIdx === 'number' && typeof run.paraIdx === 'number') pitches.set(`flow:${run.secIdx}:${run.paraIdx}`, 1);
-    if (typeof run.secIdx !== 'number' || typeof run.paraIdx !== 'number' || run.cellPath?.length > 1) continue;
-    const key = run.parentParaIdx === undefined ? `${run.secIdx}:${run.paraIdx}` : `${run.secIdx}:${run.parentParaIdx}:${run.controlIdx}:${run.cellIdx}:${run.cellParaIdx}`;
-    if (!pitches.has(`top:${key}`)) { pitches.set(`top:${key}`, run.y); pitches.set(`page:${key}`, page); }
-    pitches.set(`height:${key}`, Math.max(pitches.get(`height:${key}`) ?? 0, run.h));
-    if (!run.text?.trim()) continue;
-    const group = lines.get(key) ?? [], previous = group.at(-1);
-    if (!previous || previous.page !== page || Math.abs(previous.y - run.y) > Math.min(previous.h, run.h) * .45) group.push({ y: run.y, h: run.h, page });
-    lines.set(key, group);
-  }
-  for (const [key, group] of lines) {
-    const values = group.slice(1).flatMap((line, i) => {
-      const previous = group[i], value = line.y - previous.y;
-      return line.page === previous.page && value >= Math.max(line.h, previous.h) * .9 && value < Math.max(line.h, previous.h) * 4 ? [value] : [];
-    }).sort((a, b) => a - b);
-    if (values.length) pitches.set(key, Math.round(values[Math.floor(values.length / 2)] * 100) / 100);
-  }
-  return pitches;
-}
 
 function tableGeometry(doc: HwpDocument, section: number, para: number, control: number, html: string, pitches: Map<string, number>, tabs?: (cell: number, paragraph: number) => string): string {
   const dims = JSON.parse(doc.getTableDimensions(section, para, control));
@@ -193,20 +144,15 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
         if (c.rowSpan === 1 && doc.getCellParagraphCount(section, para, control, index) === 1 &&
           JSON.parse(doc.getLineInfoInCell(section, para, control, index, 0, 0)).lineCount === 1)
           cap = px(c.height - c.paddingTop - c.paddingBottom);
-        let finalPitch = pitch;
         const text = html.slice(offset + tag.length, html.indexOf('</p>', offset));
-        if (cellParagraph === doc.getCellParagraphCount(section, para, control, index) &&
-          JSON.parse(doc.getLineInfoInCell(section, para, control, index, cellParagraph - 1, 0)).lineCount <= 1 &&
-          !/<(?:img|table)\b|<!--\s*rhwp:/i.test(text)) {
-          // Hancom does not reserve trailing line leading after the final
-          // line in a cell. For a single-line final paragraph this is an
-          // ordinary exact line height and survives DOCX without hidden data.
-          const inkHeight = pitches.get(`height:${key}`) ?? Number(char.fontSize) / 75;
-          const requested = pitch ?? physicalLineHeight(properties, char);
-          if (inkHeight > 0 && requested > inkHeight) finalPitch = inkHeight;
-        }
+        const paragraphCssValue = cellParagraphCss(properties, char, { pitch, cap,
+          inkHeight: pitches.get(`height:${key}`),
+          final: cellParagraph === doc.getCellParagraphCount(section, para, control, index),
+          lines: JSON.parse(doc.getLineInfoInCell(section, para, control, index, cellParagraph - 1, 0)).lineCount,
+          simple: !/<(?:img|table)\b|<!--\s*rhwp:/i.test(text),
+        });
         if (text.includes('\t') && !tag.includes('data-tab-stops')) tag = tag.replace(/>$/, `${tabs?.(index, cellParagraph - 1) ?? ''}>`);
-        return cssStyle(tag, paragraphCss(properties, char, cap, false) + (finalPitch ? `line-height:${finalPitch}px;` : ''));
+        return cssStyle(tag, paragraphCssValue);
       } catch { return tag; }
     }
     if (tag === '</td>') return `${cellParagraph ? '' : `<p style="${paragraphStyle}"></p>`}</${header ? 'th' : 'td'}>`;
@@ -633,7 +579,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
               return croppedPicture(picture, props);
             }
             catch { return html; }
-          }, noteReference, (path, html) => nestedTableGeometry(doc, section, para, path, html));
+          }, noteReference, (path, html) => nestedTableGeometry(doc, section, para, path, html, pitches));
           controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches,
             (cell, p) => hwpTabAttribute(equationMetadata().get(`${section}:${para}/t${ordinal}/c${cell}/p${p}`)?.tabStops));
           const background = tableBackgrounds.get(c.controlIndex);

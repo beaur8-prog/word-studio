@@ -676,6 +676,10 @@ export class HwpDocument {
      */
     getCellParaPropertiesAt(sec_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number, cell_para_idx: number): string;
     /**
+     * Read-only paragraph formatting for ordinary and nested table cells.
+     */
+    getCellParaPropertiesAtByPath(section_idx: number, parent_para_idx: number, path_json: string): string;
+    /**
      * 표 셀 내 문단 수를 반환한다.
      */
     getCellParagraphCount(section_idx: number, parent_para_idx: number, control_idx: number, cell_idx: number): number;
@@ -1163,6 +1167,7 @@ export class HwpDocument {
      * 문단의 글자 수(char 개수)를 반환한다.
      */
     getParagraphLength(section_idx: number, para_idx: number): number;
+    getParagraphLineMetrics(section_idx: number, parent_para_idx: number, path_json: string): string;
     /**
      * 그림 컨트롤의 속성을 조회한다.
      *
@@ -2679,6 +2684,7 @@ export interface InitOutput {
     readonly hwpdocument_getCellInfoByPath: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly hwpdocument_getCellOwnProperties: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly hwpdocument_getCellParaPropertiesAt: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+    readonly hwpdocument_getCellParaPropertiesAtByPath: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly hwpdocument_getCellParagraphCount: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly hwpdocument_getCellParagraphCountByPath: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
     readonly hwpdocument_getCellParagraphLength: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
@@ -2778,6 +2784,7 @@ export interface InitOutput {
     readonly hwpdocument_getParaShapeSet: (a: number, b: number, c: number) => [number, number];
     readonly hwpdocument_getParagraphCount: (a: number, b: number) => [number, number, number];
     readonly hwpdocument_getParagraphLength: (a: number, b: number, c: number) => [number, number, number];
+    readonly hwpdocument_getParagraphLineMetrics: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
     readonly hwpdocument_getPictureProperties: (a: number, b: number, c: number, d: number) => [number, number, number, number];
     readonly hwpdocument_getPositionOfPage: (a: number, b: number) => [number, number, number, number];
     readonly hwpdocument_getScanItems: (a: number) => [number, number];

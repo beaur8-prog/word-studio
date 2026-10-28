@@ -1,6 +1,6 @@
 {
   "name": "@rhwp/core",
-  "version": "0.8.7-wordstudio.4",
+  "version": "0.8.7-wordstudio.6",
   "description": "RHWP 0.8.7 with Word Studio pagination, paths, picture positioning and cell formatting preservation",
   "type": "module",
   "main": "rhwp.js",
@@ -19,7 +19,7 @@
     "hml",
     "hancom",
     "hangul",
-    "한글",
+    "\ud55c\uae00",
     "document",
     "parser",
     "renderer",
