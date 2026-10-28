@@ -44,7 +44,7 @@ import type {
   ITableCellBorders,
 } from "docx";
 import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
-import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE } from './docx-metadata';
+import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE } from './docx-metadata';
 import { emptyLineDocxProperty, emptyLineCompatibilityWarning } from './page-empty-lines';
 import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
@@ -54,7 +54,7 @@ import { storyHtml, documentNotes, attachDocumentNotes, structureDocxSections } 
 import { parseDocumentHtml } from './extensions';
 import { imageFloating, restoreImageGeometry, type ImageGeometryRecord } from './image-floating';
 import type { PageSettings, StudioDocument } from "./types";
-import { PreservedTableCell } from './docx-table-cell';
+import { PreservedTable, PreservedTableCell } from './docx-table-cell';
 import { tableAnchor } from './table-anchor';
 import documentLimits from '../electron/document-limits.json';
 
@@ -965,6 +965,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const geometries = new Map<string, ImageGeometryRecord>();
   const mmToTwip = (mm: number) => Math.round((mm * 1440) / 25.4);
   const [portraitWidth, portraitHeight] = paperSize(page);
+  let currentLeftMargin = pageMargins(page).left * 96 / 25.4;
   let contentWidth = mmToTwip(
     (page.orientation === "landscape" ? portraitHeight : portraitWidth) -
       pageMargins(page).left - pageMargins(page).right,
@@ -1278,25 +1279,29 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           );
         }
         const anchor = tableAnchor(node.attrs?.tableAnchor);
-        const table = new Table({
+        const paragraphAnchor = anchor?.reference === 'paragraph' ? anchor : undefined;
+        const inlineIndent = paragraphAnchor ? paragraphAnchor.x - (paragraphAnchor.horizontal === 'margin' ? 0 : currentLeftMargin) : undefined;
+        const table = new PreservedTable({
             rows,
             width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
-            ...(['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
-            ...(node.attrs?.tableIndent ? { indent: { size: Math.round(Number.parseFloat(node.attrs.tableIndent) * 15) || 0, type: WidthType.DXA } } : {}),
+            ...(paragraphAnchor ? { alignment: AlignmentType.LEFT } : ['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
+            ...(inlineIndent !== undefined || node.attrs?.tableIndent ? { indent: { size: Math.round((inlineIndent ?? Number.parseFloat(node.attrs!.tableIndent)) * 15) || 0, type: WidthType.DXA } } : {}),
             columnWidths,
-            ...(anchor ? { float: { horizontalAnchor: anchor.horizontal === 'margin' ? TableAnchorType.MARGIN : TableAnchorType.PAGE,
+            ...(anchor && !paragraphAnchor ? { float: { horizontalAnchor: anchor.horizontal === 'margin' ? TableAnchorType.MARGIN : TableAnchorType.PAGE,
               verticalAnchor: anchor.reference === 'paragraph' ? TableAnchorType.TEXT : TableAnchorType.PAGE,
               absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round(anchor.y * 15), bottomFromText: Math.round(anchor.bottom * 15),
               // These supported floats wrap above/below. Otherwise Word/Writer
               // can squeeze body characters into a narrow space at either side.
               leftFromText: contentWidth, rightFromText: contentWidth } } : {}),
-          });
+          }, paragraphAnchor);
         // Missing imported CSS uses the editor's 18px table gap. Furniture
         // and note tables have a zero default, passed through nested blocks.
         tableSpacing.set(table, anchor ? 0 : Math.max(0, fontPoints(node.attrs?.tableSpacing) ?? (context.tableGap ?? 18) * .75) * 4 / 3);
+        const tableOffset = (pixels: number) => new Paragraph({ style: TABLE_OFFSET_STYLE,
+          spacing: { before: 0, after: 0, line: Math.max(1, Math.round(pixels * 15)), lineRule: LineRuleType.EXACT }, run: { size: 2 } });
+        if (paragraphAnchor?.y) output.push(tableOffset(paragraphAnchor.y));
         output.push(table);
-        if (anchor?.reference === 'paragraph') output.push(new Paragraph({ style: TABLE_ANCHOR_STYLE,
-          spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT }, run: { size: 2 } }));
+        if (paragraphAnchor?.bottom) output.push(tableOffset(paragraphAnchor.bottom));
       }
     }
     return output.flatMap((block, i) => i > 0 && block instanceof Table && output[i - 1] instanceof Table
@@ -1330,6 +1335,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const page = group.page;
   const [portraitWidth, portraitHeight] = paperSize(page);
   const margins = pageMargins(page);
+  currentLeftMargin = margins.left * 96 / 25.4;
   const fullWidth = mmToTwip((page.orientation === 'landscape' ? portraitHeight : portraitWidth) - margins.left - margins.right);
   const count = page.columns?.count || 1;
   contentWidth = Math.max(1, Math.floor((fullWidth - Math.round((page.columns?.space || 0) * 15) * (count - 1)) / count));
@@ -1394,7 +1400,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     comments: { children: await Promise.all(document.comments.map(async (comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: comment.author ?? 'Word Studio', initials: comment.initials, date: new Date(comment.createdAt),
       resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph(text)) }))) },
     styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } },
-      paragraphStyles: [TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })) },
+      paragraphStyles: [TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })) },
     sections,
   });
   const blob = await Packer.toBlob(docx);

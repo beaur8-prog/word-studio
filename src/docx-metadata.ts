@@ -5,7 +5,7 @@ import { overlapInstruction } from './word-overlap';
 import { symbolFont, symbolElement } from './document-symbols';
 import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
-import { tableAnchor } from './table-anchor';
+import { tableAnchor, paragraphTableNamespace } from './table-anchor';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
 // A standard paragraph style identifies the otherwise invisible separator
 // required by Word between adjacent tables and after a table inside a cell.
@@ -13,6 +13,7 @@ export const TABLE_GAP_STYLE = 'WordStudioTableGap';
 // A zero-height ordinary paragraph gives a paragraph-relative floating table
 // a stable standard OOXML anchor, independent of the following body text.
 export const TABLE_ANCHOR_STYLE = 'WordStudioTableAnchor';
+export const TABLE_OFFSET_STYLE = 'WordStudioTableOffset';
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
@@ -142,6 +143,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       const sizedTables = new Map<HTMLTableElement, Element>();
       const tableGaps = new Map<HTMLElement, number>();
       const tableAnchorParagraphs = new Set<HTMLElement>();
+      const tableOffsetParagraphs = new Set<HTMLElement>();
       for (const el of template.content.querySelectorAll('img')) {
         const name = el.getAttribute('alt') || '', marker = markers.get(name);
         if (marker?.kind !== 'image') continue;
@@ -198,6 +200,21 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
                 bottom: Number(val(floating, 'bottomFromText')) / 15, reference: 'paragraph', ...(val(floating, 'horzAnchor') !== 'page' ? { horizontal: 'margin' } : {}) });
               if (anchor) table.dataset.tableAnchor = JSON.stringify(anchor);
             }
+            const stored = tableAnchor(sourceTable.getAttributeNS(paragraphTableNamespace, 'anchor'));
+            const unchangedOffset = (element: Element | null, pixels: number) => !pixels || !!element && element.localName === 'p' &&
+              val(child(child(element, 'pPr'), 'pStyle')) === TABLE_OFFSET_STYLE &&
+              Array.from(element.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')) &&
+              val(child(child(element, 'pPr'), 'spacing'), 'lineRule') === 'exact' &&
+              Math.abs(Number(val(child(child(element, 'pPr'), 'spacing'), 'line')) / 15 - pixels) <= 1 / 15 + .001;
+            const indent = child(child(sourceTable, 'tblPr'), 'tblInd');
+            // An external editor can change the visible inline geometry while
+            // retaining ignorable attributes. Respect those edits, including
+            // text entered in an offset paragraph, instead of restoring stale
+            // positioning or removing the edited paragraph.
+            if (stored?.reference === 'paragraph' && gridWidth >= bodyWidth * .8 && (page.columns?.count || 1) === 1 &&
+              val(indent, 'type') === 'dxa' && Math.abs(Number(val(indent, 'w')) / 15 - stored.x + (stored.horizontal === 'margin' ? 0 : margins.left * 96 / 25.4)) <= 1 / 15 + .001 &&
+              unchangedOffset(sourceTable.previousElementSibling, stored.y) && unchangedOffset(sourceTable.nextElementSibling, stored.bottom))
+              table.dataset.tableAnchor = JSON.stringify(stored);
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
@@ -210,6 +227,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         if (val(child(properties, 'pStyle')) === TABLE_ANCHOR_STYLE &&
           Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')))
           tableAnchorParagraphs.add(p);
+        if (val(child(properties, 'pStyle')) === TABLE_OFFSET_STYLE &&
+          Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')))
+          tableOffsetParagraphs.add(p);
         p.setAttribute('data-word-line-rule', format.lineRule(marker.paragraph));
         const tabs = format.tabs(marker.paragraph);
         if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
@@ -362,6 +382,11 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       for (const p of tableAnchorParagraphs) {
         const table = p.previousElementSibling as HTMLElement | null;
         if (table?.tagName === 'TABLE' && tableAnchor(table.dataset.tableAnchor)?.reference === 'paragraph' && !p.textContent && !p.children.length)
+          p.remove();
+      }
+      for (const p of tableOffsetParagraphs) {
+        const adjacent = [p.previousElementSibling, p.nextElementSibling] as (HTMLElement | null)[];
+        if (!p.textContent && !p.children.length && adjacent.some(table => table?.tagName === 'TABLE' && tableAnchor(table.dataset.tableAnchor)?.reference === 'paragraph'))
           p.remove();
       }
       // An inline table's following-paragraph spacing represents the gap

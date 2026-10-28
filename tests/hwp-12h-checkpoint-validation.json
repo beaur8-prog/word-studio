@@ -5,7 +5,7 @@
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
   "coreVersion": "0.8.7-wordstudio.6",
-  "browserTests": 309,
+  "browserTests": 311,
   "nativeUnitTests": 86,
   "productionBuild": "passed",
   "baselineFailedNewBrowserScenarios": 3,
@@ -809,5 +809,28 @@
         }
       ]
     }
-  ]
+  ],
+  "externalWriterCorrection": {
+    "invalidInitialEnvironment": "Korean glyphs absent; initial notice35→38 and form2→1 counts withdrawn",
+    "version": "LibreOffice26.8.0.3, isolated system FONTCONFIG_FILE",
+    "noticeBaseline": {
+      "pages": 39,
+      "normalizedPdfCharacters": 37509,
+      "fixedMarkersPresent": 262,
+      "fixedMarkersTotal": 277
+    },
+    "noticeParagraphFloatRegression": {
+      "pages": 37,
+      "normalizedPdfCharacters": 33349,
+      "fixedMarkersPresent": 235
+    },
+    "noticeInlineAfter": {
+      "pages": 38,
+      "normalizedPdfCharacters": 37509,
+      "fixedMarkersPresent": 262
+    },
+    "notMicrosoftWord": true
+  },
+  "docxEditorPendingIssue": "work-rules164editor/163print after reopening; document.xml byte exact vs0000d57; section-carrier diagnosis in progress",
+  "latestInlineEvidence": "variant-inline-guard, writer-inline-guard, native-failure-safety, native-large-1, native-large-4"
 }

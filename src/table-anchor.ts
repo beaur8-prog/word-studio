@@ -3,6 +3,7 @@ import { Plugin } from '@tiptap/pm/state';
 import { documentScale } from './document-scale';
 
 export type TableAnchor = { x: number; y: number; bottom: number; reference?: 'paragraph'; horizontal?: 'margin' };
+export const paragraphTableNamespace = 'urn:wordstudio:paragraph-table:1';
 
 /** Full-width tables wrapping above/below the body. Other
  * floating table wraps need their own exclusion layout and are not inferred. */
