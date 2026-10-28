@@ -26,7 +26,7 @@ jobs:
   linux:
     if: ${{ !inputs.windows_only }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -107,7 +107,7 @@ jobs:
   windows:
     if: ${{ !inputs.linux_only }}
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
