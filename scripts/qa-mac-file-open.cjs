@@ -18,6 +18,7 @@ const { Document, Paragraph, Packer } = require('docx');
   const bundle = path.join(temporary, 'Word File Open QA.app'), profile = path.join(temporary, 'profile');
   const first = path.join(temporary, 'Finder 첫 번째 한글 문서.docx'), second = path.join(temporary, 'Finder 두 번째 문서.txt');
   let browser, pid;
+  const lsregister = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister';
   const run = (command, args) => execFileSync(command, args, { stdio: 'pipe' });
   try {
     run('/usr/bin/ditto', [source, bundle]);
@@ -30,6 +31,19 @@ const { Document, Paragraph, Packer } = require('docx');
     expect(metadata.CFBundleDocumentTypes.every(type => type.LSHandlerRank === 'Alternate')).toBe(true);
     await fs.writeFile(first, await Packer.toBuffer(new Document({ sections: [{ children: [new Paragraph('Finder 더블클릭 첫 번째 DOCX 본문')] }] })));
     await fs.writeFile(second, 'Finder 실행 중 두 번째 문서 본문');
+    const candidates = [];
+    for (const ext of require('../electron/document-types.cjs').OPEN_EXTENSIONS) {
+      const filename = path.join(temporary, '지원 확장자.' + ext);
+      if (ext === 'docx') await fs.copyFile(first, filename);
+      else if (['hwp', 'hwpx'].includes(ext)) await fs.copyFile(path.resolve(__dirname, '../tests/fixtures/hwp/reader.' + ext), filename);
+      else await fs.writeFile(filename, ext === 'html' || ext === 'htm' ? '<html><body>Document</body></html>' : 'Document');
+      candidates.push(filename);
+    }
+    run(lsregister, ['-f', bundle]);
+    const query = path.join(temporary, 'document-handlers');
+    run('/usr/bin/xcrun', ['swiftc', path.join(__dirname, 'query-mac-document-handlers.swift'), '-o', query]);
+    const handlers = JSON.parse(run(query, candidates));
+    for (const filename of candidates) expect(handlers[filename], path.extname(filename) + ' Finder Open With').toContain(await fs.realpath(bundle));
     const server = net.createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     const port = server.address().port; await new Promise(resolve => server.close(resolve));
     run('/usr/bin/open', ['-n', '-a', bundle, first, '--args', '--user-data-dir=' + profile, '--remote-debugging-port=' + port]);
@@ -52,7 +66,8 @@ const { Document, Paragraph, Packer } = require('docx');
     pid = Number(processLine.trim().split(/\s/)[0]);
     await browser.close(); browser = null;
     const result = { passed: true, isolatedBundle: true, isolatedProfile: true, defaultAssociationsUnchanged: true,
-      documentDeclarations: metadata.CFBundleDocumentTypes.length, finderColdOpen: true, finderRunningOpen: true, oneEditorWindow: true };
+      documentDeclarations: metadata.CFBundleDocumentTypes.length, registeredExtensions: candidates.map(file => path.extname(file).slice(1)),
+      finderOpenWith: true, finderColdOpen: true, finderRunningOpen: true, oneEditorWindow: true };
     await fs.writeFile(path.join(output, 'summary.json'), JSON.stringify(result, null, 2) + '\n'); console.log(JSON.stringify(result));
   } catch (error) {
     const diagnostics = { error: String(error), processLines: run('/bin/ps', ['-axo', 'pid,command']).toString().split('\n').filter(line => line.includes(bundle)),
@@ -70,6 +85,7 @@ const { Document, Paragraph, Packer } = require('docx');
       try { process.kill(pid, 'SIGTERM'); } catch {}
       await expect.poll(() => { try { process.kill(pid, 0); return true; } catch { return false; } }, { timeout: 10000 }).toBe(false);
     }
+    try { run(lsregister, ['-u', bundle]); } catch {}
     await fs.rm(temporary, { recursive: true, force: true });
   }
 })().catch(error => { console.error(error); process.exitCode = 1; });

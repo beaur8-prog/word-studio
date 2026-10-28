@@ -40,6 +40,10 @@ async function test() {
     const entry = await fs.readFile(desktop, 'utf8');
     assert.match(entry, /^Name=Word Studio$/m);
     assert.match(entry, /^StartupWMClass=local\.wordstudio\.app$/m);
+    assert.match(entry, /^Exec=.* %U$/m);
+    const mimeTypes = entry.match(/^MimeType=(.*)$/m)?.[1].split(';') ?? [];
+    for (const type of require('../electron/document-types.cjs').fileAssociations)
+      assert.ok(mimeTypes.includes(type.mimeType), `Missing Open With MIME type: ${type.mimeType}`);
     assert.ok(!entry.includes('--no-sandbox'));
     run('desktop-file-validate', [desktop]);
     assert.equal(await fs.realpath('/usr/bin/word-studio'), binary);
