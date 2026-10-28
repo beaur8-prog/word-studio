@@ -2,13 +2,16 @@ import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { documentScale } from './document-scale';
 
-/** Page-relative, full-width tables wrapping above/below the body. Other
+export type TableAnchor = { x: number; y: number; bottom: number; reference?: 'paragraph'; horizontal?: 'margin' };
+
+/** Full-width tables wrapping above/below the body. Other
  * floating table wraps need their own exclusion layout and are not inferred. */
-export function tableAnchor(value: unknown): { x: number; y: number; bottom: number } | undefined {
+export function tableAnchor(value: unknown): TableAnchor | undefined {
   try {
     const a = typeof value === 'string' ? JSON.parse(value) : value;
-    if (a && [a.x, a.y, a.bottom].every(Number.isFinite) && a.x >= 0 && a.x <= 5000 && a.y >= 0 && a.y <= 5000 && a.bottom >= 0 && a.bottom <= 1000)
-      return { x: a.x, y: a.y, bottom: a.bottom };
+    if (a && [a.x, a.y, a.bottom].every(Number.isFinite) && a.x >= 0 && a.x <= 5000 && a.y >= 0 && a.y <= 5000 && a.bottom >= 0 && a.bottom <= 1000 &&
+      (a.reference === undefined || a.reference === 'paragraph') && (a.horizontal === undefined || a.horizontal === 'margin'))
+      return { x: a.x, y: a.y, bottom: a.bottom, ...(a.reference ? { reference: a.reference } : {}), ...(a.horizontal ? { horizontal: a.horizontal } : {}) };
   } catch { /* Unknown floating settings remain ordinary flow. */ }
 }
 
@@ -22,10 +25,13 @@ export function layoutTableAnchors(root: HTMLElement) {
     const rect = target.getBoundingClientRect(), naturalTop = (rect.top - paper.top) / scale - oldTop;
     const stride = (Number(sheet.dataset.pageHeight) || sheet.clientHeight) + 24;
     const page = sheet.classList.contains('print-page') ? 0 : Math.max(0, Math.floor((naturalTop + .5) / stride));
-    target.style.marginTop = `${page * stride + anchor.y - naturalTop}px`;
-    target.style.marginLeft = `${anchor.x - (rect.left - paper.left) / scale + oldLeft}px`;
+    target.style.marginTop = `${anchor.reference === 'paragraph' ? anchor.y : page * stride + anchor.y - naturalTop}px`;
+    const parent = target.parentElement!, parentStyle = getComputedStyle(parent);
+    const horizontalOrigin = anchor.horizontal === 'margin'
+      ? (parent.getBoundingClientRect().left - paper.left) / scale + (parseFloat(parentStyle.paddingLeft) || 0) + (parseFloat(parentStyle.borderLeftWidth) || 0) : 0;
+    target.style.marginLeft = `${horizontalOrigin + anchor.x - (rect.left - paper.left) / scale + oldLeft}px`;
     const bodyTop = sheet.classList.contains('print-page') ? (root.getBoundingClientRect().top - paper.top) / scale : Number(sheet.dataset.margin) || 0;
-    target.style.marginBottom = `${Math.max(anchor.bottom, bodyTop - anchor.y - table.getBoundingClientRect().height / scale)}px`;
+    target.style.marginBottom = `${anchor.reference === 'paragraph' ? anchor.bottom : Math.max(anchor.bottom, bodyTop - anchor.y - table.getBoundingClientRect().height / scale)}px`;
   }
 }
 

@@ -1,11 +1,11 @@
 {
   "date": "2026-10-28",
-  "status": "third-hour checkpoint; approved twelve-hour work continues",
+  "status": "paragraph-anchor checkpoint; approved twelve-hour work continues",
   "baseCommit": "bfc5137",
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
   "coreVersion": "0.8.7-wordstudio.6",
-  "browserTests": 283,
+  "browserTests": 290,
   "nativeUnitTests": 86,
   "productionBuild": "passed",
   "baselineFailedNewBrowserScenarios": 3,
@@ -270,11 +270,24 @@
   },
   "crossPlatform": {
     "workflow": ".github/workflows/hwp-layout-validation.yml",
-    "status": "current checkpoint pending CI",
-    "previousCheckpoint": {
-      "run": 40682208085,
-      "windows": "passed",
-      "linux": "passed"
+    "commit": "c95c3bba0641d27c4f637a4f8f54985115f20675",
+    "status": "passed; checkpoint c95, newer paragraph-anchor implementation under validation",
+    "focusedRun": 40694374982,
+    "windows": "passed",
+    "linux": "passed",
+    "installedWindows": {
+      "run": 40694427260,
+      "result": "passed"
+    },
+    "installedLinux": {
+      "run": 40698537125,
+      "ubuntu22": "passed",
+      "ubuntu24": "passed"
+    },
+    "earlierFullRun": {
+      "run": 40694427260,
+      "linux22": "all browser/build/package/install checks passed; cancelled while uploading evidence at job time limit",
+      "linux24": "skipped; passed in native-only retry"
     }
   },
   "coreReproducibility": {
@@ -393,6 +406,12 @@
       "scenario": "nested tables wholly inside a merged row fragment",
       "before": "3 alignment failures before atomic block support",
       "after": "all three pass"
+    },
+    {
+      "scenario": "HWP/HWPX paragraph-relative full-width tables, including a smaller second section",
+      "before": "7 failures on c95; six HWP/HWPX position cases and the second-section case",
+      "after": "passed; 290 browser scenarios including interop fixes, zoom/edit/undo/two DOCX saves",
+      "scope": "nonnegative paragraph offset, single empty host, no caption or columns; zoom, preceding edits/undo, two DOCX saves"
     }
   ],
   "editorPrintAudit": {
@@ -411,10 +430,10 @@
         "id": "04-language-plan",
         "editorPages": 36,
         "printPages": 36,
-        "matched": 587,
-        "excluded": 77,
+        "matched": 588,
+        "excluded": 76,
         "mismatchedStartPages": 0,
-        "samePageYDifferencesAbove2px": 49
+        "samePageYDifferencesAbove2px": 65
       },
       {
         "id": "06-mixed-document",
@@ -450,16 +469,35 @@
         "print": 3,
         "alsoPresentAtPreviousCheckpoint": true
       }
-    ]
+    ],
+    "evidence": "paragraph-table-text-start-summary.json"
   },
   "evidence": {
-    "fresh": "variant-checkpoint3/fresh.json",
-    "twoDocxSaves": "variant-row-boundary/docx-corpus.json",
+    "fresh": "variant-paragraph-table/fresh.json",
+    "twoDocxSaves": "variant-paragraph-table/docx-interop-corpus.json",
     "identicalFreshContentAndPageToRoundtripModels": true,
-    "browser": "checkpoint3-browser.log",
-    "unit": "checkpoint3-unit.log",
-    "native": "native-checkpoint3/results.json",
-    "pdf": "native-checkpoint3/pdf-summary.json",
-    "anchors": "row-boundary-page-correspondence.json"
+    "browser": "paragraph-interop-browser.log",
+    "unit": "paragraph-table-unit.log",
+    "native": "native-paragraph-table/results.json",
+    "pdf": "native-paragraph-table/pdf-summary.json",
+    "anchors": "paragraph-table-final-page-correspondence.json"
+  },
+  "paragraphTables": {
+    "noticeTables": 18,
+    "languagePlanTables": 1,
+    "firstNoticeTableY": {
+      "sourceReader": 832.2,
+      "before": 812.6875,
+      "after": 824.53125,
+      "units": "96-DPI pixels; same native parser source geometry"
+    },
+    "docx": "standard tblpPr paragraph anchor with explicit distances to forbid body flow beside the table",
+    "libreOffice": {
+      "version": "26.8.0.3",
+      "before": "AFTER split into A/FTER beside the table; long fixture 3 pages",
+      "after": "AFTER intact below table; long fixture 2 pages; zero/offset preserve 20px relative offset",
+      "limitation": "independent Writer interoperability check, not Microsoft Word validation"
+    },
+    "ci": "pending on this checkpoint; c95 platform installation results remain separately recorded"
   }
 }

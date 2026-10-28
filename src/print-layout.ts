@@ -6,7 +6,7 @@ import { layoutColumns } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
 import { imageFloating } from './image-floating';
 import { layoutFurnitureImages } from './furniture-layout';
-import { layoutTableAnchors } from './table-anchor';
+import { layoutTableAnchors, tableAnchor } from './table-anchor';
 import { paragraphFitBottom } from './paragraph-fit';
 
 export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
@@ -326,8 +326,12 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     const rows = Array.from(table.rows);
     const headers: HTMLTableRowElement[] = [];
     while (rows.length && rows[0].cells.length > 0 && [...rows[0].cells].every(cell => cell.tagName === 'TH')) headers.push(rows.shift()!);
-    const shell = () => {
+    const shell = (continuation = false) => {
       const next = table.cloneNode(false) as HTMLTableElement;
+      if (continuation && next.dataset.tableAnchor) {
+        const anchor = tableAnchor(next.dataset.tableAnchor);
+        if (anchor?.reference === 'paragraph') { next.dataset.tableAnchor = JSON.stringify({ ...anchor, y: 0 }); next.style.marginTop = '0px'; }
+      }
       table.querySelectorAll(':scope > colgroup').forEach(el => next.append(el.cloneNode(true)));
       const body = document.createElement('tbody'); next.append(body);
       headers.forEach(row => body.append(row.cloneNode(true)));
@@ -357,7 +361,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       if (!fits() && (bodyRows > 0 || content.children.length > 1)) {
         group.forEach(row => row.remove());
         if (!bodyRows) part.table.remove();
-        newPage(); part = shell(); bodyRows = 0;
+        newPage(); part = shell(i > 0); bodyRows = 0;
         group.forEach(row => part.body.append(row));
         if (!fits()) split();
       }

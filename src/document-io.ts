@@ -44,7 +44,7 @@ import type {
   ITableCellBorders,
 } from "docx";
 import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
-import { prepareDocxMetadata, TABLE_GAP_STYLE } from './docx-metadata';
+import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE } from './docx-metadata';
 import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
 import { overlapParts } from './word-overlap';
@@ -1266,13 +1266,19 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             ...(['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
             ...(node.attrs?.tableIndent ? { indent: { size: Math.round(Number.parseFloat(node.attrs.tableIndent) * 15) || 0, type: WidthType.DXA } } : {}),
             columnWidths,
-            ...(anchor ? { float: { horizontalAnchor: TableAnchorType.PAGE, verticalAnchor: TableAnchorType.PAGE,
-              absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round(anchor.y * 15), bottomFromText: Math.round(anchor.bottom * 15) } } : {}),
+            ...(anchor ? { float: { horizontalAnchor: anchor.horizontal === 'margin' ? TableAnchorType.MARGIN : TableAnchorType.PAGE,
+              verticalAnchor: anchor.reference === 'paragraph' ? TableAnchorType.TEXT : TableAnchorType.PAGE,
+              absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round(anchor.y * 15), bottomFromText: Math.round(anchor.bottom * 15),
+              // These supported floats wrap above/below. Otherwise Word/Writer
+              // can squeeze body characters into a narrow space at either side.
+              leftFromText: contentWidth, rightFromText: contentWidth } } : {}),
           });
         // Missing imported CSS uses the editor's 18px table gap. Furniture
         // and note tables have a zero default, passed through nested blocks.
         tableSpacing.set(table, anchor ? 0 : Math.max(0, fontPoints(node.attrs?.tableSpacing) ?? (context.tableGap ?? 18) * .75) * 4 / 3);
         output.push(table);
+        if (anchor?.reference === 'paragraph') output.push(new Paragraph({ style: TABLE_ANCHOR_STYLE,
+          spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT }, run: { size: 2 } }));
       }
     }
     return output.flatMap((block, i) => i > 0 && block instanceof Table && output[i - 1] instanceof Table
@@ -1312,12 +1318,15 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const children = await blocks(group.nodes);
   const richBlocks = async (html: string) => blocks(parseDocumentHtml(sanitizeImportedHtml(html).html).content || [], { tableGap: 0 });
   const plainFurniture: IParagraphOptions = { run: { size: 18, color: '697386' }, spacing: { before: 0, after: 0, line: 336, lineRule: LineRuleType.AUTO } };
+  // Keep explicit empty stories to prevent inheritance from earlier sections,
+  // without reserving a normal text line at the header/footer distance.
+  const emptyFurniture = () => new Paragraph({ run: { size: 2 }, spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } });
   const footer = async (text: string, numbers: boolean, html?: string, headerHtml?: string) => new Footer({ children: [
-    ...(html ? await richBlocks(html) : text || !numbers ? [new Paragraph({ ...plainFurniture, text, alignment: AlignmentType.CENTER })] : []),
+    ...(html ? await richBlocks(html) : text ? [new Paragraph({ ...plainFurniture, text, alignment: AlignmentType.CENTER })] : !numbers ? [emptyFurniture()] : []),
     ...(numbers && !/data-page-number/.test((html || '') + (headerHtml || '')) ? [new Paragraph({ ...plainFurniture, alignment: AlignmentType.CENTER,
       children: [new TextRun({ children: [PageNumber.CURRENT], size: 18, color: '697386' })] })] : []),
   ] });
-  const header = async (text: string, html?: string) => new Header({ children: html ? await richBlocks(html) : [new Paragraph({ ...plainFurniture, text })] });
+  const header = async (text: string, html?: string) => new Header({ children: html ? await richBlocks(html) : [text ? new Paragraph({ ...plainFurniture, text }) : emptyFurniture()] });
   const baseMargins = basePageMargins(page);
   sections.push(
       {
@@ -1359,13 +1368,13 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     creator: 'Word Studio',
     description: 'Created with Word Studio',
     evenAndOddHeaderAndFooters: groups.some(group => group.page.differentOddEven),
-    compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false) },
+    compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false), doNotBreakWrappedTables: false },
     numbering: { config: numbering },
     footnotes, endnotes,
     comments: { children: await Promise.all(document.comments.map(async (comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: comment.author ?? 'Word Studio', initials: comment.initials, date: new Date(comment.createdAt),
       resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph(text)) }))) },
     styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } },
-      paragraphStyles: [{ id: TABLE_GAP_STYLE, name: 'Table spacing', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } }] },
+      paragraphStyles: [TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })) },
     sections,
   });
   const blob = await Packer.toBlob(docx);

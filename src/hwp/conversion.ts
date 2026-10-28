@@ -432,7 +432,6 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   const byParagraph = new Map<number, Control[]>();
   for (const c of controls) {
     if (c.list === 0) { const list = byParagraph.get(c.para) ?? []; list.push(c); byParagraph.set(c.para, list); }
-    if (c.props.TreatAsChar === 0 && c.ctrlId === 'tbl') warnings.add('떠 있는 표는 본문 흐름 안으로 옮깁니다. 표의 앵커·겹침·캡션은 원본과 다를 수 있습니다.');
   }
   const pieces: string[] = [];
   let globalPara = 0, size = 0;
@@ -651,6 +650,28 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             if (!props.treatAsChar && props.textWrap === 'TopAndBottom' && props.vertRelTo === 'Paper' && props.horzRelTo === 'Paper' && position && pages.size === 1)
               controlHtml = controlHtml.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify({ x: position.x, y: position.y, bottom: px(props.outerBottom || 0) }))}"`);
           }
+          // A standalone empty host paragraph is the table's live flow
+          // anchor, not an extra text line. Preserve its nonnegative offset
+          // instead of pinning to cached page y. The native renderer applies
+          // outerTop only for some relocated hosts; retain that distance only
+          // when the source line and actual table independently confirm it.
+          // Visible host text, negative offsets, captions and columns need
+          // their own exclusion layout and retain the explicit fallback.
+          if (!inlineTable && !hasColumns && /^<table\b/.test(controlHtml) && !/^<table\b[^>]*\bdata-table-anchor=/.test(controlHtml) &&
+            paragraphControls.length === 1 && !doc.getTextRange(section, para, 0, 0xffffffff).trim() &&
+            tableWidth >= px((pd.landscape ? pd.height : pd.width) - pd.marginLeft - pd.marginRight) * .8) {
+            const props = JSON.parse(doc.getTableProperties(section, para, c.controlIndex)), position = controlPosition(section, para, c.controlIndex);
+            const offset = px(Number(props.vertOffset)), outerTop = px(Number(props.outerTop));
+            const firstLine = JSON.parse(doc.getParagraphLineMetrics(section, para, '[]')).lines?.[0];
+            const sourceDistance = position && firstLine ? position.y - px(pd.marginTop + pd.marginHeader) - Number(firstLine.verticalPosition) - offset : NaN;
+            const y = offset + (outerTop > 0 && Math.abs(sourceDistance - outerTop) <= .5 ? outerTop : 0);
+            const x = position && (props.horzRelTo === 'Paper' ? position.x : position.x - px(pd.marginLeft));
+            if (props.textWrap === 'TopAndBottom' && props.vertRelTo === 'Para' && props.vertAlign === 'Top' && !props.hasCaption &&
+              ['Column', 'Para', 'Paper'].includes(props.horzRelTo) && Number(props.vertOffset) >= 0 && y >= 0 && x !== undefined && x >= 0)
+              controlHtml = controlHtml.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify({ x, y, bottom: px(props.outerBottom || 0), reference: 'paragraph', ...(props.horzRelTo !== 'Paper' ? { horizontal: 'margin' } : {}) }))}"`);
+          }
+          if (c.ctrlId === 'tbl' && !inlineTable && !/^<table\b[^>]*\bdata-table-anchor=/.test(controlHtml))
+            warnings.add('일부 떠 있는 표는 본문 흐름 안으로 옮깁니다. 음수 위치·호스트 본문·단·겹침·캡션은 원본과 다를 수 있습니다.');
           if (fullWidth) { closeColumns(); append('<div data-column-count="1" data-column-space="0">'); }
           const tablePiece = pieces.length;
           append(controlHtml);
