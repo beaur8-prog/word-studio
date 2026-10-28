@@ -133,6 +133,7 @@ export const hwpdocument_getCellInfo: (a: number, b: number, c: number, d: numbe
 export const hwpdocument_getCellInfoByPath: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const hwpdocument_getCellOwnProperties: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const hwpdocument_getCellParaPropertiesAt: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number, number];
+export const hwpdocument_getCellParaPropertiesAtByPath: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const hwpdocument_getCellParagraphCount: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
 export const hwpdocument_getCellParagraphCountByPath: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
 export const hwpdocument_getCellParagraphLength: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number, number];
@@ -232,6 +233,7 @@ export const hwpdocument_getParaPropertiesInHf: (a: number, b: number, c: number
 export const hwpdocument_getParaShapeSet: (a: number, b: number, c: number) => [number, number];
 export const hwpdocument_getParagraphCount: (a: number, b: number) => [number, number, number];
 export const hwpdocument_getParagraphLength: (a: number, b: number, c: number) => [number, number, number];
+export const hwpdocument_getParagraphLineMetrics: (a: number, b: number, c: number, d: number, e: number) => [number, number, number, number];
 export const hwpdocument_getPictureProperties: (a: number, b: number, c: number, d: number) => [number, number, number, number];
 export const hwpdocument_getPositionOfPage: (a: number, b: number) => [number, number, number, number];
 export const hwpdocument_getScanItems: (a: number) => [number, number];

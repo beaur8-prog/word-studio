@@ -833,10 +833,26 @@ button:hover:not(:disabled) {
 .tiptap p[style*="line-height"], .tiptap h1[style*="line-height"], .tiptap h2[style*="line-height"], .tiptap h3[style*="line-height"] {
   min-height: 0;
 }
+/* Keep a fixed line's paragraph strut in charge of its advance. Inheriting
+   the same pixel leading on smaller runs otherwise expands mixed-size lines
+   around their different baselines, including inside nested table cells.
+   Inline pictures and other atomic boxes still reserve their own height.
+   Use each run's em, capped by the requested line, instead of zero-height
+   boxes: a user enlarging a run still needs a real line box and caret.
+   Raised/lowered text keeps its existing line metrics so a superscript at
+   the body top cannot paint into the margin outside the paragraph strut. */
+.tiptap [data-exact-line-height]:not(:has([data-note-reference], sup, sub)) :is(span, strong, em, b, i, u, s, mark, a) {
+  line-height: min(1em, var(--exact-line-height));
+}
 .tiptap [data-word-line-rule] { letter-spacing: normal; }
 .word-overlap { display: inline-grid; vertical-align: baseline; text-indent: 0; }
 .word-overlap > span { grid-area: 1 / 1; align-self: center; justify-self: center; }
 .tiptap p:empty::after { content: '\200b'; }
+/* Restore natural line boxes while measuring pagination. The document model,
+   paragraph marks and undo history retain the original blank paragraphs. */
+.tiptap:not(.pagination-measuring-cells) p.pagination-hidden-empty-line {
+  height: 0 !important; min-height: 0 !important; line-height: 0 !important;
+}
 .tiptap .selectedCell:after {
   background: #4b89c52c;
   content: "";

@@ -595,6 +595,23 @@ test('hard line breaks before cell pictures survive the clipboard exporter omitt
   } finally { source.free(); }
 });
 
+for (const format of ['hwp', 'hwpx']) test(`${format}: hard line breaks survive in ordinary body and plain nested cells`, async () => {
+  const { HwpDocument, editableHwp } = await setup;
+  const source = HwpDocument.createEmpty();
+  try {
+    source.createBlankDocument();
+    source.pasteHtml(0, 0, 0, '<p>BODY_ALPHA<br>BODY_BETA</p><table><tr><td><p>CELL_ALPHA<br>CELL_BETA</p><table><tr><td><p>NESTED_ALPHA<br>NESTED_BETA</p></td></tr></table></td></tr></table>');
+    assert.equal(source.getTextRange(0, 0, 0, 0xffffffff), 'BODY_ALPHA\nBODY_BETA');
+    const doc = new HwpDocument(format === 'hwp' ? source.exportHwp() : source.exportHwpx());
+    try {
+      const html = editableHwp(doc).html;
+      const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
+      for (const prefix of ['BODY', 'CELL', 'NESTED']) assert.ok(text.includes(`${prefix}_ALPHA\n${prefix}_BETA`), prefix + ': ' + html);
+      assert.equal((html.match(/<br\s*\/?>/g) || []).length, 3);
+    } finally { doc.free(); }
+  } finally { source.free(); }
+});
+
 for (const format of ['hwp', 'hwpx']) test(`${format}: inactive stored cell margins use table padding, including nested cells and explicit zero`, async () => {
   const { HwpDocument, editableHwp, serializeHwp } = await setup;
   const source = HwpDocument.createEmpty(); source.createBlankDocument();

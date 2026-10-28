@@ -6,6 +6,27 @@ import { documentScale } from './document-scale';
 
 const keptTables = new WeakMap<HTMLElement, { breakBefore: string; paddingTop: string }>();
 
+/** A rounded collapsed border is not overflowing column content. */
+export function columnGroupFits(group: HTMLElement): boolean {
+  const right = group.getBoundingClientRect().right;
+  return [...group.children].every(child => [...child.getClientRects()].every(rect => {
+    if (rect.right <= right + .5) return true;
+    if (!(child instanceof HTMLTableElement) || getComputedStyle(child).borderCollapse !== 'collapse' || !/^\d+(?:\.\d+)?px$/.test(child.style.width)) return false;
+    const nominal = parseFloat(child.style.width), actual = child.getBoundingClientRect().width;
+    // The fixed grid can acquire one extra pixel from collapsed half borders.
+    // Require both the nominal grid and its inline content to remain in bounds.
+    if (actual - nominal < 0 || actual - nominal > 1.01 || rect.left + nominal > right + .5) return false;
+    for (const atom of child.querySelectorAll('img,svg')) if (atom.getBoundingClientRect().right > right + .5) return false;
+    const walker = document.createTreeWalker(child, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      if (!walker.currentNode.textContent?.trim()) continue;
+      const range = document.createRange(); range.selectNodeContents(walker.currentNode);
+      if ([...range.getClientRects()].some(r => r.width > .1 && r.right > right + .5)) return false;
+    }
+    return true;
+  }));
+}
+
 function keepTablesOnColumnPage(group: HTMLElement, cap: number, scale: number) {
   const count = Number(group.dataset.columnCount) || 1, box = group.getBoundingClientRect();
   const gap = parseFloat(getComputedStyle(group).columnGap) || 0;

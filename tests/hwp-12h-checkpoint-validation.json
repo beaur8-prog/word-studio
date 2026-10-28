@@ -1,0 +1,863 @@
+{
+  "date": "2026-10-28",
+  "status": "all final candidate checks passed; main integration pending",
+  "baseCommit": "bfc5137",
+  "startedAtUTC": "2026-10-28T10:33:26Z",
+  "deadlineUTC": "2026-10-28T22:33:26Z",
+  "coreVersion": "0.8.7-wordstudio.6",
+  "browserTests": 321,
+  "nativeUnitTests": 88,
+  "productionBuild": "passed",
+  "baselineFailedNewBrowserScenarios": 3,
+  "hwpxRoundtripRegression": {
+    "before": "modern HTML import fails; legacy plain HWPX and binary HWP pass",
+    "after": "all three pass through two saves"
+  },
+  "samples": [
+    {
+      "id": "01-employment-contract",
+      "sourcePages": 7,
+      "printPages": 7,
+      "textMatchesPrior": true,
+      "images": 0,
+      "docxPages": [
+        7,
+        7,
+        7
+      ],
+      "docxTextMatches": true
+    },
+    {
+      "id": "02-work-rules",
+      "sourcePages": 163,
+      "printPages": 163,
+      "textMatchesPrior": true,
+      "images": 2,
+      "docxPages": [
+        163,
+        163,
+        163
+      ],
+      "docxTextMatches": true
+    },
+    {
+      "id": "03-health-table",
+      "sourcePages": 4,
+      "printPages": 4,
+      "textMatchesPrior": true,
+      "images": 0,
+      "docxPages": [
+        4,
+        4,
+        4
+      ],
+      "docxTextMatches": true
+    },
+    {
+      "id": "04-language-plan",
+      "sourcePages": 35,
+      "printPages": 36,
+      "textMatchesPrior": true,
+      "images": 4,
+      "docxPages": [
+        36,
+        36,
+        36
+      ],
+      "docxTextMatches": true
+    },
+    {
+      "id": "05-return-form",
+      "sourcePages": 1,
+      "printPages": 1,
+      "textMatchesPrior": true,
+      "images": 3,
+      "docxPages": [
+        1,
+        1,
+        1
+      ],
+      "docxTextMatches": true
+    },
+    {
+      "id": "06-mixed-document",
+      "sourcePages": 35,
+      "printPages": 37,
+      "textMatchesPrior": true,
+      "images": 44,
+      "docxPages": [
+        37,
+        37,
+        37
+      ],
+      "docxTextMatches": true
+    },
+    {
+      "id": "07-english-exam",
+      "sourcePages": 8,
+      "printPages": 9,
+      "textMatchesPrior": true,
+      "images": 16,
+      "docxPages": [
+        9,
+        9,
+        9
+      ],
+      "docxTextMatches": true
+    },
+    {
+      "id": "08-math-exam",
+      "sourcePages": 20,
+      "printPages": 20,
+      "textMatchesPrior": true,
+      "images": 543,
+      "docxPages": [
+        20,
+        20,
+        20
+      ],
+      "docxTextMatches": true
+    },
+    {
+      "id": "09-korean-exam",
+      "sourcePages": 15,
+      "printPages": 15,
+      "textMatchesPrior": true,
+      "images": 23,
+      "docxPages": [
+        15,
+        15,
+        15
+      ],
+      "docxTextMatches": true
+    },
+    {
+      "id": "10-lh-plan",
+      "sourcePages": 5,
+      "printPages": 5,
+      "textMatchesPrior": true,
+      "images": 3,
+      "docxPages": [
+        5,
+        5,
+        5
+      ],
+      "docxTextMatches": true
+    }
+  ],
+  "fixedAnchors": {
+    "count": 160,
+    "beforeMismatches": 122,
+    "afterMismatches": 99,
+    "perDocument": [
+      {
+        "id": "02-work-rules",
+        "count": 40,
+        "missing": 0,
+        "mismatched": 18
+      },
+      {
+        "id": "04-language-plan",
+        "count": 40,
+        "missing": 0,
+        "mismatched": 31
+      },
+      {
+        "id": "06-mixed-document",
+        "count": 40,
+        "missing": 0,
+        "mismatched": 25
+      },
+      {
+        "id": "07-english-exam",
+        "count": 40,
+        "missing": 0,
+        "mismatched": 25
+      }
+    ]
+  },
+  "extraPages": {
+    "before": 8,
+    "after": 4,
+    "target": 4,
+    "targetAchieved": true,
+    "scope": "Word Studio editor/print/PDF; external Word/Hancom layout not verified"
+  },
+  "nativeElectron": {
+    "passed": true,
+    "rendererErrors": [],
+    "documents": 10,
+    "zoomPercentages": [
+      100,
+      50,
+      125,
+      200,
+      100
+    ],
+    "visibleInkMarginOverflows": 0,
+    "workRulesFontBoxOnlyOverflows": 1,
+    "installationPackageTested": false,
+    "pdfPages": [
+      {
+        "id": "01-employment-contract",
+        "pages": 7,
+        "bytes": 343499,
+        "firstPageTextLength": 1302,
+        "firstPageSizePt": [
+          594.95996,
+          841.91998
+        ]
+      },
+      {
+        "id": "02-work-rules",
+        "pages": 163,
+        "bytes": 1723288,
+        "firstPageTextLength": 531,
+        "firstPageSizePt": [
+          841.91998,
+          594.95996
+        ]
+      },
+      {
+        "id": "03-health-table",
+        "pages": 4,
+        "bytes": 147115,
+        "firstPageTextLength": 1009,
+        "firstPageSizePt": [
+          594.95996,
+          841.91998
+        ]
+      },
+      {
+        "id": "04-language-plan",
+        "pages": 36,
+        "bytes": 1825552,
+        "firstPageTextLength": 67,
+        "firstPageSizePt": [
+          594.95996,
+          841.91998
+        ]
+      },
+      {
+        "id": "05-return-form",
+        "pages": 1,
+        "bytes": 339443,
+        "firstPageTextLength": 1319,
+        "firstPageSizePt": [
+          594.95996,
+          841.91998
+        ]
+      },
+      {
+        "id": "06-mixed-document",
+        "pages": 37,
+        "bytes": 2313960,
+        "firstPageTextLength": 1562,
+        "firstPageSizePt": [
+          594.95996,
+          841.91998
+        ]
+      },
+      {
+        "id": "07-english-exam",
+        "pages": 9,
+        "bytes": 2953920,
+        "firstPageTextLength": 2376,
+        "firstPageSizePt": [
+          841.91998,
+          1191.12
+        ]
+      },
+      {
+        "id": "08-math-exam",
+        "pages": 20,
+        "bytes": 1420155,
+        "firstPageTextLength": 327,
+        "firstPageSizePt": [
+          770.88,
+          1116.95996
+        ]
+      },
+      {
+        "id": "09-korean-exam",
+        "pages": 15,
+        "bytes": 846115,
+        "firstPageTextLength": 2661,
+        "firstPageSizePt": [
+          841.91998,
+          1191.12
+        ]
+      },
+      {
+        "id": "10-lh-plan",
+        "pages": 5,
+        "bytes": 522765,
+        "firstPageTextLength": 955,
+        "firstPageSizePt": [
+          594.95996,
+          841.91998
+        ]
+      }
+    ],
+    "versions": {
+      "node": "24.19.0",
+      "acorn": "8.17.0",
+      "ada": "3.4.4",
+      "amaro": "1.1.10",
+      "ares": "1.34.6",
+      "brotli": "1.2.0",
+      "cldr": "48.0",
+      "icu": "78.2",
+      "llhttp": "9.4.3",
+      "merve": "1.2.2",
+      "modules": "146",
+      "napi": "10",
+      "nbytes": "0.1.4",
+      "ncrypto": "0.0.1",
+      "nghttp2": "1.69.0",
+      "nghttp3": "",
+      "ngtcp2": "",
+      "openssl": "0.0.0",
+      "simdjson": "4.6.4",
+      "simdutf": "7.7.0",
+      "sqlite": "3.53.3",
+      "tz": "2025c",
+      "undici": "7.29.0",
+      "unicode": "17.0",
+      "uv": "1.52.1",
+      "uvwasi": "0.0.23",
+      "v8": "14.8.178.38-electron.0",
+      "zlib": "1.3.2.1-motley",
+      "zstd": "1.6.0",
+      "electron": "42.11.15",
+      "chrome": "148.0.7778.280"
+    },
+    "mode": "isolated real Electron app code; show/focus blocked and dock hidden on locked desktop; normal installed app untouched",
+    "koreanFontBoxOnlyOverflows": 2,
+    "anchoredMarginLines": {
+      "english": 2,
+      "korean": 3
+    }
+  },
+  "crossPlatform": {
+    "workflow": ".github/workflows/hwp-layout-validation.yml",
+    "status": "final candidate focused Windows/Linux and native/install Windows/Linux22/Linux24 passed",
+    "previousCheckpoint": {
+      "commit": "7ae35a607cece74c2f3e2914275c1b412e60a06a",
+      "focusedRun": 40728433302,
+      "windows": "passed",
+      "linux": "passed"
+    },
+    "installedPreviousCheckpoint": {
+      "commit": "c95c3bba0641d27c4f637a4f8f54985115f20675",
+      "windowsRun": 40694427260,
+      "windows": "passed",
+      "linuxRun": 40698537125,
+      "ubuntu22": "passed",
+      "ubuntu24": "passed"
+    },
+    "currentCheckpoint": {
+      "commit": "d582aec863e45cf1bd45aeb44ac104e5e7d6c29a",
+      "focusedRun": 40713278948,
+      "windows": "passed",
+      "linux": "passed"
+    },
+    "latestConfirmedLayout": {
+      "commit": "455a06ee9dd57ee93fb023d3f013865c3ce6f0dc",
+      "run": 40737015746,
+      "Windows": "success",
+      "Linux": "success"
+    },
+    "currentBorderFollowup": "pending new commit CI",
+    "finalCandidate": {
+      "commit": "b73c03034c529cc48840e6975017874b1aca55f0",
+      "focusedRun": 40770896328,
+      "focused": "passed",
+      "nativeRun": 40770899178,
+      "windows": "passed",
+      "ubuntu22": "passed",
+      "ubuntu24": "passed",
+      "nativeOnly": true,
+      "basis": "Previous319 full platform browser scenarios; current321 full local browser and affected-image/paragraph focused platform scenarios"
+    }
+  },
+  "coreReproducibility": {
+    "revision": "1a76570e833917d15817415a53c09ad61ab3203f",
+    "patches": [
+      "pagination.patch",
+      "manifest-paths.patch",
+      "cell-paper-pictures.patch",
+      "cell-padding.patch",
+      "cell-paragraph-query.patch",
+      "paragraph-roundtrip.patch"
+    ],
+    "files": [
+      {
+        "name": "src/renderer/layout/table_layout.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/renderer/typeset/table/continuation/fragment/scan.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/parser/hwpx/mod.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/parser/hwpx/reader.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/renderer/layout/picture_footnote.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/renderer/layout/table_partial.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/document_core/commands/clipboard.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/document_core/commands/html_import/inline_content.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/document_core/helpers.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/document_core/html_table_import.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/document_core/commands/formatting.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/wasm_api.rs",
+        "identicalToBuiltSource": true
+      },
+      {
+        "name": "src/serializer/hwpx/header.rs",
+        "identicalToBuiltSource": true
+      }
+    ],
+    "artifacts": [
+      {
+        "name": "rhwp.js",
+        "identicalToBuildOutput": true,
+        "sha256": "6c16ffa6e52ca3bad826f0340d70785be920b30f21708f89c88e9fcca5396157"
+      },
+      {
+        "name": "rhwp.d.ts",
+        "identicalToBuildOutput": true,
+        "sha256": "831ad3f91c99b3e143d86a6fae2041760df14571f8e40e0f0cc7feb03839ef5d"
+      },
+      {
+        "name": "rhwp_bg.wasm",
+        "identicalToBuildOutput": true,
+        "sha256": "34cbcba073c29ac7e7cd7fbfbf2df90253e38926e1979d1d38bd4b11e97514d2"
+      },
+      {
+        "name": "rhwp_bg.wasm.d.ts",
+        "identicalToBuildOutput": true,
+        "sha256": "b996e6c279cab42fd9b2e8886cde30784c05c8ae44e1e65b98ba9f5ab6f5191a"
+      }
+    ]
+  },
+  "limitations": [
+    "Source native geometry shares the parser; independent PDF page matches apply to selected anchors only.",
+    "Image counts do not establish identical image dimensions or placement.",
+    "Actual Word/Hancom were not exercised. Final Windows setup and installed Debian packages were tested on isolated Windows/Linux22/Linux24 runners.",
+    "Merged-cell nested tables are supported when they stay intact inside a row fragment; splitting such nested tables or own footnotes remains a conservative fallback.",
+    "The two-line Hancom section policy is retained for Word Studio in a DOCX custom property; external readers can show these blank lines and increase pages. Import warns explicitly.",
+    "Decorated, spaced or object-bearing blank paragraphs retain their flow; source row heights and intentional page breaks are preserved.",
+    "The fixed start-page mismatch target of at most 61 remains unmet: 99/160, despite reaching the internal extra-page target.",
+    "Four core documents now match all 2292 uniquely corresponding complete paragraph start pages; 1257 split/duplicate paragraphs remain explicit exclusions and same-page coordinates still differ.",
+    "An independent PDF marker audit found LH paragraph-page regressions despite retaining 5 pages; source title grouping/font effects remain under investigation.",
+    "Independent LibreOffice26.8 DOCX check: notice35→38 pages while internal Word Studio40→37; form2→1, rules177 unchanged. These are reader-specific results, not Microsoft Word validation.",
+    "Final floating-image dimensions roundtrip for24 images; cell render bounds, inline fit and all pixel positions are not certified. Existing math body offsets and English footer-box width differences are recorded in float-size-visual/manifest.json."
+  ],
+  "evidenceDirectory": "analysis/hwp-12h-2026-10-28/",
+  "newRegressionEvidence": [
+    {
+      "scenario": "mixed-size exact lines in body/nested cells",
+      "before": "2 failures on the original baseline",
+      "after": "passed; zoom/edit/undo/two DOCX saves"
+    },
+    {
+      "scenario": "HWP/HWPX single-page merge after preceding flow changes",
+      "before": "policy 2 fails in 2 formats; policy 0 controls pass",
+      "after": "all four pass"
+    },
+    {
+      "scenario": "short continuation row with repeated padding",
+      "before": "3 alignment failures before view-only row growth",
+      "after": "all three pass"
+    },
+    {
+      "scenario": "nested tables wholly inside a merged row fragment",
+      "before": "3 alignment failures before atomic block support",
+      "after": "all three pass"
+    },
+    {
+      "scenario": "HWP/HWPX paragraph-relative full-width tables, including a smaller second section",
+      "before": "7 failures on c95; six HWP/HWPX position cases and the second-section case",
+      "after": "passed; 290 browser scenarios including interop fixes, zoom/edit/undo/two DOCX saves",
+      "scope": "nonnegative paragraph offset, single empty host, no caption or columns; zoom, preceding edits/undo, two DOCX saves"
+    },
+    {
+      "scenario": "HWP/HWPX explicit hideEmptyLine section policy",
+      "before": "two enabled cases fail at f83; two disabled controls pass",
+      "after": "two DOCX saves, two HWP/HWPX saves, five zooms, input/undo/redo and composition-event visibility passed; highlight/spacing controls passed",
+      "scope": "at most two simple overflowing empty paragraphs; model preserved; external DOCX readers may render the retained paragraphs"
+    },
+    {
+      "scenario": "asymmetric exact line strut at fractional body/cell boundaries",
+      "before": "two browser failures; glyph-gap halving undercounts line by 0.203125px",
+      "after": "both pass across five zooms, editing/undo and two DOCX saves; notice editor/print start-page discrepancies 2 to 0"
+    },
+    {
+      "scenario": "collapsed table border at last column",
+      "before": "235px fitting grid fails; genuinely wide grid passes its control",
+      "after": "two DOCX saves, five zooms, wide-grid and visible-text overflow controls pass; English editor/print unique start-page difference 1 to 0"
+    },
+    {
+      "scenario": "repeated table header edge at fractional boundary",
+      "before": "actual work-rules file has editor118/print119 for the affected paragraph",
+      "after": "actual work-rules difference 1 to 0; synthetic boundary/zoom/edit/undo/two DOCX saves pass both before and after"
+    }
+  ],
+  "editorPrintAudit": {
+    "scope": "Complete uniquely matching paragraphs of at least 10 normalized characters; duplicates and split paragraphs excluded",
+    "documents": [
+      {
+        "id": "02-work-rules",
+        "editorPages": 163,
+        "printPages": 163,
+        "matched": 674,
+        "excluded": 1053,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 22
+      },
+      {
+        "id": "04-language-plan",
+        "editorPages": 36,
+        "printPages": 36,
+        "matched": 588,
+        "excluded": 76,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 65
+      },
+      {
+        "id": "06-mixed-document",
+        "editorPages": 37,
+        "printPages": 37,
+        "matched": 761,
+        "excluded": 127,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 114
+      },
+      {
+        "id": "07-english-exam",
+        "editorPages": 9,
+        "printPages": 9,
+        "matched": 268,
+        "excluded": 2,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 48
+      }
+    ],
+    "knownStartPageDifferences": [],
+    "evidence": "nested-borders-text-start-summary.json",
+    "excluded": 1258,
+    "matched": 2291
+  },
+  "evidence": {
+    "fresh": "variant-float-size/fresh.json",
+    "twoDocxSaves": "variant-float-size/docx-corpus-with-models.json",
+    "browser": "float-precision-browser.log",
+    "unit": "float-precision-unit.log",
+    "build": "float-precision-build.log",
+    "native": "native-hard-break/results.json",
+    "pdf": "native-nested-borders/pdf-summary.json",
+    "anchors": "float-size-docx2-page-correspondence.json",
+    "logicalBody": "source-logical-float-size-after-two-docx.json",
+    "nativeDocx": "native-docx-float-size/result.json"
+  },
+  "paragraphTables": {
+    "noticeTables": 18,
+    "languagePlanTables": 1,
+    "firstNoticeTableY": {
+      "sourceReader": 832.2,
+      "before": 812.6875,
+      "after": 824.53125,
+      "units": "96-DPI pixels; same native parser source geometry"
+    },
+    "docx": "standard inline tables with indentation and before/after spacers; optional ignorable MC attributes recover live paragraph anchors only while standard geometry is unchanged; avoids external Writer clipping",
+    "libreOffice": {
+      "version": "26.8.0.3",
+      "before": "AFTER split into A/FTER beside the table; long fixture 3 pages",
+      "after": "AFTER intact below table; long fixture 2 pages; zero/offset preserve 20px relative offset",
+      "limitation": "independent Writer interoperability check, not Microsoft Word validation"
+    },
+    "ci": "final candidate40770899178 Windows/Linux22/Linux24 installed packages and40770896328 focused Windows/Linux passed"
+  },
+  "emptyLinePolicy": {
+    "origin": "getSectionDef.hideEmptyLine",
+    "officialReference": "https://help.hancom.com/hoffice/multi/ko_kr/hwp/format/section/section.htm",
+    "docx": "standard custom property WordStudio.HwpEmptyLines preserves section indices for Word Studio; other readers do not necessarily apply this Hancom policy",
+    "noticePages": [
+      40,
+      39,
+      37
+    ],
+    "modelParagraphsDeleted": 0
+  },
+  "headerColorFollowup": {
+    "browserTests": 300,
+    "nativeUnitTests": 86,
+    "build": "passed",
+    "sourceFailureCases": 2,
+    "newPassingScenarios": 2,
+    "tenFreshModels": "only backgroundColor differs: 20 work-rules headers, 1 notice header; all other content/page unchanged",
+    "evidence": [
+      "header-colors-before.log",
+      "header-colors-after2.log",
+      "header-colors-full.log",
+      "header-colors-unit2.log",
+      "header-colors-build.log",
+      "variant-header-colors/fresh.json"
+    ]
+  },
+  "independentPdfAudit": {
+    "pageIdentity": "pdf-reference/page-identity-summary.json",
+    "before": "baseline-pdf-markers-summary.json",
+    "after": "nested-borders-pdf-markers-summary.json",
+    "scope": "fixed-rule independent PDF markers; separate from frozen 160 source-layout anchors; unmatched/split/image text is not proof of text loss",
+    "allReferenceAndConvertedPagesRendered": 250,
+    "fullVisualReview": "28 actual selected page pairs, residual differences explicitly recorded; not all250 visually inspected",
+    "visualEvidence": "visual-review/manifest.json",
+    "latestBorderFollowupVisualChecks": [
+      "05-return-form p1",
+      "06-mixed-document p3",
+      "10-lh-plan p1",
+      "07-english-exam p9"
+    ]
+  },
+  "borderFollowup": {
+    "sourceFailureCases": 4,
+    "borderlessBefore": "none shorthand and individual side none fail; hidden control passes",
+    "nestedBefore": "HWP and HWPX 0.2mm native border becomes3px in clipboard-based conversion",
+    "after": "five new scenarios pass through two DOCX saves, five zooms and editing/undo; existing nested grid controls also pass",
+    "modelDifference": "only borderTop/Right/Bottom/Left; paragraph/content order, images and page settings unchanged",
+    "modelEvidence": "nested-borders-model-diff.json",
+    "fixtureCleanup": "generated stress-test directories removed in afterAll; zero remaining after the test file"
+  },
+  "logicalBody": {
+    "exactSamples": 10,
+    "samples": 10,
+    "normalizedSourceCharacters": 218797,
+    "sourceHashesVerified": true,
+    "scope": "Native source serialization independent of editable converter; whitespace ignored and two documented legacy glyph aliases normalized; drawings, fields, stories and native parser correctness require separate checks",
+    "evidence": "source-logical-order-final.json"
+  },
+  "externalWriterCorrection": {
+    "invalidInitialEnvironment": "Korean glyphs absent; initial notice35→38 and form2→1 counts withdrawn",
+    "version": "LibreOffice26.8.0.3, isolated system FONTCONFIG_FILE",
+    "noticeBaseline": {
+      "pages": 39,
+      "normalizedPdfCharacters": 37509,
+      "fixedMarkersPresent": 262,
+      "fixedMarkersTotal": 277
+    },
+    "noticeParagraphFloatRegression": {
+      "pages": 37,
+      "normalizedPdfCharacters": 33349,
+      "fixedMarkersPresent": 235
+    },
+    "noticeInlineAfter": {
+      "pages": 38,
+      "normalizedPdfCharacters": 37509,
+      "fixedMarkersPresent": 262
+    },
+    "notMicrosoftWord": true
+  },
+  "docxEditorPendingIssue": "fixed: generated section carrier paragraphs; actual hidden Electron work-rules163/editor+print, notice37/editor+print, each five zooms",
+  "latestInlineEvidence": "variant-inline-guard, writer-inline-guard, native-failure-safety, native-large-1, native-large-4",
+  "invalidInitialWriterInterop": {
+    "valid": false,
+    "reason": "Korean glyphs absent; raw evidence only, superseded by externalWriterCorrection and writer-inline-guard/summary.json",
+    "rawReport": "analysis/hwp-12h-2026-10-28/writer-corpus-comparison/summary.json"
+  },
+  "latestFocusedTests": 17,
+  "openXmlSchema": {
+    "sdk": "DocumentFormat.OpenXml3.5.1",
+    "target": "Office2019",
+    "samples": 10,
+    "errors": 0,
+    "report": "analysis/hwp-12h-2026-10-28/openxml-float-size.json"
+  },
+  "docxParagraphCountsPreservedAllTen": true,
+  "finalIntegration": "321 browser/88 unit/build, ten source and two-save DOCX logical streams, actual hidden Mac DOCX, official schema, focused Windows/Linux and Windows/Linux22/Linux24 install/reinstall/uninstall passed; main integration pending",
+  "validationCandidateCommit": "b73c03034c529cc48840e6975017874b1aca55f0",
+  "integratedApplicationVersion": "1.4.9",
+  "nativeDocxReopen": {
+    "samples": 10,
+    "zooms": [
+      100,
+      50,
+      125,
+      200,
+      100
+    ],
+    "editorPrintPages": [
+      7,
+      163,
+      4,
+      36,
+      1,
+      37,
+      9,
+      20,
+      15,
+      5
+    ],
+    "rendererErrors": 0,
+    "report": "analysis/hwp-12h-2026-10-28/native-docx-float-size/result.json"
+  },
+  "latestWorkflowRuns": {
+    "focused": 40770896328,
+    "nativeDesktop": 40770899178,
+    "previousFullBrowserDesktop": 40764347389,
+    "previousFullSuccessfulDesktop": 40760988760
+  },
+  "sourceIntegrityWithHardBreaks": {
+    "samples": 10,
+    "charactersIncluding140ExplicitBreaks": 218937,
+    "nonWhitespaceBodyCharacters": 218797,
+    "originalBreaks": 140,
+    "convertedBreaksBefore": 0,
+    "convertedBreaksAfter": 140,
+    "exactStreamsAfterFreshConversion": 10,
+    "exactStreamsAfterTwoDocxSaves": 10,
+    "scope": "logical body/table text and explicit line-break order/multiplicity; other whitespace normalized; shared native parser, excludes drawing text, fields and separate stories",
+    "reports": [
+      "source-logical-with-breaks.json",
+      "source-logical-after-two-docx.json",
+      "source-logical-float-size-after-two-docx.json"
+    ]
+  },
+  "wordGapAudit": {
+    "uniqueParagraphsAtLeast20Chars": 2143,
+    "beforeParagraphDifferences": 20,
+    "beforeGapDifferences": 21,
+    "afterParagraphDifferences": 0,
+    "afterGapDifferences": 0,
+    "ordinarySpacesMissing": 0,
+    "scope": "Unique matched paragraphs only; repeated/short/unmatched paragraphs excluded"
+  },
+  "nativeSourceFinal": "analysis/hwp-12h-2026-10-28/native-hard-break/results.json",
+  "latestProductSourceSHA256": {
+    "src/hwp/cell-content.ts": "9ef8059e4a908d5a1ca8ea331931110c4492d029a2d91f54c3d04aa56d37ed89",
+    "src/hwp/conversion.ts": "953c3fba130bb6b58e537f457bd1a0061e024d6d5bb5924d15acf646e790a337",
+    "src/docx-metadata.ts": "9d6a7ce4e1eeb5e6d6c665087fd818d6662540dd981cc20bb7a43ed51071e761",
+    "src/document-io.ts": "27c8382c1117d314413ab1402b1b4b713604b834ed8dc631dd14e82346e00ed2",
+    "src/hwp/paragraph-layout.ts": "c452ed2158046d0cc6ed094faa46432d02c190f5fca45b9b4d93ca8911655908"
+  },
+  "externalWriterLatest": {
+    "environment": "LibreOffice26.8.0.3 with isolated verified system Korean fonts",
+    "pages": [
+      7,
+      173,
+      6,
+      40,
+      2,
+      38,
+      16,
+      20,
+      16,
+      5
+    ],
+    "notMicrosoftWordOrHancom": true
+  },
+  "editorPrintAuditAfterTwoDocxSaves": {
+    "scope": "Complete uniquely matching paragraphs of at least10 normalized characters; duplicate/split paragraphs explicitly excluded",
+    "documents": [
+      {
+        "id": "02-work-rules",
+        "editorPages": 163,
+        "printPages": 163,
+        "matched": 675,
+        "excluded": 1052,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 21
+      },
+      {
+        "id": "04-language-plan",
+        "editorPages": 36,
+        "printPages": 36,
+        "matched": 588,
+        "excluded": 76,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 65
+      },
+      {
+        "id": "06-mixed-document",
+        "editorPages": 37,
+        "printPages": 37,
+        "matched": 761,
+        "excluded": 127,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 115
+      },
+      {
+        "id": "07-english-exam",
+        "editorPages": 9,
+        "printPages": 9,
+        "matched": 268,
+        "excluded": 2,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 48
+      }
+    ],
+    "report": "float-size-docx2-text-start-summary.json"
+  },
+  "floatingImageSize": {
+    "sourceFailures": 2,
+    "focusedScenariosPassed": 16,
+    "imagesCheckedThroughTwoDocxSaves": 24,
+    "maximumFloatingDimensionDeltaPx": 5.24934383179243e-05,
+    "inlineFitBehavior": "unchanged",
+    "reports": [
+      "float-size-dimension-audit.json",
+      "float-precision-focused.log",
+      "native-docx-float-pdf/result.json",
+      "float-size-visual/manifest.json"
+    ],
+    "scope": "Explicit stored floating dimensions; not all image placement or independent Hancom geometry"
+  },
+  "consecutiveBlankLines": {
+    "nativeGapPx": 40.6,
+    "beforeGapPx": 81.1875,
+    "afterGapPx": 40.6,
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "report": "native-blank-line/result.json",
+    "tenSourceModelsEquivalent": true
+  },
+  "nativeLargeFullRoundtrip": {
+    "sourceBytes": 84843520,
+    "wordStudioBytes": 112203655,
+    "docxBytes": 21056340,
+    "allImageHashesPreserved": 12,
+    "bodyMarkersPreserved": 12,
+    "report": "native-large-full-roundtrip/result.json",
+    "scope": "Synthetic3 unique random-image assets repeated4 times; distinct from separate2-image56MB backup scenario"
+  }
+}

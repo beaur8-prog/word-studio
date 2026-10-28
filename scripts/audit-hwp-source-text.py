@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--evidence', type=Path, default=Path('analysis/hwp-completion-fixes-2026-10-26'))
 parser.add_argument('--models', type=Path)
 parser.add_argument('--output', type=Path)
+parser.add_argument('--include-hard-breaks', action='store_true', help='Also compare explicit HWP line-break controls and model hardBreak nodes, while ignoring other whitespace.')
 args = parser.parse_args()
 models = args.models or args.evidence / 'converted-current'
 sources = json.loads((args.evidence / 'source-sections.json').read_text())
@@ -25,14 +26,19 @@ hashes = json.loads((args.evidence / 'source-audit-hashes.json').read_text())
 
 def normalized(text):
     # These two legacy HWP glyphs have explicit, tested Unicode replacements.
-    return re.sub(r'\s|[\u0000-\u0008\u200b\ufeff]', '', text.replace('\U000f012b', '(인)').replace('\U000f081c', '┈'))
+    whitespace = r'[^\S\n]' if args.include_hard_breaks else r'\s'
+    return re.sub(whitespace + r'|[\u0000-\u0008\u200b\ufeff]', '', text.replace('\U000f012b', '(인)').replace('\U000f081c', '┈'))
 
 
 def source_body(node):
     name = node.tag.rsplit('}', 1)[-1]
     if name in ('header', 'footer', 'footNote', 'endNote', 'rect', 'ellipse', 'polygon', 'container'):
         return ''
+    if name == 'lineBreak':
+        return '\n' if args.include_hard_breaks else ''
     if name == 't':
+        if args.include_hard_breaks:
+            return (node.text or '') + ''.join(source_body(child) + (child.tail or '') for child in node)
         return ''.join(node.itertext())
     return ''.join(source_body(child) for child in node)
 
@@ -40,6 +46,8 @@ def source_body(node):
 def model_body(node):
     if node['type'] == 'documentNote':
         return ''
+    if node['type'] == 'hardBreak':
+        return '\n' if args.include_hard_breaks else ''
     return node.get('text', '') + ''.join(model_body(c) for c in node.get('content', []))
 
 
@@ -56,9 +64,12 @@ for sample, sections in sources.items():
         if kind != 'equal'
     ]
     samples.append({'id': sample, 'sourceFileSHA256': hashes[sample], 'sourceChars': len(original), 'convertedChars': len(converted),
+                    'sourceHardBreaks': original.count('\n'), 'convertedHardBreaks': converted.count('\n'),
                     'sourceTextSHA256': hashlib.sha256(original.encode()).hexdigest(), 'convertedTextSHA256': hashlib.sha256(converted.encode()).hexdigest(),
                     'identicalLogicalBodyStream': original == converted, 'differences': differences})
-result = {'scope': 'Logical body/table text, including short fragments, multiplicity and order; ignores whitespace and normalizes two documented legacy glyph aliases.',
+result = {'scope': 'Logical body/table text, including short fragments, multiplicity and order; ' +
+          ('preserves explicit source/model line breaks and ignores other whitespace' if args.include_hard_breaks else 'ignores whitespace') +
+          ' and normalizes two documented legacy glyph aliases.',
           'limitations': ['Native source parser is shared; not an independent Hancom parsing check.', 'Drawing text, fields, notes, headers/footers and all-page visual fidelity require separate checks.'],
           'totalSourceCharacters': sum(s['sourceChars'] for s in samples), 'samples': samples}
 output = args.output or args.evidence / 'source-logical-order-audit.json'

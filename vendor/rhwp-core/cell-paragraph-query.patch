@@ -1,0 +1,109 @@
+diff --git a/src/document_core/commands/formatting.rs b/src/document_core/commands/formatting.rs
+index 95cce1d58..1d15b83f0 100644
+--- a/src/document_core/commands/formatting.rs
++++ b/src/document_core/commands/formatting.rs
+@@ -281,6 +281,61 @@ impl DocumentCore {
+         Ok(self.build_para_properties_json(para.para_shape_id, sec_idx))
+     }
+
++    /// Read-only paragraph formatting at any table nesting depth.
++    pub fn get_cell_para_properties_at_by_path_native(
++        &self,
++        sec_idx: usize,
++        parent_para_idx: usize,
++        path: &[(usize, usize, usize)],
++    ) -> Result<String, HwpError> {
++        let para = self.resolve_paragraph_by_path(sec_idx, parent_para_idx, path)?;
++        Ok(self.build_para_properties_json(para.para_shape_id, sec_idx))
++    }
++
++    /// Stored line boxes are diagnostic/import metrics, not fixed text breaks.
++    /// Empty paths address a body paragraph; cell paths address any nesting.
++    pub fn get_paragraph_line_metrics_native(
++        &self,
++        sec_idx: usize,
++        parent_para_idx: usize,
++        path: &[(usize, usize, usize)],
++    ) -> Result<String, HwpError> {
++        let para = if path.is_empty() {
++            self.document.sections.get(sec_idx)
++                .and_then(|section| section.paragraphs.get(parent_para_idx))
++                .ok_or_else(|| HwpError::RenderError("문단을 찾을 수 없음".to_string()))?
++        } else {
++            self.resolve_paragraph_by_path(sec_idx, parent_para_idx, path)?
++        };
++        let px = |value| crate::renderer::hwpunit_to_px(value, self.dpi);
++        let lines: Vec<_> = para.line_segs.iter().map(|line| serde_json::json!({
++            "textStart": line.text_start,
++            "height": px(line.line_height),
++            "textHeight": px(line.text_height),
++            "baseline": px(line.baseline_distance),
++            "spacing": px(line.line_spacing),
++            "verticalPosition": px(line.vertical_pos),
++            "width": px(line.segment_width),
++            "flags": line.tag,
++        })).collect();
++        let tables: Vec<_> = para.controls.iter().enumerate().filter_map(|(index, control)| {
++            if let crate::model::control::Control::Table(table) = control {
++                Some(serde_json::json!({
++                    "index": index,
++                    "inline": table.common.treat_as_char,
++                    "outerTop": px(i32::from(table.common.margin.top)),
++                    "outerBottom": px(i32::from(table.common.margin.bottom)),
++                }))
++            } else { None }
++        }).collect();
++        Ok(serde_json::json!({
++            "stored": !crate::renderer::para_has_no_stored_line_segs(para),
++            "lines": lines,
++            "controlCount": para.controls.len(),
++            "tables": tables,
++        }).to_string())
++    }
++
+     /// 글자 속성 JSON 생성 헬퍼
+     pub(crate) fn build_char_properties_json(
+         &self,
+diff --git a/src/wasm_api.rs b/src/wasm_api.rs
+index 2031085e3..cf3b12f8e 100644
+--- a/src/wasm_api.rs
++++ b/src/wasm_api.rs
+@@ -7238,6 +7238,38 @@ impl HwpDocument {
+         .map_err(|e| e.into())
+     }
+
++    /// Read-only paragraph formatting for ordinary and nested table cells.
++    #[wasm_bindgen(js_name = getCellParaPropertiesAtByPath)]
++    pub fn get_cell_para_properties_at_by_path_api(
++        &self,
++        section_idx: u32,
++        parent_para_idx: u32,
++        path_json: &str,
++    ) -> Result<String, JsValue> {
++        let path = DocumentCore::parse_cell_path(path_json)?;
++        self.get_cell_para_properties_at_by_path_native(
++            section_idx as usize,
++            parent_para_idx as usize,
++            &path,
++        )
++        .map_err(|e| e.into())
++    }
++
++    #[wasm_bindgen(js_name = getParagraphLineMetrics)]
++    pub fn get_paragraph_line_metrics_api(
++        &self,
++        section_idx: u32,
++        parent_para_idx: u32,
++        path_json: &str,
++    ) -> Result<String, JsValue> {
++        let path = DocumentCore::parse_cell_path(path_json)?;
++        self.get_paragraph_line_metrics_native(
++            section_idx as usize,
++            parent_para_idx as usize,
++            &path,
++        ).map_err(|e| e.into())
++    }
++
+     /// 문서에 정의된 스타일 목록을 조회한다.
+     ///
+     /// 반환값: JSON 배열 [{ id, name, englishName, type, paraShapeId, charShapeId }, ...]

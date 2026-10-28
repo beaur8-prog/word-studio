@@ -8,10 +8,35 @@ import { paginateCellRow, paginateMergedRows } from './editor-cell-pagination';
 import { layoutColumns } from './column-layout';
 import { layoutTableAnchors } from './table-anchor';
 import { paginateParagraph } from './editor-paragraph-pagination';
+import { paragraphFitBottom } from './paragraph-fit';
+import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
 
 const key = new PluginKey('studioPagination');
 type RepeatingHeader = { table: HTMLTableElement; rows: HTMLTableRowElement[]; height: number };
 type Piece = { pos: number; end: number; top: number; height: number; columns?: number; columnFlow?: boolean; cellRow?: HTMLTableRowElement; mergedRows?: HTMLTableRowElement[]; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[]; header?: RepeatingHeader; tableTop?: number };
+
+/** Printed continuations have a new table edge. Measuring only the original
+ * header rows omits its collapsed half border and can admit an extra line. */
+function continuationHeaderHeight(table: HTMLTableElement, headers: HTMLTableRowElement[], nextRow: HTMLTableRowElement, scale: number): number | undefined {
+  if (!(scale > 0) || headers.some((row, i) => [...row.cells].some(cell => i + cell.rowSpan > headers.length))) return;
+  const width = table.getBoundingClientRect().width / scale;
+  if (!(width > 0)) return;
+  const host = document.createElement('div'); host.className = 'tiptap'; host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;left:-100000px;top:0;padding:0;min-height:0;width:${width}px`;
+  const probe = table.cloneNode(false) as HTMLTableElement; probe.style.margin = '0'; probe.style.width = `${width}px`;
+  const columns = table.querySelector(':scope > colgroup'); if (columns) probe.append(columns.cloneNode(true));
+  const body = document.createElement('tbody'); body.append(...headers.map(row => row.cloneNode(true)));
+  const next = document.createElement('tr'); next.style.height = '0px';
+  for (const cell of [...nextRow.cells]) {
+    const clone = cell.cloneNode(false) as HTMLTableCellElement;
+    clone.className = ''; clone.style.height = '0px'; clone.style.minHeight = '0px'; next.append(clone);
+  }
+  body.append(next); probe.append(body); host.append(probe); document.body.append(host);
+  try {
+    const height = next.getBoundingClientRect().top - probe.getBoundingClientRect().top;
+    return Number.isFinite(height) && height > 0 ? height : undefined;
+  } finally { host.remove(); }
+}
 
 /** Use real block/row geometry. A form is often one large table cell containing
  * paragraphs and nested tables, so treating only top-level nodes as indivisible
@@ -61,6 +86,13 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       table: rows[0].dom.closest('table')!, rows: rows.slice(0, headerEnd).map(r => r.dom as HTMLTableRowElement),
       height: rect(rows[headerEnd - 1].dom).top + rect(rows[headerEnd - 1].dom).height - rect(rows[0].dom).top,
     } : undefined;
+    const headerHeights = new Map<string, number>();
+    const headerFor = (row: HTMLTableRowElement) => {
+      if (!header) return undefined;
+      const key = [...row.cells].map(cell => `${cell.colSpan}:${cell.rowSpan}:${cell.style.borderTopWidth}:${cell.style.borderTopStyle}`).join('|');
+      if (!headerHeights.has(key)) headerHeights.set(key, continuationHeaderHeight(header.table, header.rows, row, scale) ?? header.height);
+      return { ...header, height: headerHeights.get(key)! };
+    };
     for (let i = 0; i < rows.length;) {
       let end = i === 0 && headerEnd ? Math.min(rows.length, headerEnd + 1) : i + 1;
       for (let j = i; j < end; j++) rows[j].node.forEach(cell => { end = Math.min(rows.length, Math.max(end, j + Number(cell.attrs.rowspan || 1))); });
@@ -84,7 +116,7 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
         let columns = 0; row.node.forEach(cell => { columns += Number(cell.attrs.colspan || 1); });
         const cellRow = end === i + 1 && row.node.attrs.rowSplit === 'allow' && row.node.attrs.wordRowRule !== 'exact' && row.node.content.content.every(c => Number(c.attrs.rowspan || 1) === 1)
           ? row.dom as HTMLTableRowElement : undefined;
-        result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns, cellRow, header: i >= headerEnd ? header : undefined, tableTop: rect(rows[0].dom).top, mergedRows: end > i + 1 && height > usableHeight ? rows.slice(i, end).map(r => r.dom as HTMLTableRowElement) : undefined });
+        result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns, cellRow, header: i >= headerEnd ? headerFor(row.dom as HTMLTableRowElement) : undefined, tableTop: rect(rows[0].dom).top, mergedRows: end > i + 1 ? rows.slice(i, end).map(r => r.dom as HTMLTableRowElement) : undefined });
       }
       i = end;
     }
@@ -102,7 +134,18 @@ export const Pagination = Extension.create({
   addProseMirrorPlugins() {
     return [new Plugin({
       key,
-      state: { init: () => DecorationSet.empty, apply: (tr, old) => tr.getMeta(key) ?? old.map(tr.mapping, tr.doc) },
+      state: { init: () => DecorationSet.empty, apply: (tr, old) => {
+        const explicit = tr.getMeta(key); if (explicit) return explicit;
+        const mapped = old.map(tr.mapping, tr.doc);
+        if (!tr.docChanged) return mapped;
+        // Reveal a formerly blank line in the same input transaction. Layout
+        // waits during IME composition, but the composition must remain visible.
+        return mapped.remove(mapped.find().filter(decoration => {
+          if (!decoration.spec.hiddenEmptyLine) return false;
+          const node = tr.doc.nodeAt(decoration.from);
+          return !node || !!node.textContent.trim() || node.content.content.some(child => child.type.name !== 'text');
+        }));
+      } },
       props: { decorations: state => key.getState(state) },
       view(view) {
         let scheduled = 0, signature = '', lastDocument: PMNode | undefined;
@@ -137,6 +180,8 @@ export const Pagination = Extension.create({
               const h = Number(context.sheet.dataset.pageHeight) || Number(sheet.dataset.pageHeight) || 1122.52;
               const top = Number(context.sheet.dataset.margin ?? sheet.dataset.margin ?? 96);
               const bottom = Number(context.sheet.dataset.bottomMargin ?? sheet.dataset.bottomMargin ?? top), stride = h + 24, usable = h - top - bottom;
+              const hideEmptyLines = (context.sheet.dataset.hideEmptyLines ?? sheet.dataset.hideEmptyLines) === 'true';
+              const hiddenEmptyLines = new Map<number, number>();
               const origin = context.dom.getBoundingClientRect().top, scale = documentScale(context.dom);
               const removed = [...context.dom.querySelectorAll<HTMLElement>('.pagination-gap,.page-break,.column-break,.section-break')].map(el => {
                 const r = el.getBoundingClientRect(); return { top: (r.top - origin) / scale, height: r.height / scale };
@@ -206,7 +251,18 @@ export const Pagination = Extension.create({
                   .map(ref => ({ id: ref.id, page: Math.max(0, Math.floor((piece.top + extra + ref.offset - top + .5) / stride)) }));
                 let refs = candidate();
                 const end = page * stride + h - bottom - reserve(page, refs);
-                if (piece.mergedRows) {
+                if (hideEmptyLines && piece.empty && !piece.explicit && !piece.columnFlow && piece.height > 0 && piece.height <= usable &&
+                  y > page * stride + top + .5 && y + piece.height > end + .5 && (hiddenEmptyLines.get(page) || 0) < 2) {
+                  const paragraph = view.nodeDOM(piece.pos);
+                  if (paragraph instanceof HTMLElement && canHideEmptyPageLine(paragraph)) {
+                    hiddenEmptyLines.set(page, (hiddenEmptyLines.get(page) || 0) + 1);
+                    dec.push(Decoration.node(piece.pos, piece.end, { class: hiddenEmptyLineClass }, { hiddenEmptyLine: true }));
+                    signatures.push(`empty-line:${piece.pos}:${page}`); extra -= piece.height; continue;
+                  }
+                }
+                // A permitted merge may be shorter than a whole sheet but
+                // still need a row-boundary break after preceding content.
+                if (piece.mergedRows && y + piece.height > end + .5) {
                   const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed, repeatAt, reserveAt: page => reserve(page, refs) });
                   if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }
@@ -216,7 +272,12 @@ export const Pagination = Extension.create({
                     reserveAt: (page, own) => reserve(page, own ?? []) });
                   if (flow) { assignNotes(flow.references); commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }
-                if (!piece.columns && !piece.explicit && y + piece.height > end + .5) {
+                let fitHeight = piece.height;
+                if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
+                  const paragraph = view.nodeDOM(piece.pos);
+                  if (paragraph instanceof HTMLElement) fitHeight -= Math.max(0, paragraph.getBoundingClientRect().bottom - paragraphFitBottom(paragraph)) / scale;
+                }
+                if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
                   if (paragraph instanceof HTMLElement && paragraph.tagName === 'P') {
                     const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed,
@@ -228,7 +289,7 @@ export const Pagination = Extension.create({
                 // Multi-column groups already fragment across paper rows in
                 // layoutColumns. Moving their outer box as an atomic block
                 // adds a second page gap and feeds it back into column-prefix.
-                if (piece.explicit || (!piece.columnFlow && y + piece.height > end + .5 && piece.height <= usable)) {
+                if (piece.explicit || (!piece.columnFlow && y + fitHeight > end + .5 && piece.height <= usable)) {
                   let destination = page + 1;
                   if (piece.breakType === 'oddPage' || piece.breakType === 'evenPage') {
                     const parity = piece.breakType === 'oddPage' ? 1 : 0;

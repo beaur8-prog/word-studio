@@ -5,10 +5,16 @@ import { overlapInstruction } from './word-overlap';
 import { symbolFont, symbolElement } from './document-symbols';
 import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
+import { tableAnchor, paragraphTableNamespace } from './table-anchor';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
 // A standard paragraph style identifies the otherwise invisible separator
 // required by Word between adjacent tables and after a table inside a cell.
 export const TABLE_GAP_STYLE = 'WordStudioTableGap';
+// A zero-height ordinary paragraph gives a paragraph-relative floating table
+// a stable standard OOXML anchor, independent of the following body text.
+export const TABLE_ANCHOR_STYLE = 'WordStudioTableAnchor';
+export const TABLE_OFFSET_STYLE = 'WordStudioTableOffset';
+export const SECTION_BOUNDARY_STYLE = 'WordStudioSectionBoundary';
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
@@ -42,7 +48,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
   let sequence = 900000;
   const numbering = new WeakMap<Element, ReturnType<typeof format.numbering>>();
   for (const p of all(body, 'p')) numbering.set(p, format.numbering(p));
-  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; nextPage?: PageSettings; width?: number; height?: number; alt?: string; floating?: string }>();
+  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; page?: PageSettings; nextPage?: PageSettings; boundaryCarrier?: boolean; width?: number; height?: number; alt?: string; floating?: string }>();
   const bookmark = (name: string) => {
     const fragment = body.createDocumentFragment();
     const id = String(++sequence);
@@ -121,7 +127,14 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     const isEnd = all(paragraph, 'sectPr').length > 0;
     const parent = paragraph.parentElement;
     const cell = parent?.localName === 'tc' && Array.from(parent.children).find(c => c.localName === 'p') === paragraph ? parent : undefined;
-    markers.set(name, { kind: 'paragraph', paragraph, cell,
+    const boundaryProperties = child(paragraph, 'pPr'), boundarySpacing = child(boundaryProperties, 'spacing');
+    const boundaryCarrier = isEnd && val(child(boundaryProperties, 'pStyle')) === SECTION_BOUNDARY_STYLE &&
+      Array.from(paragraph.children).every(c => c.localName === 'pPr') &&
+      Array.from(boundaryProperties?.children || []).every(c => ['pStyle', 'spacing', 'sectPr'].includes(c.localName)) &&
+      val(boundarySpacing, 'lineRule') === 'exact' && Number(val(boundarySpacing, 'line')) === 1 &&
+      Number(val(boundarySpacing, 'before')) === 0 && Number(val(boundarySpacing, 'after')) === 0 &&
+      Array.from(boundarySpacing?.attributes || []).every(a => ['before', 'after', 'line', 'lineRule'].includes(a.localName));
+    markers.set(name, { kind: 'paragraph', paragraph, cell, page: pages[section], boundaryCarrier,
       ...(isEnd ? { nextPage: pages[++section] } : {}) });
     const properties = Array.from(paragraph.children).find(e => e.localName === 'pPr');
     paragraph.insertBefore(bookmark(name), properties ? properties.nextSibling : paragraph.firstChild);
@@ -137,6 +150,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         .replace(/<a\s+id="([^"]+)"\s*><\/a>/g, '<span data-docx-bookmark="$1"></span>');
       const sizedTables = new Map<HTMLTableElement, Element>();
       const tableGaps = new Map<HTMLElement, number>();
+      const tableAnchorParagraphs = new Set<HTMLElement>();
+      const tableOffsetParagraphs = new Set<HTMLElement>();
       for (const el of template.content.querySelectorAll('img')) {
         const name = el.getAttribute('alt') || '', marker = markers.get(name);
         if (marker?.kind !== 'image') continue;
@@ -183,10 +198,31 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             // and below. Narrow/sided floats require a separate wrap layout.
             const grid = child(sourceTable, 'tblGrid');
             const gridWidth = (grid ? all(grid, 'gridCol') : []).reduce((sum, col) => sum + Number(val(col, 'w')), 0) / 15;
-            const page = pages[0], margins = pageMargins(page), bodyWidth = (paperDimensions(page)[0] - margins.left - margins.right) * 96 / 25.4;
+            const page = marker.page ?? pages[0], margins = pageMargins(page), bodyWidth = (paperDimensions(page)[0] - margins.left - margins.right) * 96 / 25.4;
             if (floating && val(floating, 'horzAnchor') === 'page' && val(floating, 'vertAnchor') === 'page' &&
               !val(floating, 'tblpXSpec') && !val(floating, 'tblpYSpec') && gridWidth >= bodyWidth * .8)
               table.dataset.tableAnchor = JSON.stringify({ x: Number(val(floating, 'tblpX')) / 15, y: Number(val(floating, 'tblpY')) / 15, bottom: Number(val(floating, 'bottomFromText')) / 15 });
+            if (floating && val(floating, 'vertAnchor') === 'text' && ['page', 'margin', 'text'].includes(val(floating, 'horzAnchor')) &&
+              !val(floating, 'tblpXSpec') && !val(floating, 'tblpYSpec') && gridWidth >= bodyWidth * .8 && (page.columns?.count || 1) === 1) {
+              const anchor = tableAnchor({ x: Number(val(floating, 'tblpX')) / 15, y: Number(val(floating, 'tblpY')) / 15,
+                bottom: Number(val(floating, 'bottomFromText')) / 15, reference: 'paragraph', ...(val(floating, 'horzAnchor') !== 'page' ? { horizontal: 'margin' } : {}) });
+              if (anchor) table.dataset.tableAnchor = JSON.stringify(anchor);
+            }
+            const stored = tableAnchor(sourceTable.getAttributeNS(paragraphTableNamespace, 'anchor'));
+            const unchangedOffset = (element: Element | null, pixels: number) => !pixels || !!element && element.localName === 'p' &&
+              val(child(child(element, 'pPr'), 'pStyle')) === TABLE_OFFSET_STYLE &&
+              Array.from(element.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')) &&
+              val(child(child(element, 'pPr'), 'spacing'), 'lineRule') === 'exact' &&
+              Math.abs(Number(val(child(child(element, 'pPr'), 'spacing'), 'line')) / 15 - pixels) <= 1 / 15 + .001;
+            const indent = child(child(sourceTable, 'tblPr'), 'tblInd');
+            // An external editor can change the visible inline geometry while
+            // retaining ignorable attributes. Respect those edits, including
+            // text entered in an offset paragraph, instead of restoring stale
+            // positioning or removing the edited paragraph.
+            if (stored?.reference === 'paragraph' && gridWidth >= bodyWidth * .8 && (page.columns?.count || 1) === 1 &&
+              val(indent, 'type') === 'dxa' && Math.abs(Number(val(indent, 'w')) / 15 - stored.x + (stored.horizontal === 'margin' ? 0 : margins.left * 96 / 25.4)) <= 1 / 15 + .001 &&
+              unchangedOffset(sourceTable.previousElementSibling, stored.y) && unchangedOffset(sourceTable.nextElementSibling, stored.bottom))
+              table.dataset.tableAnchor = JSON.stringify(stored);
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
@@ -196,6 +232,12 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           const spacing = child(properties, 'spacing');
           if (val(spacing, 'lineRule') === 'exact') tableGaps.set(p, Math.max(0, Number(val(spacing, 'line')) / 15));
         }
+        if (val(child(properties, 'pStyle')) === TABLE_ANCHOR_STYLE &&
+          Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')))
+          tableAnchorParagraphs.add(p);
+        if (val(child(properties, 'pStyle')) === TABLE_OFFSET_STYLE &&
+          Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')))
+          tableOffsetParagraphs.add(p);
         p.setAttribute('data-word-line-rule', format.lineRule(marker.paragraph));
         const tabs = format.tabs(marker.paragraph);
         if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
@@ -210,6 +252,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           const sectionBreak = document.createElement('div');
           sectionBreak.setAttribute('data-section-page', JSON.stringify(marker.nextPage));
           p.after(sectionBreak);
+          // This paragraph exists only to carry sectPr after a table. Keep
+          // genuine blank paragraphs and any externally added content.
+          if (marker.boundaryCarrier) p.remove();
         }
       }
       // Word's minimum row height reserves the cell's top/bottom margins in
@@ -344,6 +389,16 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         if (p.nextElementSibling?.tagName !== 'TABLE' && !(p.parentElement?.matches('td,th') && !p.nextElementSibling)) continue;
         table.style.marginBottom = `${gap <= 1 / 15 ? 0 : gap}px`;
         p.remove();
+      }
+      for (const p of tableAnchorParagraphs) {
+        const table = p.previousElementSibling as HTMLElement | null;
+        if (table?.tagName === 'TABLE' && tableAnchor(table.dataset.tableAnchor)?.reference === 'paragraph' && !p.textContent && !p.children.length)
+          p.remove();
+      }
+      for (const p of tableOffsetParagraphs) {
+        const adjacent = [p.previousElementSibling, p.nextElementSibling] as (HTMLElement | null)[];
+        if (!p.textContent && !p.children.length && adjacent.some(table => table?.tagName === 'TABLE' && tableAnchor(table.dataset.tableAnchor)?.reference === 'paragraph'))
+          p.remove();
       }
       // An inline table's following-paragraph spacing represents the gap
       // after the table. Keep it with that table when the next paragraph

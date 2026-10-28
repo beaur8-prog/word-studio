@@ -3,7 +3,7 @@ import type { PageSettings } from '../types';
 import documentLimits from '../../electron/document-limits.json';
 import type { HwpProgressReporter } from './progress';
 import type { HwpLayoutMetadata } from './layout-metadata';
-import { cellContents, restoreCellContent, entities, type CellPath } from './cell-content';
+import { cellContents, restoreCellContent, restoreHardLineBreaks, entities, type CellPath } from './cell-content';
 import { serializedParts } from './serialized-parts';
 import { olePreview } from './ole-preview';
 import { headerDefinitions, headerPreviewPage, headerLayer, hiddenStories, editableHeaderStories } from './header-stories';
@@ -16,6 +16,9 @@ import { stageHwpPictures } from './export-pictures';
 import { hwpBookmark, hwpTabAttribute, stageHwpTextNavigation } from './text-navigation';
 import { hwpTableGrid } from './table-grid';
 import { nestedTableGeometry } from './nested-tables';
+import { hwpCellBorders } from './cell-borders';
+import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss } from './paragraph-layout';
+import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -51,56 +54,6 @@ const hu = (value: number) => Math.round(value * 7200 / 25.4);
 const px = (value: number) => Math.round(value / 75 * 100) / 100;
 const cssStyle = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old};${css}"`) : tag.replace(/>$/, ` style="${css}">`);
 
-function physicalLineHeight(properties: Record<string, any>, char?: Record<string, any>): number {
-  const fontPx = Number(char?.fontSize) / 75;
-  const line = Number(properties.lineSpacing);
-  return properties.lineSpacingType === 'Percent' ? fontPx * line / 100
-    : properties.lineSpacingType === 'Fixed' ? line
-    : properties.lineSpacingType === 'SpaceOnly' ? fontPx + line
-    : properties.lineSpacingType === 'Minimum' ? Math.max(fontPx, line) : NaN;
-}
-
-function paragraphCss(properties: Record<string, any>, char?: Record<string, any>, cap?: number, includeSpacing = true): string {
-  const fontPx = Number(char?.fontSize) / 75;
-  const line = Number(properties.lineSpacing);
-  // The query API mixes units: margins/indent and fixed leading are
-  // already physical pixels, but before/after retain ParaShape's 2x scale.
-  // See build_para_properties_json and style_resolver at the corpus revision.
-  const height = physicalLineHeight(properties, char);
-  const indent = Number(properties.indent) || 0;
-  const left = (Number(properties.marginLeft) || 0) + Math.max(0, -indent);
-  const spacing = Number.isFinite(cap) && Number.isFinite(height) && height > cap! && cap! >= fontPx ? `${cap}px`
-    : properties.lineSpacingType === 'Percent' ? `${line}%` : Number.isFinite(height) ? `${height}px` : '';
-  return `margin-left:${left}px;margin-right:${(Number(properties.marginRight) || 0)}px;text-indent:${indent}px;` +
-    (['left', 'center', 'right', 'justify'].includes(properties.alignment) ? `text-align:${properties.alignment};` : '') +
-    (includeSpacing ? `margin-top:${(Number(properties.spacingBefore) || 0) / 2}px;margin-bottom:${(Number(properties.spacingAfter) || 0) / 2}px;` : '') +
-    (char?.fontSize ? `font-size:${char.fontSize / 100}pt;font-family:${escape(JSON.stringify(char.fontFamily || 'serif'))};` : '') +
-    (spacing ? `line-height:${spacing};` : '');
-}
-
-function sourceLinePitches(doc: HwpDocument): Map<string, number> {
-  const lines = new Map<string, { y: number; h: number; page: number }[]>();
-  const pitches = new Map<string, number>();
-  for (let page = 0; page < doc.pageCount(); page++) for (const run of JSON.parse(doc.getPageTextLayout(page)).runs ?? []) {
-    if (run.parentParaIdx === undefined && typeof run.secIdx === 'number' && typeof run.paraIdx === 'number') pitches.set(`flow:${run.secIdx}:${run.paraIdx}`, 1);
-    if (typeof run.secIdx !== 'number' || typeof run.paraIdx !== 'number' || run.cellPath?.length > 1) continue;
-    const key = run.parentParaIdx === undefined ? `${run.secIdx}:${run.paraIdx}` : `${run.secIdx}:${run.parentParaIdx}:${run.controlIdx}:${run.cellIdx}:${run.cellParaIdx}`;
-    if (!pitches.has(`top:${key}`)) { pitches.set(`top:${key}`, run.y); pitches.set(`page:${key}`, page); }
-    pitches.set(`height:${key}`, Math.max(pitches.get(`height:${key}`) ?? 0, run.h));
-    if (!run.text?.trim()) continue;
-    const group = lines.get(key) ?? [], previous = group.at(-1);
-    if (!previous || previous.page !== page || Math.abs(previous.y - run.y) > Math.min(previous.h, run.h) * .45) group.push({ y: run.y, h: run.h, page });
-    lines.set(key, group);
-  }
-  for (const [key, group] of lines) {
-    const values = group.slice(1).flatMap((line, i) => {
-      const previous = group[i], value = line.y - previous.y;
-      return line.page === previous.page && value >= Math.max(line.h, previous.h) * .9 && value < Math.max(line.h, previous.h) * 4 ? [value] : [];
-    }).sort((a, b) => a - b);
-    if (values.length) pitches.set(key, Math.round(values[Math.floor(values.length / 2)] * 100) / 100);
-  }
-  return pitches;
-}
 
 function tableGeometry(doc: HwpDocument, section: number, para: number, control: number, html: string, pitches: Map<string, number>, tabs?: (cell: number, paragraph: number) => string): string {
   const dims = JSON.parse(doc.getTableDimensions(section, para, control));
@@ -155,7 +108,6 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
   }
   for (const c of cells) if ((!c.isHeader || !tableProperties.repeatHeader) && c.rowSpan === 1 &&
     (cellPages.get(c.index)?.size ?? 0) > 1) continuationRows.add(c.row);
-  const borderWidths = [.1, .12, .15, .2, .25, .3, .4, .5, .6, .7, 1, 1.5, 2, 3, 4, 5];
   const style = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old}${css}"`) : tag.replace(/>$/, ` style="${css}">`);
   let depth = 0, cellIndex = 0, row = 0, cellParagraph = 0, header = false, paragraphStyle = '';
   return html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, (tag, offset: number) => {
@@ -193,20 +145,15 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
         if (c.rowSpan === 1 && doc.getCellParagraphCount(section, para, control, index) === 1 &&
           JSON.parse(doc.getLineInfoInCell(section, para, control, index, 0, 0)).lineCount === 1)
           cap = px(c.height - c.paddingTop - c.paddingBottom);
-        let finalPitch = pitch;
         const text = html.slice(offset + tag.length, html.indexOf('</p>', offset));
-        if (cellParagraph === doc.getCellParagraphCount(section, para, control, index) &&
-          JSON.parse(doc.getLineInfoInCell(section, para, control, index, cellParagraph - 1, 0)).lineCount <= 1 &&
-          !/<(?:img|table)\b|<!--\s*rhwp:/i.test(text)) {
-          // Hancom does not reserve trailing line leading after the final
-          // line in a cell. For a single-line final paragraph this is an
-          // ordinary exact line height and survives DOCX without hidden data.
-          const inkHeight = pitches.get(`height:${key}`) ?? Number(char.fontSize) / 75;
-          const requested = pitch ?? physicalLineHeight(properties, char);
-          if (inkHeight > 0 && requested > inkHeight) finalPitch = inkHeight;
-        }
+        const paragraphCssValue = cellParagraphCss(properties, char, { pitch, cap,
+          inkHeight: pitches.get(`height:${key}`),
+          final: cellParagraph === doc.getCellParagraphCount(section, para, control, index),
+          lines: JSON.parse(doc.getLineInfoInCell(section, para, control, index, cellParagraph - 1, 0)).lineCount,
+          simple: !/<(?:img|table)\b|<!--\s*rhwp:/i.test(text),
+        });
         if (text.includes('\t') && !tag.includes('data-tab-stops')) tag = tag.replace(/>$/, `${tabs?.(index, cellParagraph - 1) ?? ''}>`);
-        return cssStyle(tag, paragraphCss(properties, char, cap, false) + (finalPitch ? `line-height:${finalPitch}px;` : ''));
+        return cssStyle(tag, paragraphCssValue);
       } catch { return tag; }
     }
     if (tag === '</td>') return `${cellParagraph ? '' : `<p style="${paragraphStyle}"></p>`}</${header ? 'th' : 'td'}>`;
@@ -217,21 +164,28 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     if (!/^<td\b/.test(tag)) return tag;
     const c = cells[cellIndex++]; if (!c) return tag;
     cellParagraph = 0; header = !!c.isHeader && !!tableProperties.repeatHeader;
-    if (!header && c.rowSpan > 1 && (cellPages.get(c.index)?.size ?? 0) > 1) tag = tag.replace(/>$/, ' data-cell-split="allow">');
+    // RowBreak explicitly permits a break at row boundaries, including
+    // through a vertical merge. It must still work when preceding edits
+    // move a formerly single-page merge to a new boundary. This does not
+    // grant permission to cut an ordinary row through its cell text.
+    if (!header && c.rowSpan > 1 && (Number(tableProperties.pageBreak) === 2 || (cellPages.get(c.index)?.size ?? 0) > 1))
+      tag = tag.replace(/>$/, ' data-cell-split="allow">');
     try { paragraphStyle = paragraphCss(JSON.parse(doc.getCellParaPropertiesAt(section, para, control, c.index, 0)), JSON.parse(doc.getCellCharPropertiesAt(section, para, control, c.index, 0, 0)),
       c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined, false); }
     catch { paragraphStyle = 'line-height:100%;font-size:10pt;'; }
     const width = columns.slice(c.col, c.col + c.colSpan).map(n => Math.max(1, Math.round(n)));
-    const borders = ['Left', 'Right', 'Top', 'Bottom'].map(side => {
-      const b = c['border' + side], kind = !b?.type ? 'none' : b.type >= 8 && b.type <= 11 ? 'double' : b.type === 3 || b.type === 7 ? 'dotted' : b.type >= 2 && b.type <= 6 ? 'dashed' : 'solid';
-      return `border-${side.toLowerCase()}:${borderWidths[b?.width] ?? .1}mm ${kind} ${/^#[a-f0-9]{6}$/i.test(b?.color) ? b.color : '#000000'};`;
-    }).join('');
+    const borders = hwpCellBorders(c);
     let noWrap = false;
     if (doc.getCellParagraphCount(section, para, control, c.index) === 1) {
       const text = doc.exportSelectionInCellHtml(section, para, control, c.index, 0, 0, 0, 0xffffffff).replace(/<[^>]*>|<!--.*?-->/g, '').trim();
       noWrap = /^\d+[.)]?$/.test(text);
     }
-    return style(tag.replace(/^<td/, header ? '<th' : '<td').replace(/>$/, ` colwidth="${width.join(',')}">`), `width:${px(c.width)}px;height:${px(c.height)}px;padding:${px(c.paddingTop)}px ${px(c.paddingRight)}px ${px(c.paddingBottom)}px ${px(c.paddingLeft)}px;vertical-align:${['top', 'middle', 'bottom'][c.verticalAlign] ?? 'top'};${noWrap ? 'white-space:nowrap;' : ''}${header ? 'background-color:transparent;color:#000;font-weight:normal;' : ''}${borders}`);
+    // TH has app defaults, but resetting them must not overwrite a fill or
+    // text style already supplied by the HWP cell. Put defaults first.
+    if (header) tag = tag.includes('style="')
+      ? tag.replace('style="', 'style="background-color:transparent;color:#000;font-weight:normal;')
+      : style(tag, 'background-color:transparent;color:#000;font-weight:normal;');
+    return style(tag.replace(/^<td/, header ? '<th' : '<td').replace(/>$/, ` colwidth="${width.join(',')}">`), `width:${px(c.width)}px;height:${px(c.height)}px;padding:${px(c.paddingTop)}px ${px(c.paddingRight)}px ${px(c.paddingBottom)}px ${px(c.paddingLeft)}px;vertical-align:${['top', 'middle', 'bottom'][c.verticalAlign] ?? 'top'};${noWrap ? 'white-space:nowrap;' : ''}${borders}`);
   });
 }
 
@@ -240,7 +194,10 @@ function pageSettings(doc: HwpDocument, section: number, warnings: Set<string>):
   const letter = Math.abs(p.width - 61200) < 150 && Math.abs(p.height - 79200) < 150;
   const custom = !letter && (Math.abs(p.width - 59528) > 150 || Math.abs(p.height - 84188) > 150);
   const column = JSON.parse(doc.getColumnDef(section));
+  const hideEmptyLines = JSON.parse(doc.getSectionDef(section)).hideEmptyLine === true;
+  if (hideEmptyLines) warnings.add(emptyLineCompatibilityWarning);
   const page: PageSettings = { size: custom ? 'Custom' : letter ? 'Letter' : 'A4', ...(custom ? { width: mm(p.width), height: mm(p.height) } : {}), orientation: p.landscape ? 'landscape' : 'portrait',
+    ...(hideEmptyLines ? { hideEmptyLines: true } : {}),
     ...(column.columnCount > 1 ? { columns: { count: column.columnCount, space: px(column.spacing), balance: column.columnType === 1 } } : {}),
     margin: mm(p.marginLeft), margins: { top: mm(p.marginTop + p.marginHeader), right: mm(p.marginRight), bottom: mm(p.marginBottom + p.marginFooter), left: mm(p.marginLeft) },
     header: '', footer: '', pageNumbers: false, headerDistance: mm(p.marginTop), footerDistance: mm(p.marginBottom), gutter: mm(p.marginGutter) };
@@ -481,7 +438,6 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   const byParagraph = new Map<number, Control[]>();
   for (const c of controls) {
     if (c.list === 0) { const list = byParagraph.get(c.para) ?? []; list.push(c); byParagraph.set(c.para, list); }
-    if (c.props.TreatAsChar === 0 && c.ctrlId === 'tbl') warnings.add('떠 있는 표는 본문 흐름 안으로 옮깁니다. 표의 앵커·겹침·캡션은 원본과 다를 수 있습니다.');
   }
   const pieces: string[] = [];
   let globalPara = 0, size = 0;
@@ -557,7 +513,15 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         } catch { /* Ambiguous overlays keep both original controls. */ }
       }
       const positions: number[] = JSON.parse(doc.getControlTextPositions(section, para));
-      const range = (start: number, end: number) => fragment(doc.exportSelectionHtml(section, para, start, para, end));
+      const textLength = doc.getParagraphLength(section, para);
+      const range = (start: number, end: number) => {
+        const html = fragment(doc.exportSelectionHtml(section, para, start, para, end));
+        // Control positions can extend past a control-only paragraph's text.
+        // getTextRange takes a count, whereas selection HTML takes an end.
+        if (start >= textLength || end <= start) return html;
+        const text = doc.getTextRange(section, para, start, Math.min(end, textLength) - start);
+        return restoreHardLineBreaks(html, [...text.matchAll(/\n/g)].map(m => m.index!));
+      };
       const whole = range(0, 0xffffffff);
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';
       if (whole.includes('\t')) open = open.replace(/>$/, `${hwpTabAttribute(equationMetadata().get(`${section}:${para}`)?.tabStops)}>`);
@@ -633,7 +597,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
               return croppedPicture(picture, props);
             }
             catch { return html; }
-          }, noteReference, (path, html) => nestedTableGeometry(doc, section, para, path, html));
+          }, noteReference, (path, html) => nestedTableGeometry(doc, section, para, path, html, pitches));
           controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches,
             (cell, p) => hwpTabAttribute(equationMetadata().get(`${section}:${para}/t${ordinal}/c${cell}/p${p}`)?.tabStops));
           const background = tableBackgrounds.get(c.controlIndex);
@@ -700,6 +664,28 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             if (!props.treatAsChar && props.textWrap === 'TopAndBottom' && props.vertRelTo === 'Paper' && props.horzRelTo === 'Paper' && position && pages.size === 1)
               controlHtml = controlHtml.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify({ x: position.x, y: position.y, bottom: px(props.outerBottom || 0) }))}"`);
           }
+          // A standalone empty host paragraph is the table's live flow
+          // anchor, not an extra text line. Preserve its nonnegative offset
+          // instead of pinning to cached page y. The native renderer applies
+          // outerTop only for some relocated hosts; retain that distance only
+          // when the source line and actual table independently confirm it.
+          // Visible host text, negative offsets, captions and columns need
+          // their own exclusion layout and retain the explicit fallback.
+          if (!inlineTable && !hasColumns && /^<table\b/.test(controlHtml) && !/^<table\b[^>]*\bdata-table-anchor=/.test(controlHtml) &&
+            paragraphControls.length === 1 && !doc.getTextRange(section, para, 0, 0xffffffff).trim() &&
+            tableWidth >= px((pd.landscape ? pd.height : pd.width) - pd.marginLeft - pd.marginRight) * .8) {
+            const props = JSON.parse(doc.getTableProperties(section, para, c.controlIndex)), position = controlPosition(section, para, c.controlIndex);
+            const offset = px(Number(props.vertOffset)), outerTop = px(Number(props.outerTop));
+            const firstLine = JSON.parse(doc.getParagraphLineMetrics(section, para, '[]')).lines?.[0];
+            const sourceDistance = position && firstLine ? position.y - px(pd.marginTop + pd.marginHeader) - Number(firstLine.verticalPosition) - offset : NaN;
+            const y = offset + (outerTop > 0 && Math.abs(sourceDistance - outerTop) <= .5 ? outerTop : 0);
+            const x = position && (props.horzRelTo === 'Paper' ? position.x : position.x - px(pd.marginLeft));
+            if (props.textWrap === 'TopAndBottom' && props.vertRelTo === 'Para' && props.vertAlign === 'Top' && !props.hasCaption &&
+              ['Column', 'Para', 'Paper'].includes(props.horzRelTo) && Number(props.vertOffset) >= 0 && y >= 0 && x !== undefined && x >= 0)
+              controlHtml = controlHtml.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify({ x, y, bottom: px(props.outerBottom || 0), reference: 'paragraph', ...(props.horzRelTo !== 'Paper' ? { horizontal: 'margin' } : {}) }))}"`);
+          }
+          if (c.ctrlId === 'tbl' && !inlineTable && !/^<table\b[^>]*\bdata-table-anchor=/.test(controlHtml))
+            warnings.add('일부 떠 있는 표는 본문 흐름 안으로 옮깁니다. 음수 위치·호스트 본문·단·겹침·캡션은 원본과 다를 수 있습니다.');
           if (fullWidth) { closeColumns(); append('<div data-column-count="1" data-column-space="0">'); }
           const tablePiece = pieces.length;
           append(controlHtml);
@@ -805,6 +791,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
 }
 
 export function setHwpPage(doc: HwpDocument, page: PageSettings, section = 0) {
+  doc.setSectionDef(section, JSON.stringify({ hideEmptyLine: page.hideEmptyLines === true }));
   const m = page.margins ?? { top: page.margin, right: page.margin, bottom: page.margin, left: page.margin };
   const letter = page.size === 'Letter';
   const header = Math.min(m.top, page.headerDistance ?? Math.max(0, m.top / 2 - 3));

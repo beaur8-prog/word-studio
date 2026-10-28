@@ -153,36 +153,49 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
 /** Continue source-observed vertical merges at row boundaries without inserting
  * TRs (which would change how the browser counts rowspan). Reserve the page
  * gutter inside the next row's cell padding instead. */
-export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[], geometry: Geometry) {
+export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[], geometry: Geometry): ReturnType<typeof mergedRowFlow> {
+  return mergedRowFlow(view, rows, geometry, [], 0);
+}
+function mergedRowFlow(view: EditorView, rows: HTMLTableRowElement[], geometry: Geometry, growth: number[], attempt: number): { decorations: Decoration[]; signatures: string[]; extra: number } | null {
   const g = geometry, stride = g.height + 24, usable = g.height - g.top - g.bottom;
   const y = (value: number) => {
     const n = (value - g.origin) / g.scale;
     return n - g.removed.filter(r => r.top < n - .5).reduce((s, r) => s + r.height, 0);
   };
   const merges = rows.flatMap((row, index) => [...row.cells].filter(c => c.rowSpan > 1).map(cell => ({ cell, index })));
+  const atomicTable = (block: Element) => block.matches('table,.tableWrapper');
+  const blockPosition = (block: HTMLElement) => atomicTable(block)
+    ? view.posAtDOM(block.parentNode!, [...block.parentNode!.childNodes].indexOf(block)) : view.posAtDOM(block, 0) - 1;
   if (!merges.length || rows.some(r => r.dataset.wordRowRule === 'exact' || r.dataset.rowSplit === 'avoid' || r.getBoundingClientRect().height / g.scale > usable) ||
-    merges.some(({ cell }) => cell.dataset.cellSplit !== 'allow' || [...cell.children].some(block => !block.matches('p,h1,h2,h3,h4,h5,h6')) || cell.querySelector('table,img[data-image-floating],[data-note-reference]'))) return null;
-  const decorations: Decoration[] = [], signatures: string[] = [], offsets = [0];
+    merges.some(({ cell }) => cell.dataset.cellSplit !== 'allow' || [...cell.children].some(block => !block.matches('p,h1,h2,h3,h4,h5,h6') && !atomicTable(block)) || cell.querySelector('img[data-image-floating],[data-note-reference]'))) return null;
+  const decorations: Decoration[] = [], signatures: string[] = [], offsets = [0], topOffsets: number[] = [], pageGaps: number[] = [];
   const collapsed = rows[0].closest('table') && getComputedStyle(rows[0].closest('table')!).borderCollapse === 'collapse';
   const borderFactor = collapsed ? .5 : 1;
   let extra = 0;
-  for (const row of rows) {
-    const box = row.getBoundingClientRect(), top = y(box.top) + g.extra + extra, height = box.height / g.scale;
+  for (const [index, row] of rows.entries()) {
+    const added = growth[index] || 0;
+    const box = row.getBoundingClientRect(), top = y(box.top) + g.extra + extra, height = box.height / g.scale + added;
+    if (height > usable + .5) return null;
     const page = Math.max(0, Math.floor((top - g.top + .5) / stride)), boundary = page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0);
+    let gap = 0;
     if (top + height > boundary + .5) {
       const edge = collapsed ? Math.max(0, ...[...row.cells].map(cell => (parseFloat(getComputedStyle(cell).borderTopWidth) || 0) / 2)) : 0;
-      const gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) + edge - top) * 64) / 64);
+      gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) + edge - top) * 64) / 64);
       for (const cell of [...row.cells]) {
         const pos = view.posAtDOM(cell, 0) - 1;
         const padding = parseFloat(getComputedStyle(cell).paddingTop) || 0;
         decorations.push(Decoration.node(pos, pos + view.state.doc.nodeAt(pos)!.nodeSize, { class: 'pagination-merge-padding',
           style: `--pagination-cell-padding:${padding + gap}px;--pagination-source-cell-padding:${padding}px` }));
       }
+      extra += gap;
+    }
+    if (gap || added) {
       const pos = view.posAtDOM(row, 0) - 1;
       decorations.push(Decoration.node(pos, pos + view.state.doc.nodeAt(pos)!.nodeSize, { class: 'pagination-merge-row',
         style: `--pagination-row-height:${height + gap}px;--pagination-source-row-height:${row.style.height || 'auto'}` }));
-      extra += gap; signatures.push(`merge:${pos}:${gap}`);
+      signatures.push(`merge:${pos}:${gap}:${added}`);
     }
+    topOffsets.push(extra); pageGaps.push(gap); extra += added;
     offsets.push(extra);
   }
   for (const { cell, index } of merges) {
@@ -192,8 +205,12 @@ export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[]
     const paddingBottom = (parseFloat(style.paddingBottom) || 0) + (parseFloat(style.borderBottomWidth) || 0) * borderFactor;
     const blocks = [...cell.children] as HTMLElement[];
     const lines = blocks.flatMap(block => {
-      const measured = measureParagraphLines(view, block, y), css = getComputedStyle(block);
-      return measured.map((line, n) => ({ ...line, block,
+      const atomic = atomicTable(block), box = block.getBoundingClientRect();
+      // Nested tables wholly inside one row fragment remain editable atomic
+      // blocks. Their internal cell traversal is not a sequence of text lines.
+      const measured = atomic ? [{ top: y(box.top), bottom: y(box.bottom), before: 0, after: 0, pos: () => blockPosition(block) }]
+        : measureParagraphLines(view, block, y), css = getComputedStyle(block);
+      return measured.map((line, n) => ({ ...line, block, atomic,
         marginTop: n === 0 ? parseFloat(css.marginTop) || 0 : 0,
         marginBottom: n === measured.length - 1 ? parseFloat(css.marginBottom) || 0 : 0,
       }));
@@ -201,34 +218,51 @@ export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[]
     if (!lines.length) continue;
     const firstTop = y(blocks[0].getBoundingClientRect().top) - lines[0].marginTop;
     const lastBottom = y(blocks.at(-1)!.getBoundingClientRect().bottom) + lines.at(-1)!.marginBottom;
-    const cuts = [index, ...rows.map((_, i) => i).filter(i => i > index && i < end && offsets[i + 1] > offsets[i] + .5), end];
-    const firstHeight = y(rows[cuts[1] - 1].getBoundingClientRect().bottom) - y(rows[index].getBoundingClientRect().top);
+    const cuts = [index, ...rows.map((_, i) => i).filter(i => i > index && i < end && pageGaps[i] > .5), end];
+    const addedHeight = (from: number, to: number) => growth.slice(from, to).reduce((sum, value) => sum + (value || 0), 0);
+    const firstHeight = y(rows[cuts[1] - 1].getBoundingClientRect().bottom) - y(rows[index].getBoundingClientRect().top) + addedHeight(index, cuts[1]);
     const rich = blocks.length > 1 || lastBottom - firstTop > firstHeight - paddingTop - paddingBottom;
     const targets: number[] = [];
-    let start = 0;
+    let start = 0, finalNeeded = 0, finalAvailable = 0;
     for (let part = 0; part < cuts.length - 1 && start < lines.length; part++) {
       const from = cuts[part], to = cuts[part + 1];
-      const top = y(rows[from].getBoundingClientRect().top) + g.extra + offsets[from + 1];
+      const top = y(rows[from].getBoundingClientRect().top) + g.extra + topOffsets[from];
       const bottom = y(rows[to - 1].getBoundingClientRect().bottom) + g.extra + offsets[to];
-      const naturalHeight = y(rows[end - 1].getBoundingClientRect().bottom) - y(rows[from].getBoundingClientRect().top);
+      const naturalHeight = y(rows[end - 1].getBoundingClientRect().bottom) - y(rows[from].getBoundingClientRect().top) + addedHeight(from, end);
       const sourceTop = start ? lines[start].top - (lines[start].before || 0) - lines[start].marginTop : firstTop;
       const remainingHeight = lastBottom - sourceTop;
+      if (part === cuts.length - 2) { finalNeeded = remainingHeight + paddingTop + paddingBottom; finalAvailable = bottom - top; }
       const beforeSplit = top + paddingTop + (rich ? 0 : factor) * Math.max(0, naturalHeight - paddingTop - paddingBottom - remainingHeight);
+      // Font range boxes may extend beyond an exact final line's flow box.
+      // Use its real paragraph end when budgeting the last line's advance.
+      const lineEnd = (n: number) => n === lines.length - 1 ? lastBottom : lines[n].bottom + (lines[n].after || 0) + lines[n].marginBottom;
       let stop = start;
-      while (stop < lines.length && beforeSplit + lines[stop].bottom + (lines[stop].after || 0) + lines[stop].marginBottom - sourceTop <= bottom - paddingBottom + .5) stop++;
+      while (stop < lines.length && beforeSplit + lineEnd(stop) - sourceTop <= bottom - paddingBottom + .5) stop++;
+      // Splitting the nested table itself requires its own row pagination.
+      // Retain the conservative fallback when that would be necessary.
+      if (stop < lines.length && lines[stop].atomic) return null;
       if (stop === start) continue;
-      const keptHeight = lines[stop - 1].bottom + (lines[stop - 1].after || 0) + lines[stop - 1].marginBottom - sourceTop;
+      const keptHeight = lineEnd(stop - 1) - sourceTop;
       const placedTop = top + paddingTop + factor * Math.max(0, bottom - top - paddingTop - paddingBottom - keptHeight);
       for (let n = start; n < stop; n++) targets[n] = placedTop + lines[n].top - sourceTop;
       start = stop;
     }
-    if (start < lines.length) return null;
+    if (start < lines.length) {
+      // A continuation repeats cell padding and cannot reuse the unused tail
+      // of the preceding fragment. Print grows its final row to fit. Plan the
+      // same view-only growth here, then recalculate all crossing merges and
+      // page cuts together; saved minimum heights and undo stay unchanged.
+      if (attempt >= 8 || finalNeeded <= finalAvailable + .5) return null;
+      const next = [...growth];
+      next[end - 1] = (next[end - 1] || 0) + Math.ceil((finalNeeded - finalAvailable) * 64) / 64;
+      return mergedRowFlow(view, rows, geometry, next, attempt + 1);
+    }
     const cellPos = view.posAtDOM(cell, 0) - 1;
     decorations.push(Decoration.node(cellPos, cellPos + view.state.doc.nodeAt(cellPos)!.nodeSize, {
       class: 'pagination-merge-flow', style: `--pagination-source-valign:${style.verticalAlign}`,
     }));
     let inserted = 0;
-    const base = y(cell.getBoundingClientRect().top) + g.extra + offsets[index + 1] + paddingTop - firstTop;
+    const base = y(cell.getBoundingClientRect().top) + g.extra + topOffsets[index] + paddingTop - firstTop;
     for (let n = 0; n < lines.length;) {
       const first = n, block = lines[n].block;
       const shift = targets[n] - (lines[n].top + base + inserted);
@@ -245,7 +279,7 @@ export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[]
           inserted += gap; signatures.push(`merge-line:${pos}:${gap}`);
         }
       }
-      const pos = view.posAtDOM(block, 0) - 1;
+      const pos = blockPosition(block);
       decorations.push(Decoration.node(pos, pos + view.state.doc.nodeAt(pos)!.nodeSize, {
         class: 'pagination-merge-label', style: `--pagination-label-shift:${shift}px`,
       }));

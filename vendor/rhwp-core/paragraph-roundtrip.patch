@@ -1,0 +1,40 @@
+diff --git a/src/serializer/hwpx/header.rs b/src/serializer/hwpx/header.rs
+index 2f0b5ae85..d2a8948ad 100644
+--- a/src/serializer/hwpx/header.rs
++++ b/src/serializer/hwpx/header.rs
+@@ -976,22 +976,24 @@ fn write_para_properties<W: Write>(
+         &[("itemCnt", &doc_info.para_shapes.len().to_string())],
+     )?;
+     for (idx, ps) in doc_info.para_shapes.iter().enumerate() {
++        // The emitted package version determines plain HWPUNIT margins.
++        // HTML import can clone a legacy/plain style into a newer package;
++        // its original-unit flag must not double the margin on reopening.
++        let mut output = ps.clone();
++        output.hwpx_plain_para_margin_physical = physical_margin_units;
+         if !physical_margin_units && !ps.hwpx_plain_para_margin {
+             // 구판 case는 IR 값, default는 그 두 배다. 기존 switch 작성기의
+             // 반감 규칙에 역단위를 전달해 읽기·재저장 결과를 보존한다.
+-            let mut stored = ps.clone();
+-            stored.margin_left = stored.margin_left.saturating_mul(2);
+-            stored.margin_right = stored.margin_right.saturating_mul(2);
+-            stored.indent = stored.indent.saturating_mul(2);
+-            stored.spacing_before = stored.spacing_before.saturating_mul(2);
+-            stored.spacing_after = stored.spacing_after.saturating_mul(2);
+-            if stored.line_spacing_type != LineSpacingType::Percent {
+-                stored.line_spacing = stored.line_spacing.saturating_mul(2);
++            output.margin_left = output.margin_left.saturating_mul(2);
++            output.margin_right = output.margin_right.saturating_mul(2);
++            output.indent = output.indent.saturating_mul(2);
++            output.spacing_before = output.spacing_before.saturating_mul(2);
++            output.spacing_after = output.spacing_after.saturating_mul(2);
++            if output.line_spacing_type != LineSpacingType::Percent {
++                output.line_spacing = output.line_spacing.saturating_mul(2);
+             }
+-            write_para_pr(w, idx as u16, &stored)?;
+-        } else {
+-            write_para_pr(w, idx as u16, ps)?;
+         }
++        write_para_pr(w, idx as u16, &output)?;
+     }
+     end_tag(w, "hh:paraProperties")?;
+     Ok(())

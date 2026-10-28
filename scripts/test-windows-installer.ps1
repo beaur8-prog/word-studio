@@ -31,6 +31,14 @@ function Registry-Value([string] $key, [string] $name) {
   return $null
 }
 
+function Get-WordStudioUninstallEntries {
+  $key = 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall'
+  if (Test-Path $key) {
+    Get-ChildItem $key -ErrorAction SilentlyContinue | Get-ItemProperty -ErrorAction SilentlyContinue |
+      Where-Object { $_.PSObject.Properties['DisplayName'] -and $_.DisplayName -eq 'Word Studio' }
+  }
+}
+
 function Assert-OtherAssociations {
   foreach ($ext in $extensions) {
     if ((Registry-Value "$classes/.$ext" '') -ne $existingHandler) { throw "Installation changed the .$ext default." }
@@ -141,16 +149,14 @@ try {
   $deadline = (Get-Date).AddSeconds(30)
   do {
     $leftoverFiles = @(@($executable, $desktopLink, $startLink) | Where-Object { Test-Path $_ })
-    $remaining = @(Get-ItemProperty 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/*' |
-      Where-Object { $_.PSObject.Properties['DisplayName'] -and $_.DisplayName -eq 'Word Studio' })
+    $remaining = @(Get-WordStudioUninstallEntries)
     if ($leftoverFiles.Count -eq 0 -and $remaining.Count -eq 0) { break }
     Start-Sleep -Milliseconds 250
   } while ((Get-Date) -lt $deadline)
   foreach ($file in @($executable, $desktopLink, $startLink)) {
     if (Test-Path $file) { throw "Uninstall left an application file or shortcut: $file" }
   }
-  $remaining = @(Get-ItemProperty 'HKCU:/Software/Microsoft/Windows/CurrentVersion/Uninstall/*' |
-    Where-Object { $_.PSObject.Properties['DisplayName'] -and $_.DisplayName -eq 'Word Studio' })
+  $remaining = @(Get-WordStudioUninstallEntries)
   if ($remaining.Count -ne 0) { throw 'Uninstall left the installed-app registration.' }
   foreach ($ext in $extensions) {
     if (Test-Path "$classes/WordStudio.Document.$ext") { throw "Uninstall left the .$ext ProgID." }

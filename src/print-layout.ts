@@ -2,11 +2,13 @@ import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from '
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
-import { layoutColumns } from './column-layout';
+import { layoutColumns, columnGroupFits } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
 import { imageFloating } from './image-floating';
 import { layoutFurnitureImages } from './furniture-layout';
-import { layoutTableAnchors } from './table-anchor';
+import { layoutTableAnchors, tableAnchor } from './table-anchor';
+import { paragraphFitBottom } from './paragraph-fit';
+import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
 
 export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
@@ -56,6 +58,8 @@ function splitText(element: HTMLElement, offset: number): [HTMLElement, HTMLElem
   else after.collapse(false);
   const a = element.cloneNode(false) as HTMLElement, b = element.cloneNode(false) as HTMLElement;
   a.append(before.cloneContents()); b.append(after.cloneContents());
+  // Fragment boundaries retain the same line budget as editor continuation.
+  a.dataset.printParagraphFragment = 'true'; b.dataset.printParagraphFragment = 'true';
   a.style.marginBottom = '0'; b.style.marginTop = '0'; b.style.textIndent = '0';
   return [a, b];
 }
@@ -87,6 +91,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   let deferredNotes = new Set<string>();
   let sectionNumber = 0;
   let sectionPage = 0;
+  let hiddenEmptyLines = 0;
   let sectionJustStarted = false;
   const pageStyles: string[] = [];
   function refreshNotes() {
@@ -114,6 +119,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     content.style.height = `${Math.max(1, Number(content.dataset.bodyHeight) - reserve)}px`;
   }
   function newPage(keepBlank = false) {
+    hiddenEmptyLines = 0;
     refreshNotes();
     deferredNotes = new Set();
     const [width, height] = dimensions(settings), margins = pageMargins(settings);
@@ -161,7 +167,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutColumns(content, content.getBoundingClientRect().bottom);
     applyFloatingLayout(content);
     const last = content.lastElementChild as HTMLElement | null;
-    return !hasDeferredNote(content) && (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
+    return !hasDeferredNote(content) && (!last || paragraphFitBottom(last) <= content.getBoundingClientRect().bottom + 0.5)
       // Behind/in-front objects do not consume text flow. A page decoration
       // extending into the margin must not push its anchor onto another page.
       && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img =>
@@ -170,7 +176,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       // overflowing its text. scrollWidth includes those absolute descendants
       // and would move otherwise fitting columns onto another sheet.
       && [...content.querySelectorAll<HTMLElement>('[data-column-count]')].every(group =>
-        [...group.children].every(child => [...child.getClientRects()].every(rect => rect.right <= group.getBoundingClientRect().right + .5)));
+        columnGroupFits(group));
   }
   function hasDeferredNote(element: HTMLElement) {
     return [...element.querySelectorAll<HTMLElement>('[data-note-reference]')].some(ref => deferredNotes.has(ref.dataset.noteReference!));
@@ -267,7 +273,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (element.matches('tr')) { element.style.removeProperty('height'); tail.style.removeProperty('height'); }
     return tail;
   }
-  // Only source-observed continuing merges may cross a row boundary. Keep
+  // Only explicitly permitted continuing merges may cross a row boundary. Keep
   // the grid and every cell's content exactly once; this is print DOM only.
   function splitMergedGroup(group: HTMLTableRowElement[], boundary: number): HTMLTableRowElement[] | null {
     if (group.length < 2 || group.some(r => r.dataset.rowSplit === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
@@ -323,8 +329,12 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     const rows = Array.from(table.rows);
     const headers: HTMLTableRowElement[] = [];
     while (rows.length && rows[0].cells.length > 0 && [...rows[0].cells].every(cell => cell.tagName === 'TH')) headers.push(rows.shift()!);
-    const shell = () => {
+    const shell = (continuation = false) => {
       const next = table.cloneNode(false) as HTMLTableElement;
+      if (continuation && next.dataset.tableAnchor) {
+        const anchor = tableAnchor(next.dataset.tableAnchor);
+        if (anchor?.reference === 'paragraph') { next.dataset.tableAnchor = JSON.stringify({ ...anchor, y: 0 }); next.style.marginTop = '0px'; }
+      }
       table.querySelectorAll(':scope > colgroup').forEach(el => next.append(el.cloneNode(true)));
       const body = document.createElement('tbody'); next.append(body);
       headers.forEach(row => body.append(row.cloneNode(true)));
@@ -354,7 +364,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       if (!fits() && (bodyRows > 0 || content.children.length > 1)) {
         group.forEach(row => row.remove());
         if (!bodyRows) part.table.remove();
-        newPage(); part = shell(); bodyRows = 0;
+        newPage(); part = shell(i > 0); bodyRows = 0;
         group.forEach(row => part.body.append(row));
         if (!fits()) split();
       }
@@ -470,7 +480,12 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       return;
     }
     content.append(element);
-    if (fits()) return;
+    const fitsPage = fits();
+    if (!fitsPage && settings.hideEmptyLines && content.children.length > 1 && hiddenEmptyLines < 2 &&
+      element.getBoundingClientRect().height <= content.getBoundingClientRect().height && canHideEmptyPageLine(element)) {
+      hiddenEmptyLines++; element.classList.add(hiddenEmptyLineClass); fits(); return;
+    }
+    if (fitsPage) return;
     if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && (element.textContent?.length ?? 0) > 1) {
       const offsets = paragraphLineOffsets(element);
       let low = 0, high = offsets.length - 1, best = 0;
@@ -494,7 +509,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   try {
     onProgress?.({ label: '문서의 글꼴을 준비하는 중…' });
     const sample = source.textContent || '한글';
-    for (const family of ['Noto Serif KR', 'Noto Sans KR']) if (html.includes(family))
+    for (const family of ['Noto Serif KR', 'Noto Sans KR', 'Studio Text', 'Studio Math', 'Studio Symbols', 'Studio Symbols 2', 'Studio Devanagari', 'Studio Emoji']) if (html.includes(family))
       await Promise.all([400, 700].map(weight => document.fonts.load(`${weight} 12px "${family}"`, sample)));
     if (source.querySelector('[data-symbol-font]')) await Promise.all(['Studio Symbols 2','Studio Symbols','Studio Math','Studio Text','Studio Devanagari','Studio Emoji'].map(font => document.fonts.load(`12px "${font}"`)));
     await document.fonts.ready;

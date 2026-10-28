@@ -17,6 +17,10 @@ export function cellStyleValue(name: CellStyle, value: unknown): string | null {
   if (typeof value !== 'string' || value.length > 200 || /[;{}\\]|url\s*\(|var\s*\(|expression\s*\(/i.test(value)) return null;
   const style = document.createElement('span').style;
   style.setProperty(cellStyleProperties[name], value);
+  // Chromium omits the side shorthand when `none`/`hidden` still uses
+  // currentcolor. Keep that explicit absence instead of the app's border.
+  if (name.startsWith('border') && ['none', 'hidden'].includes(style.getPropertyValue(`${cellStyleProperties[name]}-style`)))
+    return style.getPropertyValue(cellStyleProperties[name]) || `0px ${style.getPropertyValue(`${cellStyleProperties[name]}-style`)} #000000`;
   return style.getPropertyValue(cellStyleProperties[name]) || null;
 }
 
@@ -27,7 +31,8 @@ export const CellAppearance = Extension.create({
       renderHTML: (a: Record<string, unknown>) => a.cellSplit === 'allow' ? { 'data-cell-split': 'allow' } : {} }, ...Object.fromEntries(
       Object.entries(cellStyleProperties).map(([name, property]) => [name, {
         default: null,
-        parseHTML: (el: HTMLElement) => cellStyleValue(name as CellStyle, el.style.getPropertyValue(property)),
+        parseHTML: (el: HTMLElement) => cellStyleValue(name as CellStyle, el.style.getPropertyValue(property) ||
+          (name.startsWith('border') && ['none', 'hidden'].includes(el.style.getPropertyValue(`${property}-style`)) ? el.style.getPropertyValue(`${property}-style`) : '')),
         renderHTML: (attrs: Record<string, unknown>) => {
           const value = cellStyleValue(name as CellStyle, attrs[name]);
           return value ? { style: `${property}:${value}` } : {};
