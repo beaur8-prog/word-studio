@@ -20,6 +20,36 @@ export const entities = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|
   return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '\ufffd';
 });
 
+/** Native selection HTML can omit explicit line-break characters. Offsets
+ * come from the logical source text, never from cached visual line wrapping. */
+export function restoreHardLineBreaks(html: string, breaks: readonly number[]): string {
+  if (!breaks.length) return html;
+  let offset = 0, next = 0, output = '', spanDepth = 0;
+  const emit = () => {
+    while (next < breaks.length && breaks[next] <= offset) { output += '<br>'; next++; offset++; }
+  };
+  for (const token of html.matchAll(/<!--[\s\S]*?-->|<[^>]+>|&(?:#\d+|#x[\da-f]+|\w+);|[^<&]+|[<&]/gi)) {
+    const value = token[0];
+    if (value[0] === '<') {
+      if (/^<span\b/.test(value)) spanDepth++;
+      if (/^<\/span\b/.test(value)) spanDepth--;
+      if (/^<br\b/i.test(value)) {
+        if (breaks[next] === offset) next++;
+        output += value; offset++; continue;
+      }
+      if (/^<\/p\b/.test(value)) emit();
+      output += value; continue;
+    }
+    if (!spanDepth && /^[\t\r\n ]*[\r\n][\t\r\n ]*$/.test(value)) { output += value; continue; }
+    if (value[0] === '&') { emit(); output += value; offset += value === '&nbsp;' ? 1 : entities(value).length; }
+    else for (const char of value) {
+      if (char === '\n' && breaks[next] === offset) { output += '<br>'; next++; offset++; continue; }
+      emit(); output += char; offset += char.length;
+    }
+  }
+  return output;
+}
+
 /** The flat equation API exposes only the first equation of a cell paragraph.
  * Read the engine's own serialization to preserve every equation, including
  * nested cells, without changing the document or guessing from display text. */
@@ -101,6 +131,8 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
   equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
   picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined,
   nestedTable?: (path: CellPath, html: string) => string) {
+  const breakKeys = [...metadata()].filter(([, value]) => value.breaks.length).map(([key]) => key);
+  const hasBreaks = (prefix: string) => breakKeys.some(key => key.startsWith(prefix + '/'));
   const annotate = (content: string, paragraph: number, key: string) => {
     let tableDepth = 0;
     return content.replace(/<\/?(?:table|p)\b[^>]*>/g, tag => {
@@ -113,7 +145,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
   const repair = (source: string, parents: CellPath, control: number, key: string, depth = 0): string => {
     const finish = (html: string) => parents.length && nestedTable && depth <= 12
       ? nestedTable([...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }], html) : html;
-    if ((!/<!--\s*rhwp:|<img\b/.test(source) && !/<table\b[\s\S]*<table\b/.test(source)) || depth > 12) return finish(source);
+    if ((!/<!--\s*rhwp:|<img\b/.test(source) && !/<table\b[\s\S]*<table\b/.test(source) && !hasBreaks(key)) || depth > 12) return finish(source);
     const tablePath = [...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }];
     const dims = parents.length ? JSON.parse(doc.getTableDimensionsByPath(section, para, JSON.stringify(tablePath))) : JSON.parse(doc.getTableDimensions(section, para, control));
     if (dims.cellCount > 50000) throw Error('편집할 표의 셀 수가 너무 많습니다.');
@@ -128,7 +160,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
       if (tableDepth !== 1) continue;
       if (/^<td\b/.test(tag)) { start = match.index! + tag.length; continue; }
       const original = source.slice(start, match.index), current = cells[cell++];
-      if (!current || !/<!--\s*rhwp:|<(?:img|table)\b/.test(original)) continue;
+      if (!current || (!/<!--\s*rhwp:|<(?:img|table)\b/.test(original) && !hasBreaks(`${key}/c${current.index}`))) continue;
       const path = [...parents, { controlIndex: control, cellIndex: current.index, cellParaIndex: 0 }];
       const paragraphs = doc.getCellParagraphCountByPath(section, para, JSON.stringify(path));
       const parts: string[] = [];
@@ -137,6 +169,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
         const json = JSON.stringify(path), paragraphKey = `${key}/c${current.index}/p${p}`;
         let content = fragment(doc.exportSelectionInCellHtmlByPath(section, para, json, p, 0, p, 0xffffffff));
         const needsRepair = /<!--\s*rhwp:|<table\b/.test(content) || (/<img\b/.test(content) && (!!picture || !!content.replace(/<[^>]*>/g, '').trim()));
+        if (!needsRepair) content = restoreHardLineBreaks(content, metadata().get(paragraphKey)?.breaks || []);
         if (needsRepair) {
           const controls: { index: number; type: string; html: string }[] = [];
           for (let index = 0; index < 1024; index++) {

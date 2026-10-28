@@ -5,8 +5,8 @@
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
   "coreVersion": "0.8.7-wordstudio.6",
-  "browserTests": 316,
-  "nativeUnitTests": 86,
+  "browserTests": 319,
+  "nativeUnitTests": 88,
   "productionBuild": "passed",
   "baselineFailedNewBrowserScenarios": 3,
   "hwpxRoundtripRegression": {
@@ -680,7 +680,7 @@
     "reason": "Korean glyphs absent; raw evidence only, superseded by externalWriterCorrection and writer-inline-guard/summary.json",
     "rawReport": "analysis/hwp-12h-2026-10-28/writer-corpus-comparison/summary.json"
   },
-  "latestFocusedTests": 14,
+  "latestFocusedTests": 17,
   "openXmlSchema": {
     "sdk": "DocumentFormat.OpenXml3.5.1",
     "target": "Office2019",
@@ -689,7 +689,7 @@
     "report": "analysis/hwp-12h-2026-10-28/openxml-final-candidate.json"
   },
   "docxParagraphCountsPreservedAllTen": true,
-  "finalIntegration": "full latest Mac browser316/native86/build passed; full Windows/Linux and main integration pending",
+  "finalIntegration": "hard-break fix:319 browser/88 unit/build,10 actual native HWP+DOCX,10 two-save exact logical streams and official schema zero errors; new platform runs pending",
   "validationCandidateCommit": "b08037355410325ff4bdfc11f3924e66b4f92b6c",
   "integratedApplicationVersion": "1.4.9",
   "nativeDocxReopen": {
@@ -714,10 +714,57 @@
       5
     ],
     "rendererErrors": 0,
-    "report": "analysis/hwp-12h-2026-10-28/native-docx-final/result.json"
+    "report": "analysis/hwp-12h-2026-10-28/native-docx-hard-break/result.json"
   },
   "latestWorkflowRuns": {
     "focused": 40753792285,
     "fullDesktop": 40753810445
+  },
+  "sourceIntegrityWithHardBreaks": {
+    "samples": 10,
+    "charactersIncluding140ExplicitBreaks": 218937,
+    "nonWhitespaceBodyCharacters": 218797,
+    "originalBreaks": 140,
+    "convertedBreaksBefore": 0,
+    "convertedBreaksAfter": 140,
+    "exactStreamsAfterFreshConversion": 10,
+    "exactStreamsAfterTwoDocxSaves": 10,
+    "scope": "logical body/table text and explicit line-break order/multiplicity; other whitespace normalized; shared native parser, excludes drawing text, fields and separate stories",
+    "reports": [
+      "source-logical-with-breaks.json",
+      "source-logical-after-two-docx.json"
+    ]
+  },
+  "wordGapAudit": {
+    "uniqueParagraphsAtLeast20Chars": 2143,
+    "beforeParagraphDifferences": 20,
+    "beforeGapDifferences": 21,
+    "afterParagraphDifferences": 0,
+    "afterGapDifferences": 0,
+    "ordinarySpacesMissing": 0,
+    "scope": "Unique matched paragraphs only; repeated/short/unmatched paragraphs excluded"
+  },
+  "nativeSourceFinal": "analysis/hwp-12h-2026-10-28/native-hard-break/results.json",
+  "latestProductSourceSHA256": {
+    "src/hwp/cell-content.ts": "9ef8059e4a908d5a1ca8ea331931110c4492d029a2d91f54c3d04aa56d37ed89",
+    "src/hwp/conversion.ts": "953c3fba130bb6b58e537f457bd1a0061e024d6d5bb5924d15acf646e790a337",
+    "src/docx-metadata.ts": "9d6a7ce4e1eeb5e6d6c665087fd818d6662540dd981cc20bb7a43ed51071e761",
+    "src/document-io.ts": "add77a0945afc3c50718e5faf574a63d68d3e9bde9b2efa58d32cd18b29c536d"
+  },
+  "externalWriterLatest": {
+    "environment": "LibreOffice26.8.0.3 with isolated verified system Korean fonts",
+    "pages": [
+      7,
+      173,
+      6,
+      40,
+      2,
+      38,
+      16,
+      20,
+      16,
+      5
+    ],
+    "notMicrosoftWordOrHancom": true
   }
 }

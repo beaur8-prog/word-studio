@@ -3,7 +3,7 @@ import type { PageSettings } from '../types';
 import documentLimits from '../../electron/document-limits.json';
 import type { HwpProgressReporter } from './progress';
 import type { HwpLayoutMetadata } from './layout-metadata';
-import { cellContents, restoreCellContent, entities, type CellPath } from './cell-content';
+import { cellContents, restoreCellContent, restoreHardLineBreaks, entities, type CellPath } from './cell-content';
 import { serializedParts } from './serialized-parts';
 import { olePreview } from './ole-preview';
 import { headerDefinitions, headerPreviewPage, headerLayer, hiddenStories, editableHeaderStories } from './header-stories';
@@ -513,7 +513,15 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         } catch { /* Ambiguous overlays keep both original controls. */ }
       }
       const positions: number[] = JSON.parse(doc.getControlTextPositions(section, para));
-      const range = (start: number, end: number) => fragment(doc.exportSelectionHtml(section, para, start, para, end));
+      const textLength = doc.getParagraphLength(section, para);
+      const range = (start: number, end: number) => {
+        const html = fragment(doc.exportSelectionHtml(section, para, start, para, end));
+        // Control positions can extend past a control-only paragraph's text.
+        // getTextRange takes a count, whereas selection HTML takes an end.
+        if (start >= textLength || end <= start) return html;
+        const text = doc.getTextRange(section, para, start, Math.min(end, textLength) - start);
+        return restoreHardLineBreaks(html, [...text.matchAll(/\n/g)].map(m => m.index!));
+      };
       const whole = range(0, 0xffffffff);
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';
       if (whole.includes('\t')) open = open.replace(/>$/, `${hwpTabAttribute(equationMetadata().get(`${section}:${para}`)?.tabStops)}>`);
