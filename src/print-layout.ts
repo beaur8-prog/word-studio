@@ -2,7 +2,7 @@ import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from '
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
-import { layoutColumns } from './column-layout';
+import { layoutColumns, columnGroupFits } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
 import { imageFloating } from './image-floating';
 import { layoutFurnitureImages } from './furniture-layout';
@@ -176,7 +176,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       // overflowing its text. scrollWidth includes those absolute descendants
       // and would move otherwise fitting columns onto another sheet.
       && [...content.querySelectorAll<HTMLElement>('[data-column-count]')].every(group =>
-        [...group.children].every(child => [...child.getClientRects()].every(rect => rect.right <= group.getBoundingClientRect().right + .5)));
+        columnGroupFits(group));
   }
   function hasDeferredNote(element: HTMLElement) {
     return [...element.querySelectorAll<HTMLElement>('[data-note-reference]')].some(ref => deferredNotes.has(ref.dataset.noteReference!));
