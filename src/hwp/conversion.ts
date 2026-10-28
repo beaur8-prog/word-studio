@@ -789,14 +789,17 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   });
   // A paragraph's CSS strut otherwise inherits Word's 11pt font even when every
   // HWP run is 9pt, inflating line-height percentages throughout long tables.
-  html = html.replace(/<p style="([^"]*)">(\s*<span style="([^"]*)">)/g, (_, css: string, span: string, runCss: string) => {
+  html = html.replace(/<p\b([^>]*?)style="([^"]*)"([^>]*)>(\s*<span style="([^"]*)">)/g, (_, before: string, css: string, after: string, span: string, runCss: string) => {
     const font = ['font-size', 'font-family'].map(key => runCss.match(new RegExp(`(?:^|;)${key}:([^;]+)`))?.[0]).filter(Boolean).join(';');
-    return `<p style="${css}${font};">${span}`;
+    return `<p${before}style="${css}${font};"${after}>${span}`;
   });
   // HWP percentage leading is based on the character em. Word's AUTO leading
   // multiplies a font's full line box instead, so preserve the physical pitch
   // for these imported paragraphs. Ordinary authored HTML keeps its own rule.
-  html = html.replace(/<p style="([^"]*)">/g, (tag, css: string) => {
+  html = html.replace(/<p\b[^>]*>/g, tag => {
+    // Tabs and other source attributes must not bypass line normalization.
+    // CSS percentages use the em; DOCX AUTO uses the larger font line box.
+    const css = tag.match(/\sstyle="([^"]*)"/)?.[1] ?? '';
     const line = [...css.matchAll(/(?:^|;)line-height:([\d.]+)%;/g)].at(-1);
     const font = [...css.matchAll(/(?:^|;)font-size:([\d.]+)(pt|px)(?=;|$)/g)].at(-1);
     // Do not consume the semicolon: adjacent declarations can override one

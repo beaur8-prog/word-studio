@@ -7,11 +7,13 @@ on:
       - 'src/hwp/**'
       - 'src/*pagination.ts'
       - 'src/editor-lines.ts'
+      - 'src/column-layout.ts'
       - 'src/document-tabs.ts'
       - 'src/styles.css'
       - 'src/print-layout.ts'
       - 'tests/hwp-*'
       - 'tests/paragraph-flow.spec.ts'
+      - 'tests/column-page-breaks.spec.ts'
       - 'tests/footnote-flow.spec.ts'
 permissions:
   contents: read
@@ -47,8 +49,8 @@ jobs:
       - run: npm ci
       - name: Prepare Linux browser and fonts
         run: bash scripts/prepare-linux-ci.sh browser
-      - name: Test bookmark roundtrips and tab layout
-        run: npx playwright test tests/hwp-navigation.spec.ts tests/word-use-cases.spec.ts --reporter=line
+      - name: Test navigation and page boundaries
+        run: npx playwright test tests/hwp-navigation.spec.ts tests/word-use-cases.spec.ts tests/column-page-breaks.spec.ts tests/editor-page-boundaries.spec.ts --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - uses: actions/upload-artifact@v4

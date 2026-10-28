@@ -41,12 +41,15 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const picture = rect(img); box.height = Math.max(box.height, picture.top + picture.height - box.top);
     }
     if (node.type.name === 'documentNote' && node.attrs.kind === 'footnote') return;
-    if (node.type.name === 'pageBreak' || node.type.name === 'sectionBreak') {
+    // A break reached here is in ordinary or one-column flow. Multi-column
+    // groups are measured as a whole, with their own column fragmentation.
+    if (node.type.name === 'pageBreak' || node.type.name === 'columnBreak' || node.type.name === 'sectionBreak') {
       let breakType = '';
       if (node.type.name === 'sectionBreak') { try { breakType = JSON.parse(node.attrs.page).breakType || ''; } catch { /* Validated on file input. */ } }
-      result.push({ pos, end: pos + node.nodeSize, ...box, height: 0, explicit: node.type.name, breakType }); return;
+      result.push({ pos, end: pos + node.nodeSize, ...box, height: 0, explicit: node.type.name === 'columnBreak' ? 'pageBreak' : node.type.name, breakType }); return;
     }
-    if (node.type.name !== 'table') { result.push({ pos, end: pos + node.nodeSize, ...box, columnFlow: node.type.name === 'columnGroup', empty: !node.textContent.trim() && !dom.querySelector('img,[data-note-reference]') }); return; }
+    if (node.type.name !== 'table') { result.push({ pos, end: pos + node.nodeSize, ...box, columnFlow: node.type.name === 'columnGroup',
+      empty: !node.textContent.trim() && !dom.matches('img,hr') && !dom.querySelector('img,table,hr,[data-note-reference]') }); return; }
     const rows: { node: PMNode; pos: number; dom: HTMLElement }[] = [];
     node.forEach((row, offset) => {
       const rowPos = pos + 1 + offset, rowDom = view.nodeDOM(rowPos) as HTMLElement;
@@ -135,7 +138,7 @@ export const Pagination = Extension.create({
               const top = Number(context.sheet.dataset.margin ?? sheet.dataset.margin ?? 96);
               const bottom = Number(context.sheet.dataset.bottomMargin ?? sheet.dataset.bottomMargin ?? top), stride = h + 24, usable = h - top - bottom;
               const origin = context.dom.getBoundingClientRect().top, scale = documentScale(context.dom);
-              const removed = [...context.dom.querySelectorAll<HTMLElement>('.pagination-gap,.page-break,.section-break')].map(el => {
+              const removed = [...context.dom.querySelectorAll<HTMLElement>('.pagination-gap,.page-break,.column-break,.section-break')].map(el => {
                 const r = el.getBoundingClientRect(); return { top: (r.top - origin) / scale, height: r.height / scale };
               });
               const noteNodes = new Map<string, { pos: number; end: number; height: number }>();
@@ -176,7 +179,14 @@ export const Pagination = Extension.create({
                 }
                 return header.height;
               };
-              for (const piece of pieces(view, usable, scale, removed, context.node, context.start, context.dom)) {
+              const flow = pieces(view, usable, scale, removed, context.node, context.start, context.dom);
+              // Print removes automatically-created trailing blank sheets.
+              // Retain the empty paragraphs in the model, but do not insert
+              // page gaps for them until they contain text or an object.
+              // Explicit breaks still keep intentionally blank final sheets.
+              let lastContent = flow.length - 1;
+              while (lastContent >= 0 && flow[lastContent].empty && !flow[lastContent].explicit) lastContent--;
+              for (const piece of flow.slice(0, lastContent + 1)) {
                 if (piece.explicit === 'sectionBreak' && piece.breakType === 'continuous') {
                   dec.push(Decoration.node(piece.pos, piece.end, { style: 'height:0;margin:0' })); signatures.push(`continuous:${piece.pos}`); continue;
                 }
@@ -254,8 +264,8 @@ export const Pagination = Extension.create({
                   y += note.height + (first ? 11 : 0); first = false; signatures.push(`note:${id}:${page}:${note.height}`);
                 }
               }
-              const last = [...context.dom.children].filter(el => !el.matches('[data-document-note][data-note-kind="footnote"]')).at(-1) as HTMLElement | undefined;
-              const naturalBottom = last ? (last.getBoundingClientRect().bottom - origin) / scale - removed.reduce((n, g) => n + g.height, 0) : top;
+              const last = flow[lastContent];
+              const naturalBottom = last ? last.top + last.height : top;
               const count = Math.max(1, Math.ceil((naturalBottom + extra + bottom - .5) / stride), ...[...onPage.keys()].map(page => page + 1));
               if (context.sheet !== sheet) context.sheet.dataset.pages = String(count);
               totalCount += count; signatures.push(`${context.start}:${h}:${top}:${bottom}:${count}`);

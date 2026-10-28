@@ -40,9 +40,14 @@ export function layoutColumns(root: HTMLElement, bottom?: number) {
       child.style.breakBefore = previous.breakBefore; child.style.paddingTop = previous.paddingTop; keptTables.delete(child);
     }
     if (Number(group.dataset.columnCount) === 1) {
+      // CSS column-count:1 still creates a multicol container. Forced column
+      // breaks then create columns to the right, even with automatic height.
+      // One-column sections use ordinary vertical flow and page gaps instead.
+      group.style.columnCount = 'auto';
       for (const property of ['column-height', 'column-wrap', 'row-gap', '--column-prefix', 'margin-top', 'height']) group.style.removeProperty(property);
       continue;
     }
+    group.style.columnCount = group.dataset.columnCount!;
     const sheet = group.closest<HTMLElement>('[data-page-height]');
     const scale = documentScale(group);
     const height = Number(sheet?.dataset.pageHeight) || 1122.52;
