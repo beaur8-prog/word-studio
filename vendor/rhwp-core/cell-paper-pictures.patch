@@ -1,0 +1,60 @@
+diff --git a/src/renderer/layout/picture_footnote.rs b/src/renderer/layout/picture_footnote.rs
+index c521b878a..4964689ed 100644
+--- a/src/renderer/layout/picture_footnote.rs
++++ b/src/renderer/layout/picture_footnote.rs
+@@ -705,6 +705,31 @@ impl LayoutEngine {
+         .position(common, obj_width, obj_height)
+     }
+ 
++    /// Paper-relative pictures keep their page frame even when their anchor
++    /// lives in a table cell. Cell-local placement and clipping heuristics must
++    /// not add the cell origin to an absolute paper coordinate.
++    pub(crate) fn cell_picture_paper_position(
++        &self, tree: &PageLayoutContext, picture: &crate::model::image::Picture,
++        x: f64, y: f64, width: f64, height: f64,
++    ) -> (f64, f64) {
++        use crate::model::shape::HorzRelTo;
++        let common = &picture.common;
++        if common.treat_as_char ||
++            (common.horz_rel_to != HorzRelTo::Paper && common.vert_rel_to != VertRelTo::Paper) {
++            return (x, y);
++        }
++        let (paper_width, paper_height) = tree.page_size();
++        let paper = LayoutRect { x: 0.0, y: 0.0, width: paper_width, height: paper_height };
++        let left = hwpunit_to_px(i32::from(common.margin.left), self.dpi);
++        let right = hwpunit_to_px(i32::from(common.margin.right), self.dpi);
++        let top = hwpunit_to_px(i32::from(common.margin.top), self.dpi);
++        let bottom = hwpunit_to_px(i32::from(common.margin.bottom), self.dpi);
++        let (px, py) = self.compute_object_position(common, width + left + right, height + top + bottom,
++            &paper, &paper, &paper, &paper, 0.0, Alignment::Left);
++        (if common.horz_rel_to == HorzRelTo::Paper { px + left } else { x },
++         if common.vert_rel_to == VertRelTo::Paper { py + top } else { y })
++    }
++
+     /// 본문 그림(Picture) 개체를 레이아웃하고 업데이트된 y_offset을 반환한다.
+     pub(crate) fn layout_body_picture(
+         &self,
+diff --git a/src/renderer/layout/table_layout.rs b/src/renderer/layout/table_layout.rs
+index 536044424..49a390275 100644
+--- a/src/renderer/layout/table_layout.rs
++++ b/src/renderer/layout/table_layout.rs
+@@ -7108,6 +7108,7 @@ impl LayoutEngine {
+                                     "[6313B] pic_y={pic_y:.1} pic_h={pic_h:.1} pic_x={pic_x:.1}"
+                                 );
+                             }
++                            let (pic_x, pic_y) = self.cell_picture_paper_position(tree, pic, pic_x, pic_y, pic_w, pic_h);
+                             let pic_area = LayoutRect {
+                                 x: pic_x,
+                                 y: pic_y,
+diff --git a/src/renderer/layout/table_partial.rs b/src/renderer/layout/table_partial.rs
+index d7b7c9cba..733e1adf1 100644
+--- a/src/renderer/layout/table_partial.rs
++++ b/src/renderer/layout/table_partial.rs
+@@ -3185,6 +3185,7 @@ impl LayoutEngine {
+                                                 )
+                                         })
+                                         .unwrap_or(pic_y);
++                                    let (pic_x, pic_y) = self.cell_picture_paper_position(tree, pic, pic_x, pic_y, pic_w, pic_h);
+                                     let pic_area = LayoutRect {
+                                         x: pic_x,
+                                         y: pic_y,

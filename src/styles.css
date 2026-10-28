@@ -733,7 +733,11 @@ button:hover:not(:disabled) {
   font-size: 11pt;
   line-height: 1.65;
   overflow-wrap: break-word;
-  white-space: pre-wrap;
+  /* Match ProseMirror's injected text rules in print and measurement trees.
+     Hanging spaces or enabled ligatures otherwise change line/page breaks. */
+  white-space: break-spaces;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0;
   color: #242932;
   caret-color: #2864a8;
 }
@@ -750,6 +754,8 @@ button:hover:not(:disabled) {
   margin: 0 0 10px;
   min-height: 1.65em;
 }
+.tiptap { isolation: isolate; }
+.column-break { break-before: column; height: 0; margin: 0; padding: 0; }
 .tiptap h1,
 .tiptap h2,
 .tiptap h3 {
@@ -922,6 +928,11 @@ button:hover:not(:disabled) {
 }
 .pagination-row-gap { display: table-row; }
 .tiptap .pagination-row-gap > td { padding: 0 !important; border: 0 !important; font-size: 0; line-height: 0; }
+.pagination-measuring-cells .pagination-cell-gap { display: none !important; }
+.tiptap .pagination-split-row, .tiptap .pagination-merge-row { height: var(--pagination-row-height) !important; }
+.pagination-measuring-cells .pagination-split-row, .pagination-measuring-cells .pagination-merge-row { height: var(--pagination-source-row-height) !important; }
+.tiptap .pagination-split-row > td,
+.pagination-measuring-cells tr[data-row-split="allow"] > td { vertical-align: top !important; }
 .tiptap .section-break { padding: 0; border: 0; font-size: 0; }
 .comment-anchor { background: #ffe8a640; border-bottom: 2px solid #e6b956; }
 .section-break { border-block: 1px dashed #91b1dc; color: #7086a0; font-size: 10px; padding: 5px; }
@@ -1952,12 +1963,15 @@ button:hover:not(:disabled) {
 
 .document-furniture, .print-footnotes { padding: 0; min-height: 0; font-size: 9pt; line-height: 1.4; }
 .document-furniture { overflow: visible; }
+.document-furniture:has(*) { white-space: normal; }
+.print-footer > .document-furniture { flex: 1; min-width: 0; }
 .document-furniture p { margin: 0; }
 .document-furniture img { max-width: 100%; object-fit: contain; }
 .document-furniture table, .print-footnotes table { margin: 0; border-collapse: collapse; table-layout: fixed; max-width: 100%; }
 .document-symbol { font-family: 'Studio Symbols 2', 'Studio Symbols', 'Studio Math', 'Studio Text', 'Studio Devanagari', 'Studio Emoji', 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Noto Sans Symbols', sans-serif; }
 .note-reference { font-size: .75em; vertical-align: super; cursor: pointer; color: #2864a8; }
-.document-note { border-top: 1px solid #88929b; margin: 14px 0 4px; padding: 5px 0 0; font-size: 10pt; }
+.document-note { border-top: 1px solid #88929b; margin: 14px 0 4px; padding: 5px 0 0; font-size: 10pt; line-height: 1.4; }
+.pagination-measuring-cells .pagination-footnote { border: 0 !important; padding: 0 !important; }
 .document-note::before { content: attr(data-note-label) '. '; font-size: 10pt; }
 .document-note > p:first-child { display: inline; }
 .print-footnotes { position: absolute; }
@@ -1975,3 +1989,15 @@ button:hover:not(:disabled) {
 .document-columns { column-fill: balance; }
 @media print { body.studio-printing .print-header { display: block !important; } }
 .document-columns::before { content: ''; display: block; column-span: all; height: var(--column-prefix, 0px); }
+
+.tiptap .pagination-merge-padding { padding-top: var(--pagination-cell-padding) !important; }
+.pagination-measuring-cells .pagination-merge-padding { padding-top: var(--pagination-source-cell-padding) !important; }
+.tiptap .pagination-merge-label { transform: translateY(var(--pagination-label-shift)); }
+.pagination-measuring-cells .pagination-merge-label { transform: none; }
+.tiptap .pagination-merge-flow { vertical-align: top !important; }
+.pagination-measuring-cells .pagination-merge-flow { vertical-align: var(--pagination-source-valign) !important; }
+
+/* View-only repeated table headers reserve space through pagination gaps. */
+.pagination-headers { position:absolute; inset:0; pointer-events:none; z-index:2; }
+.pagination-headers .tiptap { background:transparent; }
+@media print { .pagination-headers { display:none; } }

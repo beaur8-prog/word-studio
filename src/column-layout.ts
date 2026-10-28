@@ -2,23 +2,59 @@ import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
+import { documentScale } from './document-scale';
+
+const keptTables = new WeakMap<HTMLElement, { breakBefore: string; paddingTop: string }>();
+
+function keepTablesOnColumnPage(group: HTMLElement, cap: number, scale: number) {
+  const count = Number(group.dataset.columnCount) || 1, box = group.getBoundingClientRect();
+  const gap = parseFloat(getComputedStyle(group).columnGap) || 0;
+  const pitch = (box.width / scale + gap) / count;
+  for (const child of [...group.children] as HTMLElement[]) {
+    if (!child.matches('table,.tableWrapper')) continue;
+    const fragments = [...child.getClientRects()].filter(rect => rect.height > .5);
+    const first = fragments[0]; if (!first || fragments.length < 2) continue;
+    const column = Math.round((first.left - box.left) / scale / pitch);
+    const crossesPage = fragments.some(rect => rect.top > first.top + cap * scale / 2);
+    const flowHeight = fragments.reduce((sum, rect) => sum + rect.height / scale, 0);
+    // Print starts a table on a fresh sheet when it cannot finish in the last
+    // column. Match that decision for tables which fit one full column row;
+    // truly multi-page tables retain their ordinary continuation behavior.
+    if (column !== count - 1 || !crossesPage || flowHeight > cap * count + .5) continue;
+    keptTables.set(child, { breakBefore: child.style.breakBefore, paddingTop: child.style.paddingTop });
+    child.style.breakBefore = 'column';
+    const moved = child.getClientRects()[0];
+    // A break coalesces with an automatic break when the preceding column is
+    // already full. In that case reserve the last column before the table.
+    if (moved && moved.top < first.top + cap * scale / 2 && child.classList.contains('tableWrapper')) child.style.paddingTop = `${cap}px`;
+  }
+}
 
 /** A column row is a paper's text area. Its gap includes the bottom margin,
  * the paper gap and the following top margin. A view-only spanning prefix
  * reserves text already above a continuous section on the first sheet. */
 export function layoutColumns(root: HTMLElement, bottom?: number) {
   for (const group of root.querySelectorAll<HTMLElement>('[data-column-count]')) {
+    for (const child of [...group.children] as HTMLElement[]) if (keptTables.has(child)) {
+      const previous = keptTables.get(child)!;
+      child.style.breakBefore = previous.breakBefore; child.style.paddingTop = previous.paddingTop; keptTables.delete(child);
+    }
+    if (Number(group.dataset.columnCount) === 1) {
+      for (const property of ['column-height', 'column-wrap', 'row-gap', '--column-prefix', 'margin-top', 'height']) group.style.removeProperty(property);
+      continue;
+    }
     const sheet = group.closest<HTMLElement>('[data-page-height]');
-    // offsetWidth rounds to whole pixels; dividing by it can falsely enlarge
-    // a full 930px column enough to reject its second column during printing.
-    const scale = group.getBoundingClientRect().width / parseFloat(getComputedStyle(group).width) || 1;
+    const scale = documentScale(group);
     const height = Number(sheet?.dataset.pageHeight) || 1122.52;
     const top = Number(sheet?.dataset.margin) || 96, marginBottom = Number(sheet?.dataset.bottomMargin) || top;
     const usable = Math.max(1, height - top - marginBottom), stride = height + 24;
     const oldPrefix = parseFloat(group.style.getPropertyValue('--column-prefix')) || 0;
     const origin = sheet?.getBoundingClientRect().top || 0;
     const naturalTop = (group.getBoundingClientRect().top - origin) / scale + oldPrefix;
-    const prefix = bottom === undefined ? Math.max(0, ((naturalTop - top) % stride + stride) % stride) : 0;
+    let prefix = bottom === undefined ? Math.max(0, ((naturalTop - top) % stride + stride) % stride) : 0;
+    // Browser subpixel rounding at the page start must not turn -0.01px
+    // into an entire page's spanning prefix.
+    if (prefix < .5 || stride - prefix < .5) prefix = 0;
     const cap = bottom === undefined ? usable : Math.max(1, (bottom - group.getBoundingClientRect().top) / scale);
     if (CSS.supports('column-wrap', 'wrap')) {
       group.style.setProperty('column-height', `${cap}px`);
@@ -27,6 +63,7 @@ export function layoutColumns(root: HTMLElement, bottom?: number) {
       group.style.setProperty('--column-prefix', `${prefix}px`);
       group.style.marginTop = prefix ? `${-prefix}px` : '0px';
       group.style.removeProperty('height');
+      if (bottom === undefined) keepTablesOnColumnPage(group, cap, scale);
       // column-height preserves fragment geometry even when the outside box is
       // trimmed to the final row's actual content (balanced or unbalanced).
       const rect = group.getBoundingClientRect();

@@ -1,17 +1,44 @@
-import { pageMargins, pageFurniture, type PageSettings } from './types';
+import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
+import { imageFloating } from './image-floating';
+import { layoutFurnitureImages } from './furniture-layout';
+import { layoutTableAnchors } from './table-anchor';
 
-export type PrintLayout = { element: HTMLElement; pages: number; warnings: string[]; dispose(): void };
+export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
 const PX = 96 / 25.4;
-const dimensions = (p: PageSettings) => {
-  const size = p.size === 'Letter' ? [215.9, 279.4] : [210, 297];
-  return p.orientation === 'landscape' ? size.reverse() : size;
-};
+const dimensions = paperDimensions;
+/** Use existing visual lines: truncating at arbitrary characters can pull part
+ * of the next word onto the preceding line, unlike the editable paragraph. */
+function paragraphLineOffsets(element: HTMLElement) {
+  const breaks = new Set<number>(), walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let offset = 0, previousTop: number | undefined;
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text, range = document.createRange();
+    range.selectNodeContents(node);
+    const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(node.data)].map(s => s.index);
+    for (const rect of range.getClientRects()) {
+      if (rect.width < .1 || rect.height < 1) continue;
+      if (previousTop === undefined || Math.abs(rect.top - previousTop) > rect.height * .5) {
+        let low = 0, high = offsets.length - 1, first = 0;
+        while (low <= high) {
+          const mid = (low + high) >> 1;
+          range.setStart(node, offsets[mid]); range.setEnd(node, offsets[mid + 1] ?? node.length);
+          if (range.getBoundingClientRect().top < rect.top - .5) { first = mid + 1; low = mid + 1; } else high = mid - 1;
+        }
+        const position = offset + (offsets[Math.min(first, offsets.length - 1)] ?? 0);
+        if (position) breaks.add(position);
+        previousTop = rect.top;
+      }
+    }
+    offset += node.length;
+  }
+  return [...breaks].sort((a, b) => a - b);
+}
 function splitText(element: HTMLElement, offset: number): [HTMLElement, HTMLElement] {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
   let remaining = offset, node: Node | null = walker.nextNode();
@@ -50,11 +77,13 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       table.style.width = `${columns.reduce((sum, c) => sum + parseFloat(c.style.width), 0)}px`;
   }
   const warnings = new Set<string>();
+  const pageSettings = new WeakMap<Element, PageSettings>();
   const noteBodies = new Map<string, HTMLElement>();
   for (const note of source.querySelectorAll<HTMLElement>('[data-document-note][data-note-kind="footnote"]')) {
     noteBodies.set(note.dataset.documentNote!, note); note.remove();
   }
   let settings = initialPage, pageNumber = 0, content: HTMLElement, footnotes: HTMLElement;
+  let deferredNotes = new Set<string>();
   let sectionNumber = 0;
   let sectionPage = 0;
   let sectionJustStarted = false;
@@ -62,9 +91,22 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   function refreshNotes() {
     if (!content?.isConnected) return;
     const current = content.closest('.print-page')!;
-    const ids = [...new Set([...content.querySelectorAll<HTMLElement>('[data-note-reference]')].map(el => el.dataset.noteReference!))]
-      .filter(id => noteBodies.has(id) && ![...host.querySelectorAll<HTMLElement>('.print-footnotes [data-document-note]')].some(el => el.dataset.documentNote === id && el.closest('.print-page') !== current));
+    const fullBottom = content.getBoundingClientRect().top + Number(content.dataset.bodyHeight);
+    const references = [...content.querySelectorAll<HTMLElement>('[data-note-reference]')];
+    let ids = [...new Set(references
+      .filter(el => el.getBoundingClientRect().top < fullBottom - .5).map(el => el.dataset.noteReference!))]
+      .filter(id => !deferredNotes.has(id) && noteBodies.has(id) && ![...host.querySelectorAll<HTMLElement>('.print-footnotes [data-document-note]')].some(el => el.dataset.documentNote === id && el.closest('.print-page') !== current));
     if (footnotes.dataset.notes !== ids.join('|')) {
+      footnotes.replaceChildren(...ids.map(id => noteBodies.get(id)!.cloneNode(true))); footnotes.dataset.notes = ids.join('|');
+    }
+    const noteBoundary = fullBottom - (ids.length ? footnotes.getBoundingClientRect().height + 12 : 0);
+    // A later reference in a continuing row must move with its note. Keep
+    // that decision while filling the other columns up to the page bottom;
+    // otherwise a late note reserves blank space on the preceding page.
+    for (const ref of references) if (ids.includes(ref.dataset.noteReference!) && ref.closest('tr[data-row-split="allow"]') &&
+      ref.getBoundingClientRect().bottom > noteBoundary + .5) deferredNotes.add(ref.dataset.noteReference!);
+    if (ids.some(id => deferredNotes.has(id))) {
+      ids = ids.filter(id => !deferredNotes.has(id));
       footnotes.replaceChildren(...ids.map(id => noteBodies.get(id)!.cloneNode(true))); footnotes.dataset.notes = ids.join('|');
     }
     const reserve = ids.length ? footnotes.getBoundingClientRect().height + 12 : 0;
@@ -72,14 +114,18 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   }
   function newPage(keepBlank = false) {
     refreshNotes();
+    deferredNotes = new Set();
     const [width, height] = dimensions(settings), margins = pageMargins(settings);
     const pageName = `studioSection${sectionNumber}`;
     pageStyles.push(`@page ${pageName} { size:${width}mm ${height}mm; margin:0; }`);
     style.textContent = [...new Set(pageStyles)].join('\n');
     const paper = document.createElement('section'); paper.className = 'print-page';
+    pageSettings.set(paper, settings);
     paper.dataset.page = String(++pageNumber);
     if (keepBlank) paper.dataset.keepBlank = 'true';
-    const furniture = pageFurniture(settings, pageNumber, ++sectionPage === 1);
+    const first = ++sectionPage === 1;
+    paper.dataset.sectionFirst = String(first);
+    const furniture = pageFurniture(settings, pageNumber, first);
     Object.assign(paper.style, { width: `${width * PX}px`, height: `${height * PX}px`, page: pageName });
     content = document.createElement('div'); content.className = 'tiptap print-content';
     Object.assign(content.style, { left: `${margins.left * PX}px`, top: `${margins.top * PX}px`,
@@ -91,30 +137,42 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (furniture.footerHtml) footerText.innerHTML = sanitizeImportedHtml(furniture.footerHtml).html; else footerText.textContent = furniture.footer;
     footer.append(footerText);
     for (const field of [...header.querySelectorAll('[data-page-number]'), ...footer.querySelectorAll('[data-page-number]')]) field.textContent = String(pageNumber);
-    if (furniture.pageNumbers && !header.querySelector('[data-page-number]') && !footer.querySelector('[data-page-number]')) { const number = document.createElement('span'); number.textContent = String(pageNumber); footer.append(number); }
+    if (furniture.pageNumbers && !header.querySelector('[data-page-number]') && !footer.querySelector('[data-page-number]')) { const number = document.createElement('span'); number.className = 'print-automatic-number'; number.textContent = String(pageNumber); footer.append(number); }
     for (const el of [header, footer]) { el.style.left = `${margins.left * PX}px`; el.style.right = `${margins.right * PX}px`; }
     header.style.top = `${(settings.headerDistance ?? Math.max(0, margins.top / 2 - 3)) * PX}px`;
     footer.style.bottom = `${(settings.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)) * PX}px`;
     paper.append(header, content, footer); host.append(paper);
+    layoutFurnitureImages(paper);
     const meaningful = (element: HTMLElement) => element.textContent?.trim() || element.querySelector('img,table');
     const top = Math.max(margins.top * PX, meaningful(header) ? header.offsetTop + header.getBoundingClientRect().height + 2 : 0);
     const bottom = Math.max(margins.bottom * PX, meaningful(footer) ? parseFloat(footer.style.bottom) + footer.getBoundingClientRect().height + 2 : 0);
     content.style.top = `${top}px`; content.style.height = `${Math.max(1, height * PX - top - bottom)}px`;
     content.dataset.bodyHeight = String(Math.max(1, height * PX - top - bottom));
-    footnotes = document.createElement('div'); footnotes.className = 'print-footnotes';
+    footnotes = document.createElement('div'); footnotes.className = 'tiptap print-footnotes';
     Object.assign(footnotes.style, { left: `${margins.left * PX}px`, right: `${margins.right * PX}px`, bottom: `${bottom}px` });
     paper.append(footnotes);
   }
   function fits() {
     refreshNotes();
+    layoutTableAnchors(content);
     layoutWordLines(content);
     layoutTabs(content);
     layoutColumns(content, content.getBoundingClientRect().bottom);
     applyFloatingLayout(content);
     const last = content.lastElementChild as HTMLElement | null;
-    return (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
-      && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img => img.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)
-      && [...content.querySelectorAll<HTMLElement>('[data-column-count]')].every(group => group.scrollWidth <= group.clientWidth + 1);
+    return !hasDeferredNote(content) && (!last || last.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + 0.5)
+      // Behind/in-front objects do not consume text flow. A page decoration
+      // extending into the margin must not push its anchor onto another page.
+      && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img =>
+        imageFloating(img.dataset.imageFloating)?.wrap?.type === 0 || img.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)
+      // Page-relative floating pictures can extend past a column box without
+      // overflowing its text. scrollWidth includes those absolute descendants
+      // and would move otherwise fitting columns onto another sheet.
+      && [...content.querySelectorAll<HTMLElement>('[data-column-count]')].every(group =>
+        [...group.children].every(child => [...child.getClientRects()].every(rect => rect.right <= group.getBoundingClientRect().right + .5)));
+  }
+  function hasDeferredNote(element: HTMLElement) {
+    return [...element.querySelectorAll<HTMLElement>('[data-note-reference]')].some(ref => deferredNotes.has(ref.dataset.noteReference!));
   }
   function scaleOversized(element: HTMLElement) {
     const available = content.getBoundingClientRect().bottom - element.getBoundingClientRect().top;
@@ -129,7 +187,17 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   function splitElement(element: HTMLElement, boundary: number, depth = 0): HTMLElement | null {
     if (depth > 30) return null;
     if (element.matches('p,h1,h2,h3,h4,h5,h6') && (element.textContent?.length ?? 0) > 1) {
-      const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(element.textContent!)].map(s => s.index).slice(1);
+      let offsets = paragraphLineOffsets(element);
+      if (hasDeferredNote(element)) {
+        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT); let offset = 0;
+        while (walker.nextNode()) {
+          const text = walker.currentNode as Text, ref = text.parentElement?.closest<HTMLElement>('[data-note-reference]');
+          if (ref && deferredNotes.has(ref.dataset.noteReference!)) break;
+          offset += text.length;
+        }
+        const limit = Math.max(0, ...offsets.filter(n => n <= offset));
+        offsets = offsets.filter(n => n <= limit);
+      }
       let low = 0, high = offsets.length - 1, best = 0;
       const marker = document.createComment('split'); element.replaceWith(marker);
       while (low <= high) {
@@ -141,7 +209,41 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       if (!best) return null;
       const [head, tail] = splitText(element, best); element.replaceChildren(...head.childNodes); element.style.marginBottom = '0'; return tail;
     }
-    if (element.matches('tr') && (element as HTMLTableRowElement).cells.length !== 1) return null;
+    if (element.matches('tr')) {
+      if (element.dataset.rowSplit === 'avoid' || element.dataset.wordRowRule === 'exact') return null;
+      const row = element as HTMLTableRowElement;
+      if (row.cells.length > 1) {
+        if (row.dataset.rowSplit !== 'allow' || [...row.cells].some(c => c.rowSpan > 1)) return null;
+        const original = row.cloneNode(true) as HTMLTableRowElement, height = row.getBoundingClientRect().height;
+        const available = boundary - row.getBoundingClientRect().top;
+        if (available <= .5) return null;
+        const tail = row.cloneNode(false) as HTMLTableRowElement;
+        row.style.removeProperty('height');
+        let moved = false, reservedSpace = false;
+        // Split every column against the same physical boundary. Even a
+        // finished column needs its empty continuation cell to keep the grid.
+        for (const cell of [...row.cells]) {
+          const next = cell.cloneNode(false) as HTMLTableCellElement; tail.append(next);
+          const rest = splitElement(cell, boundary, depth + 1);
+          if (rest) { next.append(...rest.childNodes); moved = true; }
+          else if (hasDeferredNote(cell) || [...cell.children].some(child => child.getBoundingClientRect().bottom > boundary - (parseFloat(getComputedStyle(cell).paddingBottom) || 0) + .5)) {
+            next.append(...cell.childNodes); moved = true;
+          }
+        }
+        // A stored minimum height can reserve space after the text. Divide
+        // that reserve too; repeating the full height on the continuation
+        // would enlarge the row, while dropping it would shorten the form.
+        if (!moved && height > available + .5) {
+          row.style.height = `${available}px`; moved = reservedSpace = true;
+        }
+        const progress = reservedSpace || [...row.cells].some(c => c.textContent?.trim() || c.querySelector('img,table'));
+        if (!moved || !progress || row.getBoundingClientRect().bottom > boundary + .5) {
+          row.replaceChildren(...original.childNodes); row.style.cssText = original.style.cssText; return null;
+        }
+        tail.style.height = `${Math.max(0, height - row.getBoundingClientRect().height)}px`;
+        return tail;
+      }
+    }
     if (element.matches('table')) {
       const table = element as HTMLTableElement;
       // A nested form table that fits a sheet moves as a unit. Splitting its
@@ -152,7 +254,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     const children = [...element.children] as HTMLElement[];
     const style = getComputedStyle(element);
     const innerBoundary = boundary - (parseFloat(style.paddingBottom) || 0) - (parseFloat(style.borderBottomWidth) || 0);
-    const index = children.findIndex(child => !child.matches('colgroup') && child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0) > innerBoundary + .5);
+    const index = children.findIndex(child => !child.matches('colgroup') && (hasDeferredNote(child) || child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0) > innerBoundary + .5));
     if (index < 0) return null;
     const child = children[index], tail = element.cloneNode(false) as HTMLElement;
     const childTail = splitElement(child, innerBoundary - (parseFloat(getComputedStyle(child).marginBottom) || 0), depth + 1);
@@ -163,6 +265,58 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (element.matches('table')) element.querySelectorAll(':scope > colgroup').forEach(c => tail.prepend(c.cloneNode(true)));
     if (element.matches('tr')) { element.style.removeProperty('height'); tail.style.removeProperty('height'); }
     return tail;
+  }
+  // Only source-observed continuing merges may cross a row boundary. Keep
+  // the grid and every cell's content exactly once; this is print DOM only.
+  function splitMergedGroup(group: HTMLTableRowElement[], boundary: number): HTMLTableRowElement[] | null {
+    if (group.length < 2 || group.some(r => r.dataset.rowSplit === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
+    const entries: { cell: HTMLTableCellElement; row: number; col: number }[] = [];
+    const occupied: number[] = [];
+    for (let row = 0; row < group.length; row++) {
+      let col = 0;
+      for (const cell of [...group[row].cells]) {
+        while ((occupied[col] || 0) > row) col++;
+        entries.push({ cell, row, col });
+        for (let j = col; j < col + cell.colSpan; j++) occupied[j] = row + cell.rowSpan;
+        col += cell.colSpan;
+      }
+    }
+    for (let cut = group.length - 1; cut > 0; cut--) {
+      if (group[cut - 1].getBoundingClientRect().bottom > boundary + .5) continue;
+      const crossings = entries.filter(e => e.row < cut && e.row + e.cell.rowSpan > cut);
+      if (!crossings.length || crossings.some(e => e.cell.dataset.cellSplit !== 'allow')) continue;
+      const tails = group.slice(cut);
+      // The continuation starts at a source row boundary, not at the bottom
+      // of the sheet. Filling the unused area below that row stretches the
+      // retained rows and makes editor and print disagree about the grid.
+      const rowBoundary = group[cut - 1].getBoundingClientRect().bottom;
+      for (const { cell, row, col } of crossings) {
+        const next = cell.cloneNode(false) as HTMLTableCellElement;
+        next.dataset.printMergeContinuation = 'true';
+        // Partition rich content using the available row height. Applying a
+        // whole-cell middle/bottom offset before partitioning can leave most
+        // of the first fragment empty and overflow the last one. Each printed
+        // fragment then applies the original vertical alignment independently.
+        const align = cell.style.verticalAlign;
+        const cellStyle = getComputedStyle(cell), child = cell.firstElementChild as HTMLElement | null;
+        const childStyle = child && getComputedStyle(child);
+        const rich = cell.dataset.printMergeFlow === 'rich' || cell.children.length > 1 ||
+          (child?.getBoundingClientRect().height ?? 0) + (parseFloat(childStyle?.marginTop || '') || 0) + (parseFloat(childStyle?.marginBottom || '') || 0) >
+          rowBoundary - cell.getBoundingClientRect().top - (parseFloat(cellStyle.paddingTop) || 0) - (parseFloat(cellStyle.paddingBottom) || 0);
+        if (rich) { cell.style.verticalAlign = 'top'; next.dataset.printMergeFlow = 'rich'; }
+        const remainder = splitElement(cell, rowBoundary);
+        if (remainder) next.append(...remainder.childNodes);
+        else if ([...cell.children].some(c => c.getBoundingClientRect().bottom > rowBoundary + .5)) next.append(...cell.childNodes);
+        cell.style.verticalAlign = align;
+        next.rowSpan = row + cell.rowSpan - cut; cell.rowSpan = cut - row;
+        cell.style.removeProperty('height'); next.style.removeProperty('height');
+        const following = entries.find(e => e.row === cut && e.col > col)?.cell;
+        tails[0].insertBefore(next, following || null);
+      }
+      tails.forEach(r => r.remove()); group.splice(cut);
+      return tails;
+    }
+    return null;
   }
   function appendTable(table: HTMLTableElement) {
     const rows = Array.from(table.rows);
@@ -184,8 +338,14 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       const group = rows.slice(i, end).map(row => row.cloneNode(true) as HTMLTableRowElement);
       group.forEach(row => part.body.append(row));
       const split = () => {
-        if (group.length !== 1 || group[0].cells.length !== 1 || group[0].cells[0].rowSpan !== 1) return;
-        if (!group[0].querySelector('table') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
+        const mergedTail = splitMergedGroup(group, content.getBoundingClientRect().bottom);
+        if (mergedTail) { rows.splice(end, 0, ...mergedTail); return; }
+        if (group.length !== 1 || [...group[0].cells].some(c => c.rowSpan !== 1)) return;
+        // DOCX enables row splitting to preserve continuing vertical merges.
+        // A final one-row fragment is still part of that merge: keep its row
+        // boundary instead of moving only its empty height to the next sheet.
+        if (group[0].querySelector(':scope > [data-print-merge-continuation]') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
+        if (group[0].dataset.rowSplit !== 'allow' && !group[0].querySelector('table') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
         const tail = splitElement(group[0], content.getBoundingClientRect().bottom);
         if (tail) rows.splice(end, 0, tail as HTMLTableRowElement);
       };
@@ -206,7 +366,19 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       const next = JSON.parse(element.getAttribute('data-section-page')!) as PageSettings;
       const sameSize = dimensions(settings).join(',') === dimensions(next).join(',');
       settings = next; sectionNumber++; sectionPage = 0;
-      if (next.breakType === 'continuous' && sameSize) { sectionPage = 1; return; }
+      if (next.breakType === 'continuous' && sameSize) {
+        sectionPage = 1;
+        const paper = content.closest<HTMLElement>('.print-page')!, furniture = pageFurniture(settings, pageNumber, true);
+        const header = paper.querySelector<HTMLElement>('.print-header')!, footer = paper.querySelector<HTMLElement>('.print-footer .document-furniture')!;
+        if (furniture.headerHtml) header.innerHTML = sanitizeImportedHtml(furniture.headerHtml).html; else header.textContent = furniture.header;
+        if (furniture.footerHtml) footer.innerHTML = sanitizeImportedHtml(furniture.footerHtml).html; else footer.textContent = furniture.footer;
+        paper.querySelector('.print-automatic-number')?.remove();
+        if (furniture.pageNumbers && !header.querySelector('[data-page-number]') && !footer.querySelector('[data-page-number]')) {
+          const number = document.createElement('span'); number.className = 'print-automatic-number'; number.textContent = String(pageNumber); footer.parentElement!.append(number);
+        }
+        layoutFurnitureImages(paper);
+        return;
+      }
       const meaningful = content.textContent?.trim() || content.querySelector('img,table,[data-note-reference]');
       if (!meaningful) { content.closest('.print-page')!.remove(); pageNumber--; }
       if (next.breakType === 'oddPage' || next.breakType === 'evenPage') {
@@ -221,15 +393,55 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
     if (element.hasAttribute('data-section-content')) { for (const child of [...element.children]) append(child as HTMLElement); return; }
     if (element.hasAttribute('data-column-count')) {
+      if ([...element.children].some(child => child.hasAttribute('data-page-break') || child.hasAttribute('data-section-page'))) {
+        let part = element.cloneNode(false) as HTMLElement;
+        for (const child of [...element.children]) {
+          if (child.hasAttribute('data-page-break') || child.hasAttribute('data-section-page')) {
+            if (part.children.length) append(part); append(child as HTMLElement); part = element.cloneNode(false) as HTMLElement;
+          } else part.append(child);
+        }
+        if (part.children.length) append(part);
+        return;
+      }
+      if (Number(element.dataset.columnCount) === 1) { for (const child of [...element.children]) append(child as HTMLElement); return; }
       content.append(element); if (fits()) return;
-      const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(element.textContent || '')].map(s => s.index).slice(1);
-      element.remove(); let low = 0, high = offsets.length - 1, best = 0;
+      // Split at block boundaries first. Character-only ranges lose the
+      // position of empty paragraphs, pictures and forced column breaks.
+      const children = [...element.children] as HTMLElement[];
+      const fragment = (count: number) => {
+        const part = element.cloneNode(false) as HTMLElement;
+        part.replaceChildren(...children.slice(0, count).map(child => child.cloneNode(true)));
+        return part;
+      };
+      element.remove(); let low = 1, high = children.length, best = 0;
       while (low <= high) {
-        const mid = (low + high) >> 1, [head] = splitText(element, offsets[mid]); content.append(head);
-        if (fits()) { best = offsets[mid]; low = mid + 1; } else high = mid - 1;
+        const mid = (low + high) >> 1, head = fragment(mid); content.append(head);
+        if (fits()) { best = mid; low = mid + 1; } else high = mid - 1;
         head.remove();
       }
-      if (best) { const [head, tail] = splitText(element, best); content.append(head); fits(); newPage(); append(tail); return; }
+      const head = fragment(best), tail = element.cloneNode(false) as HTMLElement;
+      tail.replaceChildren(...children.slice(best).map(child => child.cloneNode(true)));
+      content.append(head);
+      const next = tail.firstElementChild as HTMLElement | null;
+      if (next?.matches('p,h1,h2,h3,h4,h5,h6') && (next.textContent?.length ?? 0) > 1) {
+        const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(next.textContent!)].map(s => s.index).slice(1);
+        let left = 0, right = offsets.length - 1, cut = 0;
+        while (left <= right) {
+          const mid = (left + right) >> 1, [part] = splitText(next, offsets[mid]); head.append(part);
+          if (fits()) { cut = offsets[mid]; left = mid + 1; } else right = mid - 1;
+          part.remove();
+        }
+        if (cut) { const [part, rest] = splitText(next, cut); head.append(part); next.replaceWith(rest); }
+      }
+      if (head.children.length) {
+        fits(); newPage();
+        // The break that overflowed the last column is fulfilled by this new
+        // sheet. Applying it again at its start would skip the first column.
+        if (tail.firstElementChild?.hasAttribute('data-column-break')) tail.firstElementChild.remove();
+        if (tail.children.length) append(tail);
+        return;
+      }
+      head.remove();
       if (content.children.length) { newPage(); append(element); return; }
       content.append(element); fits(); scaleOversized(element); return;
     }
@@ -257,10 +469,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     content.append(element);
     if (fits()) return;
     if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && (element.textContent?.length ?? 0) > 1) {
-      const text = element.textContent!;
-      // Grapheme boundaries keep Korean, emoji and combining characters intact.
-      const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
-      const offsets = [...segmenter.segment(text)].map(s => s.index).slice(1);
+      const offsets = paragraphLineOffsets(element);
       let low = 0, high = offsets.length - 1, best = 0;
       element.remove();
       while (low <= high) {
@@ -281,6 +490,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   }
   try {
     onProgress?.({ label: '문서의 글꼴을 준비하는 중…' });
+    const sample = source.textContent || '한글';
+    for (const family of ['Noto Serif KR', 'Noto Sans KR']) if (html.includes(family))
+      await Promise.all([400, 700].map(weight => document.fonts.load(`${weight} 12px "${family}"`, sample)));
     if (source.querySelector('[data-symbol-font]')) await Promise.all(['Studio Symbols 2','Studio Symbols','Studio Math','Studio Text','Studio Devanagari','Studio Emoji'].map(font => document.fonts.load(`12px "${font}"`)));
     await document.fonts.ready;
     signal?.throwIfAborted();
@@ -312,6 +524,6 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
     for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="NUMPAGES"]')) field.textContent = String(pageNumber);
     for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="PAGE"]')) field.textContent = field.closest<HTMLElement>('.print-page')!.dataset.page!;
-    return { element: host, pages: pageNumber, warnings: [...warnings], dispose: () => host.remove() };
+    return { element: host, pages: pageNumber, pageSettings, warnings: [...warnings], dispose: () => host.remove() };
   } catch (error) { host.remove(); throw error; }
 }

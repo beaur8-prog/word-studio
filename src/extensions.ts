@@ -22,6 +22,8 @@ import { NoteReference, DocumentNote, DocumentField, ColumnGroup, SectionContent
 import { DocumentSymbol } from './document-symbols';
 import { ColumnLayout } from './column-layout';
 import { FloatingLayout } from './floating-layout';
+import { TableAnchorLayout } from './table-anchor';
+import { TableNavigation } from './table-navigation';
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { getSchema } from '@tiptap/core';
 
@@ -36,6 +38,11 @@ export const PageBreak = Node.create({
     { "data-page-break": "true", class: "page-break" },
     ["span", {}, "페이지 나누기"],
   ],
+});
+export const ColumnBreak = Node.create({
+  name: 'columnBreak', group: 'block', atom: true,
+  parseHTML: () => [{ tag: 'div[data-column-break]' }],
+  renderHTML: () => ['div', { 'data-column-break': 'true', class: 'column-break', title: '단 나누기' }],
 });
 export const CommentAnchor = Mark.create({
   name: 'commentAnchor', inclusive: false,
@@ -77,6 +84,10 @@ export const editorExtensions = [
   StarterKit.configure({
     link: { openOnClick: false, protocols: ["https", "http", "mailto"] },
     underline: false, strike: false,
+    // These containers already have an editable end. A synthetic paragraph
+    // after a full final table/column otherwise creates an extra blank page.
+    // The gap cursor can insert a following paragraph when the user types.
+    trailingNode: { notAfter: ['columnGroup', 'sectionContent', 'table'] },
   }),
   Underline.extend({ parseHTML() { return [...(this.parent?.() || []), { style: 'text-decoration-line', consuming: false, getAttrs: value => String(value).includes('underline') ? {} : false }]; } }),
   Strike.extend({ parseHTML() { return [...(this.parent?.() || []), { style: 'text-decoration-line', consuming: false, getAttrs: value => String(value).includes('line-through') ? {} : false }]; } }),
@@ -89,6 +100,8 @@ export const editorExtensions = [
   }),
   CellAppearance,
   TableRowResize,
+  TableNavigation,
+  TableAnchorLayout,
   BlockImage.configure({ allowBase64: true }),
   InlineImage,
   DocumentTab,
@@ -102,6 +115,7 @@ export const editorExtensions = [
   Superscript,
   Placeholder.configure({ placeholder: "여기에 문서를 작성하세요…" }),
   PageBreak,
+  ColumnBreak,
   SectionBreak,
   CommentAnchor,
   ParagraphFormat,

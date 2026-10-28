@@ -18,10 +18,12 @@ import {
   LineRuleType,
   Packer,
   PageBreak,
+  ColumnBreak,
   PageNumber,
   PageOrientation,
   Paragraph,
   Table,
+  TableAnchorType,
   TableCell,
   TableRow,
   TextRun,
@@ -41,8 +43,8 @@ import type {
   ParagraphChild,
   ITableCellBorders,
 } from "docx";
-import { defaultPage, pageMargins, basePageMargins } from "./types";
-import { prepareDocxMetadata } from './docx-metadata';
+import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
+import { prepareDocxMetadata, TABLE_GAP_STYLE } from './docx-metadata';
 import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
 import { overlapParts } from './word-overlap';
@@ -51,6 +53,8 @@ import { storyHtml, documentNotes, attachDocumentNotes, structureDocxSections } 
 import { parseDocumentHtml } from './extensions';
 import { imageFloating, restoreImageGeometry, type ImageGeometryRecord } from './image-floating';
 import type { PageSettings, StudioDocument } from "./types";
+import { PreservedTableCell } from './docx-table-cell';
+import { tableAnchor } from './table-anchor';
 import documentLimits from '../electron/document-limits.json';
 
 export interface ImportResult {
@@ -75,6 +79,7 @@ const BLOCKS = new Set([
   "codeBlock",
   "horizontalRule",
   "pageBreak",
+  "columnBreak",
   "sectionBreak",
   "image",
   "table",
@@ -143,14 +148,14 @@ export function validateDocument(input: unknown): StudioDocument {
   if (!object(page)) fail("용지 설정이 없습니다.");
   keysOnly(
     page,
-    ["size", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
+    ["size", "width", "height", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
       'differentFirstPage', 'differentOddEven', 'firstHeader', 'firstFooter', 'evenHeader', 'evenFooter',
       'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop', 'breakType', 'columns',
       'headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'],
     "용지 설정",
   );
   if (
-    !["A4", "Letter"].includes(String(page.size)) ||
+    !["A4", "Letter", "Custom"].includes(String(page.size)) ||
     !["portrait", "landscape"].includes(String(page.orientation)) ||
     !finite(page.margin, 0, 75) ||
     !boundedString(page.header, 10000) ||
@@ -158,6 +163,8 @@ export function validateDocument(input: unknown): StudioDocument {
     typeof page.pageNumbers !== "boolean"
   )
     fail("용지 설정이 올바르지 않습니다.");
+  if ((page.size === 'Custom' || page.width !== undefined || page.height !== undefined) &&
+    (![page.width, page.height].every(n => finite(n, 25, 1320)))) fail('사용자 용지 크기가 올바르지 않습니다.');
   if (page.margins !== undefined) {
     if (!object(page.margins)) fail('방향별 여백이 올바르지 않습니다.');
     keysOnly(page.margins, ['top', 'right', 'bottom', 'left'], '방향별 여백');
@@ -268,6 +275,8 @@ export function validateDocument(input: unknown): StudioDocument {
     if (type === 'wordOverlap' && !overlapParts(attrs?.parts).length) fail('겹친 글자 형식이 올바르지 않습니다.');
     if (type === 'tableRow' && attrs?.rowHeight != null && !rowHeight(attrs.rowHeight))
       fail(`표 행 높이는 0보다 크고 ${MAX_ROW_HEIGHT}px 이하여야 합니다.`);
+    if (type === 'tableRow' && attrs?.rowSplit != null && !['allow', 'avoid'].includes(String(attrs.rowSplit)))
+      fail('표 행의 쪽 나누기 설정이 올바르지 않습니다.');
     if (type === 'sectionBreak' || type === 'sectionContent') {
       if (parent !== 'doc') fail('구역 나누기는 문서의 최상위에 있어야 합니다.');
       if (typeof attrs?.page !== 'string' || attrs.page.length > MAX_FILE_BYTES) fail('구역 설정이 올바르지 않습니다.');
@@ -284,6 +293,7 @@ export function validateDocument(input: unknown): StudioDocument {
     )
       fail("제목 수준이 올바르지 않습니다.");
     if (["tableCell", "tableHeader"].includes(type)) {
+      if (attrs?.cellSplit != null && attrs.cellSplit !== "allow") fail("병합 셀의 쪽 나누기 설정이 올바르지 않습니다.");
       for (const key of ["colspan", "rowspan"])
         if (
           attrs?.[key] != null &&
@@ -333,6 +343,7 @@ export function validateDocument(input: unknown): StudioDocument {
       "hardBreak",
       "horizontalRule",
       "pageBreak",
+      "columnBreak",
       "sectionBreak",
       "image",
       "inlineImage",
@@ -490,7 +501,7 @@ async function readDocxPage(
     width &&
     (Math.abs(smaller - 11906) > 150 || Math.abs(larger - 16838) > 150)
   )
-    warnings.push("지원하지 않는 용지 크기를 A4로 표시합니다.");
+    { page.size = 'Custom'; page.width = smaller * 25.4 / 1440; page.height = larger * 25.4 / 1440; }
   const margin = elements(section, "pgMar")[0];
   const enabled = (el: Element | undefined) => !!el && !['0', 'false', 'off'].includes(attr(el, 'val') || '');
   page.differentFirstPage = enabled(elements(section, 'titlePg')[0]);
@@ -714,9 +725,10 @@ function rgb(value: unknown): string | undefined {
   return names[value.toLowerCase()];
 }
 function fontPoints(value: unknown): number | undefined {
-  const parsed = Number.parseFloat(String(value));
-  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
-  return Math.min(400, String(value).endsWith("px") ? parsed * 0.75 : parsed);
+  const match = String(value).trim().match(/^((?:\d+(?:\.\d*)?|\.\d+))(pt|px|mm|cm|in|pc)?$/i);
+  if (!match) return undefined;
+  const scale = { pt: 1, px: .75, mm: 72 / 25.4, cm: 72 / 2.54, in: 72, pc: 12 };
+  return Math.min(400, Number(match[1]) * scale[(match[2]?.toLowerCase() || 'pt') as keyof typeof scale]);
 }
 
 function cellBorders(attrs: Record<string, unknown> = {}): ITableCellBorders {
@@ -741,7 +753,11 @@ function inheritCellText(nodes: JSONContent[], attrs: Record<string, unknown> = 
       return { ...node, marks: [...(node.marks ?? []).filter(mark => mark.type !== 'textStyle'),
         { type: 'textStyle', attrs: { ...defaults, ...Object.fromEntries(Object.entries(existing).filter(([, value]) => value != null)) } }] };
     }
-    return node.content ? { ...node, content: inheritCellText(node.content, attrs) } : node;
+    const inherited = ['paragraph', 'heading'].includes(node.type || '') ? { ...attrs,
+      fontFamily: node.attrs?.paragraphFont || attrs.fontFamily,
+      fontSize: node.attrs?.paragraphSize || attrs.fontSize,
+      textColor: node.attrs?.paragraphColor || attrs.textColor } : attrs;
+    return node.content ? { ...node, content: inheritCellText(node.content, inherited) } : node;
   });
 }
 function runOptions(node: JSONContent): IRunOptions {
@@ -823,11 +839,15 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150): IParagraphOpti
     node.content
       ?.flatMap((n) => n.marks ?? [])
       .find((m) => m.type === "textStyle")?.attrs?.lineHeight;
-  const line = Number.parseFloat(lineHeight);
+  const parsedLine = Number.parseFloat(lineHeight);
+  const line = typeof lineHeight === 'string' && lineHeight.endsWith('%') ? parsedLine / 100 : parsedLine;
   const indent = Number(node.attrs?.indent);
   const right = Number.parseFloat(node.attrs?.rightIndent), first = Number.parseFloat(node.attrs?.firstLineIndent);
   const before = Number.parseFloat(node.attrs?.spaceBefore), after = Number.parseFloat(node.attrs?.spaceAfter);
   const exact = typeof lineHeight === 'string' && /(?:pt|px)$/.test(lineHeight);
+  // Fixed text leading must not crop taller inline equations/pictures. Keep
+  // explicit OOXML exact rules, but let imported CSS image lines grow.
+  const inlinePicture = !node.attrs?.wordLineRule && node.content?.some(n => n.type === 'inlineImage' && !n.attrs?.floating);
   // Plain authored paragraphs inherit 11pt / 1.65em in the editor. Falling
   // through to docx's 1.15-line / 6pt defaults shrinks long documents on reopen.
   // A minimum physical line height preserves that CSS baseline while allowing
@@ -852,7 +872,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150): IParagraphOpti
       after: Number.isFinite(after) ? Math.round(after * 15) : node.type === 'paragraph' ? defaultAfter : 120,
       ...(Number.isFinite(before) ? { before: Math.round(before * 15) } : {}),
       ...(authoredDefault ? { line: defaultLine, lineRule: LineRuleType.AT_LEAST } : {}),
-      ...(exact && Number.isFinite(line) && line > 0 ? { line: Math.round(line * (lineHeight.endsWith('pt') ? 20 : 15)), lineRule: node.attrs?.wordLineRule === 'atLeast' ? LineRuleType.AT_LEAST : LineRuleType.EXACT } : {}),
+      ...(exact && Number.isFinite(line) && line > 0 ? { line: Math.round(line * (lineHeight.endsWith('pt') ? 20 : 15)), lineRule: node.attrs?.wordLineRule === 'atLeast' || inlinePicture ? LineRuleType.AT_LEAST : LineRuleType.EXACT } : {}),
       ...(!exact && Number.isFinite(line) && line > 0 && line < 10
         ? { line: Math.round(line * 240), lineRule: LineRuleType.AUTO }
         : {}),
@@ -926,8 +946,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const page = document.page;
   const geometries = new Map<string, ImageGeometryRecord>();
   const mmToTwip = (mm: number) => Math.round((mm * 1440) / 25.4);
-  const portraitWidth = page.size === "Letter" ? 215.9 : 210;
-  const portraitHeight = page.size === "Letter" ? 279.4 : 297;
+  const [portraitWidth, portraitHeight] = paperSize(page);
   let contentWidth = mmToTwip(
     (page.orientation === "landscape" ? portraitHeight : portraitWidth) -
       pageMargins(page).left - pageMargins(page).right,
@@ -956,7 +975,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   count(document.content);
   const opened = new Set<string>();
   let wroteUnanchored = false;
-  const inline = async (nodes: JSONContent[]): Promise<ParagraphChild[]> => {
+  const inline = async (nodes: JSONContent[], width: number, defaults: IRunOptions = {}): Promise<ParagraphChild[]> => {
     const runs: ParagraphChild[] = [];
     if (!wroteUnanchored) {
       wroteUnanchored = true;
@@ -967,7 +986,10 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       if (node.type === "text") {
         const ids = anchored(node);
         for (const id of ids) if (!opened.has(id)) { runs.push(new CommentRangeStart(commentIds.get(id)!)); opened.add(id); }
-        const run = new TextRun(runOptions(node));
+        // Paragraph rPr formats the paragraph mark in OOXML, not every text
+        // run. Materialize inherited CSS font/size/color on otherwise plain
+        // text, while retaining each run's explicit overrides.
+        const run = new TextRun({ ...defaults, ...runOptions(node) });
         const link = node.marks?.find((m) => m.type === "link");
         if (
           link &&
@@ -984,11 +1006,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           if (!remaining.get(id)) runs.push(new CommentRangeEnd(commentIds.get(id)!), new TextRun({ children: [new CommentReference(commentIds.get(id)!)] }));
         }
       } else if (node.type === "hardBreak")
-        runs.push(new TextRun({ break: 1 }));
-      else if (node.type === 'documentTab') runs.push(new TextRun({ children: [new Tab()] }));
+        runs.push(new TextRun({ ...defaults, break: 1 }));
+      else if (node.type === 'documentTab') runs.push(new TextRun({ ...defaults, children: [new Tab()] }));
       else if (node.type === 'documentBookmark') runs.push(new Bookmark({ id: String(node.attrs?.name || ''), children: [] }));
-      else if (node.type === 'documentField') runs.push(new TextRun({ children: [node.attrs?.kind === 'NUMPAGES' ? PageNumber.TOTAL_PAGES : PageNumber.CURRENT] }));
-      else if (node.type === 'documentSymbol') runs.push(new SymbolRun({ ...runOptions(node), symbolfont: String(node.attrs?.font || 'Symbol'), char: Number(node.attrs?.code).toString(16).padStart(4, '0') }));
+      else if (node.type === 'documentField') runs.push(new TextRun({ ...defaults, children: [node.attrs?.kind === 'NUMPAGES' ? PageNumber.TOTAL_PAGES : PageNumber.CURRENT] }));
+      else if (node.type === 'documentSymbol') runs.push(new SymbolRun({ ...defaults, ...runOptions(node), symbolfont: String(node.attrs?.font || 'Symbol'), char: Number(node.attrs?.code).toString(16).padStart(4, '0') }));
       else if (node.type === 'noteReference') {
         const id = noteIds.get(String(node.attrs?.id));
         if (id) runs.push(node.attrs?.kind === 'endnote' ? new EndnoteReferenceRun(id) : new FootnoteReferenceRun(id));
@@ -996,11 +1018,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       else if (node.type === 'wordOverlap') {
         const parts = overlapParts(node.attrs?.parts);
         const field = new SimpleField(`EQ \\o\\ac(${parts.join(',')})`);
-        field.addChildElement(new TextRun({ ...runOptions(node), text: parts.join('') }));
+        field.addChildElement(new TextRun({ ...defaults, ...runOptions(node), text: parts.join('') }));
         runs.push(field);
       }
       else if (node.type === "image" || node.type === "inlineImage")
-        runs.push(await imageRun(node, contentWidth / 15, geometries));
+        runs.push(await imageRun(node, width / 15, geometries));
     }
     return runs;
   };
@@ -1008,12 +1030,19 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     depth?: number;
     indent?: number;
     cellRun?: IRunOptions;
+    tableGap?: number;
+    width?: number;
     list?: { reference: string; level: number };
   };
+  // Consumers coalesce adjacent tables when no paragraph separates them. The
+  // later narrow table can then resize every preceding row of the long table.
+  const tableBoundary = (gap = 0) => new Paragraph({ style: TABLE_GAP_STYLE, spacing: { before: 0, after: 0, line: Math.max(1, Math.round(gap * 15)), lineRule: LineRuleType.EXACT }, run: { size: 2 } });
+  const tableSpacing = new WeakMap<Table, number>();
   const blocks = async (
     nodes: JSONContent[],
     context: Context = {},
   ): Promise<(Paragraph | Table)[]> => {
+    const width = context.width ?? contentWidth;
     const output: (Paragraph | Table)[] = [];
     for (const node of nodes) {
       if (
@@ -1029,11 +1058,17 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           HeadingLevel.HEADING_5,
           HeadingLevel.HEADING_6,
         ];
-        const paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150);
+        let paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150);
+        const previous = output.at(-1);
+        const gap = previous instanceof Table ? tableSpacing.get(previous) || 0 : 0;
+        // Inline OOXML tables have no bottom-margin property. Carry their CSS
+        // gap as the next paragraph's spacing, which Word and other readers
+        // render too. Do not silently drop it at a page boundary.
+        if (gap) paragraph = { ...paragraph, spacing: { ...paragraph.spacing, before: Math.max(Number(paragraph.spacing?.before) || 0, Math.round(gap * 15)) } };
         output.push(
           new Paragraph({
             ...paragraph,
-            children: await inline(node.content ?? []),
+            children: await inline(node.content ?? [], width, { ...context.cellRun, ...paragraph.run }),
             ...(context.cellRun ? { run: { ...context.cellRun, ...paragraph.run } } : {}),
             ...(node.type === "heading"
               ? { heading: headings[(node.attrs?.level ?? 1) - 1] }
@@ -1051,12 +1086,14 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       } else if (node.type === "image")
         output.push(
           new Paragraph({
-            children: [await imageRun(node, contentWidth / 15, geometries)],
+            children: [await imageRun(node, width / 15, geometries)],
             alignment: alignment(node.attrs?.textAlign),
           }),
         );
       else if (node.type === "pageBreak")
-        output.push(new Paragraph({ children: [new PageBreak()] }));
+        output.push(new Paragraph({ children: [new PageBreak()], spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } }));
+      else if (node.type === 'columnBreak')
+        output.push(new Paragraph({ children: [new ColumnBreak()], spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } }));
       else if (node.type === "horizontalRule")
         output.push(
           new Paragraph({
@@ -1108,6 +1145,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             );
             output.push(
               ...(await blocks([child], {
+                cellRun: context.cellRun, width: context.width, tableGap: context.tableGap,
                 depth: level + 1,
                 ...(first && isParagraph ? { list: { reference, level } } : {}),
                 ...(!first && isParagraph ? { indent: 720 * (level + 1) } : {}),
@@ -1130,24 +1168,30 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             );
         }
         const fallback = Math.floor(
-          contentWidth / Math.max(1, columnWidths.length),
+          width / Math.max(1, columnWidths.length),
         );
         for (let i = 0; i < columnWidths.length; i++)
           if (!columnWidths[i]) columnWidths[i] = fallback;
         const total = columnWidths.reduce((a, b) => a + b, 0);
-        if (total > contentWidth)
+        if (total > width)
           for (let i = 0; i < columnWidths.length; i++)
             columnWidths[i] = Math.max(
               1,
-              Math.floor((columnWidths[i] * contentWidth) / total),
+              Math.floor((columnWidths[i] * width) / total),
             );
+        const continuingMergeRows = new Set<number>();
+        (node.content ?? []).forEach((row, index) => {
+          for (const cell of row.content ?? []) if (cell.attrs?.cellSplit === 'allow')
+            for (let i = index; i < Math.min(node.content!.length, index + Number(cell.attrs?.rowspan || 1)); i++) continuingMergeRows.add(i);
+        });
+        let occupied: number[] = [];
         let continuations: { remaining: number; attrs: Record<string, unknown> }[] = [];
         const borderPixels = (attrs: Record<string, unknown>, side: string) => {
           const css = globalThis.document.createElement('span').style;
           css.border = String(attrs[`border${side}`] ?? '1px solid #c6ced8');
           return ['none', 'hidden'].includes(css.borderStyle) ? 0 : (fontPoints(css.borderWidth) ?? .75) * 4 / 3;
         };
-        for (const row of node.content ?? []) {
+        for (const [rowIndex, row] of (node.content ?? []).entries()) {
           const cells: TableCell[] = [];
           // Subtract the same border reserve Word adds to minimum heights,
           // including continuation cells materialized by the DOCX writer.
@@ -1161,8 +1205,21 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             const padding = parseFloat(cell.attrs?.[`padding${side}`]);
             return sum + (Number.isFinite(padding) ? Math.max(0, padding) : 8);
           }, 0)));
+          let column = 0;
+          const nextOccupied = occupied.map(remaining => Math.max(0, remaining - 1));
           for (const cell of row.content ?? []) {
+            while ((occupied[column] || 0) > 0) column++;
+            const span = Math.max(1, Number(cell.attrs?.colspan) || 1);
+            const cellWidth = columnWidths.slice(column, column + span).reduce((sum, n) => sum + n, 0);
+            const inset = ['Left', 'Right'].reduce((sum, side) => {
+              const padding = parseFloat(cell.attrs?.[`padding${side}`]);
+              return sum + (Number.isFinite(padding) ? Math.max(0, padding) * 15 : 150);
+            }, 0);
+            if (Number(cell.attrs?.rowspan) > 1) for (let i = 0; i < span; i++) nextOccupied[column + i] = Number(cell.attrs!.rowspan) - 1;
+            column += span;
             const children = await blocks(inheritCellText(cell.content ?? [], cell.attrs), {
+              width: Math.max(1, cellWidth - inset),
+              tableGap: context.tableGap,
               cellRun: runOptions({ type: 'text', marks: [{ type: 'textStyle', attrs: {
                 fontFamily: cell.attrs?.fontFamily, fontSize: cell.attrs?.fontSize, color: cell.attrs?.textColor,
               } }] }),
@@ -1171,12 +1228,12 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               !children.length ||
               children[children.length - 1] instanceof Table
             )
-              children.push(new Paragraph(""));
+              children.push(tableBoundary(tableSpacing.get(children.at(-1) as Table) || 0));
             const color =
               cell.attrs?.backgroundColor === 'transparent' ? undefined : rgb(cell.attrs?.backgroundColor) ??
               (cell.type === "tableHeader" ? "E8EEF7" : undefined);
             cells.push(
-              new TableCell({
+              new PreservedTableCell({
                 children,
                 columnSpan: Number(cell.attrs?.colspan) || 1,
                 rowSpan: Number(cell.attrs?.rowspan) || 1,
@@ -1187,12 +1244,14 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
                   const padding = Number.parseFloat(cell.attrs?.[`padding${side[0].toUpperCase()}${side.slice(1)}`]);
                   return [side, Number.isFinite(padding) ? Math.round(Math.max(0, padding) * 15) : ['left', 'right'].includes(side) ? 150 : 120];
                 })),
-              }),
+              }, cell.attrs?.whiteSpace === 'nowrap'),
             );
           }
+          occupied = nextOccupied;
           rows.push(
             new TableRow({
               children: cells,
+              ...(row.attrs?.rowSplit ? { cantSplit: row.attrs.rowSplit === 'avoid' } : continuingMergeRows.has(rowIndex) ? { cantSplit: false } : {}),
               ...(rowHeight(row.attrs?.rowHeight) ? { height: { value: Math.max(1, Math.round((row.attrs!.rowHeight - (row.attrs?.wordRowRule === 'exact' ? 0 : rowPadding + rowBorder)) * 15)), rule: row.attrs?.wordRowRule === 'exact' ? HeightRule.EXACT : HeightRule.ATLEAST } } : {}),
               ...((row.content?.length ?? 0) > 0 && (row.content ?? []).every(
                 (cell) => cell.type === "tableHeader",
@@ -1200,45 +1259,65 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             }),
           );
         }
-        output.push(
-          new Table({
+        const anchor = tableAnchor(node.attrs?.tableAnchor);
+        const table = new Table({
             rows,
             width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+            ...(['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
             ...(node.attrs?.tableIndent ? { indent: { size: Math.round(Number.parseFloat(node.attrs.tableIndent) * 15) || 0, type: WidthType.DXA } } : {}),
             columnWidths,
-          }),
-        );
+            ...(anchor ? { float: { horizontalAnchor: TableAnchorType.PAGE, verticalAnchor: TableAnchorType.PAGE,
+              absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round(anchor.y * 15), bottomFromText: Math.round(anchor.bottom * 15) } } : {}),
+          });
+        // Missing imported CSS uses the editor's 18px table gap. Furniture
+        // and note tables have a zero default, passed through nested blocks.
+        tableSpacing.set(table, anchor ? 0 : Math.max(0, fontPoints(node.attrs?.tableSpacing) ?? (context.tableGap ?? 18) * .75) * 4 / 3);
+        output.push(table);
       }
     }
-    return output;
+    return output.flatMap((block, i) => i > 0 && block instanceof Table && output[i - 1] instanceof Table
+      ? [tableBoundary(tableSpacing.get(output[i - 1] as Table)), block] : [block]);
   };
   const groups: { page: PageSettings; nodes: JSONContent[] }[] = [{ page, nodes: [] }];
+  let sectionPage = page;
+  const columnSignature = (p: PageSettings) => JSON.stringify(p.columns ?? { count: 1, space: 0 });
+  const appendGroup = (settings: PageSettings, nodes: JSONContent[]) => {
+    const current = groups[groups.length - 1];
+    if (!current.nodes.length) { current.page = settings; current.nodes.push(...nodes); }
+    else if (columnSignature(current.page) === columnSignature(settings)) current.nodes.push(...nodes);
+    else groups.push({ page: { ...settings, breakType: 'continuous' }, nodes: [...nodes] });
+  };
   for (const node of document.content.content ?? []) {
-    if (node.type === 'sectionBreak') groups.push({ page: JSON.parse(node.attrs!.page), nodes: [] });
-    else groups[groups.length - 1].nodes.push(node);
+    if (node.type === 'sectionBreak') {
+      sectionPage = JSON.parse(node.attrs!.page); groups.push({ page: sectionPage, nodes: [] });
+    } else if (node.type === 'columnGroup') {
+      appendGroup({ ...sectionPage, columns: { count: Number(node.attrs?.count) || 1, space: Number(node.attrs?.space) || 0, balance: node.attrs?.balance !== false } }, node.content || []);
+    } else appendGroup(sectionPage, [node]);
   }
   const sections = [];
   const footnotes: Record<string, { children: Paragraph[] }> = {}, endnotes: Record<string, { children: Paragraph[] }> = {};
   for (const [id, note] of notes) {
     // Both paragraph and table objects implement the block XML component
     // protocol, although docx's public note type lists Paragraph only.
-    const children = await blocks(note.content || []);
+    const children = await blocks(note.content || [], { tableGap: 0 });
     (note.attrs?.kind === 'endnote' ? endnotes : footnotes)[String(noteIds.get(id))] = { children: children as Paragraph[] };
   }
   for (const group of groups) {
   const page = group.page;
-  const portraitWidth = page.size === 'Letter' ? 215.9 : 210;
-  const portraitHeight = page.size === 'Letter' ? 279.4 : 297;
+  const [portraitWidth, portraitHeight] = paperSize(page);
   const margins = pageMargins(page);
-  contentWidth = mmToTwip((page.orientation === 'landscape' ? portraitHeight : portraitWidth) - margins.left - margins.right);
+  const fullWidth = mmToTwip((page.orientation === 'landscape' ? portraitHeight : portraitWidth) - margins.left - margins.right);
+  const count = page.columns?.count || 1;
+  contentWidth = Math.max(1, Math.floor((fullWidth - Math.round((page.columns?.space || 0) * 15) * (count - 1)) / count));
   const children = await blocks(group.nodes);
-  const richBlocks = async (html: string) => blocks(parseDocumentHtml(sanitizeImportedHtml(html).html).content || []);
+  const richBlocks = async (html: string) => blocks(parseDocumentHtml(sanitizeImportedHtml(html).html).content || [], { tableGap: 0 });
+  const plainFurniture: IParagraphOptions = { run: { size: 18, color: '697386' }, spacing: { before: 0, after: 0, line: 336, lineRule: LineRuleType.AUTO } };
   const footer = async (text: string, numbers: boolean, html?: string, headerHtml?: string) => new Footer({ children: [
-    ...(html ? await richBlocks(html) : [new Paragraph({ text, alignment: AlignmentType.CENTER, run: { size: 18, color: '697386' } })]),
-    ...(numbers && !/data-page-number/.test((html || '') + (headerHtml || '')) ? [new Paragraph({ alignment: AlignmentType.CENTER,
+    ...(html ? await richBlocks(html) : text || !numbers ? [new Paragraph({ ...plainFurniture, text, alignment: AlignmentType.CENTER })] : []),
+    ...(numbers && !/data-page-number/.test((html || '') + (headerHtml || '')) ? [new Paragraph({ ...plainFurniture, alignment: AlignmentType.CENTER,
       children: [new TextRun({ children: [PageNumber.CURRENT], size: 18, color: '697386' })] })] : []),
   ] });
-  const header = async (text: string, html?: string) => new Header({ children: html ? await richBlocks(html) : [new Paragraph({ text, run: { size: 18, color: '697386' } })] });
+  const header = async (text: string, html?: string) => new Header({ children: html ? await richBlocks(html) : [new Paragraph({ ...plainFurniture, text })] });
   const baseMargins = basePageMargins(page);
   sections.push(
       {
@@ -1262,8 +1341,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               bottom: mmToTwip(baseMargins.bottom),
               left: mmToTwip(baseMargins.left),
               gutter: mmToTwip(page.gutterTop ? 0 : page.gutter ?? 0),
-              header: mmToTwip(page.headerDistance ?? 6.35),
-              footer: mmToTwip(page.footerDistance ?? 6.35),
+              header: mmToTwip(page.headerDistance ?? Math.max(0, margins.top / 2 - 3)),
+              footer: mmToTwip(page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)),
             },
           },
         },
@@ -1285,7 +1364,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     footnotes, endnotes,
     comments: { children: await Promise.all(document.comments.map(async (comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: comment.author ?? 'Word Studio', initials: comment.initials, date: new Date(comment.createdAt),
       resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph(text)) }))) },
-    styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } } },
+    styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } },
+      paragraphStyles: [{ id: TABLE_GAP_STYLE, name: 'Table spacing', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } }] },
     sections,
   });
   const blob = await Packer.toBlob(docx);

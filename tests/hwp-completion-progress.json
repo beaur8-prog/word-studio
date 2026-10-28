@@ -1,0 +1,792 @@
+{
+  "date": "2026-10-28",
+  "baselineCommit": "e694647",
+  "status": "checkpoint_complete_with_followups",
+  "build": "passed",
+  "unitTests": 81,
+  "browserTests": 246,
+  "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
+  "samples": [
+    {
+      "id": "01-employment-contract",
+      "sha256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "sourceReaderPages": 7,
+      "printPages": 7,
+      "docxRoundtripPages": [
+        7,
+        7,
+        7
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 0,
+      "equationImages": 0,
+      "convertAndInspectMs": 336
+    },
+    {
+      "id": "02-work-rules",
+      "sha256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "sourceReaderPages": 163,
+      "printPages": 164,
+      "docxRoundtripPages": [
+        164,
+        164,
+        164
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 2,
+      "equationImages": 0,
+      "convertAndInspectMs": 2062
+    },
+    {
+      "id": "03-health-table",
+      "sha256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+      "sourceReaderPages": 4,
+      "printPages": 4,
+      "docxRoundtripPages": [
+        4,
+        4,
+        4
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 0,
+      "equationImages": 0,
+      "convertAndInspectMs": 324
+    },
+    {
+      "id": "04-language-plan",
+      "sha256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+      "sourceReaderPages": 35,
+      "printPages": 36,
+      "docxRoundtripPages": [
+        36,
+        36,
+        36
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 4,
+      "equationImages": 0,
+      "convertAndInspectMs": 1009
+    },
+    {
+      "id": "05-return-form",
+      "sha256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+      "sourceReaderPages": 1,
+      "printPages": 1,
+      "docxRoundtripPages": [
+        1,
+        1,
+        1
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 3,
+      "equationImages": 0,
+      "convertAndInspectMs": 293
+    },
+    {
+      "id": "06-mixed-document",
+      "sha256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "sourceReaderPages": 35,
+      "printPages": 40,
+      "docxRoundtripPages": [
+        40,
+        40,
+        40
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 44,
+      "equationImages": 0,
+      "convertAndInspectMs": 2192
+    },
+    {
+      "id": "07-english-exam",
+      "sha256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+      "sourceReaderPages": 8,
+      "printPages": 9,
+      "docxRoundtripPages": [
+        9,
+        9,
+        9
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 16,
+      "equationImages": 0,
+      "convertAndInspectMs": 7472
+    },
+    {
+      "id": "08-math-exam",
+      "sha256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "sourceReaderPages": 20,
+      "printPages": 20,
+      "docxRoundtripPages": [
+        20,
+        20,
+        20
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 543,
+      "equationImages": 522,
+      "convertAndInspectMs": 6321
+    },
+    {
+      "id": "09-korean-exam",
+      "sha256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+      "sourceReaderPages": 15,
+      "printPages": 15,
+      "docxRoundtripPages": [
+        15,
+        15,
+        15
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 23,
+      "equationImages": 0,
+      "convertAndInspectMs": 886
+    },
+    {
+      "id": "10-lh-plan",
+      "sha256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+      "sourceReaderPages": 5,
+      "printPages": 5,
+      "docxRoundtripPages": [
+        5,
+        5,
+        5
+      ],
+      "priorBodyTextRetained": true,
+      "docxBodyTextRetained": true,
+      "placeholderParagraphs": 0,
+      "images": 3,
+      "equationImages": 0,
+      "convertAndInspectMs": 222
+    }
+  ],
+  "limitations": [
+    "Prior-model text equality is not a whole-original-content audit.",
+    "The independent PDFs cover samples 03–10; full-page visual correspondence is not complete.",
+    "Source-reader and converted print counts differ for rules (163/164), language plan (35/36), notice (35/40), English (8/9). Restored genuine paragraph and object leading must not be removed just to match counts.",
+    "Language-specific font size, tracking and width remain under investigation; diagnostic variants are not shipped.",
+    "HWP/HWPX native PAGE/NUMPAGES now survive, but floating object/complex drawing furniture export limitations remain explicitly warned.",
+    "Microsoft Word, Hancom office and a Windows runtime are unavailable on this Mac.",
+    "All 10 samples retain current DOCX page counts; a few rules page-start lines still differ by one or two characters after saving.",
+    "Single-column break handling needs a combined fix for trailing empty paragraphs; the isolated experiment was reverted after an actual-app pagination regression."
+  ],
+  "evidence": {
+    "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
+    "browser": "browser-table-navigation-full.log",
+    "unit": "unit-final-checkpoint.log",
+    "build": "build-final-checkpoint.log",
+    "nativeLarge": "native-large-completion.log",
+    "nativeFourDocuments": "native-rich-merged-final.log",
+    "docx": "docx-formatting-corpus.json",
+    "cropAlignment": "empty-cell-slots.log",
+    "largeGlyph": "korean-ink.json",
+    "sourceTextAudit": "source-formatting-audit.json",
+    "notesIntegration": "notes-integration.log",
+    "nativeNoteControls": "notes-native.log",
+    "rulesPageStarts": "rules-columns-final.log",
+    "nestedFormBefore": "nested-form-before.log",
+    "nestedFormAfter": "nested-form-after.log",
+    "columnAndReserve": "column-forms.log",
+    "nativeColumns": "columns-roundtrip.log",
+    "tableGapAndFontInheritance": "spacing-inheritance-final.log",
+    "freshImport": "fresh-formatting-complete.log",
+    "fullSourceBody": "tests/hwp-source-text-audit.json",
+    "nativeSixDocuments": "native-final-checkpoint.log"
+  },
+  "falsePositivesCorrected": [
+    "Korean large glyph: font rectangle extends into margin, actual ink does not.",
+    "Reserved-row test must measure row/paper intersections, not subtract full cell widgets (which include repeated padding).",
+    "Page-relative title text is intentionally above the body margin, while remaining inside paper bounds.",
+    "Parallel Playwright output directory collision caused a teardown failure; isolated full run passed 173 tests."
+  ],
+  "sourceXmlTextAudit": {
+    "minimumNonWhitespaceChars": 5,
+    "paragraphs": 5125,
+    "substringMatches": 5124,
+    "explainedExceptions": [
+      {
+        "sample": "05-return-form",
+        "reason": "One paragraph crosses an inline table; 100 cut-line glyphs and seal text remain in separate body paragraphs."
+      }
+    ],
+    "limitations": [
+      "Does not verify all short fragments, multiplicity, order or complete visual fidelity."
+    ]
+  },
+  "nativeNotes": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "nativeSourceRoundtrips": 2,
+    "editableBodyAndNestedCellRoundtrips": 2,
+    "richContent": [
+      "multiple paragraphs",
+      "bold",
+      "italic",
+      "picture",
+      "table"
+    ],
+    "relatedBrowserTests": 16,
+    "limitations": [
+      "Custom labels become numeric with a warning.",
+      "Unreferenced or multiply referenced note stories abort export instead of being silently lost."
+    ]
+  },
+  "rulesEditorPrint": {
+    "editorPages": 167,
+    "printPages": 167,
+    "firstBodyParagraphMatches": 167,
+    "mismatchesBeforeAndAfterPrint": 0,
+    "scope": "First non-header body paragraph per physical page, not a pixel-perfect original-page audit.",
+    "checkpoint": "72ee5db; 167-page first-paragraph correspondence was checked before the current 164-page cell changes."
+  },
+  "nativeColumns": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "roundtrips": 2,
+    "preserved": [
+      "column count",
+      "column gap",
+      "balance",
+      "column break",
+      "page break",
+      "initial paper and header"
+    ],
+    "limitations": [
+      "Column groups nested inside table/note stories are explicitly rejected.",
+      "Floating objects and complex drawing furniture remain separate pending work."
+    ]
+  },
+  "nativeSections": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "saves": 2,
+    "preserved": [
+      "paper size and orientation",
+      "margins",
+      "plain header/footer per section",
+      "shared notes/images/fields",
+      "intentional empty sections"
+    ],
+    "limitations": [
+      "continuous changes inside one printed sheet",
+      "complex drawing furniture coordinates",
+      "floating objects"
+    ],
+    "evidence": [
+      "tests/hwp-sections.spec.ts",
+      "tests/hwp-editing.test.cjs"
+    ]
+  },
+  "nonWrappingArt": {
+    "regressionTests": 2,
+    "bodyGlyphPositions": "unchanged for left/center/right/justify mixed-font paragraphs",
+    "nativeDocuments": 4,
+    "zoomLevels": [
+      100,
+      50,
+      125,
+      200,
+      100
+    ]
+  },
+  "nativeFurniture": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "saves": 2,
+    "preserved": [
+      "paragraph formatting",
+      "tables and pictures",
+      "PAGE and NUMPAGES",
+      "odd/even stories",
+      "first-page stories via separate section",
+      "header/footer paper-edge distance",
+      "centered single-table stories"
+    ],
+    "restoredSourceFields": {
+      "02-work-rules": 1,
+      "07-english-exam": 2
+    },
+    "limitations": [
+      "complex drawing coordinate fidelity",
+      "English footer table height differs from native by about 2.6px although bottom edges match"
+    ],
+    "evidence": [
+      "tests/hwp-furniture.spec.ts",
+      "tests/hwp-editing.test.cjs",
+      "english-footer-editable.png"
+    ]
+  },
+  "tableAlignment": {
+    "alignment": [
+      "center",
+      "right"
+    ],
+    "locations": [
+      "body",
+      "footer",
+      "editable view"
+    ],
+    "docxSaves": 2,
+    "evidence": "tests/table-alignment.spec.ts"
+  },
+  "footnoteReserve": {
+    "cases": [
+      "prior references: paragraph, row, vertical merge",
+      "own paragraph: start, middle, end",
+      "own row: start, middle, end, boundary, multiple columns"
+    ],
+    "zooms": [
+      100,
+      50,
+      125,
+      200,
+      100
+    ],
+    "before": "3 failed: overlap or editor/print page mismatch",
+    "after": "3 passed: page-wise text, no note overlap, editing/undo/save model invariance",
+    "limitations": [],
+    "evidence": [
+      "footnote-flow-before.log",
+      "footnote-flow-reserve-final.log",
+      "row-notes-regression.log"
+    ]
+  },
+  "nativePictures": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "saves": 2,
+    "preserved": [
+      "body paper coordinates and size",
+      "behind/in-front and square/top-and-bottom wrap",
+      "outer margins",
+      "alternative text including inline pictures",
+      "paper coordinates in ordinary and nested cells, including wrapping and vertical alignment"
+    ],
+    "printedCoordinateTolerancePx": 0.2,
+    "limitations": [
+      "paragraph/column anchoring becomes fixed page coordinates",
+      "tight/through wrapping becomes rectangular",
+      "floating tables and complex cell shapes remain pending"
+    ],
+    "evidence": [
+      "tests/hwp-floating-export.spec.ts",
+      "tests/hwp-editing.test.cjs",
+      "tests/hwp-floating-cells.spec.ts"
+    ]
+  },
+  "sourceBodyStreamAudit": {
+    "samples": 10,
+    "sourceCharacters": 218797,
+    "identical": 10,
+    "includes": [
+      "short fragments",
+      "multiplicity",
+      "logical order"
+    ],
+    "normalization": [
+      "whitespace",
+      "U+F081C -> U+2508",
+      "U+F012B -> (인)"
+    ],
+    "evidence": "tests/hwp-source-text-audit.json",
+    "limitations": [
+      "native source parser shared",
+      "separate stories/drawings/fields and full visual audit pending"
+    ]
+  },
+  "crossPlatformValidation": {
+    "windowsFocused": {
+      "runId": 40385723320,
+      "commit": "9f42afc",
+      "result": "passed"
+    },
+    "fullInstallValidation": {
+      "runId": 40385947659,
+      "commit": "9f42afc",
+      "result": "passed",
+      "windowsBrowserTests": 246,
+      "nativeTestsPerOS": 81,
+      "systems": [
+        "Windows",
+        "Ubuntu 22.04",
+        "Ubuntu 24.04"
+      ],
+      "checks": [
+        "installed app",
+        "HWP view/edit",
+        "reinstall",
+        "uninstall",
+        "user data preservation"
+      ],
+      "scope": "final retained product source including table-exit navigation",
+      "linuxBrowserTests": 246
+    },
+    "actualMicrosoftWord": "unavailable",
+    "actualHancom": "unavailable"
+  },
+  "inlineTableSpacing": {
+    "status": "fixed_prefix_suffix_and_horizontal_position",
+    "browserTests": 2,
+    "languagePlan": {
+      "editorPages": 35,
+      "printPages": 35,
+      "zooms": [
+        100,
+        50,
+        125,
+        200,
+        100
+      ],
+      "marginLineRects": 0,
+      "docxPages": [
+        35,
+        35,
+        35
+      ],
+      "matchingLongParagraphPageStarts": 35,
+      "remaining": "short title table page starts, inline object line leading and font metrics",
+      "scope": "Historical checkpoint before restored inline-object leading; current validated count is 36, recorded in samples/formattingCheckpoint."
+    }
+  },
+  "richVerticalMerges": {
+    "cases": 15,
+    "zooms": [
+      100,
+      50,
+      125,
+      200,
+      100
+    ],
+    "docxSaves": 2,
+    "alignment": [
+      "top",
+      "middle",
+      "bottom"
+    ],
+    "scenarios": [
+      "multiple paragraphs and inline image",
+      "wrapping paragraphs",
+      "four pages",
+      "paragraph margins",
+      "one long paragraph"
+    ],
+    "editorPrintTextYTolerancePx": 1,
+    "postRoundtripFixRegressionTests": 31,
+    "evidence": [
+      "merged-rich-before.log",
+      "merged-docx-after.log"
+    ],
+    "limitations": [
+      "own notes inside merges and nested tables inside merged cells remain unsupported by this flow path"
+    ]
+  },
+  "formattingCheckpoint": {
+    "coreVersion": "0.8.7-wordstudio.4",
+    "cellPadding": "inherit table defaults unless active; preserve explicit zero",
+    "blankCellParagraphs": "source slots and formats preserved across nested tables",
+    "fixedLeading": "native doubled units and last-wins CSS cascade",
+    "inlineTableTail": "same-line suffix placed beside the final table line",
+    "docxTableBoundary": "standard paragraph style distinguishes structural gap from genuine blank paragraphs",
+    "columnFlow": "CSS column row fragmentation is never moved as a second atomic page block",
+    "native": {
+      "passed": true,
+      "rendererErrors": [],
+      "results": [
+        {
+          "id": "02-work-rules",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 164,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 8520
+            },
+            {
+              "zoom": 50,
+              "pages": 164,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 8520
+            },
+            {
+              "zoom": 125,
+              "pages": 164,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 8520
+            },
+            {
+              "zoom": 200,
+              "pages": 164,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 8520
+            },
+            {
+              "zoom": 100,
+              "pages": 164,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 8520
+            }
+          ],
+          "printPages": 164
+        },
+        {
+          "id": "04-language-plan",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 36,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3147
+            },
+            {
+              "zoom": 50,
+              "pages": 36,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3146
+            },
+            {
+              "zoom": 125,
+              "pages": 36,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3148
+            },
+            {
+              "zoom": 200,
+              "pages": 36,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3148
+            },
+            {
+              "zoom": 100,
+              "pages": 36,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3147
+            }
+          ],
+          "printPages": 36
+        },
+        {
+          "id": "05-return-form",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 1,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 64
+            },
+            {
+              "zoom": 50,
+              "pages": 1,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 64
+            },
+            {
+              "zoom": 125,
+              "pages": 1,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 64
+            },
+            {
+              "zoom": 200,
+              "pages": 1,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 64
+            },
+            {
+              "zoom": 100,
+              "pages": 1,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 64
+            }
+          ],
+          "printPages": 1
+        },
+        {
+          "id": "06-mixed-document",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 40,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3190
+            },
+            {
+              "zoom": 50,
+              "pages": 40,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3190
+            },
+            {
+              "zoom": 125,
+              "pages": 40,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3190
+            },
+            {
+              "zoom": 200,
+              "pages": 40,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3190
+            },
+            {
+              "zoom": 100,
+              "pages": 40,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 3190
+            }
+          ],
+          "printPages": 40
+        },
+        {
+          "id": "07-english-exam",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 9,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 2,
+              "totalTextLineRects": 1042
+            },
+            {
+              "zoom": 50,
+              "pages": 9,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 2,
+              "totalTextLineRects": 1042
+            },
+            {
+              "zoom": 125,
+              "pages": 9,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 2,
+              "totalTextLineRects": 1042
+            },
+            {
+              "zoom": 200,
+              "pages": 9,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 2,
+              "totalTextLineRects": 1042
+            },
+            {
+              "zoom": 100,
+              "pages": 9,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 2,
+              "totalTextLineRects": 1042
+            }
+          ],
+          "printPages": 9
+        },
+        {
+          "id": "08-math-exam",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 20,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 945
+            },
+            {
+              "zoom": 50,
+              "pages": 20,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 945
+            },
+            {
+              "zoom": 125,
+              "pages": 20,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 945
+            },
+            {
+              "zoom": 200,
+              "pages": 20,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 945
+            },
+            {
+              "zoom": 100,
+              "pages": 20,
+              "marginLineRects": 0,
+              "anchoredMarginLineRects": 0,
+              "totalTextLineRects": 945
+            }
+          ],
+          "printPages": 20
+        }
+      ]
+    },
+    "patchReproducibility": "All four patches apply in sequence to pinned source; all 10 resulting files equal the compiled checkout."
+  },
+  "finalCheckpoint": {
+    "date": "2026-10-28",
+    "productSourceEquivalentTo": "9f42afc",
+    "scope": "User requested a reasonable stopping point and integration; unchecked plan items remain follow-ups.",
+    "deferredSingleColumnBreakExperiment": {
+      "commit": "efefee7",
+      "revertedBy": "3aa8331",
+      "syntheticTestsPassed": true,
+      "windowsFocusedRun": 40647959513,
+      "reason": "Actual Mac language plan editor 37 pages / print 36; trailing empty paragraph creates an editor-only page.",
+      "evidence": [
+        "native-single-column-experiment.log",
+        "single-column-corpus-diff.json"
+      ]
+    },
+    "nativeDocuments": 6,
+    "zoomChecks": 30,
+    "rendererErrors": []
+  }
+}

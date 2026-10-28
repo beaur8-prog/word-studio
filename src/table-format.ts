@@ -8,6 +8,7 @@ export const cellStyleProperties = {
   borderTop: 'border-top', borderRight: 'border-right', borderBottom: 'border-bottom', borderLeft: 'border-left',
   paddingTop: 'padding-top', paddingRight: 'padding-right', paddingBottom: 'padding-bottom', paddingLeft: 'padding-left',
   fontFamily: 'font-family', fontSize: 'font-size', textColor: 'color',
+  whiteSpace: 'white-space',
 } as const;
 export type CellStyle = keyof typeof cellStyleProperties;
 
@@ -22,7 +23,8 @@ export function cellStyleValue(name: CellStyle, value: unknown): string | null {
 export const CellAppearance = Extension.create({
   name: 'cellAppearance',
   addGlobalAttributes() {
-    return [{ types: ['tableCell', 'tableHeader'], attributes: Object.fromEntries(
+    return [{ types: ['tableCell', 'tableHeader'], attributes: { cellSplit: { default: null, parseHTML: (el: HTMLElement) => el.dataset.cellSplit === 'allow' ? 'allow' : null,
+      renderHTML: (a: Record<string, unknown>) => a.cellSplit === 'allow' ? { 'data-cell-split': 'allow' } : {} }, ...Object.fromEntries(
       Object.entries(cellStyleProperties).map(([name, property]) => [name, {
         default: null,
         parseHTML: (el: HTMLElement) => cellStyleValue(name as CellStyle, el.style.getPropertyValue(property)),
@@ -31,7 +33,7 @@ export const CellAppearance = Extension.create({
           return value ? { style: `${property}:${value}` } : {};
         },
       }]),
-    ) }];
+    ) } }];
   },
 });
 

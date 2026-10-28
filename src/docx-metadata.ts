@@ -1,11 +1,14 @@
 import type JSZip from 'jszip';
-import { pageMargins, type Comment, type PageSettings } from './types';
+import { pageMargins, paperDimensions, type Comment, type PageSettings } from './types';
 import { W, all, val, child, ancestor, docxFormat } from './docx-format';
 import { overlapInstruction } from './word-overlap';
 import { symbolFont, symbolElement } from './document-symbols';
 import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
+// A standard paragraph style identifies the otherwise invisible separator
+// required by Word between adjacent tables and after a table inside a cell.
+export const TABLE_GAP_STYLE = 'WordStudioTableGap';
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
@@ -108,9 +111,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     const end = `ws_marker_${sequence}`;
     markers.set(end, { kind: 'runEnd' }); run.after(bookmark(end));
   }
-  for (const br of all(body, 'br').filter(el => val(el, 'type') === 'page')) {
+  for (const br of all(body, 'br').filter(el => ['page', 'column'].includes(val(el, 'type')))) {
     const name = `ws_marker_${sequence}`;
-    markers.set(name, { kind: 'pageBreak' }); br.replaceWith(bookmark(name));
+    markers.set(name, { kind: val(br, 'type') === 'column' ? 'columnBreak' : 'pageBreak' }); br.replaceWith(bookmark(name));
   }
   let section = 0;
   for (const paragraph of all(body, 'p')) {
@@ -133,6 +136,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       template.innerHTML = html.replace(/<a\s+id="(ws_marker_\d+)"\s*><\/a>/g, '<span data-ws-marker="$1"></span>')
         .replace(/<a\s+id="([^"]+)"\s*><\/a>/g, '<span data-docx-bookmark="$1"></span>');
       const sizedTables = new Map<HTMLTableElement, Element>();
+      const tableGaps = new Map<HTMLElement, number>();
       for (const el of template.content.querySelectorAll('img')) {
         const name = el.getAttribute('alt') || '', marker = markers.get(name);
         if (marker?.kind !== 'image') continue;
@@ -169,10 +173,29 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           if (sourceTable && table && !sizedTables.has(table)) {
             sizedTables.set(table, sourceTable);
             table.style.marginLeft = `${Number(val(child(child(sourceTable, 'tblPr'), 'tblInd'), 'w')) / 15}px`;
+            const alignment = val(child(child(sourceTable, 'tblPr'), 'jc'), 'val');
+            if (['center', 'right', 'end'].includes(alignment)) {
+              table.style.marginLeft = 'auto'; table.style.marginRight = alignment === 'center' ? 'auto' : '0px';
+            }
             table.style.marginBottom = '0px';
+            const floating = child(child(sourceTable, 'tblPr'), 'tblpPr');
+            // Page-relative tables spanning the text area can wrap only above
+            // and below. Narrow/sided floats require a separate wrap layout.
+            const grid = child(sourceTable, 'tblGrid');
+            const gridWidth = (grid ? all(grid, 'gridCol') : []).reduce((sum, col) => sum + Number(val(col, 'w')), 0) / 15;
+            const page = pages[0], margins = pageMargins(page), bodyWidth = (paperDimensions(page)[0] - margins.left - margins.right) * 96 / 25.4;
+            if (floating && val(floating, 'horzAnchor') === 'page' && val(floating, 'vertAnchor') === 'page' &&
+              !val(floating, 'tblpXSpec') && !val(floating, 'tblpYSpec') && gridWidth >= bodyWidth * .8)
+              table.dataset.tableAnchor = JSON.stringify({ x: Number(val(floating, 'tblpX')) / 15, y: Number(val(floating, 'tblpY')) / 15, bottom: Number(val(floating, 'bottomFromText')) / 15 });
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
+        const properties = child(marker.paragraph, 'pPr');
+        if (val(child(properties, 'pStyle')) === TABLE_GAP_STYLE &&
+            Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark'))) {
+          const spacing = child(properties, 'spacing');
+          if (val(spacing, 'lineRule') === 'exact') tableGaps.set(p, Math.max(0, Number(val(spacing, 'line')) / 15));
+        }
         p.setAttribute('data-word-line-rule', format.lineRule(marker.paragraph));
         const tabs = format.tabs(marker.paragraph);
         if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
@@ -196,6 +219,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const rows = all(sourceTable, 'tr').filter(row => ancestor(row, 'tbl') === sourceTable);
         if (rows.length !== table.rows.length) continue;
         rows.forEach((source, index) => {
+          const split = child(child(source, 'trPr'), 'cantSplit');
+          if (split) table.rows[index].dataset.rowSplit = ['0', 'false', 'off'].includes(val(split)) ? 'allow' : 'avoid';
           const property = child(child(source, 'trPr'), 'trHeight'), height = Number(val(property));
           if (height <= 0 || val(property, 'hRule') === 'auto') return;
           const row = table.rows[index], exact = val(property, 'hRule') === 'exact';
@@ -214,6 +239,11 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           row.dataset.wordRowRule = exact ? 'exact' : 'atLeast';
         });
       }
+      // An explicit cantSplit=false across the whole merge preserves its
+      // permission to continue. Missing/default policy is not new evidence.
+      for (const table of sizedTables.keys()) for (const [index, row] of [...table.rows].entries()) for (const cell of [...row.cells]) {
+        if (cell.rowSpan > 1 && [...table.rows].slice(index, index + cell.rowSpan).every(r => r.dataset.rowSplit === 'allow' && r.dataset.wordRowRule !== 'exact')) cell.dataset.cellSplit = 'allow';
+      }
       // Resolve preferred widths in their containing text area. Process outer
       // tables first so nested percentages use the actual padded parent cell.
       for (const table of template.content.querySelectorAll<HTMLTableElement>('table')) {
@@ -224,17 +254,17 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const parent = table.parentElement?.closest<HTMLTableCellElement>('td,th');
         const parentWidth = parent?.getAttribute('colwidth')?.split(',').reduce((n, s) => n + Number(s), 0);
         const available = Math.max(1, parentWidth ? parentWidth - (parseFloat(parent!.style.paddingLeft) || 0) - (parseFloat(parent!.style.paddingRight) || 0) - 2
-          : page && margins ? ((page.orientation === 'landscape' ? (page.size === 'Letter' ? 279.4 : 297) : (page.size === 'Letter' ? 215.9 : 210)) - margins.left - margins.right) * 96 / 25.4 - Math.max(0, parseFloat(table.style.marginLeft) || 0) - 1 : 624);
+          : page && margins ? (paperDimensions(page)[0] - margins.left - margins.right) * 96 / 25.4 - Math.max(0, parseFloat(table.style.marginLeft) || 0) - 1 : 624);
         const grid = Array.from(child(source, 'tblGrid')?.children ?? []).map(c => Number(val(c, 'w')) / 15);
         const total = grid.reduce((n, w) => n + w, 0); if (!total || !grid.every(n => n > 0)) continue;
         const preferred = child(child(source, 'tblPr'), 'tblW');
-        const requested = val(preferred, 'type') === 'pct' && Number(val(preferred, 'w')) > 0 ? available * Number(val(preferred, 'w')) / 5000 : total;
         const borderPixels = (value: string) => (parseFloat(value) || 0) * (value.endsWith('pt') ? 4 / 3 : 1);
         const cells = [...table.querySelectorAll<HTMLTableCellElement>('td,th')].filter(cell => cell.closest('table') === table);
         // Collapsed outer strokes extend beyond the sum of colgroup widths.
         const borderReserve = (Math.max(0, ...cells.map(cell => borderPixels(cell.style.borderLeftWidth))) + Math.max(0, ...cells.map(cell => borderPixels(cell.style.borderRightWidth)))) / 2;
         const count = page?.columns?.count || 1;
         const columnWidth = parent ? available : (available - (count - 1) * (page?.columns?.space || 0)) / count;
+        const requested = val(preferred, 'type') === 'pct' && Number(val(preferred, 'w')) > 0 ? columnWidth * Number(val(preferred, 'w')) / 5000 : total;
         const target = Math.min(columnWidth - borderReserve, requested);
         if (Math.abs(target - total) < 1) continue;
         for (const cell of table.querySelectorAll<HTMLTableCellElement>('td[colwidth],th[colwidth]')) {
@@ -251,7 +281,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       for (const item of items) {
         if (item instanceof HTMLElement && markers.has(item.getAttribute('data-ws-marker')!)) {
           const marker = markers.get(item.getAttribute('data-ws-marker')!)!;
-          if (marker.kind === 'pageBreak') continue;
+          if (marker.kind === 'pageBreak' || marker.kind === 'columnBreak') continue;
           if (marker.kind === 'overlap') {
             const span = document.createElement('span'); span.dataset.wordOverlap = JSON.stringify(marker.parts);
             span.style.cssText = marker.style || ''; span.textContent = marker.parts!.join('');
@@ -293,15 +323,39 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         }
       }
       for (const anchor of template.content.querySelectorAll('[data-ws-marker]')) {
-        if (markers.get(anchor.getAttribute('data-ws-marker')!)?.kind !== 'pageBreak') continue;
+        const kind = markers.get(anchor.getAttribute('data-ws-marker')!)?.kind;
+        if (kind !== 'pageBreak' && kind !== 'columnBreak') continue;
         const p = anchor.closest('p,h1,h2,h3,h4,h5,h6');
         if (!p) { anchor.remove(); continue; }
         const range = document.createRange(); range.selectNodeContents(p); range.setStartAfter(anchor);
         const after = p.cloneNode(false); after.appendChild(range.extractContents()); anchor.remove();
-        const pageBreak = document.createElement('div'); pageBreak.setAttribute('data-page-break', 'true');
+        const pageBreak = document.createElement('div'); pageBreak.setAttribute(kind === 'columnBreak' ? 'data-column-break' : 'data-page-break', 'true');
         p.after(pageBreak);
         if (after.textContent || (after as Element).querySelector('img,br')) pageBreak.after(after);
         if (!p.textContent && !p.querySelector('img,br')) p.remove();
+      }
+      // Restore our structural table separators to margins. Leaving them as
+      // body paragraphs can create an otherwise empty page after a full table.
+      // An ordinary blank paragraph, or a separator edited to contain content,
+      // remains an ordinary paragraph.
+      for (const [p, gap] of tableGaps) {
+        const table = p.previousElementSibling as HTMLElement | null;
+        if (table?.tagName !== 'TABLE' || p.textContent || p.children.length) continue;
+        if (p.nextElementSibling?.tagName !== 'TABLE' && !(p.parentElement?.matches('td,th') && !p.nextElementSibling)) continue;
+        table.style.marginBottom = `${gap <= 1 / 15 ? 0 : gap}px`;
+        p.remove();
+      }
+      // An inline table's following-paragraph spacing represents the gap
+      // after the table. Keep it with that table when the next paragraph
+      // flows onto a new page. Explicit breaks above have already inserted
+      // a separate node, so their intentional top spacing stays untouched.
+      for (const table of template.content.querySelectorAll<HTMLTableElement>('table')) {
+        const next = table.nextElementSibling as HTMLElement | null;
+        if (!next?.matches('p,h1,h2,h3,h4,h5,h6')) continue;
+        const gap = parseFloat(next.style.marginTop);
+        if (!(gap > 0)) continue;
+        table.style.marginBottom = `${Math.max(parseFloat(table.style.marginBottom) || 0, gap)}px`;
+        next.style.marginTop = '0px';
       }
       return template.innerHTML;
     },

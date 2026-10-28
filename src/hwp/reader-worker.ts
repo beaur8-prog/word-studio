@@ -4,8 +4,10 @@ import JSZip from 'jszip';
 import { editableHwp, serializeHwp, hwpHtmlBytes } from './conversion';
 import documentLimits from '../../electron/document-limits.json';
 import type { HwpProgressReporter } from './progress';
+import { readHwpLayoutMetadata, type HwpLayoutMetadata } from './layout-metadata';
 
 let document: HwpDocument | undefined;
+let layoutMetadata: HwpLayoutMetadata | undefined;
 const ready = init({ module_or_path: fetch(wasmUrl).then(response => {
   if (!response.ok) throw new Error('HWP 읽기 모듈을 불러오지 못했습니다.');
   return response.arrayBuffer();
@@ -45,6 +47,8 @@ scope.onmessage = async ({ data }) => {
       const info = JSON.parse(document.getDocumentInfo());
       const count = document.pageCount();
       if (!count || count > 1000) throw new Error('1,000쪽 이하의 문서를 선택하세요.');
+      progress({ label: '원본의 쪽·단 나누기를 확인하는 중…' });
+      layoutMetadata = await readHwpLayoutMetadata(bytes, data.extension === 'hwpx');
       const pages = Array.from({ length: count }, (_, number) => {
         const { width, height } = JSON.parse(document!.getPageInfo(number));
         if (![width, height].every(value => Number.isFinite(value) && value >= 50 && value <= 5000)) throw new Error('지원하지 않는 HWP 용지 크기입니다.');
@@ -70,7 +74,7 @@ scope.onmessage = async ({ data }) => {
           result = { svg, text };
         }
       } else if (action === 'editable') {
-        const editable = editableHwp(document, progress);
+        const editable = editableHwp(document, progress, layoutMetadata);
         progress({ label: '변환한 본문과 그림을 편집 화면으로 보내는 중…' });
         const htmlBytes = new TextEncoder().encode(editable.html).buffer;
         result = { page: editable.page, warnings: editable.warnings, htmlBytes }; transfer.push(htmlBytes);

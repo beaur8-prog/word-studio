@@ -1,3 +1,5 @@
+import { documentScale } from './document-scale';
+import { layoutFurnitureImages } from './furniture-layout';
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 const escapeHtml = (text: string) => { const el = document.createElement('span'); el.textContent = text; return el.innerHTML; };
@@ -74,7 +76,7 @@ import { HwpProgressPanel } from './hwp/ProgressPanel';
 import { paintHwpProgress, type HwpOperation, type HwpProgressReporter } from './hwp/progress';
 import type { EditableHwp } from './hwp/conversion';
 import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
-import { defaultPage, pageMargins, pageFurniture } from "./types";
+import { defaultPage, pageMargins, pageFurniture, paperSize } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
 import type { StudioDocument, PageSettings, Comment } from "./types";
@@ -333,6 +335,7 @@ export default function App() {
     [darkPaper, setDarkPaper] = useState(false),
     [zoom, setZoom] = useState(100),
     [pages, setPages] = useState(1),
+    [paperStories, setPaperStories] = useState<{ index: number; raw: string; settings: PageSettings }[]>([]),
     [currentPage, setCurrentPage] = useState(1),
     [ruler, setRuler] = useState(true),
     [navigation, setNavigation] = useState(false),
@@ -478,8 +481,36 @@ export default function App() {
     let frame = 0;
     const update = () => {
       cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
+        const root = editor.view.dom, origin = root.getBoundingClientRect().top, scale = documentScale(root);
+        const stride = (Number(stack.dataset.pageHeight) || 1122.52) + 24, top = Number(stack.dataset.margin) || 0;
+        const changes = [...root.querySelectorAll<HTMLElement>('.section-break[data-section-page]')].flatMap(marker => {
+          try { const raw = marker.dataset.sectionPage!, settings = JSON.parse(raw) as PageSettings;
+            const box = marker.getBoundingClientRect();
+            // A page/odd/even section marker includes the gap to its new
+            // sheet. Its stories begin after that gap, not on the old page.
+            const edge = settings.breakType === 'continuous' ? box.top : box.bottom;
+            const index = Math.max(0, Math.floor(((edge - origin) / scale - top + .5) / stride));
+            return [{ index, raw, settings }];
+          } catch { return []; }
+        });
+        setPaperStories(previous => previous.length === changes.length && previous.every((p, i) => p.index === changes[i].index && p.raw === changes[i].raw) ? previous : changes);
+      });
+    };
+    stack.addEventListener('pagecount', update); update();
+    return () => { cancelAnimationFrame(frame); stack.removeEventListener('pagecount', update); };
+  }, [editor, page, pages]);
+  const furnitureForPaper = (index: number) => {
+    const change = paperStories.filter(item => item.index <= index).at(-1);
+    return pageFurniture(change?.settings ?? page, index + 1, index === (change?.index ?? 0));
+  };
+  useEffect(() => {
+    const stack = stackRef.current; if (!stack || !editor) return;
+    let frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
+        stack.querySelectorAll<HTMLElement>('.paper').forEach(layoutFurnitureImages);
         const margins = pageMargins(page), px = 96 / 25.4;
-        const scale = stack.getBoundingClientRect().width / stack.offsetWidth || 1;
+        const scale = documentScale(stack);
         const occupied = (selector: string, distance: number) => Math.max(0, ...[...stack.querySelectorAll<HTMLElement>(selector)].map(el =>
           el.textContent?.trim() || el.querySelector('img,table') ? distance * px + el.getBoundingClientRect().height / scale + 2 : 0));
         const top = Math.max(margins.top * px, occupied('.paper-header', page.headerDistance ?? Math.max(0, margins.top / 2 - 3)));
@@ -496,7 +527,7 @@ export default function App() {
     stack.querySelectorAll('.paper-header,.paper-footer').forEach(el => observer.observe(el));
     update(); document.fonts.addEventListener('loadingdone', update);
     return () => { cancelAnimationFrame(frame); observer.disconnect(); document.fonts.removeEventListener('loadingdone', update); };
-  }, [editor, page, pages]);
+  }, [editor, page, pages, paperStories]);
   useEffect(() => {
     if (editor)
       requestAnimationFrame(() =>
@@ -910,7 +941,7 @@ export default function App() {
         .run();
     reader.readAsDataURL(file);
   };
-  const dims = page.size === "A4" ? [793.7, 1122.52] : [816, 1056],
+  const dims = paperSize(page).map(n => Math.round(n * 96 / 25.4 * 100) / 100),
     pageWidth = page.orientation === "portrait" ? dims[0] : dims[1],
     pageHeight = page.orientation === "portrait" ? dims[1] : dims[0],
     margin = (pageMargins(page).top * 96) / 25.4;
@@ -2122,7 +2153,7 @@ export default function App() {
                           right: margins.right * 96 / 25.4,
                           top: page.headerDistance !== undefined ? page.headerDistance * 96 / 25.4 : Math.max(12, margin / 2 - 8),
                         }}
-                        dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(pageFurniture(page, i + 1).headerHtml || `<p>${escapeHtml(pageFurniture(page, i + 1).header)}</p>`).html }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(furnitureForPaper(i).headerHtml || `<p>${escapeHtml(furnitureForPaper(i).header)}</p>`).html }}
                       />
                       <div
                         className="paper-footer"
@@ -2132,8 +2163,8 @@ export default function App() {
                           bottom: page.footerDistance !== undefined ? page.footerDistance * 96 / 25.4 : Math.max(12, margins.bottom * 96 / 25.4 / 2 - 8),
                         }}
                       >
-                        <div className="document-furniture" dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(pageFurniture(page, i + 1).footerHtml || `<p>${escapeHtml(pageFurniture(page, i + 1).footer)}</p>`).html }} />
-                        {pageFurniture(page, i + 1).pageNumbers && !/data-page-number/.test((pageFurniture(page, i + 1).headerHtml || '') + (pageFurniture(page, i + 1).footerHtml || '')) && <span>{i + 1}</span>}
+                        <div className="document-furniture" dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(furnitureForPaper(i).footerHtml || `<p>${escapeHtml(furnitureForPaper(i).footer)}</p>`).html }} />
+                        {furnitureForPaper(i).pageNumbers && !/data-page-number/.test((furnitureForPaper(i).headerHtml || '') + (furnitureForPaper(i).footerHtml || '')) && <span>{i + 1}</span>}
                       </div>
                     </div>
                   ))}

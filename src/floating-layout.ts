@@ -201,7 +201,9 @@ function imagePosition(
     py = sr.top + page * (ph + 24);
   const leftMargin = parseFloat(rootStyle.paddingLeft) || parseFloat(root.style.left) || 0;
   const rightMargin = parseFloat(rootStyle.paddingRight) || leftMargin;
-  const column = group
+  const cell = p.closest<HTMLElement>("td,th");
+  const cellStyle = cell ? getComputedStyle(cell) : undefined;
+  const column = cell ? cell.getBoundingClientRect().left + (parseFloat(cellStyle!.paddingLeft) || 0) : group
     ? group.getBoundingClientRect().left +
       Math.floor(
         (rect.left - group.getBoundingClientRect().left + 0.5) /
@@ -222,6 +224,8 @@ function imagePosition(
   const hwidth =
     horizontal.relative === "page"
       ? sheet.clientWidth
+      : horizontal.relative === "column" && cell
+        ? cell.getBoundingClientRect().width - (parseFloat(cellStyle!.paddingLeft) || 0) - (parseFloat(cellStyle!.paddingRight) || 0)
       : horizontal.relative === "column" && group
         ? (group.clientWidth -
             (Number(group.dataset.columnCount) - 1) * Number(group.dataset.columnSpace)) /
@@ -261,7 +265,7 @@ function imagePosition(
     margin: "0",
     left: `${left - rect.left}px`,
     top: `${y - rect.top}px`,
-    zIndex: g.behindDocument ? "0" : "1",
+    zIndex: g.behindDocument ? "-1" : "1",
   });
   return {
     index,
@@ -329,6 +333,11 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
         const i = pictures.findIndex((v) => v.index === picture.index);
         if (i >= 0) pictures[i] = picture;
       }
+      // Behind/in-front artwork needs positioning but does not exclude text.
+      // Its often page-sized bounds must not trigger a manual re-layout of
+      // unrelated paragraphs, which changes justification and mixed-font
+      // line endings even though every line still has its full width.
+      const flowing = pictures.filter(pic => pic.geometry.wrap?.type !== 0);
       const style = getComputedStyle(p),
         box = p.getClientRects()[0] || p.getBoundingClientRect();
       const lh = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3,
@@ -345,12 +354,13 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       let x = box.left,
         y = box.top;
       const relevant = () =>
-        pictures.some((pic) => exclusion(pic, y, lh).some(([a, b]) => b > x && a < x + width));
+        flowing.some((pic) => exclusion(pic, y, lh).some(([a, b]) => b > x && a < x + width));
       if (
-        !own.length &&
-        !pictures.some((pic) => pic.top + pic.height >= y - 0.5 && pic.top < box.bottom + 0.5)
-      )
+        !flowing.some((pic) => pic.top + pic.height >= y - 0.5 && pic.top < box.bottom + 0.5)
+      ) {
+        if (own.length) result.push({ index: pi, widgets: [], pictures: own });
         continue;
+      }
       const tokens = units(p),
         widgets: Widget[] = [],
         cache = new Map<string, { width: number; height: number }>();
@@ -431,7 +441,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
           !relevant() &&
           y >
             Math.max(
-              ...pictures.map(
+              ...flowing.map(
                 (pic) => pic.top + pic.height + (pic.geometry.margins?.bottom || 0) / 9525,
               ),
             )
@@ -444,7 +454,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
         let lineHeight = metrics(start, fit(start, end, width - indent)).height;
         const arrange = (height: number) => {
           const lineWidgets: Widget[] = [];
-          const spans = slots(pictures, x + indent, y, width - indent, height);
+          const spans = slots(flowing, x + indent, y, width - indent, height);
           let nextStart = lineStart,
             cursor = x + indent;
           for (const [left, right] of spans) {
@@ -487,7 +497,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
           const jump = Math.max(
             lineHeight,
             Math.min(
-              ...pictures
+              ...flowing
                 .filter((pic) => pic.top + pic.height > y)
                 .map(
                   (pic) => pic.top + pic.height - y + (pic.geometry.margins?.bottom || 0) / 9525,
@@ -533,6 +543,11 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       insertWidgets(p, widgets);
       result.push({ index: pi, widgets, pictures: own });
     }
+    // Flow widgets can change a vertically aligned cell's content height and
+    // move its anchor paragraph. Resolve absolute picture offsets against
+    // that final geometry, not the paragraph's pre-wrap position.
+    for (const paragraph of result) paragraph.pictures = paragraph.pictures.map(picture =>
+      imagePosition(images[picture.index], picture.index, copy) || picture);
     return result;
   } finally {
     host.remove();
@@ -550,10 +565,11 @@ export function applyFloatingLayout(root: HTMLElement) {
     for (const picture of paragraph.pictures) {
       const img = images[picture.index];
       const own = imagePosition(img, picture.index, root);
-      if (own) img.style.zIndex = own.geometry.behindDocument ? "0" : "1";
+      if (own) img.style.zIndex = own.geometry.behindDocument ? "-1" : "1";
     }
     insertWidgets(p, paragraph.widgets);
   }
+  images.forEach((img, index) => imagePosition(img, index, root));
 }
 
 const key = new PluginKey("floatingLayout");
@@ -613,7 +629,7 @@ export const FloatingLayout = Extension.create({
                   );
                   if (!token) continue;
                   const g = picture.geometry;
-                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${picture.cssTop}px;z-index:${g.behindDocument ? 0 : 1}`;
+                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${picture.cssTop}px;z-index:${g.behindDocument ? -1 : 1}`;
                   decorations.push(
                     Decoration.node(position + 1 + token.from, position + 1 + token.to, { style }),
                   );

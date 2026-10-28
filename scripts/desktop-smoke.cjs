@@ -26,7 +26,7 @@ async function run() {
     // at the same viewport as the browser suite on every host.
     await window.setViewportSize({ width: 1440, height: 1000 });
     const errors = []; window.on('pageerror', error => errors.push(error.message));
-    await window.locator('.tiptap').fill('FORMAT SAVE ROUNDTRIP 형식 저장 확인');
+    await window.locator('.tiptap[role="textbox"]').fill('FORMAT SAVE ROUNDTRIP 형식 저장 확인');
     const docxCopy = path.join(directory, 'word-compatible.docx');
     const editingCopy = path.join(directory, 'editing-copy.wordstudio');
     await app.evaluate(({ dialog }, paths) => {
@@ -54,7 +54,7 @@ async function run() {
     await window.keyboard.press('ControlOrMeta+o');
     await expect(window.getByRole('textbox', { name: '문서 제목' })).toHaveValue('word-compatible');
     assert.equal(await app.evaluate(() => globalThis.fileOpenOptions.defaultPath), directory);
-    await expect(window.locator('.tiptap')).toHaveText('FORMAT SAVE ROUNDTRIP 형식 저장 확인');
+    await expect(window.locator('.tiptap[role="textbox"]')).toHaveText('FORMAT SAVE ROUNDTRIP 형식 저장 확인');
     await window.keyboard.press('ControlOrMeta+s');
     await expect(window.getByText('편집본 (.wordstudio)을 저장했습니다', { exact: true })).toBeVisible();
     const editingOptions = await app.evaluate(() => globalThis.formatSaveOptions);
@@ -73,16 +73,17 @@ async function run() {
         return { canceled: false, filePath: paths.pdf };
       };
     }, { fixture, pdf });
-    await window.locator('.tiptap').waitFor();
+    await window.locator('.tiptap[role="textbox"]').waitFor();
     await window.keyboard.press('ControlOrMeta+o');
-    // Pagination inserts aria-hidden spacer rows; count document rows only.
-    await expect(window.locator('.tiptap table tr:not(.pagination-gap)')).toHaveCount(81);
+    // Page overlays repeat headers outside the editable document. Count only
+    // source rows inside the textbox, excluding pagination spacer widgets.
+    await expect(window.locator('.tiptap[role="textbox"] table tr:not(.ProseMirror-widget)')).toHaveCount(81);
     await expect(window.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
     const recovery = await window.evaluate(() => window.wordDesktop.readRecovery());
     assert.ok(recovery.some(record => JSON.parse(record.current).title === 'long-document'));
-    const cells = window.locator('.tiptap tr:not(.pagination-gap) > td,.tiptap tr:not(.pagination-gap) > th');
+    const cells = window.locator('.tiptap[role="textbox"] tr:not(.ProseMirror-widget) > td,.tiptap[role="textbox"] tr:not(.ProseMirror-widget) > th');
     await cells.nth(0).click(); await cells.nth(3).click({ modifiers: ['Shift'] });
-    await expect(window.locator('.tiptap .selectedCell')).toHaveCount(4);
+    await expect(window.locator('.tiptap[role="textbox"] .selectedCell')).toHaveCount(4);
     await cells.nth(1).click({ button: 'right' });
     const tableMenu = window.getByRole('dialog', { name: '표 셀 편집' });
     await expect(tableMenu).toBeVisible();
@@ -94,11 +95,11 @@ async function run() {
     await expect(cells.first()).toHaveCSS('border-top-style', 'dashed');
     await window.screenshot({ path: path.join(directory, 'table-menu.png') });
     await window.keyboard.press('Escape');
-    const firstRow = window.locator('.tiptap tr').first();
+    const firstRow = window.locator('.tiptap[role="textbox"] tr:not(.ProseMirror-widget)').first();
     const rowBounds = await firstRow.boundingBox(), cellBounds = await cells.first().boundingBox();
     const edgeX = cellBounds.x + cellBounds.width / 2, edgeY = cellBounds.y + cellBounds.height - 1;
     await window.mouse.move(edgeX, edgeY);
-    await expect(window.locator('.tiptap')).toHaveClass(/row-resize-cursor/);
+    await expect(window.locator('.tiptap[role="textbox"]')).toHaveClass(/row-resize-cursor/);
     await window.mouse.down(); await window.mouse.move(edgeX, edgeY + 40, { steps: 6 });
     await expect(firstRow).toHaveClass(/row-height-preview/);
     await window.screenshot({ path: path.join(directory, 'row-height-drag.png') });
@@ -135,7 +136,7 @@ async function run() {
     await fs.rename(recoveryDirectory, recoveryBackup);
     await fs.writeFile(recoveryDirectory, 'Deliberately block recovery writes in this test profile.');
     try {
-      await window.locator('.document-stack .tiptap').fill('UNSAVED DESKTOP EDIT');
+      await window.locator('.document-stack .tiptap[role="textbox"]').fill('UNSAVED DESKTOP EDIT');
       await expect(window.getByText('자동 저장 실패 · 파일로 저장하세요', { exact: true })).toBeVisible();
       await app.evaluate(({ dialog }, filename) => {
         dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filename] });
@@ -145,16 +146,16 @@ async function run() {
       await window.keyboard.press('ControlOrMeta+o');
       await expect(warning).toBeVisible();
       await warning.getByRole('button', { name: '취소', exact: true }).click();
-      await expect(window.locator('.document-stack .tiptap')).toHaveText('UNSAVED DESKTOP EDIT');
+      await expect(window.locator('.document-stack .tiptap[role="textbox"]')).toHaveText('UNSAVED DESKTOP EDIT');
       await window.keyboard.press('ControlOrMeta+o');
       await warning.getByRole('button', { name: '파일로 저장 후 계속' }).click();
       await expect(warning.getByRole('alert')).toBeVisible();
-      await expect(window.locator('.document-stack .tiptap')).toHaveText('UNSAVED DESKTOP EDIT');
+      await expect(window.locator('.document-stack .tiptap[role="textbox"]')).toHaveText('UNSAVED DESKTOP EDIT');
       await app.evaluate(({ dialog }, filename) => {
         dialog.showSaveDialog = async () => ({ canceled: false, filePath: filename });
       }, savedCopy);
       await warning.getByRole('button', { name: '파일로 저장 후 계속' }).click();
-      await expect(window.locator('.document-stack .tiptap')).toHaveText('NEXT DOCUMENT');
+      await expect(window.locator('.document-stack .tiptap[role="textbox"]')).toHaveText('NEXT DOCUMENT');
       const copy = JSON.parse(await fs.readFile(savedCopy, 'utf8'));
       assert.ok(JSON.stringify(copy.content).includes('UNSAVED DESKTOP EDIT'));
       await expect(window.getByRole('button', { name: '실행 취소 (Ctrl+Z)', exact: true })).toBeDisabled();

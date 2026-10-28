@@ -33,3 +33,14 @@ Noto Sans Symbols 2, Noto Sans Symbols, Noto Sans Math, Noto Sans Mono, Noto San
 Licensed under the SIL Open Font License, Version 1.1.
 Complete copyright and license notices are in electron/licenses/*-OFL.txt.
 Source paths and SHA-256 checksums are in src/assets/fonts/SOURCES.json.
+
+CFB 1.2.2, crc-32, adler-32
+Source: https://git.sheetjs.com/sheetjs/js-cfb
+CFB Copyright (C) 2013-present SheetJS.
+crc-32 and adler-32 Copyright (C) 2014-present SheetJS.
+Licensed under Apache License, Version 2.0; see electron/licenses/CFB-Apache-2.0.txt.
+
+fflate 0.8.3
+Source: https://github.com/101arrowz/fflate
+Copyright (c) 2026 Arjun Barrett.
+Licensed under MIT; see electron/licenses/fflate-MIT.txt.

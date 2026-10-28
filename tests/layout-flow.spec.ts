@@ -13,6 +13,36 @@ const paragraph = (text: string) => ({
   attrs: { lineSpacing: "20px", spaceAfter: "0px" },
   content: [{ type: "text", text }],
 });
+
+for (const behindDocument of [true, false]) test(`non-wrapping ${behindDocument ? 'background' : 'foreground'} art preserves mixed-font text and native line wrapping`, async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async behindDocument => {
+    const { applyFloatingLayout } = await import('/src/floating-layout.ts');
+    const root = document.createElement('div'); root.className = 'tiptap';
+    root.style.cssText = 'position:fixed;left:-10000px;top:0;width:420px;padding:0;min-height:0';
+    const image = document.createElement('img'); image.width = 5; image.height = 800;
+    image.style.cssText = 'position:absolute';
+    image.dataset.imageFloating = JSON.stringify({ horizontalPosition: { relative: 'column', offset: 200 * 9525 }, verticalPosition: { relative: 'paragraph', offset: 0 }, wrap: { type: 0 }, behindDocument });
+    const anchor = document.createElement('p'); anchor.style.cssText = 'line-height:1px;font-size:1px;margin:0'; anchor.append(image); root.append(anchor);
+    for (const align of ['left', 'center', 'right', 'justify']) {
+      const p = document.createElement('p'); p.style.cssText = `font-family:Times New Roman;font-size:16px;line-height:23px;text-align:${align};margin:0`;
+      p.innerHTML = ('Mixed <span style="font-size:20px">LARGER</span> text, punctuation and words. ').repeat(8); root.append(p);
+    }
+    document.body.append(root); await document.fonts.ready;
+    const measure = () => [...root.querySelectorAll('p')].slice(1).map(p => {
+      const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT), rects = [];
+      while (walker.nextNode()) {
+        const range = document.createRange(); range.selectNodeContents(walker.currentNode);
+        rects.push(...[...range.getClientRects()].map(r => [r.x, r.y, r.width, r.height]));
+      }
+      return { height: p.getBoundingClientRect().height, rects };
+    });
+    try { const before = measure(); applyFloatingLayout(root); return { before, after: measure(), positioned: image.style.position }; }
+    finally { root.remove(); }
+  }, behindDocument);
+  expect(result.positioned).toBe('absolute');
+  expect(result.after).toEqual(result.before);
+});
 async function open(page: Page, content: unknown[]) {
   await page.goto("/");
   const doc = {

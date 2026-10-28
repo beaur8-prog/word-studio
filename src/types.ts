@@ -1,6 +1,9 @@
 import type { JSONContent } from "@tiptap/react";
 export interface PageSettings {
-  size: "A4" | "Letter";
+  size: "A4" | "Letter" | "Custom";
+  /** Unrotated physical paper dimensions in millimetres. */
+  width?: number;
+  height?: number;
   orientation: "portrait" | "landscape";
   margin: number;
   margins?: { top: number; right: number; bottom: number; left: number };
@@ -51,6 +54,14 @@ export interface StudioDocument {
 export const basePageMargins = (page: PageSettings) => page.margins ?? {
   top: page.margin, right: page.margin, bottom: page.margin, left: page.margin,
 };
+export function paperSize(page: PageSettings): [number, number] {
+  return page.size === 'Custom' && Number.isFinite(page.width) && Number.isFinite(page.height)
+    ? [page.width!, page.height!] : page.size === 'Letter' ? [215.9, 279.4] : [210, 297];
+}
+export function paperDimensions(page: PageSettings): [number, number] {
+  const [width, height] = paperSize(page);
+  return page.orientation === 'landscape' ? [height, width] : [width, height];
+}
 export const pageMargins = (page: PageSettings) => {
   const margins = { ...basePageMargins(page) };
   margins[page.gutterTop ? 'top' : 'left'] += page.gutter ?? 0;

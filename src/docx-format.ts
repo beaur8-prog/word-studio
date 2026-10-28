@@ -234,6 +234,8 @@ export async function docxFormat(zip: JSZip) {
 
 export function decorateCell(cell: HTMLElement, source: Element, tableLayers: (Element | undefined)[] = []) {
   const props = child(source, 'tcPr');
+  const noWrap = child(props, 'noWrap');
+  if (noWrap && !['0', 'false', 'off'].includes(val(noWrap))) cell.style.whiteSpace = 'nowrap';
   const table = ancestor(source, 'tbl')!, tableProps = child(table, 'tblPr');
   const inherited = (group: string, side: string) => [...tableLayers, tableProps].map(p => child(child(p, group), side)).filter(Boolean).at(-1);
   const row = source.parentElement!;

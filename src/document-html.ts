@@ -82,13 +82,16 @@ export function sanitizeImportedHtml(source: string): {
       "data-color",
       "data-colwidth",
       "data-page-break",
+      "data-column-break",
       "data-section-page",
       "data-comment-ids",
       "data-inline-image",
       "data-image-floating",
+      "data-table-anchor",
       "data-docx-tab", "data-tab-stops",
       "data-word-line-rule", "data-word-line",
       "data-word-row-rule",
+      "data-row-split", "data-cell-split",
       "data-word-overlap",
       "data-docx-bookmark", "id",
       "data-list-id", "data-list-level", "data-list-format", "data-list-pattern", "data-list-label",
@@ -147,6 +150,9 @@ export function sanitizeImportedHtml(source: string): {
   )) {
     const oldStyle = element.style;
     const output: string[] = [];
+    // New Chromium versions enumerate white-space's longhands instead of the
+    // authored shorthand. Retain the validated shorthand for import parsers.
+    if (oldStyle.whiteSpace && !/url\s*\(|var\s*\(|\\/i.test(oldStyle.whiteSpace)) output.push(`white-space:${oldStyle.whiteSpace}`);
     for (const name of Array.from(oldStyle)) {
       const value = oldStyle.getPropertyValue(name);
       if (

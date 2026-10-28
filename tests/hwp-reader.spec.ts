@@ -121,7 +121,7 @@ for (const extension of ['hwp', 'hwpx']) {
   test(`${extension} opens locally with selectable table text and preserves the Word document`, async ({ page }) => {
     const errors: string[] = [], external: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('request', request => { if (/^https?:/.test(request.url()) && !request.url().startsWith('http://127.0.0.1:5191/')) external.push(request.url()); });
+    page.on('request', request => { if (/^https?:/.test(request.url()) && new URL(request.url()).origin !== new URL(test.info().project.use.baseURL!).origin) external.push(request.url()); });
     await page.goto('/');
     await page.locator('.tiptap').fill('보존할 Word 문서 KEEP');
     await expect(page.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();

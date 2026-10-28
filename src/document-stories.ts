@@ -1,6 +1,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { SectionNodeView } from './section-node-view';
 import { Plugin } from '@tiptap/pm/state';
+import { documentScale } from './document-scale';
 
 const dataAttribute = (attribute: string, fallback = '') => ({ default: fallback,
   parseHTML: (el: HTMLElement) => el.getAttribute(attribute) || fallback,
@@ -30,6 +31,30 @@ export const DocumentField = Node.create({
   addAttributes: () => ({ kind: { default: 'PAGE', parseHTML: el => el.getAttribute('data-page-number'), renderHTML: a => ({ 'data-page-number': a.kind === 'NUMPAGES' ? 'NUMPAGES' : 'PAGE' }) } }),
   parseHTML: () => [{ tag: 'span[data-page-number]' }],
   renderHTML: ({ HTMLAttributes }) => ['span', { ...HTMLAttributes, class: 'document-page-field' }, '1'],
+  addNodeView: () => ({ node, editor }) => {
+    const dom = document.createElement('span'); dom.className = 'document-page-field'; dom.contentEditable = 'false';
+    let current = node, frame = 0;
+    const update = () => {
+      cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
+        if (!dom.isConnected) return;
+        const stack = dom.closest<HTMLElement>('.document-stack'), section = dom.closest<HTMLElement>('.document-section-content');
+        const root = section?.querySelector<HTMLElement>('.section-editable') ?? editor.view.dom;
+        const stride = Number(section?.dataset.pageHeight ?? stack?.dataset.pageHeight) + 24;
+        const before = section ? [...editor.view.dom.querySelectorAll<HTMLElement>('.document-section-content')].slice(0,
+          [...editor.view.dom.querySelectorAll('.document-section-content')].indexOf(section)).reduce((sum, s) => sum + (Number(s.dataset.pages) || 1), 0) : 0;
+        const y = (dom.getBoundingClientRect().top - root.getBoundingClientRect().top) / documentScale(root);
+        // Glyph ink can extend above the first line's body margin. Determine
+        // its physical paper, not whether its top clears the body inset.
+        const page = Number.isFinite(stride) && stride > 24 ? before + Math.max(0, Math.floor((y + .5) / stride)) + 1 : 1;
+        dom.dataset.pageNumber = current.attrs.kind;
+        dom.textContent = String(current.attrs.kind === 'NUMPAGES' ? Number(stack?.dataset.pages) || 1 : page);
+      });
+    };
+    const stack = editor.view.dom.closest('.document-stack'); stack?.addEventListener('pagecount', update);
+    update();
+    return { dom, update(next) { if (next.type !== current.type) return false; current = next; update(); return true; },
+      ignoreMutation: () => true, destroy() { cancelAnimationFrame(frame); stack?.removeEventListener('pagecount', update); } };
+  },
 });
 export const ColumnGroup = Node.create({
   name: 'columnGroup', group: 'block', content: 'block+', defining: true,

@@ -1,0 +1,35 @@
+name: HWP layout validation
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/hwp-layout-validation.yml'
+      - 'src/hwp/**'
+      - 'src/*pagination.ts'
+      - 'src/editor-lines.ts'
+      - 'src/print-layout.ts'
+      - 'tests/hwp-*'
+      - 'tests/paragraph-flow.spec.ts'
+      - 'tests/footnote-flow.spec.ts'
+permissions:
+  contents: read
+jobs:
+  windows-layout:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Test font metrics, paragraph pagination and inline tables
+        run: npx playwright test tests/paragraph-flow.spec.ts tests/footnote-flow.spec.ts tests/hwp-textflow.spec.ts tests/hwp-inline-tables.spec.ts tests/hwp-inline-tail.spec.ts tests/hwp-cell-paragraphs.spec.ts tests/merged-cell-flow.spec.ts tests/table-spacing.spec.ts tests/column-page-breaks.spec.ts --reporter=line
+        env:
+          HWP_LAYOUT_DIAGNOSTICS: '1'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-layout-evidence
+          path: test-results/

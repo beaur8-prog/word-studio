@@ -1,0 +1,347 @@
+{
+  "date": "2026-10-26",
+  "implementationBase": "51bd9e9",
+  "method": "Fresh HWP imports through the browser Worker, actual editor DOM text-ink audit (>2px outside body), print DOM, DOCX XML comparison, bundled LibreOffice PDF render. Native Electron production app with isolated profiles. Final hard-break fix left all 10 corpus models identical to the measured versions.",
+  "tests": {
+    "fullBrowser": 158,
+    "finalTargetedBrowser": 19,
+    "nativeUnit": 50,
+    "productionBuild": true,
+    "nativeHwpHwpxSaveCancelReopen": true,
+    "nativeLayout": {
+      "passed": true,
+      "rendererErrors": [],
+      "results": [
+        {
+          "id": "02-work-rules",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 157,
+              "marginLineRects": 0,
+              "totalTextLineRects": 8526
+            },
+            {
+              "zoom": 50,
+              "pages": 157,
+              "marginLineRects": 0,
+              "totalTextLineRects": 8526
+            },
+            {
+              "zoom": 125,
+              "pages": 157,
+              "marginLineRects": 0,
+              "totalTextLineRects": 8526
+            },
+            {
+              "zoom": 200,
+              "pages": 157,
+              "marginLineRects": 0,
+              "totalTextLineRects": 8526
+            },
+            {
+              "zoom": 100,
+              "pages": 157,
+              "marginLineRects": 0,
+              "totalTextLineRects": 8526
+            }
+          ],
+          "printPages": 167
+        },
+        {
+          "id": "06-mixed-document",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 41,
+              "marginLineRects": 0,
+              "totalTextLineRects": 3196
+            },
+            {
+              "zoom": 50,
+              "pages": 41,
+              "marginLineRects": 0,
+              "totalTextLineRects": 3196
+            },
+            {
+              "zoom": 125,
+              "pages": 41,
+              "marginLineRects": 0,
+              "totalTextLineRects": 3196
+            },
+            {
+              "zoom": 200,
+              "pages": 41,
+              "marginLineRects": 0,
+              "totalTextLineRects": 3196
+            },
+            {
+              "zoom": 100,
+              "pages": 41,
+              "marginLineRects": 0,
+              "totalTextLineRects": 3196
+            }
+          ],
+          "printPages": 41
+        },
+        {
+          "id": "07-english-exam",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 10,
+              "marginLineRects": 0,
+              "totalTextLineRects": 1045
+            },
+            {
+              "zoom": 50,
+              "pages": 10,
+              "marginLineRects": 0,
+              "totalTextLineRects": 1045
+            },
+            {
+              "zoom": 125,
+              "pages": 10,
+              "marginLineRects": 0,
+              "totalTextLineRects": 1045
+            },
+            {
+              "zoom": 200,
+              "pages": 10,
+              "marginLineRects": 0,
+              "totalTextLineRects": 1045
+            },
+            {
+              "zoom": 100,
+              "pages": 10,
+              "marginLineRects": 0,
+              "totalTextLineRects": 1045
+            }
+          ],
+          "printPages": 9
+        },
+        {
+          "id": "08-math-exam",
+          "states": [
+            {
+              "zoom": 100,
+              "pages": 20,
+              "marginLineRects": 0,
+              "totalTextLineRects": 956
+            },
+            {
+              "zoom": 50,
+              "pages": 20,
+              "marginLineRects": 0,
+              "totalTextLineRects": 956
+            },
+            {
+              "zoom": 125,
+              "pages": 20,
+              "marginLineRects": 0,
+              "totalTextLineRects": 956
+            },
+            {
+              "zoom": 200,
+              "pages": 20,
+              "marginLineRects": 0,
+              "totalTextLineRects": 956
+            },
+            {
+              "zoom": 100,
+              "pages": 20,
+              "marginLineRects": 0,
+              "totalTextLineRects": 956
+            }
+          ],
+          "printPages": 20
+        }
+      ]
+    }
+  },
+  "rendererErrors": [],
+  "textComparison": "Ignore whitespace and only the previously visible nonvisual/shape placeholder strings now removed or replaced by images. DOCX body w:t order matches model text for all 10. This does not prove all original HWP content is editable.",
+  "samples": [
+    {
+      "id": "01-employment-contract",
+      "inputSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "sourcePages": 7,
+      "printPages": 7,
+      "images": 0,
+      "equationImages": 0,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 0,
+      "editorPages": 7,
+      "marginTextNodes": 0,
+      "marginLineRects": 0,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 7,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    },
+    {
+      "id": "02-work-rules",
+      "inputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "sourcePages": 163,
+      "printPages": 167,
+      "images": 0,
+      "equationImages": 0,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 0,
+      "editorPages": 157,
+      "marginTextNodes": 0,
+      "marginLineRects": 0,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 169,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    },
+    {
+      "id": "03-health-table",
+      "inputSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+      "sourcePages": 4,
+      "printPages": 4,
+      "images": 0,
+      "equationImages": 0,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 0,
+      "editorPages": 4,
+      "marginTextNodes": 0,
+      "marginLineRects": 0,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 4,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    },
+    {
+      "id": "04-language-plan",
+      "inputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+      "sourcePages": 35,
+      "printPages": 36,
+      "images": 3,
+      "equationImages": 0,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 0,
+      "editorPages": 36,
+      "marginTextNodes": 0,
+      "marginLineRects": 0,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 38,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    },
+    {
+      "id": "05-return-form",
+      "inputSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+      "sourcePages": 1,
+      "printPages": 1,
+      "images": 3,
+      "equationImages": 0,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 0,
+      "editorPages": 1,
+      "marginTextNodes": 0,
+      "marginLineRects": 0,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 1,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    },
+    {
+      "id": "06-mixed-document",
+      "inputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "sourcePages": 35,
+      "printPages": 41,
+      "images": 44,
+      "equationImages": 0,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 1,
+      "editorPages": 41,
+      "marginTextNodes": 0,
+      "marginLineRects": 0,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 38,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    },
+    {
+      "id": "07-english-exam",
+      "inputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+      "sourcePages": 8,
+      "printPages": 9,
+      "images": 16,
+      "equationImages": 0,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 0,
+      "editorPages": 10,
+      "marginTextNodes": 0,
+      "marginLineRects": 0,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 9,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    },
+    {
+      "id": "08-math-exam",
+      "inputSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "sourcePages": 20,
+      "printPages": 20,
+      "images": 543,
+      "equationImages": 522,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 2,
+      "editorPages": 20,
+      "marginTextNodes": 0,
+      "marginLineRects": 0,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 20,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    },
+    {
+      "id": "09-korean-exam",
+      "inputSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+      "sourcePages": 15,
+      "printPages": 15,
+      "images": 23,
+      "equationImages": 0,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 2,
+      "editorPages": 15,
+      "marginTextNodes": 3,
+      "marginLineRects": 3,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 16,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    },
+    {
+      "id": "10-lh-plan",
+      "inputSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+      "sourcePages": 5,
+      "printPages": 5,
+      "images": 3,
+      "equationImages": 0,
+      "textMatchesPrior": true,
+      "placeholderOccurrences": 0,
+      "editorPages": 5,
+      "marginTextNodes": 0,
+      "marginLineRects": 0,
+      "scaledPrintGroups": 0,
+      "docxLibreOfficePages": 5,
+      "docxTextMatchesModel": true,
+      "modelUnchangedAfterFinalHardBreakFix": true
+    }
+  ],
+  "limitations": [
+    "Actual Microsoft Word and Windows app not tested.",
+    "Equations/shapes remain images with scripts/text in descriptions; their internals are not editable.",
+    "Five generic placeholders are retained rather than silently dropped: notice/math have three Header controls; Korean has two PAGE AutoNumber controls (classification corrected in hwp-completion-review.json).",
+    "Rules editor 157 / print 167 / source 163; English editor 10 / print 9 / source 8; notice 41 / source 35.",
+    "Korean exam has 3 top-margin text rects (2.21–7.01px), including two unsupported PAGE AutoNumber placeholders.",
+    "English form line-height/border details and DOCX floating-background layout still differ from source.",
+    "LibreOffice rules PDF has 3 pages with no extracted text, not a claim that all three are visually blank.",
+    "Only first pages and selected changed regions were visually reviewed, not every page."
+  ],
+  "localEvidence": "analysis/hwp-residual-fixes-2026-10-26/"
+}

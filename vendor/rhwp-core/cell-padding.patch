@@ -1,0 +1,216 @@
+diff --git a/src/document_core/commands/clipboard.rs b/src/document_core/commands/clipboard.rs
+index 4a0ede6af..dfc1e0944 100644
+--- a/src/document_core/commands/clipboard.rs
++++ b/src/document_core/commands/clipboard.rs
+@@ -1772,7 +1772,10 @@ impl DocumentCore {
+                 }
+ 
+                 // 셀 패딩
+-                td_style.push_str("padding:1px 5px;");
++                let padding = cell.effective_padding(&table.padding);
++                td_style.push_str(&format!("padding:{:.3}px {:.3}px {:.3}px {:.3}px;",
++                    f64::from(padding.top) * self.dpi / 7200.0, f64::from(padding.right) * self.dpi / 7200.0,
++                    f64::from(padding.bottom) * self.dpi / 7200.0, f64::from(padding.left) * self.dpi / 7200.0));
+ 
+                 // vertical-align
+                 td_style.push_str("vertical-align:top;");
+@@ -1821,6 +1824,13 @@ impl DocumentCore {
+         depth: usize,
+     ) -> String {
+         let mut html = self.paragraph_to_html(para, start_offset, end_offset);
++        // A blank cell paragraph still owns formatting and a source slot.
++        // Omitting it shifts the styles of every subsequent paragraph.
++        if para.text.is_empty() && para.controls.is_empty() {
++            let shape = para.char_shapes.first().map(|cs| cs.char_shape_id).unwrap_or(0);
++            html = format!("<p style=\"margin:0;{}{}\"></p>\n",
++                self.para_style_to_css(para.para_shape_id), self.char_style_to_css(shape));
++        }
+         for ctrl in &para.controls {
+             html.push_str(&self.control_to_html(ctrl, depth));
+         }
+diff --git a/src/document_core/commands/html_import/inline_content.rs b/src/document_core/commands/html_import/inline_content.rs
+index c3f868337..422aafb88 100644
+--- a/src/document_core/commands/html_import/inline_content.rs
++++ b/src/document_core/commands/html_import/inline_content.rs
+@@ -87,10 +87,9 @@ impl DocumentCore {
+                     // 서식 구간 뒤의 평문도 구간을 새로 연다.
+                     // 안 열면 앞 구간의 굵게 등이 문단 끝까지 이어진다.
+                     if !open_styles.is_empty() || !style_runs.is_empty() {
+-                        // parse_css_value 는 처음 찾은 값을 쓰므로 안쪽 요소를 앞에 둔다.
++                        // Later declarations win, so inherited outer styles precede inner styles.
+                         let css: Vec<&str> = open_styles
+                             .iter()
+-                            .rev()
+                             .map(|(_, css)| css.as_str())
+                             .collect();
+                         let char_shape_id = self.css_to_char_shape_id(&css.join(";"));
+@@ -249,14 +248,14 @@ impl DocumentCore {
+             }
+         }
+ 
+-        // font-weight — 안쪽 요소의 값이 앞에 오므로 처음 찾은 값을 따른다.
++        // font-weight — inner element declarations follow inherited styles.
+         // GitHub 등은 <strong> 을 600 으로 쓰므로 600 이상을 굵게 본다.
+         cs.bold = parse_css_value(&css_lower, "font-weight")
+             .is_some_and(|w| w.starts_with("bold") || w.parse::<u16>().is_ok_and(|n| n >= 600));
+ 
+         // font-style
+-        let is_italic =
+-            css_lower.contains("font-style:italic") || css_lower.contains("font-style: italic");
++        let is_italic = parse_css_value(&css_lower, "font-style")
++            .is_some_and(|value| value == "italic" || value == "oblique");
+         cs.italic = is_italic;
+ 
+         // color
+@@ -339,10 +338,10 @@ impl DocumentCore {
+                     ps.line_spacing = pct;
+                     ps.line_spacing_type = LineSpacingType::Percent;
+                 }
+-            } else if lh.ends_with("px") {
+-                if let Ok(px) = lh.trim_end_matches("px").parse::<f64>() {
+-                    // px → HWPUNIT (1px ≈ 75 HWPUNIT at 96dpi)
+-                    ps.line_spacing = (px * 7200.0 / 25.4 / (self.dpi / 25.4)).round() as i32;
++            } else if lh.ends_with("px") || lh.ends_with("pt") {
++                if let Some(pt) = parse_pt_value(lh).filter(|value| value.is_finite() && *value >= 0.0) {
++                    // ParaShape fixed leading uses twice the physical HWP units.
++                    ps.line_spacing = (pt * 200.0).round() as i32;
+                     ps.line_spacing_type = LineSpacingType::Fixed;
+                 }
+             }
+diff --git a/src/document_core/helpers.rs b/src/document_core/helpers.rs
+index 3a54ebf44..079c16134 100644
+--- a/src/document_core/helpers.rs
++++ b/src/document_core/helpers.rs
+@@ -1088,7 +1088,7 @@ pub(crate) fn parse_inline_style(tag: &str) -> String {
+ pub(crate) fn parse_css_value<'a>(css: &'a str, property: &str) -> Option<String> {
+     let css = css.trim();
+     // "property:" 또는 "property :" 패턴 검색
+-    for part in css.split(';') {
++    for part in css.split(';').rev() {
+         let part = part.trim();
+         if let Some(colon) = part.find(':') {
+             let key = part[..colon].trim();
+diff --git a/src/document_core/html_table_import.rs b/src/document_core/html_table_import.rs
+index e4b1f8469..4eac8eb65 100644
+--- a/src/document_core/html_table_import.rs
++++ b/src/document_core/html_table_import.rs
+@@ -20,6 +20,7 @@ impl DocumentCore {
+             width_pt: f64,
+             height_pt: f64,
+             padding_pt: [f64; 4],          // left, right, top, bottom
++            padding_provided: [bool; 4],
+             border_widths_pt: [f64; 4],    // left, right, top, bottom
+             border_colors: [u32; 4],       // BGR
+             border_styles: [u8; 4],        // 0=none, 1=solid, 2=dashed, 3=dotted, 4=double
+@@ -80,6 +81,7 @@ impl DocumentCore {
+ 
+                     // 패딩 파싱
+                     let padding_pt = parse_css_padding_pt(&css_lower);
++                    let padding_provided = padding_presence(&css_lower);
+ 
+                     // 테두리 파싱 (left, right, top, bottom)
+                     let mut border_widths_pt = [0.0f64; 4];
+@@ -141,6 +143,7 @@ impl DocumentCore {
+                         width_pt,
+                         height_pt,
+                         padding_pt,
++                        padding_provided,
+                         border_widths_pt,
+                         border_colors,
+                         border_styles,
+@@ -311,29 +314,12 @@ impl DocumentCore {
+                 pc.background_color,
+             );
+ 
+-            // 패딩 (pt → HWPUNIT16, CSS 미지정 시 기본 1.4mm ≈ 397 HWPUNIT)
+-            let default_pad: f64 = 141.0; // ~0.5mm HWPUNIT
++            // CSS zero is explicit. Unspecified axes inherit table padding.
++            let axis = |i: usize| if pc.padding_provided[i] {
++                (pc.padding_pt[i].max(0.0) * 100.0).round() as i16
++            } else { -1 };
+             let padding = crate::model::Padding {
+-                left: if pc.padding_pt[0] > 0.01 {
+-                    (pc.padding_pt[0] * 100.0).round() as i16
+-                } else {
+-                    default_pad as i16
+-                },
+-                right: if pc.padding_pt[1] > 0.01 {
+-                    (pc.padding_pt[1] * 100.0).round() as i16
+-                } else {
+-                    default_pad as i16
+-                },
+-                top: if pc.padding_pt[2] > 0.01 {
+-                    (pc.padding_pt[2] * 100.0).round() as i16
+-                } else {
+-                    default_pad as i16
+-                },
+-                bottom: if pc.padding_pt[3] > 0.01 {
+-                    (pc.padding_pt[3] * 100.0).round() as i16
+-                } else {
+-                    default_pad as i16
+-                },
++                left: axis(0), right: axis(1), top: axis(2), bottom: axis(3),
+             };
+ 
+             // 셀 내용 파싱
+@@ -475,7 +461,7 @@ impl DocumentCore {
+             let mut raw_list_extra = vec![0u8; 13];
+             raw_list_extra[0..4].copy_from_slice(&cell_width.to_le_bytes());
+ 
+-            cells.push(Cell {
++            let mut cell = Cell {
+                 col: cp.col,
+                 row: cp.row,
+                 col_span: cp.col_span,
+@@ -490,7 +476,9 @@ impl DocumentCore {
+                 vertical_align: v_align,
+                 raw_list_extra,
+                 ..Default::default()
+-            });
++            };
++            cell.set_apply_inner_margin(pc.padding_provided.iter().any(|v| *v));
++            cells.push(cell);
+         }
+ 
+         // 행 우선 순서로 정렬
+@@ -564,24 +552,25 @@ impl DocumentCore {
+             parse_inline_style(&table_html[..table_html.find('>').unwrap_or(table_html.len()) + 1])
+                 .to_lowercase();
+         let table_padding_pt = parse_css_padding_pt(&table_style);
++        let table_padding_provided = padding_presence(&table_style);
+         // 기본값: L:510 R:510 T:141 B:141 (정상 HWP 파일 패턴)
+         let table_padding = crate::model::Padding {
+-            left: if table_padding_pt[0] > 0.01 {
++            left: if table_padding_provided[0] {
+                 (table_padding_pt[0] * 100.0).round() as i16
+             } else {
+                 510
+             },
+-            right: if table_padding_pt[1] > 0.01 {
++            right: if table_padding_provided[1] {
+                 (table_padding_pt[1] * 100.0).round() as i16
+             } else {
+                 510
+             },
+-            top: if table_padding_pt[2] > 0.01 {
++            top: if table_padding_provided[2] {
+                 (table_padding_pt[2] * 100.0).round() as i16
+             } else {
+                 141
+             },
+-            bottom: if table_padding_pt[3] > 0.01 {
++            bottom: if table_padding_provided[3] {
+                 (table_padding_pt[3] * 100.0).round() as i16
+             } else {
+                 141
+@@ -1223,3 +1212,10 @@ mod nested_table_cell_boundary_tests {
+         );
+     }
+ }
++
++/// Presence is separate from value: padding:0 must survive a native save.
++fn padding_presence(css: &str) -> [bool; 4] {
++    let shorthand = parse_css_value(css, "padding").is_some();
++    ["left", "right", "top", "bottom"].map(|side|
++        shorthand || parse_css_value(css, &format!("padding-{}", side)).is_some())
++}

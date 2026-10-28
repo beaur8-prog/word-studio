@@ -1,0 +1,469 @@
+{
+  "runAtUTC": "2026-10-26T05:53:29.042Z",
+  "reviewedSourceCommit": "326f1842aa30b71ab2fc681d3c4239076437393e",
+  "browser": "155.0.8059.85",
+  "productionCodeModified": false,
+  "scope": "Residual HWP conversion review. Five existing models freshly opened in the current editor/print engine; two original HWP files freshly reconverted; four originals queried for unsupported table controls. No release.",
+  "rendererErrors": [],
+  "sourcePageDefinition": "Original HWP engine page counts, with retained accompanying PDF visual checks for math page 12 and notice page 31. Not actual Microsoft Word.",
+  "marginCandidateDefinition": "DOM Range text rectangles more than 2px outside the body at 100% zoom; may duplicate the same visible line. Not a count of unique clipped lines. Work-rules page-gap crossing separately confirmed visually.",
+  "results": [
+    {
+      "id": "02-work-rules",
+      "inputModelGzipSHA256": "1969aa4373ad233f27b05f412f6f245584c605e3fd59f232532db5fea2d9addb",
+      "sourcePages": 163,
+      "editorPages": 170,
+      "printPages": 167,
+      "layoutWarnings": [],
+      "scaled": [],
+      "placeholderParagraphs": 0,
+      "marginCandidateTextNodes": 364,
+      "marginCandidateRangeRects": 606,
+      "firstMarginCandidate": {
+        "context": 0,
+        "text": "   4. 연차유급휴가",
+        "lines": 2,
+        "first": {
+          "page": 11,
+          "y": 8873.328125,
+          "relativeTop": 696.328125,
+          "relativeBottom": 715.328125,
+          "overlap": 17.628124999999272
+        },
+        "last": {
+          "page": 11,
+          "y": 8873.328125,
+          "relativeTop": 696.328125,
+          "relativeBottom": 715.328125,
+          "overlap": 17.628124999999272
+        },
+        "rowHeight": 826.640625,
+        "rowSplit": "allow",
+        "tableIndex": 5,
+        "rowIndex": 9,
+        "withinColumns": false
+      }
+    },
+    {
+      "id": "06-mixed-document",
+      "inputModelGzipSHA256": "2882d5f025e1cf6b4ce483423b2344d965b4dfaef376281f2fa04a26c99bc616",
+      "sourcePages": 35,
+      "editorPages": 40,
+      "printPages": 41,
+      "layoutWarnings": [
+        "한 페이지보다 큰 그림·병합 셀 묶음은 잘리지 않도록 축소했습니다."
+      ],
+      "scaled": [
+        {
+          "page": 6,
+          "scale": 0.781828,
+          "text": "총자산부동산• 사회보장정보시스템을 통해 조사된 세대구성원 전원이 소유하고 있는 모든 부동산 가액  * 토지: 소유면적 × 개별공시지가 , 건축물 : 공시가격• 건축물가액은 건축물의 공시가격으로 함  - 건축물가액이 공시되지 아니한 경",
+          "rowSpan": 5
+        },
+        {
+          "page": 36,
+          "scale": 0.749796,
+          "text": "[변환하지 못한 개체 — 원본 보기에서 확인]1. 공공임대주택 신청자 인적사항관 계성 명주민등록번호(외국인등록번호)신청자[변환하지 못한 개체 — 원본 보기에서 확인] [변환하지 못한 개체 — 원본 보기에서 확인]주 소2. 금융정보 등",
+          "rowSpan": 2
+        }
+      ],
+      "placeholderParagraphs": 29,
+      "marginCandidateTextNodes": 53,
+      "marginCandidateRangeRects": 74,
+      "firstMarginCandidate": {
+        "context": 0,
+        "text": "신분별 입주소득 기준(공공주택 특별법 시행규칙 별표3 )",
+        "lines": 1,
+        "first": {
+          "page": 5,
+          "y": 4656.140625,
+          "relativeTop": 70.06062500000007,
+          "relativeBottom": 86.06062500000007,
+          "overlap": 5.5299261811023825
+        },
+        "last": {
+          "page": 5,
+          "y": 4656.140625,
+          "relativeTop": 70.06062500000007,
+          "relativeBottom": 86.06062500000007,
+          "overlap": 5.5299261811023825
+        },
+        "rowHeight": 303.390625,
+        "tableIndex": 17,
+        "rowIndex": 2,
+        "withinColumns": false
+      }
+    },
+    {
+      "id": "07-english-exam",
+      "inputModelGzipSHA256": "e3b74de0523ddde6b25b54ee7daa838460862d73ccf620cd74a2cd046e584c3a",
+      "sourcePages": 8,
+      "editorPages": 12,
+      "printPages": 10,
+      "layoutWarnings": [],
+      "scaled": [],
+      "placeholderParagraphs": 1,
+      "marginCandidateTextNodes": 80,
+      "marginCandidateRangeRects": 117,
+      "firstMarginCandidate": {
+        "context": 0,
+        "text": "7.",
+        "lines": 1,
+        "first": {
+          "page": 1,
+          "y": 1589.625,
+          "relativeTop": 1589.625,
+          "relativeBottom": 1610.625,
+          "overlap": 187.67444881889787
+        },
+        "last": {
+          "page": 1,
+          "y": 1589.625,
+          "relativeTop": 1589.625,
+          "relativeBottom": 1610.625,
+          "overlap": 187.67444881889787
+        },
+        "rowHeight": null,
+        "tableIndex": null,
+        "withinColumns": true
+      }
+    },
+    {
+      "id": "08-math-exam",
+      "inputModelGzipSHA256": "2b828725d2330ee51befa9031173060ab9b7c90d60b52a13d98a4a039f005d02",
+      "sourcePages": 20,
+      "editorPages": 21,
+      "printPages": 22,
+      "layoutWarnings": [],
+      "scaled": [],
+      "placeholderParagraphs": 14,
+      "marginCandidateTextNodes": 77,
+      "marginCandidateRangeRects": 96,
+      "firstMarginCandidate": {
+        "context": 0,
+        "text": "하",
+        "lines": 1,
+        "first": {
+          "page": 12,
+          "y": 17999.9375,
+          "relativeTop": 1355.5074999999997,
+          "relativeBottom": 1371.5074999999997,
+          "overlap": 10.881437007872591
+        },
+        "last": {
+          "page": 12,
+          "y": 17999.9375,
+          "relativeTop": 1355.5074999999997,
+          "relativeBottom": 1371.5074999999997,
+          "overlap": 10.881437007872591
+        },
+        "rowHeight": 440.734375,
+        "tableIndex": 7,
+        "rowIndex": 0,
+        "withinColumns": true
+      }
+    },
+    {
+      "id": "04-language-plan",
+      "inputModelGzipSHA256": "1c95c775df8d6b0c00aa38ab492b1dbf74afbab19f9b43e6f4d4e622b37af372",
+      "sourcePages": 35,
+      "editorPages": 36,
+      "printPages": 36,
+      "layoutWarnings": [],
+      "scaled": [],
+      "placeholderParagraphs": 1,
+      "marginCandidateTextNodes": 0,
+      "marginCandidateRangeRects": 0
+    }
+  ],
+  "freshConversions": [
+    {
+      "id": "08-math-exam",
+      "inputSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "sourcePages": 20,
+      "printPages": 22,
+      "durationMs": 5394.400000095367,
+      "contentExactlyMatchesPrior": true,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 14,
+      "placeholderOccurrences": 14,
+      "warnings": [
+        "떠 있는 표는 본문 흐름 안으로 옮깁니다. 표의 앵커·겹침·캡션은 원본과 다를 수 있습니다.",
+        "도형·글상자는 원래 위치와 모양의 그림으로 가져옵니다. 글상자 내용은 그림 설명에 보존하지만 개체 내부는 편집할 수 없습니다.",
+        "수식은 원래 모양의 그림으로 가져옵니다. 수식 명령어는 그림 설명에 보존하지만 수식 자체는 편집할 수 없습니다.",
+        "표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "06-mixed-document",
+      "inputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "sourcePages": 35,
+      "printPages": 41,
+      "durationMs": 1614.6000001430511,
+      "contentExactlyMatchesPrior": true,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 29,
+      "placeholderOccurrences": 42,
+      "warnings": [
+        "떠 있는 표는 본문 흐름 안으로 옮깁니다. 표의 앵커·겹침·캡션은 원본과 다를 수 있습니다.",
+        "책갈피 개체는 편집 가능한 원본 개체로 변환하지 못해 위치에 텍스트 표시를 남깁니다.",
+        "표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.",
+        "표 안에 변환하지 못한 개체가 있습니다. 해당 위치의 표시와 원본을 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    }
+  ],
+  "nativeTableControlInventory": [
+    {
+      "id": "06-mixed-document",
+      "sourcePages": 35,
+      "tableUnsupportedControlTypes": {
+        "Header": 1,
+        "Bookmark": 9,
+        "ColumnDef": 3,
+        "Shape": 32
+      }
+    },
+    {
+      "id": "07-english-exam",
+      "sourcePages": 8,
+      "tableUnsupportedControlTypes": {
+        "Shape": 1
+      }
+    },
+    {
+      "id": "08-math-exam",
+      "sourcePages": 20,
+      "tableUnsupportedControlTypes": {
+        "Header": 2,
+        "Equation": 10,
+        "Shape": 2
+      }
+    },
+    {
+      "id": "04-language-plan",
+      "sourcePages": 35,
+      "tableUnsupportedControlTypes": {
+        "PageHide": 1
+      }
+    }
+  ],
+  "mathCellEquationScripts": [
+    {
+      "cell": 0,
+      "script": "z",
+      "widthHwp": 525,
+      "heightHwp": 1125
+    },
+    {
+      "cell": 1,
+      "script": "{rm{P}} it  left(0  leq Z` leq z  right)",
+      "widthHwp": 6311,
+      "heightHwp": 1125
+    },
+    {
+      "cell": 2,
+      "script": "rm 0.5",
+      "widthHwp": 1350,
+      "heightHwp": 1125
+    },
+    {
+      "cell": 3,
+      "script": "rm 0.1915",
+      "widthHwp": 2925,
+      "heightHwp": 1125
+    },
+    {
+      "cell": 4,
+      "script": "rm 1.0",
+      "widthHwp": 1350,
+      "heightHwp": 1125
+    },
+    {
+      "cell": 5,
+      "script": "rm 0.3413",
+      "widthHwp": 2925,
+      "heightHwp": 1125
+    },
+    {
+      "cell": 6,
+      "script": "rm 1.5",
+      "widthHwp": 1350,
+      "heightHwp": 1125
+    },
+    {
+      "cell": 7,
+      "script": "rm 0.4332",
+      "widthHwp": 2925,
+      "heightHwp": 1125
+    },
+    {
+      "cell": 8,
+      "script": "rm 2.0",
+      "widthHwp": 1350,
+      "heightHwp": 1125
+    },
+    {
+      "cell": 9,
+      "script": "rm 0.4772",
+      "widthHwp": 2925,
+      "heightHwp": 1125
+    }
+  ],
+  "formulaRecoveryDiagnostic": {
+    "diagnosticOnly": true,
+    "productionCodeChanged": false,
+    "replacedCellFormulaPlaceholders": 10,
+    "beforePrintPages": 22,
+    "afterPrintPages": 20,
+    "remainingPlaceholderOccurrences": 4,
+    "formulaTablePages": [
+      12
+    ],
+    "warnings": [],
+    "method": "Only the unique 5-by-2 all-placeholder math table had its ten paragraph contents replaced with original equation previews at original dimensions. Production SVG-to-PNG preparation and print layout were reused on temporary DOM. This does not implement the importer fix or establish complete visual fidelity."
+  },
+  "performance": {
+    "browser": "155.0.8059.85",
+    "cpuThrottle": false,
+    "results": [
+      {
+        "id": "02-work-rules",
+        "duration": 493.7000000476837,
+        "pages": 167,
+        "maximumFrameGap": 185.90000009536743,
+        "frames": 23,
+        "longTasks": [
+          {
+            "start": 1160,
+            "duration": 123
+          },
+          {
+            "start": 1380.7999999523163,
+            "duration": 175
+          }
+        ],
+        "largestProgressGaps": [
+          {
+            "ms": 180.20000004768372,
+            "label": "표의 쪽 배치를 계산하는 중…"
+          },
+          {
+            "ms": 129,
+            "label": "표의 쪽 배치를 계산하는 중…"
+          },
+          {
+            "ms": 33.799999952316284,
+            "label": "쪽 배치를 준비하는 중…"
+          },
+          {
+            "ms": 14.199999809265137,
+            "label": "Word 쪽 배치를 계산하는 중…",
+            "completed": 145,
+            "total": 156
+          },
+          {
+            "ms": 13.399999856948853,
+            "label": "표의 쪽 배치를 계산하는 중…"
+          }
+        ],
+        "progressCallbacks": 178
+      },
+      {
+        "id": "06-mixed-document",
+        "duration": 538.2999999523163,
+        "pages": 41,
+        "maximumFrameGap": 95.90000009536743,
+        "frames": 39,
+        "longTasks": [
+          {
+            "start": 2476.399999856949,
+            "duration": 63
+          }
+        ],
+        "largestProgressGaps": [
+          {
+            "ms": 65.20000004768372,
+            "label": "쪽 배치를 준비하는 중…"
+          },
+          {
+            "ms": 26.800000190734863,
+            "label": "쪽 배치에 사용할 그림을 준비하는 중…",
+            "completed": 0,
+            "total": 12
+          },
+          {
+            "ms": 26.5,
+            "label": "표의 쪽 배치를 계산하는 중…"
+          },
+          {
+            "ms": 23.09999990463257,
+            "label": "문서의 글꼴을 준비하는 중…"
+          },
+          {
+            "ms": 20,
+            "label": "표의 쪽 배치를 계산하는 중…"
+          }
+        ],
+        "progressCallbacks": 339
+      }
+    ]
+  },
+  "priorities": [
+    {
+      "id": "R1",
+      "priority": "P1",
+      "problem": "Equation and shape controls inside table cells are not preserved by the body-only object converter.",
+      "locations": [
+        "src/hwp/conversion.ts:304",
+        "src/hwp/conversion.ts:347",
+        "src/hwp/conversion.ts:398"
+      ]
+    },
+    {
+      "id": "R2",
+      "priority": "P1",
+      "problem": "Tall multi-cell rows cross editor paper margins and page gaps instead of splitting.",
+      "locations": [
+        "src/pagination.ts:55",
+        "src/pagination.ts:134"
+      ]
+    },
+    {
+      "id": "R3",
+      "priority": "P2",
+      "problem": "Nonvisual Bookmark and PageHide controls become visible placeholder text and distort flow.",
+      "locations": [
+        "src/hwp/conversion.ts:398"
+      ]
+    },
+    {
+      "id": "R4",
+      "priority": "P2",
+      "problem": "Two large vertically merged notice tables still shrink to about 78% and 75%.",
+      "locations": [
+        "src/print-layout.ts:153",
+        "src/print-layout.ts:226",
+        "src/print-layout.ts:239"
+      ]
+    },
+    {
+      "id": "R5",
+      "priority": "P2",
+      "problem": "Exam editor/print/source page boundaries differ. Missing cell content and placeholder inflation must be resolved before assigning all differences to column layout.",
+      "locations": [
+        "src/column-layout.ts:21",
+        "src/print-layout.ts:268"
+      ]
+    }
+  ],
+  "notRevalidated": [
+    "Actual Microsoft Word",
+    "Windows installed application",
+    "All ten DOCX independent renders",
+    "HWP/HWPX save roundtrip",
+    "Full automated regression suite",
+    "User large-file performance"
+  ]
+}
