@@ -5,7 +5,7 @@
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
   "coreVersion": "0.8.7-wordstudio.6",
-  "browserTests": 304,
+  "browserTests": 309,
   "nativeUnitTests": 86,
   "productionBuild": "passed",
   "baselineFailedNewBrowserScenarios": 3,
@@ -361,7 +361,14 @@
       "focusedRun": 40713278948,
       "windows": "passed",
       "linux": "passed"
-    }
+    },
+    "latestConfirmedLayout": {
+      "commit": "455a06ee9dd57ee93fb023d3f013865c3ce6f0dc",
+      "run": 40737015746,
+      "Windows": "success",
+      "Linux": "success"
+    },
+    "currentBorderFollowup": "pending new commit CI"
   },
   "coreReproducibility": {
     "revision": "1a76570e833917d15817415a53c09ad61ab3203f",
@@ -459,7 +466,8 @@
     "Decorated, spaced or object-bearing blank paragraphs retain their flow; source row heights and intentional page breaks are preserved.",
     "The fixed start-page mismatch target of at most 61 remains unmet: 99/160, despite reaching the internal extra-page target.",
     "Four core documents now match all 2292 uniquely corresponding complete paragraph start pages; 1257 split/duplicate paragraphs remain explicit exclusions and same-page coordinates still differ.",
-    "An independent PDF marker audit found LH paragraph-page regressions despite retaining 5 pages; source title grouping/font effects remain under investigation."
+    "An independent PDF marker audit found LH paragraph-page regressions despite retaining 5 pages; source title grouping/font effects remain under investigation.",
+    "Independent LibreOffice26.8 DOCX check: notice35→38 pages while internal Word Studio40→37; form2→1, rules177 unchanged. These are reader-specific results, not Microsoft Word validation."
   ],
   "evidenceDirectory": "analysis/hwp-12h-2026-10-28/",
   "newRegressionEvidence": [
@@ -536,10 +544,10 @@
         "id": "06-mixed-document",
         "editorPages": 37,
         "printPages": 37,
-        "matched": 762,
-        "excluded": 126,
+        "matched": 761,
+        "excluded": 127,
         "mismatchedStartPages": 0,
-        "samePageYDifferencesAbove2px": 115
+        "samePageYDifferencesAbove2px": 114
       },
       {
         "id": "07-english-exam",
@@ -552,19 +560,20 @@
       }
     ],
     "knownStartPageDifferences": [],
-    "evidence": "consistency-text-start-summary.json",
-    "excluded": 1257,
-    "matched": 2292
+    "evidence": "nested-borders-text-start-summary.json",
+    "excluded": 1258,
+    "matched": 2291
   },
   "evidence": {
-    "fresh": "variant-consistency/fresh.json",
-    "twoDocxSaves": "variant-consistency/docx-corpus.json",
-    "identicalFreshContentAndPageToRoundtripModels": true,
-    "browser": "consistency-browser.log",
-    "unit": "consistency-unit.log",
-    "native": "native-consistency/results.json",
-    "pdf": "native-consistency/pdf-summary.json",
-    "anchors": "consistency-page-correspondence.json"
+    "fresh": "variant-nested-borders/fresh.json",
+    "twoDocxSaves": "variant-nested-borders/docx-corpus.json",
+    "browser": "nested-borders-recovery-browser.log",
+    "unit": "nested-borders-recovery-unit.log",
+    "build": "nested-borders-recovery-build.log",
+    "native": "native-nested-borders/results.json",
+    "pdf": "native-nested-borders/pdf-summary.json",
+    "anchors": "nested-borders-page-correspondence.json",
+    "logicalBody": "source-logical-order-final.json"
   },
   "paragraphTables": {
     "noticeTables": 18,
@@ -614,9 +623,191 @@
   "independentPdfAudit": {
     "pageIdentity": "pdf-reference/page-identity-summary.json",
     "before": "baseline-pdf-markers-summary.json",
-    "after": "consistency-pdf-markers-summary.json",
+    "after": "nested-borders-pdf-markers-summary.json",
     "scope": "fixed-rule independent PDF markers; separate from frozen 160 source-layout anchors; unmatched/split/image text is not proof of text loss",
     "allReferenceAndConvertedPagesRendered": 250,
-    "fullVisualReview": "in progress"
-  }
+    "fullVisualReview": "28 actual selected page pairs, residual differences explicitly recorded; not all250 visually inspected",
+    "visualEvidence": "visual-review/manifest.json",
+    "latestBorderFollowupVisualChecks": [
+      "05-return-form p1",
+      "06-mixed-document p3",
+      "10-lh-plan p1",
+      "07-english-exam p9"
+    ]
+  },
+  "borderFollowup": {
+    "sourceFailureCases": 4,
+    "borderlessBefore": "none shorthand and individual side none fail; hidden control passes",
+    "nestedBefore": "HWP and HWPX 0.2mm native border becomes3px in clipboard-based conversion",
+    "after": "five new scenarios pass through two DOCX saves, five zooms and editing/undo; existing nested grid controls also pass",
+    "modelDifference": "only borderTop/Right/Bottom/Left; paragraph/content order, images and page settings unchanged",
+    "modelEvidence": "nested-borders-model-diff.json",
+    "fixtureCleanup": "generated stress-test directories removed in afterAll; zero remaining after the test file"
+  },
+  "logicalBody": {
+    "exactSamples": 10,
+    "samples": 10,
+    "normalizedSourceCharacters": 218797,
+    "sourceHashesVerified": true,
+    "scope": "Native source serialization independent of editable converter; whitespace ignored and two documented legacy glyph aliases normalized; drawings, fields, stories and native parser correctness require separate checks",
+    "evidence": "source-logical-order-final.json"
+  },
+  "writerInterop": [
+    {
+      "label": "baseline",
+      "writerVersion": "LibreOffice 26.8.0.3 bce0998afefdbc355585ca324285661a2170ba77",
+      "durationSeconds": 22.54549813270569,
+      "scope": "Independent headless LibreOffice DOCX rendering; neither Microsoft Word nor Hancom; conditional Hancom empty-line policy may not be applied",
+      "samples": [
+        {
+          "id": "01-employment-contract",
+          "pages": 7,
+          "pdfBytes": 298985,
+          "inputBytes": 27102,
+          "extractedTextCharacters": 9126
+        },
+        {
+          "id": "02-work-rules",
+          "pages": 177,
+          "pdfBytes": 3086660,
+          "inputBytes": 243298,
+          "extractedTextCharacters": 129443
+        },
+        {
+          "id": "03-health-table",
+          "pages": 4,
+          "pdfBytes": 225787,
+          "inputBytes": 22556,
+          "extractedTextCharacters": 2906
+        },
+        {
+          "id": "04-language-plan",
+          "pages": 33,
+          "pdfBytes": 1331135,
+          "inputBytes": 248955,
+          "extractedTextCharacters": 34527
+        },
+        {
+          "id": "05-return-form",
+          "pages": 2,
+          "pdfBytes": 172701,
+          "inputBytes": 211923,
+          "extractedTextCharacters": 1344
+        },
+        {
+          "id": "06-mixed-document",
+          "pages": 35,
+          "pdfBytes": 1626604,
+          "inputBytes": 184538,
+          "extractedTextCharacters": 50847
+        },
+        {
+          "id": "07-english-exam",
+          "pages": 9,
+          "pdfBytes": 792510,
+          "inputBytes": 2176358,
+          "extractedTextCharacters": 35509
+        },
+        {
+          "id": "08-math-exam",
+          "pages": 20,
+          "pdfBytes": 1188142,
+          "inputBytes": 1827827,
+          "extractedTextCharacters": 5652
+        },
+        {
+          "id": "09-korean-exam",
+          "pages": 14,
+          "pdfBytes": 654112,
+          "inputBytes": 274736,
+          "extractedTextCharacters": 33138
+        },
+        {
+          "id": "10-lh-plan",
+          "pages": 4,
+          "pdfBytes": 185017,
+          "inputBytes": 62265,
+          "extractedTextCharacters": 4038
+        }
+      ]
+    },
+    {
+      "label": "current",
+      "writerVersion": "LibreOffice 26.8.0.3 bce0998afefdbc355585ca324285661a2170ba77",
+      "durationSeconds": 19.8468017578125,
+      "scope": "Independent headless LibreOffice DOCX rendering; neither Microsoft Word nor Hancom; conditional Hancom empty-line policy may not be applied",
+      "samples": [
+        {
+          "id": "01-employment-contract",
+          "pages": 7,
+          "pdfBytes": 298988,
+          "inputBytes": 27026,
+          "extractedTextCharacters": 9126
+        },
+        {
+          "id": "02-work-rules",
+          "pages": 177,
+          "pdfBytes": 3095246,
+          "inputBytes": 242983,
+          "extractedTextCharacters": 129443
+        },
+        {
+          "id": "03-health-table",
+          "pages": 4,
+          "pdfBytes": 226773,
+          "inputBytes": 22594,
+          "extractedTextCharacters": 2906
+        },
+        {
+          "id": "04-language-plan",
+          "pages": 33,
+          "pdfBytes": 1331089,
+          "inputBytes": 249101,
+          "extractedTextCharacters": 34527
+        },
+        {
+          "id": "05-return-form",
+          "pages": 1,
+          "pdfBytes": 172024,
+          "inputBytes": 211826,
+          "extractedTextCharacters": 1345
+        },
+        {
+          "id": "06-mixed-document",
+          "pages": 38,
+          "pdfBytes": 1579488,
+          "inputBytes": 186371,
+          "extractedTextCharacters": 47457
+        },
+        {
+          "id": "07-english-exam",
+          "pages": 9,
+          "pdfBytes": 792335,
+          "inputBytes": 2176216,
+          "extractedTextCharacters": 35509
+        },
+        {
+          "id": "08-math-exam",
+          "pages": 20,
+          "pdfBytes": 1188142,
+          "inputBytes": 1826596,
+          "extractedTextCharacters": 5652
+        },
+        {
+          "id": "09-korean-exam",
+          "pages": 14,
+          "pdfBytes": 654187,
+          "inputBytes": 274672,
+          "extractedTextCharacters": 33138
+        },
+        {
+          "id": "10-lh-plan",
+          "pages": 4,
+          "pdfBytes": 185378,
+          "inputBytes": 62291,
+          "extractedTextCharacters": 4038
+        }
+      ]
+    }
+  ]
 }

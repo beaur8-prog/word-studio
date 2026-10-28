@@ -4,8 +4,18 @@ import fs from 'node:fs/promises';
 import { createRequire } from 'node:module';
 const { createLargeHwpFixture } = createRequire(import.meta.url)('./large-hwp-fixture.cjs');
 let largeFixture: Promise<any> | undefined;
+const temporaryFixtureDirectories: string[] = [];
+async function temporaryLargeFixture(prefix: string, copies = 1) {
+  await fs.mkdir('.cache', { recursive: true });
+  const directory = await fs.mkdtemp(path.resolve('.cache/' + prefix));
+  temporaryFixtureDirectories.push(directory);
+  return createLargeHwpFixture(directory, copies);
+}
+test.afterAll(async () => {
+  await Promise.all(temporaryFixtureDirectories.map(directory => fs.rm(directory, { recursive: true, force: true })));
+});
 async function largeDocument() {
-  if (!largeFixture) largeFixture = fs.mkdir('.cache', { recursive: true }).then(() => fs.mkdtemp(path.resolve('.cache/hwp-large-regression-'))).then(createLargeHwpFixture);
+  if (!largeFixture) largeFixture = temporaryLargeFixture('hwp-large-regression-');
   return largeFixture;
 }
 
@@ -149,8 +159,7 @@ test('a 21 MB individual picture is retained and a Word Studio backup above 40 M
 
 test('a source above 40 MiB expands past 100 MiB, edits and saves without dropping pictures', async ({ page }, testInfo) => {
   test.setTimeout(240000);
-  await fs.mkdir('.cache', { recursive: true });
-  const fixture = await createLargeHwpFixture(await fs.mkdtemp(path.resolve('.cache/hwp-expanded-regression-')), 4);
+  const fixture = await temporaryLargeFixture('hwp-expanded-regression-', 4);
   expect(fixture.files.hwp.bytes).toBeGreaterThan(40 * 1024 * 1024);
   expect(fixture.htmlBytes).toBeGreaterThan(100 * 1024 * 1024);
   const errors: string[] = []; page.on('pageerror', error => errors.push(error.message));

@@ -2,6 +2,7 @@ import type { HwpDocument } from '@rhwp/core';
 import type { CellPath } from './cell-content';
 import { hwpTableGrid } from './table-grid';
 import { cellParagraphCss, cellParagraphKey } from './paragraph-layout';
+import { hwpCellBorders } from './cell-borders';
 
 /** The clipboard HTML carries nested text and padding but omits its grid.
  * Restore real column widths without fixing row heights or scaling text. */
@@ -41,6 +42,6 @@ export function nestedTableGeometry(doc: HwpDocument, section: number, paragraph
     cellParagraph = 0;
     const c = cells[cell++]; if (!c) return tag;
     const widths = columns.slice(c.col, c.col + c.colSpan).map(n => Math.max(1, Math.round(n)));
-    return style(tag.replace(/>$/, ` colwidth="${widths.join(',')}">`), `width:${Math.round(c.width / 75 * 100) / 100}px;vertical-align:${['top', 'middle', 'bottom'][c.verticalAlign] ?? 'top'};`);
+    return style(tag.replace(/>$/, ` colwidth="${widths.join(',')}">`), `width:${Math.round(c.width / 75 * 100) / 100}px;vertical-align:${['top', 'middle', 'bottom'][c.verticalAlign] ?? 'top'};${hwpCellBorders(c)}`);
   });
 }

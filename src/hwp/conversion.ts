@@ -16,6 +16,7 @@ import { stageHwpPictures } from './export-pictures';
 import { hwpBookmark, hwpTabAttribute, stageHwpTextNavigation } from './text-navigation';
 import { hwpTableGrid } from './table-grid';
 import { nestedTableGeometry } from './nested-tables';
+import { hwpCellBorders } from './cell-borders';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss } from './paragraph-layout';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 
@@ -107,7 +108,6 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
   }
   for (const c of cells) if ((!c.isHeader || !tableProperties.repeatHeader) && c.rowSpan === 1 &&
     (cellPages.get(c.index)?.size ?? 0) > 1) continuationRows.add(c.row);
-  const borderWidths = [.1, .12, .15, .2, .25, .3, .4, .5, .6, .7, 1, 1.5, 2, 3, 4, 5];
   const style = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old}${css}"`) : tag.replace(/>$/, ` style="${css}">`);
   let depth = 0, cellIndex = 0, row = 0, cellParagraph = 0, header = false, paragraphStyle = '';
   return html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, (tag, offset: number) => {
@@ -174,10 +174,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
       c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined, false); }
     catch { paragraphStyle = 'line-height:100%;font-size:10pt;'; }
     const width = columns.slice(c.col, c.col + c.colSpan).map(n => Math.max(1, Math.round(n)));
-    const borders = ['Left', 'Right', 'Top', 'Bottom'].map(side => {
-      const b = c['border' + side], kind = !b?.type ? 'none' : b.type >= 8 && b.type <= 11 ? 'double' : b.type === 3 || b.type === 7 ? 'dotted' : b.type >= 2 && b.type <= 6 ? 'dashed' : 'solid';
-      return `border-${side.toLowerCase()}:${borderWidths[b?.width] ?? .1}mm ${kind} ${/^#[a-f0-9]{6}$/i.test(b?.color) ? b.color : '#000000'};`;
-    }).join('');
+    const borders = hwpCellBorders(c);
     let noWrap = false;
     if (doc.getCellParagraphCount(section, para, control, c.index) === 1) {
       const text = doc.exportSelectionInCellHtml(section, para, control, c.index, 0, 0, 0, 0xffffffff).replace(/<[^>]*>|<!--.*?-->/g, '').trim();
