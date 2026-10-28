@@ -387,7 +387,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       }
       newPage(true); sectionJustStarted = true; return;
     }
-    if (element.hasAttribute('data-page-break')) {
+    // Multi-column groups handle their own column breaks. Once unwrapped
+    // from a one-column group, a column break advances to the next sheet.
+    if (element.hasAttribute('data-page-break') || element.hasAttribute('data-column-break')) {
       if (sectionJustStarted && !content.textContent?.trim() && !content.querySelector('img,table')) { sectionJustStarted = false; return; }
       newPage(true); return;
     }

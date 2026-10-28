@@ -63,13 +63,16 @@ export const ColumnGroup = Node.create({
     balance: { default: true, parseHTML: el => el.getAttribute('data-column-balance') !== 'false' } }),
   parseHTML: () => [{ tag: 'div[data-column-count]' }],
   renderHTML: ({ node, HTMLAttributes }) => ['div', mergeAttributes(HTMLAttributes, { 'data-column-count': node.attrs.count, 'data-column-space': node.attrs.space,
-    'data-column-balance': String(node.attrs.balance), class: 'document-columns', style: `column-count:${Math.max(1, Math.min(12, node.attrs.count))};column-gap:${Math.max(0, Math.min(1000, node.attrs.space))}px;column-fill:${node.attrs.balance ? 'balance' : 'auto'}` }), 0],
+    'data-column-balance': String(node.attrs.balance), class: 'document-columns', style: `column-count:${node.attrs.count === 1 ? 'auto' : Math.max(1, Math.min(12, node.attrs.count))};column-gap:${Math.max(0, Math.min(1000, node.attrs.space))}px;column-fill:${node.attrs.balance ? 'balance' : 'auto'}` }), 0],
   addNodeView: () => ({ node }) => {
     const dom = document.createElement('div');
     const update = (next: typeof node) => {
       if (next.type.name !== 'columnGroup') return false;
       dom.className = 'document-columns'; dom.dataset.columnCount = String(next.attrs.count); dom.dataset.columnSpace = String(next.attrs.space); dom.dataset.columnBalance = String(next.attrs.balance);
-      dom.style.columnCount = String(next.attrs.count); dom.style.columnGap = `${next.attrs.space}px`; dom.style.columnFill = next.attrs.balance ? 'balance' : 'auto'; return true;
+      // column-count:1 still creates a multicol formatting context. A forced
+      // break would create an off-screen second column instead of normal
+      // page flow, even when pagination inserts the correct vertical gap.
+      dom.style.columnCount = next.attrs.count === 1 ? 'auto' : String(next.attrs.count); dom.style.columnGap = `${next.attrs.space}px`; dom.style.columnFill = next.attrs.balance ? 'balance' : 'auto'; return true;
     };
     update(node); return { dom, contentDOM: dom, update, ignoreMutation: mutation => mutation.type === 'attributes' && mutation.target === dom };
   },

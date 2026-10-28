@@ -41,10 +41,12 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const picture = rect(img); box.height = Math.max(box.height, picture.top + picture.height - box.top);
     }
     if (node.type.name === 'documentNote' && node.attrs.kind === 'footnote') return;
-    if (node.type.name === 'pageBreak' || node.type.name === 'sectionBreak') {
+    // Multi-column groups are measured as a whole above. A column break
+    // reached here belongs to ordinary one-column flow and starts a page.
+    if (node.type.name === 'pageBreak' || node.type.name === 'columnBreak' || node.type.name === 'sectionBreak') {
       let breakType = '';
       if (node.type.name === 'sectionBreak') { try { breakType = JSON.parse(node.attrs.page).breakType || ''; } catch { /* Validated on file input. */ } }
-      result.push({ pos, end: pos + node.nodeSize, ...box, height: 0, explicit: node.type.name, breakType }); return;
+      result.push({ pos, end: pos + node.nodeSize, ...box, height: 0, explicit: node.type.name === 'columnBreak' ? 'pageBreak' : node.type.name, breakType }); return;
     }
     if (node.type.name !== 'table') { result.push({ pos, end: pos + node.nodeSize, ...box, columnFlow: node.type.name === 'columnGroup', empty: !node.textContent.trim() && !dom.querySelector('img,[data-note-reference]') }); return; }
     const rows: { node: PMNode; pos: number; dom: HTMLElement }[] = [];
@@ -135,7 +137,7 @@ export const Pagination = Extension.create({
               const top = Number(context.sheet.dataset.margin ?? sheet.dataset.margin ?? 96);
               const bottom = Number(context.sheet.dataset.bottomMargin ?? sheet.dataset.bottomMargin ?? top), stride = h + 24, usable = h - top - bottom;
               const origin = context.dom.getBoundingClientRect().top, scale = documentScale(context.dom);
-              const removed = [...context.dom.querySelectorAll<HTMLElement>('.pagination-gap,.page-break,.section-break')].map(el => {
+              const removed = [...context.dom.querySelectorAll<HTMLElement>('.pagination-gap,.page-break,.column-break,.section-break')].map(el => {
                 const r = el.getBoundingClientRect(); return { top: (r.top - origin) / scale, height: r.height / scale };
               });
               const noteNodes = new Map<string, { pos: number; end: number; height: number }>();

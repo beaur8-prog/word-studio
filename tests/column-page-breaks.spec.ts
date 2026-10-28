@@ -116,3 +116,41 @@ test('a final column group does not acquire an extra blank page from an outside 
   await page.keyboard.press('ControlOrMeta+z'); await expect(editor.locator('p').last()).toHaveText('LINE 109');
   await expect.poll(() => page.locator('.document-stack').getAttribute('data-pages')).toBe('2');
 });
+
+for (const grouped of [false, true]) test(`a column break in ${grouped ? 'an explicit one-column section' : 'ordinary body text'} advances one page through editing and two DOCX saves`, async ({ page }) => {
+  await page.goto('/');
+  const state = await page.evaluate(async grouped => {
+    const { importFile, exportDocx } = await import('/src/document-io.ts');
+    const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js');
+    const { createPrintLayout } = await import('/src/print-layout.ts');
+    const body = '<p>FIRST PAGE</p><div data-column-break="true"></div><p>SECOND PAGE</p><div data-column-break="true"></div><p>THIRD PAGE</p>';
+    const html = grouped ? `<div data-column-count="1">${body}</div>` : body;
+    const loaded = await importFile(new File([html], 'single-column.html'));
+    let doc = { ...loaded.document, content: parseDocumentHtml(loaded.html!) };
+    const original = doc, states = [];
+    for (let save = 0; save < 3; save++) {
+      const print = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+      try { states.push([...print.element.querySelectorAll('.print-content')].map(p => p.textContent)); }
+      finally { print.dispose(); }
+      if (save < 2) { const again = await importFile(new File([await exportDocx(doc)], 'again.docx')); doc = { ...again.document, content: parseDocumentHtml(again.html!) }; }
+    }
+    return { doc: original, states };
+  }, grouped);
+  for (const pages of state.states) expect(pages).toEqual(['FIRST PAGE', 'SECOND PAGE', 'THIRD PAGE']);
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'single-column.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state.doc)) });
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역' });
+  for (const zoom of [100, 50, 125, 200, 100]) {
+    const slider = page.getByRole('slider', { name: '확대 축소' }); await slider.fill(String(zoom)); await slider.dispatchEvent('input'); await slider.dispatchEvent('change');
+    await expect.poll(() => page.locator('.document-stack').getAttribute('data-pages')).toBe('3');
+    await expect.poll(() => editor.evaluate((root, zoom) => {
+      const height = Number(root.closest<HTMLElement>('.document-stack')!.dataset.pageHeight), origin = root.getBoundingClientRect().top;
+      return [...root.querySelectorAll('p')].filter(p => p.textContent!.trim()).map(p => Math.floor(((p.getBoundingClientRect().top - origin) / (zoom / 100) + .5) / (height + 24)) + 1);
+    }, zoom)).toEqual([1, 2, 3]);
+  }
+  await editor.getByText('SECOND PAGE', { exact: true }).fill('EDITED');
+  await page.keyboard.press('ControlOrMeta+z'); await expect(editor).toContainText('SECOND PAGE');
+  const download = page.waitForEvent('download'); await page.keyboard.press('ControlOrMeta+s');
+  const saved = JSON.parse(await fs.readFile((await (await download).path())!, 'utf8'));
+  expect(saved.content).toEqual(state.doc.content);
+});
