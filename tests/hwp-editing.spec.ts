@@ -14,6 +14,21 @@ async function temporaryLargeFixture(prefix: string, copies = 1) {
 test.afterAll(async () => {
   await Promise.all(temporaryFixtureDirectories.map(directory => fs.rm(directory, { recursive: true, force: true })));
 });
+test.afterEach(async ({}, info) => {
+  if (info.status !== 'passed') return;
+  // Preserve failure downloads, but do not accumulate hundreds of megabytes
+  // of already-verified random-image exports on successful corpus runs.
+  const entries = await fs.readdir(info.outputDir, { withFileTypes: true }).catch(() => []);
+  const removed: { name: string; bytes: number }[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !/\.(wordstudio|docx|hwp|hwpx|html)$/i.test(entry.name)) continue;
+    const file = path.join(info.outputDir, entry.name), bytes = (await fs.stat(file)).size;
+    if (bytes <= 10 * 1024 * 1024) continue;
+    try { await fs.unlink(file); removed.push({ name: entry.name, bytes }); }
+    catch { /* A browser or Windows scanner may still hold a download. Keep it. */ }
+  }
+  if (removed.length) await fs.writeFile(info.outputPath('removed-test-downloads.json'), JSON.stringify({ reason: 'Verified generated exports; fixture generators, result JSON and failure artifacts remain', removed }, null, 2));
+});
 async function largeDocument() {
   if (!largeFixture) largeFixture = temporaryLargeFixture('hwp-large-regression-');
   return largeFixture;

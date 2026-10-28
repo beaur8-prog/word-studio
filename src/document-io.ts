@@ -955,10 +955,13 @@ async function imageRun(
   let height =
     Number(node.attrs?.height) ||
     (width * decoded.naturalHeight) / decoded.naturalWidth;
-  const scale = Math.min(1, availablePixels / width, 950 / height);
-  width = Math.max(1, Math.round(width * scale));
-  height = Math.max(1, Math.round(height * scale));
-  const floating = imageFloating(node.attrs?.floating), name = String(node.attrs?.title || '그림');
+  const floating = imageFloating(node.attrs?.floating);
+  // Floating figures have explicit anchor geometry and may span a whole
+  // paper or cross cell edges. Only inline pictures fit the text container.
+  const scale = floating ? 1 : Math.min(1, availablePixels / width, 950 / height);
+  width = Math.max(1, floating ? width : Math.round(width * scale));
+  height = Math.max(1, floating ? height : Math.round(height * scale));
+  const name = String(node.attrs?.title || '그림');
   const geometryId = floating?.polygon ? `wsFloat_${crypto.randomUUID()}` : undefined;
   if (geometryId) geometries.set(geometryId, { name, geometry: floating! });
   return new ImageRun({
