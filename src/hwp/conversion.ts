@@ -14,6 +14,8 @@ import { stageHwpSections } from './export-sections';
 import { stageHwpFurniture } from './export-furniture';
 import { stageHwpPictures } from './export-pictures';
 import { hwpBookmark, hwpTabAttribute, stageHwpTextNavigation } from './text-navigation';
+import { hwpTableGrid } from './table-grid';
+import { nestedTableGeometry } from './nested-tables';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -139,19 +141,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
       }
       return heights.map(height => Math.max(1, px(height ?? 0)));
     }
-    const edges: (number | undefined)[] = Array(length + 1); edges[0] = 0;
-    for (let pass = 0; pass < 4; pass++) for (const cell of cells) {
-      const start = cell[axis], end = start + cell[axis + 'Span'], size = cell[axis === 'col' ? 'width' : 'height'];
-      if (edges[start] !== undefined && edges[end] === undefined) edges[end] = edges[start]! + size;
-      else if (edges[end] !== undefined && edges[start] === undefined) edges[start] = Math.max(0, edges[end]! - size);
-    }
-    for (let i = 1; i <= length; i++) if (edges[i] === undefined) {
-      let end = i + 1; while (end <= length && edges[end] === undefined) end++;
-      const step = end <= length ? (edges[end]! - edges[i - 1]!) / (end - i + 1) : axis === 'col' ? 6000 : 1000;
-      for (let j = i; j < end && j <= length; j++) edges[j] = edges[i - 1]! + step * (j - i + 1);
-      i = end - 1;
-    }
-    return Array.from({ length }, (_, i) => Math.max(1, px(edges[i + 1]! - edges[i]!)));
+    return hwpTableGrid(cells, axis, length);
   };
   const columns = grid('col', dims.colCount), rows = grid('row', dims.rowCount);
   // Some stored HWP row layouts continue their cell contents onto later
@@ -643,7 +633,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
               return croppedPicture(picture, props);
             }
             catch { return html; }
-          }, noteReference);
+          }, noteReference, (path, html) => nestedTableGeometry(doc, section, para, path, html));
           controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches,
             (cell, p) => hwpTabAttribute(equationMetadata().get(`${section}:${para}/t${ordinal}/c${cell}/p${p}`)?.tabStops));
           const background = tableBackgrounds.get(c.controlIndex);
