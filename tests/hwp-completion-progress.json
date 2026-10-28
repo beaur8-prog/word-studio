@@ -4,7 +4,7 @@
   "status": "checkpoint_complete_with_followups",
   "build": "passed",
   "unitTests": 81,
-  "browserTests": 246,
+  "browserTests": 257,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -190,9 +190,9 @@
   ],
   "evidence": {
     "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
-    "browser": "browser-table-navigation-full.log",
-    "unit": "unit-final-checkpoint.log",
-    "build": "build-final-checkpoint.log",
+    "browser": "analysis/hwp-quality-2026-10-28/browser-final.log",
+    "unit": "analysis/hwp-quality-2026-10-28/unit-final.log",
+    "build": "analysis/hwp-quality-2026-10-28/build-final.log",
     "nativeLarge": "native-large-completion.log",
     "nativeFourDocuments": "native-rich-merged-final.log",
     "docx": "docx-formatting-corpus.json",
@@ -209,7 +209,7 @@
     "tableGapAndFontInheritance": "spacing-inheritance-final.log",
     "freshImport": "fresh-formatting-complete.log",
     "fullSourceBody": "tests/hwp-source-text-audit.json",
-    "nativeSixDocuments": "native-final-checkpoint.log"
+    "nativeSixDocuments": "analysis/hwp-quality-2026-10-28/native.log"
   },
   "falsePositivesCorrected": [
     "Korean large glyph: font rectangle extends into margin, actual ink does not.",
@@ -424,8 +424,8 @@
   },
   "crossPlatformValidation": {
     "windowsFocused": {
-      "runId": 40385723320,
-      "commit": "9f42afc",
+      "runId": 40653072835,
+      "commit": "305f78d",
       "result": "passed"
     },
     "fullInstallValidation": {
@@ -446,11 +446,16 @@
         "uninstall",
         "user data preservation"
       ],
-      "scope": "final retained product source including table-exit navigation",
+      "scope": "Prior 9f42afc integration checkpoint; packaging code is unchanged by the navigation follow-up.",
       "linuxBrowserTests": 246
     },
     "actualMicrosoftWord": "unavailable",
-    "actualHancom": "unavailable"
+    "actualHancom": "unavailable",
+    "linuxFocused": {
+      "runId": 40653072835,
+      "commit": "305f78d",
+      "result": "passed"
+    }
   },
   "inlineTableSpacing": {
     "status": "fixed_prefix_suffix_and_horizontal_position",
@@ -788,5 +793,15 @@
     "nativeDocuments": 6,
     "zoomChecks": 30,
     "rendererErrors": []
+  },
+  "qualityFollowup": {
+    "productCommit": "305f78d",
+    "report": "tests/hwp-navigation-validation.json",
+    "runId": 40653072835,
+    "status": "passed",
+    "newRegressionScenarios": 11,
+    "bodyCharactersRetained": 218797,
+    "sourcePageCountsUnchanged": 10,
+    "docxRoundtrips": 2
   }
 }
