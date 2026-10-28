@@ -34,24 +34,44 @@ export function paragraphCss(properties: Record<string, any>, char?: Record<stri
 }
 
 export function sourceLinePitches(doc: HwpDocument): Map<string, number> {
-  const lines = new Map<string, { y: number; h: number; page: number }[]>();
+  const lines = new Map<string, { y: number; h: number; page: number; charStart?: number }[]>();
+  const texts = new Map<string, () => string>();
   const pitches = new Map<string, number>();
   for (let page = 0; page < doc.pageCount(); page++) for (const run of JSON.parse(doc.getPageTextLayout(page)).runs ?? []) {
     if (run.parentParaIdx === undefined && typeof run.secIdx === 'number' && typeof run.paraIdx === 'number') pitches.set(`flow:${run.secIdx}:${run.paraIdx}`, 1);
     if (run.headerFooter || run.paraIdx === 0xffffffff || typeof run.secIdx !== 'number' || typeof run.paraIdx !== 'number') continue;
     const key = run.parentParaIdx === undefined ? `${run.secIdx}:${run.paraIdx}` : cellParagraphKey(run.secIdx, run.parentParaIdx, run.cellPath?.length ? run.cellPath : [{ controlIndex: run.controlIdx, cellIndex: run.cellIdx, cellParaIndex: run.cellParaIdx }]);
+    if (!texts.has(key)) texts.set(key, () => run.parentParaIdx === undefined
+      ? doc.getTextRange(run.secIdx, run.paraIdx, 0, doc.getParagraphLength(run.secIdx, run.paraIdx))
+      : doc.getTextInCellByPath(run.secIdx, run.parentParaIdx, JSON.stringify(run.cellPath?.length ? run.cellPath : [{ controlIndex: run.controlIdx, cellIndex: run.cellIdx, cellParaIndex: run.cellParaIdx }]), 0, 0xffffffff));
     if (!pitches.has(`top:${key}`)) { pitches.set(`top:${key}`, run.y); pitches.set(`page:${key}`, page); }
     pitches.set(`height:${key}`, Math.max(pitches.get(`height:${key}`) ?? 0, run.h));
     if (!run.text?.trim()) continue;
     const group = lines.get(key) ?? [], previous = group.at(-1);
-    if (!previous || previous.page !== page || Math.abs(previous.y - run.y) > Math.min(previous.h, run.h) * .45) group.push({ y: run.y, h: run.h, page });
+    if (!previous || previous.page !== page || Math.abs(previous.y - run.y) > Math.min(previous.h, run.h) * .45) group.push({ y: run.y, h: run.h, page, charStart: run.charStart });
     lines.set(key, group);
   }
   for (const [key, group] of lines) {
     pitches.set(`lines:${key}`, group.length);
+    let text: string | undefined;
     const values = group.slice(1).flatMap((line, i) => {
-      const previous = group[i], value = line.y - previous.y;
-      return line.page === previous.page && value >= Math.max(line.h, previous.h) * .9 && value < Math.max(line.h, previous.h) * 4 ? [value] : [];
+      const previous = group[i];
+      if (line.page !== previous.page) return [];
+      const distance = line.y - previous.y, height = Math.max(line.h, previous.h);
+      // Retain the existing rejection of large control/object gaps before
+      // normalizing blank lines; they must not become new pitch candidates.
+      if (distance < height * .9 || distance >= height * 4) return [];
+      let steps = 1;
+      if (line.charStart !== undefined && previous.charStart !== undefined && line.charStart > previous.charStart) {
+        try {
+          text ??= texts.get(key)?.();
+          // Empty explicit lines have no painted run. Their combined distance
+          // is several line pitches, rather than an enlarged single pitch.
+          steps = Math.max(1, (text?.slice(previous.charStart, line.charStart).match(/\n/g) || []).length);
+        } catch { /* Optional text metrics retain the measured fallback. */ }
+      }
+      const value = distance / steps;
+      return value >= height * .9 && value < height * 4 ? [value] : [];
     }).sort((a, b) => a - b);
     if (values.length) pitches.set(key, Math.round(values[Math.floor(values.length / 2)] * 100) / 100);
   }

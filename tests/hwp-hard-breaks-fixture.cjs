@@ -13,6 +13,9 @@ module.exports = async function createFixture(directory) {
     assert.equal(doc.getTextRange(0, 1, 0, 0xffffffff), 'MULTI_ALPHA\n\nMULTI_BETA\n');
     const files = {};
     for (const format of ['hwp', 'hwpx']) { files[format] = path.join(directory, 'hard-breaks.' + format); await fs.writeFile(files[format], format === 'hwp' ? doc.exportHwp() : doc.exportHwpx()); }
-    return files;
+    const runs = Array.from({ length: doc.pageCount() }, (_, page) => JSON.parse(doc.getPageTextLayout(page)).runs).flat();
+    const first = runs.find(r => r.text === 'MULTI_ALPHA'), last = runs.find(r => r.text === 'MULTI_BETA');
+    assert.ok(first && last);
+    return { ...files, multiLineGap: last.y - first.y };
   } finally { doc.free(); }
 };

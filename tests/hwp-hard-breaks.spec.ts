@@ -4,7 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 const fixture = createRequire(import.meta.url)('./hwp-hard-breaks-fixture.cjs');
-let directory: string, files: Record<string, string>;
+let directory: string, files: Record<string, any>;
 test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-hard-breaks-')); files = await fixture(directory); });
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
 
@@ -34,12 +34,14 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: explicit body/cell/nested
   await expect(paragraph.locator('br:not(.ProseMirror-trailingBreak)')).toHaveCount(1);
   for (const zoom of [100, 50, 125, 200, 100]) {
     const slider = page.getByRole('slider', { name: '확대 축소' }); await slider.fill(String(zoom)); await slider.dispatchEvent('input'); await slider.dispatchEvent('change');
-    await expect.poll(() => paragraph.evaluate((p, zoom) => {
+    const gap = (target) => target.evaluate((p, zoom) => {
       const first = document.createRange(), last = document.createRange(), walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT), nodes: Node[] = [];
       while (walker.nextNode()) if (walker.currentNode.textContent?.trim()) nodes.push(walker.currentNode);
       first.selectNodeContents(nodes[0]); last.selectNodeContents(nodes.at(-1)!);
       return (last.getBoundingClientRect().top - first.getBoundingClientRect().top) / (zoom / 100);
-    }, zoom)).toBeGreaterThan(10);
+    }, zoom);
+    await expect.poll(() => gap(paragraph)).toBeGreaterThan(10);
+    await expect.poll(() => gap(editor.locator('p').filter({ hasText: 'MULTI_BETA' }))).toBeCloseTo(files.multiLineGap, 0);
   }
   await paragraph.click(); await page.keyboard.press('End'); await page.keyboard.type(' EDIT');
   await expect(paragraph).toContainText('EDIT'); await page.keyboard.press('ControlOrMeta+z'); await expect(paragraph).not.toContainText('EDIT');
