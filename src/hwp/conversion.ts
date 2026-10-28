@@ -183,7 +183,12 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
       const text = doc.exportSelectionInCellHtml(section, para, control, c.index, 0, 0, 0, 0xffffffff).replace(/<[^>]*>|<!--.*?-->/g, '').trim();
       noWrap = /^\d+[.)]?$/.test(text);
     }
-    return style(tag.replace(/^<td/, header ? '<th' : '<td').replace(/>$/, ` colwidth="${width.join(',')}">`), `width:${px(c.width)}px;height:${px(c.height)}px;padding:${px(c.paddingTop)}px ${px(c.paddingRight)}px ${px(c.paddingBottom)}px ${px(c.paddingLeft)}px;vertical-align:${['top', 'middle', 'bottom'][c.verticalAlign] ?? 'top'};${noWrap ? 'white-space:nowrap;' : ''}${header ? 'background-color:transparent;color:#000;font-weight:normal;' : ''}${borders}`);
+    // TH has app defaults, but resetting them must not overwrite a fill or
+    // text style already supplied by the HWP cell. Put defaults first.
+    if (header) tag = tag.includes('style="')
+      ? tag.replace('style="', 'style="background-color:transparent;color:#000;font-weight:normal;')
+      : style(tag, 'background-color:transparent;color:#000;font-weight:normal;');
+    return style(tag.replace(/^<td/, header ? '<th' : '<td').replace(/>$/, ` colwidth="${width.join(',')}">`), `width:${px(c.width)}px;height:${px(c.height)}px;padding:${px(c.paddingTop)}px ${px(c.paddingRight)}px ${px(c.paddingBottom)}px ${px(c.paddingLeft)}px;vertical-align:${['top', 'middle', 'bottom'][c.verticalAlign] ?? 'top'};${noWrap ? 'white-space:nowrap;' : ''}${borders}`);
   });
 }
 

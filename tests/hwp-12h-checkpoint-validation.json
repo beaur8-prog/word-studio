@@ -271,7 +271,7 @@
   },
   "crossPlatform": {
     "workflow": ".github/workflows/hwp-layout-validation.yml",
-    "status": "current checkpoint pending CI",
+    "status": "d582 checkpoint passed on Windows/Linux; subsequent header-color change pending its own CI",
     "previousCheckpoint": {
       "commit": "f83ec98bc3cadab7c46d2ba19fd670104c6e7ee2",
       "focusedRun": 40704195653,
@@ -285,6 +285,12 @@
       "linuxRun": 40698537125,
       "ubuntu22": "passed",
       "ubuntu24": "passed"
+    },
+    "currentCheckpoint": {
+      "commit": "d582aec863e45cf1bd45aeb44ac104e5e7d6c29a",
+      "focusedRun": 40713278948,
+      "windows": "passed",
+      "linux": "passed"
     }
   },
   "coreReproducibility": {
@@ -508,7 +514,7 @@
       "after": "AFTER intact below table; long fixture 2 pages; zero/offset preserve 20px relative offset",
       "limitation": "independent Writer interoperability check, not Microsoft Word validation"
     },
-    "ci": "pending on this checkpoint; c95 platform installation results remain separately recorded"
+    "ci": "f83 run40704195653 and d582 run40713278948 passed on Windows/Linux"
   },
   "emptyLinePolicy": {
     "origin": "getSectionDef.hideEmptyLine",
@@ -520,5 +526,21 @@
       37
     ],
     "modelParagraphsDeleted": 0
+  },
+  "headerColorFollowup": {
+    "browserTests": 300,
+    "nativeUnitTests": 86,
+    "build": "passed",
+    "sourceFailureCases": 2,
+    "newPassingScenarios": 2,
+    "tenFreshModels": "only backgroundColor differs: 20 work-rules headers, 1 notice header; all other content/page unchanged",
+    "evidence": [
+      "header-colors-before.log",
+      "header-colors-after2.log",
+      "header-colors-full.log",
+      "header-colors-unit2.log",
+      "header-colors-build.log",
+      "variant-header-colors/fresh.json"
+    ]
   }
 }
