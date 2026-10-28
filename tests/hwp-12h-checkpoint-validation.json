@@ -1,6 +1,6 @@
 {
   "date": "2026-10-28",
-  "status": "all final candidate checks passed; main integration pending",
+  "status": "validated product and reports merged to main; approved-window closing checks remain",
   "baseCommit": "bfc5137",
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
@@ -702,7 +702,7 @@
     "report": "analysis/hwp-12h-2026-10-28/openxml-float-size.json"
   },
   "docxParagraphCountsPreservedAllTen": true,
-  "finalIntegration": "321 browser/88 unit/build, ten source and two-save DOCX logical streams, actual hidden Mac DOCX, official schema, focused Windows/Linux and Windows/Linux22/Linux24 install/reinstall/uninstall passed; main integration pending",
+  "finalIntegration": "PR6 merged as e9a85e44d2fc4ecbd1c34b06282d441fe45d5386 after final product and report-head CI passed; no public release or Lithos update",
   "validationCandidateCommit": "b73c03034c529cc48840e6975017874b1aca55f0",
   "integratedApplicationVersion": "1.4.9",
   "nativeDocxReopen": {
@@ -733,7 +733,8 @@
     "focused": 40770896328,
     "nativeDesktop": 40770899178,
     "previousFullBrowserDesktop": 40764347389,
-    "previousFullSuccessfulDesktop": 40760988760
+    "previousFullSuccessfulDesktop": 40760988760,
+    "reportHeadFocused": 40772428047
   },
   "sourceIntegrityWithHardBreaks": {
     "samples": 10,
@@ -859,5 +860,31 @@
     "bodyMarkersPreserved": 12,
     "report": "native-large-full-roundtrip/result.json",
     "scope": "Synthetic3 unique random-image assets repeated4 times; distinct from separate2-image56MB backup scenario"
-  }
+  },
+  "frozenAnchorTransitions": {
+    "count": 160,
+    "newlyCorrect": 30,
+    "newlyWrong": 7,
+    "netNewlyCorrect": 23,
+    "absolutePageErrorSumBefore": 154,
+    "absolutePageErrorSumAfter": 109,
+    "newRegressionsDocument": "02-work-rules",
+    "originalPagesNewlyWrong": [
+      28,
+      47,
+      53,
+      57,
+      61,
+      68,
+      73
+    ],
+    "anotherWorkRulesAnchorWorsened": "originalp78, offset-1 to-2",
+    "scope": "Same frozen anchors aftertwoDOCX against baseline; not all original paragraphs",
+    "report": "final-frozen-anchor-transitions.json"
+  },
+  "mergeCommit": "e9a85e44d2fc4ecbd1c34b06282d441fe45d5386",
+  "permanentWorktree": "/Users/swryu/Developer/word-studio",
+  "originalICloudCheckoutPreserved": true,
+  "qaServersStopped": 3,
+  "closingAutomationStatus": "active until approved2026-10-28T22:33:26Z; stop after closing report"
 }
