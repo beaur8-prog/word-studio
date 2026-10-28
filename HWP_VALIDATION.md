@@ -1,5 +1,15 @@
 # HWP/HWPX 읽기·편집·변환 검증
 
+## 2026-10-28 · 검증된 수정 묶음 반영
+
+제품 소스는 `9f42afc`와 동일하며 전체 브라우저 **246개**, 네이티브 단위 **81개**, 프로덕션 빌드를 통과했다. 마지막 표 뒤에서 아래 방향키를 눌러 편집을 이어갈 수 있도록 보완했다. [Windows 및 Ubuntu 22.04/24.04 설치 검사](https://github.com/beaur8-prog/word-studio/actions/runs/40385947659)도 통과했다. Windows/Linux의 전체 브라우저 검사는 각각 246개이며 설치·실행·HWP 읽기/편집·재설치·제거·사용자 데이터 보존을 포함한다. 실제 Microsoft Word/한컴 앱의 교차 확인과는 별개다.
+
+한 단의 단 나누기 실험은 합성/Windows 집중 검사에 통과했지만 실제 Mac 업무계획에서 편집 37쪽/인쇄 36쪽의 끝 빈 쪽 회귀를 확인해 되돌렸다. 근거는 로컬 `native-single-column-experiment.log`, `native-single-column-experiment/`, `single-column-corpus-diff.json`이다. 이 실험의 검사 수를 최종 통과 수에 합산하지 않는다. 마지막 줄의 추가 간격·끝 빈 문단과 함께 후속 작업으로 남긴다.
+
+현재 원본/변환 쪽 수는 규정 163/164, 업무계획 35/36, 공고 35/40, 영어 8/9이며, 나머지 6개 샘플은 쪽 수가 같다. 10개 모두 두 번의 DOCX 저장 후 현재 본문·그림 수·쪽 수가 유지된다. 원본 전체의 동일 조판을 보장하는 판정은 아니다. 이번 반영 범위와 미완료 항목은 [실행 계획](HWP_CONVERSION_PLAN.md)에 구분했다.
+
+최종 근거: `browser-table-navigation-full.log`, `unit-final-checkpoint.log`, `build-final-checkpoint.log`, `native-final-checkpoint.log`, `cross-platform-navigation.log`. 검사 전용 서버와 프로필만 정리하며 공개 샘플과 진단 자료는 보존한다.
+
 
 ## 2026-10-27 · 셀 서식·표 간격·다단 중복 배치
 

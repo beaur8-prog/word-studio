@@ -1,10 +1,10 @@
 {
-  "date": "2026-10-27",
+  "date": "2026-10-28",
   "baselineCommit": "e694647",
-  "status": "in_progress",
+  "status": "checkpoint_complete_with_followups",
   "build": "passed",
   "unitTests": 81,
-  "browserTests": 245,
+  "browserTests": 246,
   "sampleSource": "analysis/hwp-row-flow-2026-10-26/manifest.json",
   "samples": [
     {
@@ -185,13 +185,14 @@
     "Language-specific font size, tracking and width remain under investigation; diagnostic variants are not shipped.",
     "HWP/HWPX native PAGE/NUMPAGES now survive, but floating object/complex drawing furniture export limitations remain explicitly warned.",
     "Microsoft Word, Hancom office and a Windows runtime are unavailable on this Mac.",
-    "All 10 samples retain current DOCX page counts; a few rules page-start lines still differ by one or two characters after saving."
+    "All 10 samples retain current DOCX page counts; a few rules page-start lines still differ by one or two characters after saving.",
+    "Single-column break handling needs a combined fix for trailing empty paragraphs; the isolated experiment was reverted after an actual-app pagination regression."
   ],
   "evidence": {
     "localDirectory": "analysis/hwp-completion-fixes-2026-10-26/",
-    "browser": "browser-formatting-complete.log",
-    "unit": "unit-formatting-complete.log",
-    "build": "build-column-flow.log",
+    "browser": "browser-table-navigation-full.log",
+    "unit": "unit-final-checkpoint.log",
+    "build": "build-final-checkpoint.log",
     "nativeLarge": "native-large-completion.log",
     "nativeFourDocuments": "native-rich-merged-final.log",
     "docx": "docx-formatting-corpus.json",
@@ -208,7 +209,7 @@
     "tableGapAndFontInheritance": "spacing-inheritance-final.log",
     "freshImport": "fresh-formatting-complete.log",
     "fullSourceBody": "tests/hwp-source-text-audit.json",
-    "nativeSixDocuments": "native-formatting-final.log"
+    "nativeSixDocuments": "native-final-checkpoint.log"
   },
   "falsePositivesCorrected": [
     "Korean large glyph: font rectangle extends into margin, actual ink does not.",
@@ -423,16 +424,16 @@
   },
   "crossPlatformValidation": {
     "windowsFocused": {
-      "runId": 40354520566,
-      "commit": "eefd588",
+      "runId": 40385723320,
+      "commit": "9f42afc",
       "result": "passed"
     },
     "fullInstallValidation": {
-      "runId": 40357162846,
-      "commit": "8e65390",
+      "runId": 40385947659,
+      "commit": "9f42afc",
       "result": "passed",
-      "windowsBrowserTests": 221,
-      "nativeTestsPerOS": 70,
+      "windowsBrowserTests": 246,
+      "nativeTestsPerOS": 81,
       "systems": [
         "Windows",
         "Ubuntu 22.04",
@@ -445,7 +446,8 @@
         "uninstall",
         "user data preservation"
       ],
-      "scope": "before rich merged-cell checkpoint"
+      "scope": "final retained product source including table-exit navigation",
+      "linuxBrowserTests": 246
     },
     "actualMicrosoftWord": "unavailable",
     "actualHancom": "unavailable"
@@ -470,7 +472,8 @@
         35
       ],
       "matchingLongParagraphPageStarts": 35,
-      "remaining": "short title table page starts, inline object line leading and font metrics"
+      "remaining": "short title table page starts, inline object line leading and font metrics",
+      "scope": "Historical checkpoint before restored inline-object leading; current validated count is 36, recorded in samples/formattingCheckpoint."
     }
   },
   "richVerticalMerges": {
@@ -766,5 +769,24 @@
       ]
     },
     "patchReproducibility": "All four patches apply in sequence to pinned source; all 10 resulting files equal the compiled checkout."
+  },
+  "finalCheckpoint": {
+    "date": "2026-10-28",
+    "productSourceEquivalentTo": "9f42afc",
+    "scope": "User requested a reasonable stopping point and integration; unchecked plan items remain follow-ups.",
+    "deferredSingleColumnBreakExperiment": {
+      "commit": "efefee7",
+      "revertedBy": "3aa8331",
+      "syntheticTestsPassed": true,
+      "windowsFocusedRun": 40647959513,
+      "reason": "Actual Mac language plan editor 37 pages / print 36; trailing empty paragraph creates an editor-only page.",
+      "evidence": [
+        "native-single-column-experiment.log",
+        "single-column-corpus-diff.json"
+      ]
+    },
+    "nativeDocuments": 6,
+    "zoomChecks": 30,
+    "rendererErrors": []
   }
 }
