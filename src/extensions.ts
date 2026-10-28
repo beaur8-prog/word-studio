@@ -72,8 +72,14 @@ const ParagraphFormat = Extension.create({
           lineSpacing: {
             default: null,
             parseHTML: (e) => e.style.lineHeight || null,
-            renderHTML: (a) =>
-              a.lineSpacing ? { style: `line-height:${a.lineSpacing}` } : {},
+            renderHTML: (a) => a.lineSpacing ? {
+              style: `line-height:${a.lineSpacing}` + (/(?:px|pt)$/.test(a.lineSpacing)
+                ? `;--exact-line-height:${a.lineSpacing}` : ''),
+              // CSS gives each differently sized run its own half-leading.
+              // An exact Word/Hancom line instead has one paragraph strut.
+              ...(/(?:px|pt)$/.test(a.lineSpacing) && !['auto', 'atLeast'].includes(a.wordLineRule)
+                ? { 'data-exact-line-height': 'true' } : {}),
+            } : {},
           },
         },
       },

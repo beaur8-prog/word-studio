@@ -1,11 +1,11 @@
 {
   "date": "2026-10-28",
-  "status": "checkpoint; approved twelve-hour work continues",
+  "status": "third-hour checkpoint; approved twelve-hour work continues",
   "baseCommit": "bfc5137",
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
   "coreVersion": "0.8.7-wordstudio.6",
-  "browserTests": 270,
+  "browserTests": 283,
   "nativeUnitTests": 86,
   "productionBuild": "passed",
   "baselineFailedNewBrowserScenarios": 3,
@@ -82,13 +82,13 @@
     {
       "id": "06-mixed-document",
       "sourcePages": 35,
-      "printPages": 40,
+      "printPages": 39,
       "textMatchesPrior": true,
       "images": 44,
       "docxPages": [
-        40,
-        40,
-        40
+        39,
+        39,
+        39
       ],
       "docxTextMatches": true
     },
@@ -148,7 +148,7 @@
   "fixedAnchors": {
     "count": 160,
     "beforeMismatches": 122,
-    "afterMismatches": 108,
+    "afterMismatches": 103,
     "perDocument": [
       {
         "id": "02-work-rules",
@@ -160,13 +160,13 @@
         "id": "04-language-plan",
         "count": 40,
         "missing": 0,
-        "mismatched": 33
+        "mismatched": 31
       },
       {
         "id": "06-mixed-document",
         "count": 40,
         "missing": 0,
-        "mismatched": 32
+        "mismatched": 29
       },
       {
         "id": "07-english-exam",
@@ -178,7 +178,7 @@
   },
   "extraPages": {
     "before": 8,
-    "after": 7,
+    "after": 6,
     "target": 4,
     "targetAchieved": false
   },
@@ -195,11 +195,87 @@
     ],
     "visibleInkMarginOverflows": 0,
     "workRulesFontBoxOnlyOverflows": 1,
-    "installationPackageTested": false
+    "installationPackageTested": false,
+    "pdfPages": [
+      {
+        "id": "04-language-plan",
+        "pages": 36,
+        "bytes": 1825550,
+        "firstPageTextLength": 67
+      },
+      {
+        "id": "07-english-exam",
+        "pages": 9,
+        "bytes": 2953918,
+        "firstPageTextLength": 2376
+      },
+      {
+        "id": "05-return-form",
+        "pages": 1,
+        "bytes": 339443,
+        "firstPageTextLength": 1319
+      },
+      {
+        "id": "06-mixed-document",
+        "pages": 39,
+        "bytes": 2316910,
+        "firstPageTextLength": 1559
+      },
+      {
+        "id": "02-work-rules",
+        "pages": 163,
+        "bytes": 1718965,
+        "firstPageTextLength": 531
+      },
+      {
+        "id": "08-math-exam",
+        "pages": 20,
+        "bytes": 1420155,
+        "firstPageTextLength": 327
+      }
+    ],
+    "versions": {
+      "node": "24.19.0",
+      "acorn": "8.17.0",
+      "ada": "3.4.4",
+      "amaro": "1.1.10",
+      "ares": "1.34.6",
+      "brotli": "1.2.0",
+      "cldr": "48.0",
+      "icu": "78.2",
+      "llhttp": "9.4.3",
+      "merve": "1.2.2",
+      "modules": "146",
+      "napi": "10",
+      "nbytes": "0.1.4",
+      "ncrypto": "0.0.1",
+      "nghttp2": "1.69.0",
+      "nghttp3": "",
+      "ngtcp2": "",
+      "openssl": "0.0.0",
+      "simdjson": "4.6.4",
+      "simdutf": "7.7.0",
+      "sqlite": "3.53.3",
+      "tz": "2025c",
+      "undici": "7.29.0",
+      "unicode": "17.0",
+      "uv": "1.52.1",
+      "uvwasi": "0.0.23",
+      "v8": "14.8.178.38-electron.0",
+      "zlib": "1.3.2.1-motley",
+      "zstd": "1.6.0",
+      "electron": "42.11.15",
+      "chrome": "148.0.7778.280"
+    }
   },
   "crossPlatform": {
     "workflow": ".github/workflows/hwp-layout-validation.yml",
-    "status": "pending pull-request checks"
+    "status": "current checkpoint pending CI",
+    "previousCheckpoint": {
+      "run": 40682208085,
+      "windows": "passed",
+      "linux": "passed"
+    }
   },
   "coreReproducibility": {
     "revision": "1a76570e833917d15817415a53c09ad61ab3203f",
@@ -292,7 +368,98 @@
     "Source native geometry shares the parser; independent PDF page matches apply to selected anchors only.",
     "Image counts do not establish identical image dimensions or placement.",
     "Actual Word/Hancom and complete installation packages were not exercised in this checkpoint.",
-    "Blank paragraph boundaries, general floating tables, language-specific font and character width remain under investigation."
+    "Blank paragraph boundaries, general floating tables, language-specific font and character width remain under investigation.",
+    "Two existing editor/print paragraph start-page discrepancies remain in work-rules and English; unchanged from previous-checkpoint audits.",
+    "Merged-cell nested tables are supported when they stay intact inside a row fragment; splitting such nested tables or own footnotes remains a conservative fallback."
   ],
-  "evidenceDirectory": "analysis/hwp-12h-2026-10-28/"
+  "evidenceDirectory": "analysis/hwp-12h-2026-10-28/",
+  "newRegressionEvidence": [
+    {
+      "scenario": "mixed-size exact lines in body/nested cells",
+      "before": "2 failures on the original baseline",
+      "after": "passed; zoom/edit/undo/two DOCX saves"
+    },
+    {
+      "scenario": "HWP/HWPX single-page merge after preceding flow changes",
+      "before": "policy 2 fails in 2 formats; policy 0 controls pass",
+      "after": "all four pass"
+    },
+    {
+      "scenario": "short continuation row with repeated padding",
+      "before": "3 alignment failures before view-only row growth",
+      "after": "all three pass"
+    },
+    {
+      "scenario": "nested tables wholly inside a merged row fragment",
+      "before": "3 alignment failures before atomic block support",
+      "after": "all three pass"
+    }
+  ],
+  "editorPrintAudit": {
+    "scope": "Complete uniquely matching paragraphs of at least 10 normalized characters; duplicates and split paragraphs excluded",
+    "documents": [
+      {
+        "id": "02-work-rules",
+        "editorPages": 163,
+        "printPages": 163,
+        "matched": 674,
+        "excluded": 1053,
+        "mismatchedStartPages": 1,
+        "samePageYDifferencesAbove2px": 32
+      },
+      {
+        "id": "04-language-plan",
+        "editorPages": 36,
+        "printPages": 36,
+        "matched": 587,
+        "excluded": 77,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 49
+      },
+      {
+        "id": "06-mixed-document",
+        "editorPages": 39,
+        "printPages": 39,
+        "matched": 763,
+        "excluded": 125,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 158
+      },
+      {
+        "id": "07-english-exam",
+        "editorPages": 9,
+        "printPages": 9,
+        "matched": 268,
+        "excluded": 2,
+        "mismatchedStartPages": 1,
+        "samePageYDifferencesAbove2px": 48
+      }
+    ],
+    "knownStartPageDifferences": [
+      {
+        "id": "02-work-rules",
+        "text": "제40조(난임치료휴가)",
+        "editor": 118,
+        "print": 119,
+        "alsoPresentAtPreviousCheckpoint": true
+      },
+      {
+        "id": "07-english-exam",
+        "text": "이제 듣기 문제가 끝났습니다.",
+        "editor": 2,
+        "print": 3,
+        "alsoPresentAtPreviousCheckpoint": true
+      }
+    ]
+  },
+  "evidence": {
+    "fresh": "variant-checkpoint3/fresh.json",
+    "twoDocxSaves": "variant-row-boundary/docx-corpus.json",
+    "identicalFreshContentAndPageToRoundtripModels": true,
+    "browser": "checkpoint3-browser.log",
+    "unit": "checkpoint3-unit.log",
+    "native": "native-checkpoint3/results.json",
+    "pdf": "native-checkpoint3/pdf-summary.json",
+    "anchors": "row-boundary-page-correspondence.json"
+  }
 }

@@ -85,7 +85,7 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
         let columns = 0; row.node.forEach(cell => { columns += Number(cell.attrs.colspan || 1); });
         const cellRow = end === i + 1 && row.node.attrs.rowSplit === 'allow' && row.node.attrs.wordRowRule !== 'exact' && row.node.content.content.every(c => Number(c.attrs.rowspan || 1) === 1)
           ? row.dom as HTMLTableRowElement : undefined;
-        result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns, cellRow, header: i >= headerEnd ? header : undefined, tableTop: rect(rows[0].dom).top, mergedRows: end > i + 1 && height > usableHeight ? rows.slice(i, end).map(r => r.dom as HTMLTableRowElement) : undefined });
+        result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns, cellRow, header: i >= headerEnd ? header : undefined, tableTop: rect(rows[0].dom).top, mergedRows: end > i + 1 ? rows.slice(i, end).map(r => r.dom as HTMLTableRowElement) : undefined });
       }
       i = end;
     }
@@ -207,7 +207,9 @@ export const Pagination = Extension.create({
                   .map(ref => ({ id: ref.id, page: Math.max(0, Math.floor((piece.top + extra + ref.offset - top + .5) / stride)) }));
                 let refs = candidate();
                 const end = page * stride + h - bottom - reserve(page, refs);
-                if (piece.mergedRows) {
+                // A permitted merge may be shorter than a whole sheet but
+                // still need a row-boundary break after preceding content.
+                if (piece.mergedRows && y + piece.height > end + .5) {
                   const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed, repeatAt, reserveAt: page => reserve(page, refs) });
                   if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }

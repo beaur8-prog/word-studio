@@ -163,7 +163,12 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     if (!/^<td\b/.test(tag)) return tag;
     const c = cells[cellIndex++]; if (!c) return tag;
     cellParagraph = 0; header = !!c.isHeader && !!tableProperties.repeatHeader;
-    if (!header && c.rowSpan > 1 && (cellPages.get(c.index)?.size ?? 0) > 1) tag = tag.replace(/>$/, ' data-cell-split="allow">');
+    // RowBreak explicitly permits a break at row boundaries, including
+    // through a vertical merge. It must still work when preceding edits
+    // move a formerly single-page merge to a new boundary. This does not
+    // grant permission to cut an ordinary row through its cell text.
+    if (!header && c.rowSpan > 1 && (Number(tableProperties.pageBreak) === 2 || (cellPages.get(c.index)?.size ?? 0) > 1))
+      tag = tag.replace(/>$/, ' data-cell-split="allow">');
     try { paragraphStyle = paragraphCss(JSON.parse(doc.getCellParaPropertiesAt(section, para, control, c.index, 0)), JSON.parse(doc.getCellCharPropertiesAt(section, para, control, c.index, 0, 0)),
       c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined, false); }
     catch { paragraphStyle = 'line-height:100%;font-size:10pt;'; }

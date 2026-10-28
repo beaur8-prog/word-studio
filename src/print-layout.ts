@@ -270,7 +270,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (element.matches('tr')) { element.style.removeProperty('height'); tail.style.removeProperty('height'); }
     return tail;
   }
-  // Only source-observed continuing merges may cross a row boundary. Keep
+  // Only explicitly permitted continuing merges may cross a row boundary. Keep
   // the grid and every cell's content exactly once; this is print DOM only.
   function splitMergedGroup(group: HTMLTableRowElement[], boundary: number): HTMLTableRowElement[] | null {
     if (group.length < 2 || group.some(r => r.dataset.rowSplit === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
