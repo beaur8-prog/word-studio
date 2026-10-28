@@ -14,6 +14,7 @@ export const TABLE_GAP_STYLE = 'WordStudioTableGap';
 // a stable standard OOXML anchor, independent of the following body text.
 export const TABLE_ANCHOR_STYLE = 'WordStudioTableAnchor';
 export const TABLE_OFFSET_STYLE = 'WordStudioTableOffset';
+export const SECTION_BOUNDARY_STYLE = 'WordStudioSectionBoundary';
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
@@ -47,7 +48,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
   let sequence = 900000;
   const numbering = new WeakMap<Element, ReturnType<typeof format.numbering>>();
   for (const p of all(body, 'p')) numbering.set(p, format.numbering(p));
-  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; page?: PageSettings; nextPage?: PageSettings; width?: number; height?: number; alt?: string; floating?: string }>();
+  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; page?: PageSettings; nextPage?: PageSettings; boundaryCarrier?: boolean; width?: number; height?: number; alt?: string; floating?: string }>();
   const bookmark = (name: string) => {
     const fragment = body.createDocumentFragment();
     const id = String(++sequence);
@@ -126,7 +127,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     const isEnd = all(paragraph, 'sectPr').length > 0;
     const parent = paragraph.parentElement;
     const cell = parent?.localName === 'tc' && Array.from(parent.children).find(c => c.localName === 'p') === paragraph ? parent : undefined;
-    markers.set(name, { kind: 'paragraph', paragraph, cell, page: pages[section],
+    const boundaryCarrier = isEnd && val(child(child(paragraph, 'pPr'), 'pStyle')) === SECTION_BOUNDARY_STYLE &&
+      Array.from(paragraph.children).every(c => c.localName === 'pPr');
+    markers.set(name, { kind: 'paragraph', paragraph, cell, page: pages[section], boundaryCarrier,
       ...(isEnd ? { nextPage: pages[++section] } : {}) });
     const properties = Array.from(paragraph.children).find(e => e.localName === 'pPr');
     paragraph.insertBefore(bookmark(name), properties ? properties.nextSibling : paragraph.firstChild);
@@ -244,6 +247,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           const sectionBreak = document.createElement('div');
           sectionBreak.setAttribute('data-section-page', JSON.stringify(marker.nextPage));
           p.after(sectionBreak);
+          // This paragraph exists only to carry sectPr after a table. Keep
+          // genuine blank paragraphs and any externally added content.
+          if (marker.boundaryCarrier) p.remove();
         }
       }
       // Word's minimum row height reserves the cell's top/bottom margins in

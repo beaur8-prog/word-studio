@@ -5,7 +5,7 @@
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
   "coreVersion": "0.8.7-wordstudio.6",
-  "browserTests": 311,
+  "browserTests": 314,
   "nativeUnitTests": 86,
   "productionBuild": "passed",
   "baselineFailedNewBrowserScenarios": 3,
@@ -652,164 +652,6 @@
     "scope": "Native source serialization independent of editable converter; whitespace ignored and two documented legacy glyph aliases normalized; drawings, fields, stories and native parser correctness require separate checks",
     "evidence": "source-logical-order-final.json"
   },
-  "writerInterop": [
-    {
-      "label": "baseline",
-      "writerVersion": "LibreOffice 26.8.0.3 bce0998afefdbc355585ca324285661a2170ba77",
-      "durationSeconds": 22.54549813270569,
-      "scope": "Independent headless LibreOffice DOCX rendering; neither Microsoft Word nor Hancom; conditional Hancom empty-line policy may not be applied",
-      "samples": [
-        {
-          "id": "01-employment-contract",
-          "pages": 7,
-          "pdfBytes": 298985,
-          "inputBytes": 27102,
-          "extractedTextCharacters": 9126
-        },
-        {
-          "id": "02-work-rules",
-          "pages": 177,
-          "pdfBytes": 3086660,
-          "inputBytes": 243298,
-          "extractedTextCharacters": 129443
-        },
-        {
-          "id": "03-health-table",
-          "pages": 4,
-          "pdfBytes": 225787,
-          "inputBytes": 22556,
-          "extractedTextCharacters": 2906
-        },
-        {
-          "id": "04-language-plan",
-          "pages": 33,
-          "pdfBytes": 1331135,
-          "inputBytes": 248955,
-          "extractedTextCharacters": 34527
-        },
-        {
-          "id": "05-return-form",
-          "pages": 2,
-          "pdfBytes": 172701,
-          "inputBytes": 211923,
-          "extractedTextCharacters": 1344
-        },
-        {
-          "id": "06-mixed-document",
-          "pages": 35,
-          "pdfBytes": 1626604,
-          "inputBytes": 184538,
-          "extractedTextCharacters": 50847
-        },
-        {
-          "id": "07-english-exam",
-          "pages": 9,
-          "pdfBytes": 792510,
-          "inputBytes": 2176358,
-          "extractedTextCharacters": 35509
-        },
-        {
-          "id": "08-math-exam",
-          "pages": 20,
-          "pdfBytes": 1188142,
-          "inputBytes": 1827827,
-          "extractedTextCharacters": 5652
-        },
-        {
-          "id": "09-korean-exam",
-          "pages": 14,
-          "pdfBytes": 654112,
-          "inputBytes": 274736,
-          "extractedTextCharacters": 33138
-        },
-        {
-          "id": "10-lh-plan",
-          "pages": 4,
-          "pdfBytes": 185017,
-          "inputBytes": 62265,
-          "extractedTextCharacters": 4038
-        }
-      ]
-    },
-    {
-      "label": "current",
-      "writerVersion": "LibreOffice 26.8.0.3 bce0998afefdbc355585ca324285661a2170ba77",
-      "durationSeconds": 19.8468017578125,
-      "scope": "Independent headless LibreOffice DOCX rendering; neither Microsoft Word nor Hancom; conditional Hancom empty-line policy may not be applied",
-      "samples": [
-        {
-          "id": "01-employment-contract",
-          "pages": 7,
-          "pdfBytes": 298988,
-          "inputBytes": 27026,
-          "extractedTextCharacters": 9126
-        },
-        {
-          "id": "02-work-rules",
-          "pages": 177,
-          "pdfBytes": 3095246,
-          "inputBytes": 242983,
-          "extractedTextCharacters": 129443
-        },
-        {
-          "id": "03-health-table",
-          "pages": 4,
-          "pdfBytes": 226773,
-          "inputBytes": 22594,
-          "extractedTextCharacters": 2906
-        },
-        {
-          "id": "04-language-plan",
-          "pages": 33,
-          "pdfBytes": 1331089,
-          "inputBytes": 249101,
-          "extractedTextCharacters": 34527
-        },
-        {
-          "id": "05-return-form",
-          "pages": 1,
-          "pdfBytes": 172024,
-          "inputBytes": 211826,
-          "extractedTextCharacters": 1345
-        },
-        {
-          "id": "06-mixed-document",
-          "pages": 38,
-          "pdfBytes": 1579488,
-          "inputBytes": 186371,
-          "extractedTextCharacters": 47457
-        },
-        {
-          "id": "07-english-exam",
-          "pages": 9,
-          "pdfBytes": 792335,
-          "inputBytes": 2176216,
-          "extractedTextCharacters": 35509
-        },
-        {
-          "id": "08-math-exam",
-          "pages": 20,
-          "pdfBytes": 1188142,
-          "inputBytes": 1826596,
-          "extractedTextCharacters": 5652
-        },
-        {
-          "id": "09-korean-exam",
-          "pages": 14,
-          "pdfBytes": 654187,
-          "inputBytes": 274672,
-          "extractedTextCharacters": 33138
-        },
-        {
-          "id": "10-lh-plan",
-          "pages": 4,
-          "pdfBytes": 185378,
-          "inputBytes": 62291,
-          "extractedTextCharacters": 4038
-        }
-      ]
-    }
-  ],
   "externalWriterCorrection": {
     "invalidInitialEnvironment": "Korean glyphs absent; initial notice35→38 and form2→1 counts withdrawn",
     "version": "LibreOffice26.8.0.3, isolated system FONTCONFIG_FILE",
@@ -831,6 +673,21 @@
     },
     "notMicrosoftWord": true
   },
-  "docxEditorPendingIssue": "work-rules164editor/163print after reopening; document.xml byte exact vs0000d57; section-carrier diagnosis in progress",
-  "latestInlineEvidence": "variant-inline-guard, writer-inline-guard, native-failure-safety, native-large-1, native-large-4"
+  "docxEditorPendingIssue": "fixed: generated section carrier paragraphs; actual hidden Electron work-rules163/editor+print, notice37/editor+print, each five zooms",
+  "latestInlineEvidence": "variant-inline-guard, writer-inline-guard, native-failure-safety, native-large-1, native-large-4",
+  "invalidInitialWriterInterop": {
+    "valid": false,
+    "reason": "Korean glyphs absent; raw evidence only, superseded by externalWriterCorrection and writer-inline-guard/summary.json",
+    "rawReport": "analysis/hwp-12h-2026-10-28/writer-corpus-comparison/summary.json"
+  },
+  "latestFocusedTests": 14,
+  "openXmlSchema": {
+    "sdk": "DocumentFormat.OpenXml3.5.1",
+    "target": "Office2019",
+    "samples": 10,
+    "errors": 0,
+    "report": "analysis/hwp-12h-2026-10-28/openxml-final-candidate.json"
+  },
+  "docxParagraphCountsPreservedAllTen": true,
+  "finalIntegration": "full latest browser and platform runs pending"
 }

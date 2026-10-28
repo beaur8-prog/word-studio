@@ -44,7 +44,7 @@ import type {
   ITableCellBorders,
 } from "docx";
 import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
-import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE } from './docx-metadata';
+import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE } from './docx-metadata';
 import { emptyLineDocxProperty, emptyLineCompatibilityWarning } from './page-empty-lines';
 import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
@@ -57,6 +57,7 @@ import type { PageSettings, StudioDocument } from "./types";
 import { PreservedTable, PreservedTableCell } from './docx-table-cell';
 import { tableAnchor } from './table-anchor';
 import documentLimits from '../electron/document-limits.json';
+const bookmarkNamesProperty = 'WordStudio.BookmarkNames';
 
 export interface ImportResult {
   document: StudioDocument;
@@ -666,7 +667,21 @@ export async function importFile(file: File): Promise<ImportResult> {
   if (customPart) {
     const raw = await customPart.async('string');
     if (raw.length <= 65536) {
-      const property = elements(xml(raw), 'property').find(p => p.getAttribute('name') === emptyLineDocxProperty);
+      const properties = elements(xml(raw), 'property');
+      const names = properties.find(p => p.getAttribute('name') === bookmarkNamesProperty);
+      if (names) try {
+        const pairs = JSON.parse(names.textContent || 'null');
+        if (Array.isArray(pairs) && pairs.length <= 2048 && pairs.every(p => Array.isArray(p) && p.length === 2 &&
+          typeof p[0] === 'string' && p[0].length > 0 && p[0].length <= 40 && typeof p[1] === 'string' && p[1].length > 40 && p[1].length <= 1000)) {
+          const restored = new Map<string, string>(pairs);
+          for (const element of [...elements(body, 'bookmarkStart'), ...elements(body, 'hyperlink')]) {
+            const attribute = element.localName === 'bookmarkStart' ? 'name' : 'anchor';
+            const current = attr(element, attribute) || '', original = restored.get(current);
+            if (original) element.setAttributeNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', `w:${attribute}`, original);
+          }
+        }
+      } catch { /* Optional original names must not prevent opening the document. */ }
+      const property = properties.find(p => p.getAttribute('name') === emptyLineDocxProperty);
       if (property) try {
         const indexes = JSON.parse(property.textContent || 'null');
         if (Array.isArray(indexes) && indexes.length <= pages.length && indexes.every(i => Number.isInteger(i) && i >= 0 && i < pages.length)) {
@@ -986,12 +1001,21 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   let listId = 0;
   const commentIds = new Map(document.comments.map((comment, i) => [comment.id, i]));
   const remaining = new Map<string, number>();
+  const bookmarkNames = new Set<string>(), bookmarkAliases = new Map<string, string>();
   const anchored = (node: JSONContent): string[] => (node.marks?.find(m => m.type === 'commentAnchor')?.attrs?.ids || '').split(' ').filter((id: string) => commentIds.has(id));
   const count = (node: JSONContent) => {
+    if (node.type === 'documentBookmark') bookmarkNames.add(String(node.attrs?.name || ''));
     if (node.type === 'text') for (const id of anchored(node)) remaining.set(id, (remaining.get(id) ?? 0) + 1);
     node.content?.forEach(count);
   };
   count(document.content);
+  const bookmarkName = (name: string) => {
+    if (name.length <= 40) return name;
+    if (bookmarkAliases.has(name)) return bookmarkAliases.get(name)!;
+    let index = bookmarkAliases.size, alias = `ws_bookmark_${index}`;
+    while (bookmarkNames.has(alias)) alias = `ws_bookmark_${++index}`;
+    bookmarkNames.add(alias); bookmarkAliases.set(name, alias); return alias;
+  };
   const opened = new Set<string>();
   let wroteUnanchored = false;
   const inline = async (nodes: JSONContent[], width: number, defaults: IRunOptions = {}): Promise<ParagraphChild[]> => {
@@ -1016,7 +1040,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         )
           runs.push(
             link.attrs.href.startsWith('#')
-              ? new InternalHyperlink({ children: [run], anchor: link.attrs.href.slice(1) })
+              ? new InternalHyperlink({ children: [run], anchor: bookmarkName(link.attrs.href.slice(1)) })
               : new ExternalHyperlink({ children: [run], link: link.attrs.href }),
           );
         else runs.push(run);
@@ -1027,7 +1051,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       } else if (node.type === "hardBreak")
         runs.push(new TextRun({ ...defaults, break: 1 }));
       else if (node.type === 'documentTab') runs.push(new TextRun({ ...defaults, children: [new Tab()] }));
-      else if (node.type === 'documentBookmark') runs.push(new Bookmark({ id: String(node.attrs?.name || ''), children: [] }));
+      else if (node.type === 'documentBookmark') runs.push(new Bookmark({ id: bookmarkName(String(node.attrs?.name || '')), children: [] }));
       else if (node.type === 'documentField') runs.push(new TextRun({ ...defaults, children: [node.attrs?.kind === 'NUMPAGES' ? PageNumber.TOTAL_PAGES : PageNumber.CURRENT] }));
       else if (node.type === 'documentSymbol') runs.push(new SymbolRun({ ...defaults, ...runOptions(node), symbolfont: String(node.attrs?.font || 'Symbol'), char: Number(node.attrs?.code).toString(16).padStart(4, '0') }));
       else if (node.type === 'noteReference') {
@@ -1387,27 +1411,46 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       },
   );
   }
+  const comments = await Promise.all(document.comments.map(async (comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: comment.author ?? 'Word Studio', initials: comment.initials, date: new Date(comment.createdAt),
+    resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph(text)) })));
   const docx = new DocxDocument({
     title: document.title,
     creator: 'Word Studio',
     description: 'Created with Word Studio',
-    customProperties: groups.some(group => group.page.hideEmptyLines)
-      ? [{ name: emptyLineDocxProperty, value: JSON.stringify(groups.flatMap((group, index) => group.page.hideEmptyLines ? [index] : [])) }] : [],
+    customProperties: [
+      ...(groups.some(group => group.page.hideEmptyLines) ? [{ name: emptyLineDocxProperty, value: JSON.stringify(groups.flatMap((group, index) => group.page.hideEmptyLines ? [index] : [])) }] : []),
+      ...(bookmarkAliases.size ? [{ name: bookmarkNamesProperty, value: JSON.stringify([...bookmarkAliases].map(([name, alias]) => [alias, name])) }] : []),
+    ],
     evenAndOddHeaderAndFooters: groups.some(group => group.page.differentOddEven),
     compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false), doNotBreakWrappedTables: false },
     numbering: { config: numbering },
     footnotes, endnotes,
-    comments: { children: await Promise.all(document.comments.map(async (comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: comment.author ?? 'Word Studio', initials: comment.initials, date: new Date(comment.createdAt),
-      resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph(text)) }))) },
+    comments: { children: comments },
     styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } },
-      paragraphStyles: [TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })) },
+      paragraphStyles: [TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : id === SECTION_BOUNDARY_STYLE ? 'Section boundary' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })) },
     sections,
   });
   const blob = await Packer.toBlob(docx);
-  if (!document.comments.length && !geometries.size) return blob;
+  if (!document.comments.length && !geometries.size && groups.length === 1) return blob;
   // docx 9.12 emits resolution metadata only for replies. Standalone comments
   // need the same standard OOXML part; use its generated paragraph IDs.
   const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+  if (groups.length > 1) {
+    const body = xml(await zip.file('word/document.xml')!.async('string'));
+    const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    // docx adds Paragraph({}) when a section ends with a table. Mark only
+    // those generated carriers, never an actual paragraph from the model.
+    for (const p of elements(body, 'p')) {
+      if (p.parentElement?.localName !== 'body' || p.children.length !== 1) continue;
+      const properties = p.firstElementChild!;
+      if (properties.localName !== 'pPr' || properties.children.length !== 1 || properties.firstElementChild?.localName !== 'sectPr') continue;
+      const style = body.createElementNS(W, 'w:pStyle'); style.setAttributeNS(W, 'w:val', SECTION_BOUNDARY_STYLE); properties.prepend(style);
+      const spacing = body.createElementNS(W, 'w:spacing');
+      for (const [name, value] of Object.entries({ before: '0', after: '0', line: '1', lineRule: 'exact' })) spacing.setAttributeNS(W, `w:${name}`, value);
+      properties.insertBefore(spacing, properties.lastElementChild);
+    }
+    zip.file('word/document.xml', new XMLSerializer().serializeToString(body));
+  }
   await restoreImageGeometry(zip, geometries);
   if (document.comments.length) {
     const commentsXml = xml(await zip.file('word/comments.xml')!.async('string'));
