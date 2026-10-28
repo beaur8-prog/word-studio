@@ -8,6 +8,7 @@ import { imageFloating } from './image-floating';
 import { layoutFurnitureImages } from './furniture-layout';
 import { layoutTableAnchors, tableAnchor } from './table-anchor';
 import { paragraphFitBottom } from './paragraph-fit';
+import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
 
 export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
@@ -90,6 +91,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   let deferredNotes = new Set<string>();
   let sectionNumber = 0;
   let sectionPage = 0;
+  let hiddenEmptyLines = 0;
   let sectionJustStarted = false;
   const pageStyles: string[] = [];
   function refreshNotes() {
@@ -117,6 +119,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     content.style.height = `${Math.max(1, Number(content.dataset.bodyHeight) - reserve)}px`;
   }
   function newPage(keepBlank = false) {
+    hiddenEmptyLines = 0;
     refreshNotes();
     deferredNotes = new Set();
     const [width, height] = dimensions(settings), margins = pageMargins(settings);
@@ -477,7 +480,12 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       return;
     }
     content.append(element);
-    if (fits()) return;
+    const fitsPage = fits();
+    if (!fitsPage && settings.hideEmptyLines && content.children.length > 1 && hiddenEmptyLines < 2 &&
+      element.getBoundingClientRect().height <= content.getBoundingClientRect().height && canHideEmptyPageLine(element)) {
+      hiddenEmptyLines++; element.classList.add(hiddenEmptyLineClass); fits(); return;
+    }
+    if (fitsPage) return;
     if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && (element.textContent?.length ?? 0) > 1) {
       const offsets = paragraphLineOffsets(element);
       let low = 0, high = offsets.length - 1, best = 0;

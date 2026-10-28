@@ -9,6 +9,7 @@ import { layoutColumns } from './column-layout';
 import { layoutTableAnchors } from './table-anchor';
 import { paginateParagraph } from './editor-paragraph-pagination';
 import { paragraphFitBottom } from './paragraph-fit';
+import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
 
 const key = new PluginKey('studioPagination');
 type RepeatingHeader = { table: HTMLTableElement; rows: HTMLTableRowElement[]; height: number };
@@ -103,7 +104,18 @@ export const Pagination = Extension.create({
   addProseMirrorPlugins() {
     return [new Plugin({
       key,
-      state: { init: () => DecorationSet.empty, apply: (tr, old) => tr.getMeta(key) ?? old.map(tr.mapping, tr.doc) },
+      state: { init: () => DecorationSet.empty, apply: (tr, old) => {
+        const explicit = tr.getMeta(key); if (explicit) return explicit;
+        const mapped = old.map(tr.mapping, tr.doc);
+        if (!tr.docChanged) return mapped;
+        // Reveal a formerly blank line in the same input transaction. Layout
+        // waits during IME composition, but the composition must remain visible.
+        return mapped.remove(mapped.find().filter(decoration => {
+          if (!decoration.spec.hiddenEmptyLine) return false;
+          const node = tr.doc.nodeAt(decoration.from);
+          return !node || !!node.textContent.trim() || node.content.content.some(child => child.type.name !== 'text');
+        }));
+      } },
       props: { decorations: state => key.getState(state) },
       view(view) {
         let scheduled = 0, signature = '', lastDocument: PMNode | undefined;
@@ -138,6 +150,8 @@ export const Pagination = Extension.create({
               const h = Number(context.sheet.dataset.pageHeight) || Number(sheet.dataset.pageHeight) || 1122.52;
               const top = Number(context.sheet.dataset.margin ?? sheet.dataset.margin ?? 96);
               const bottom = Number(context.sheet.dataset.bottomMargin ?? sheet.dataset.bottomMargin ?? top), stride = h + 24, usable = h - top - bottom;
+              const hideEmptyLines = (context.sheet.dataset.hideEmptyLines ?? sheet.dataset.hideEmptyLines) === 'true';
+              const hiddenEmptyLines = new Map<number, number>();
               const origin = context.dom.getBoundingClientRect().top, scale = documentScale(context.dom);
               const removed = [...context.dom.querySelectorAll<HTMLElement>('.pagination-gap,.page-break,.column-break,.section-break')].map(el => {
                 const r = el.getBoundingClientRect(); return { top: (r.top - origin) / scale, height: r.height / scale };
@@ -207,6 +221,15 @@ export const Pagination = Extension.create({
                   .map(ref => ({ id: ref.id, page: Math.max(0, Math.floor((piece.top + extra + ref.offset - top + .5) / stride)) }));
                 let refs = candidate();
                 const end = page * stride + h - bottom - reserve(page, refs);
+                if (hideEmptyLines && piece.empty && !piece.explicit && !piece.columnFlow && piece.height > 0 && piece.height <= usable &&
+                  y > page * stride + top + .5 && y + piece.height > end + .5 && (hiddenEmptyLines.get(page) || 0) < 2) {
+                  const paragraph = view.nodeDOM(piece.pos);
+                  if (paragraph instanceof HTMLElement && canHideEmptyPageLine(paragraph)) {
+                    hiddenEmptyLines.set(page, (hiddenEmptyLines.get(page) || 0) + 1);
+                    dec.push(Decoration.node(piece.pos, piece.end, { class: hiddenEmptyLineClass }, { hiddenEmptyLine: true }));
+                    signatures.push(`empty-line:${piece.pos}:${page}`); extra -= piece.height; continue;
+                  }
+                }
                 // A permitted merge may be shorter than a whole sheet but
                 // still need a row-boundary break after preceding content.
                 if (piece.mergedRows && y + piece.height > end + .5) {

@@ -45,6 +45,7 @@ import type {
 } from "docx";
 import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
 import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE } from './docx-metadata';
+import { emptyLineDocxProperty, emptyLineCompatibilityWarning } from './page-empty-lines';
 import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
 import { overlapParts } from './word-overlap';
@@ -150,7 +151,7 @@ export function validateDocument(input: unknown): StudioDocument {
     page,
     ["size", "width", "height", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
       'differentFirstPage', 'differentOddEven', 'firstHeader', 'firstFooter', 'evenHeader', 'evenFooter',
-      'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop', 'breakType', 'columns',
+      'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop', 'breakType', 'columns', 'hideEmptyLines',
       'headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'],
     "용지 설정",
   );
@@ -170,7 +171,7 @@ export function validateDocument(input: unknown): StudioDocument {
     keysOnly(page.margins, ['top', 'right', 'bottom', 'left'], '방향별 여백');
     if (['top', 'right', 'bottom', 'left'].some(k => !finite((page.margins as Record<string, unknown>)[k], 0, 75))) fail('방향별 여백이 올바르지 않습니다.');
   }
-  for (const key of ['differentFirstPage', 'differentOddEven', 'firstPageNumbers', 'evenPageNumbers', 'gutterTop'])
+  for (const key of ['differentFirstPage', 'differentOddEven', 'firstPageNumbers', 'evenPageNumbers', 'gutterTop', 'hideEmptyLines'])
     if (page[key] !== undefined && typeof page[key] !== 'boolean') fail('용지 옵션이 올바르지 않습니다.');
   for (const key of ['firstHeader', 'firstFooter', 'evenHeader', 'evenFooter'])
     if (page[key] !== undefined && !boundedString(page[key], 10000)) fail('머리글·바닥글이 올바르지 않습니다.');
@@ -658,6 +659,23 @@ export async function importFile(file: File): Promise<ImportResult> {
   if (repairedTables) warnings.push(`생략된 표 격자 또는 가로 병합 ${repairedTables}개를 편집 가능한 셀로 보완했습니다.`);
   const sections = elements(body, 'sectPr');
   const pages = await Promise.all(sections.map(s => readDocxPage(zip, body, warnings, s)));
+  // DOCX has no equivalent of Hancom's conditional two-line section rule.
+  // Keep just that policy in a standard custom property, without replacing
+  // real paragraphs or freezing their heights to the current pagination.
+  const customPart = zip.file('docProps/custom.xml');
+  if (customPart) {
+    const raw = await customPart.async('string');
+    if (raw.length <= 65536) {
+      const property = elements(xml(raw), 'property').find(p => p.getAttribute('name') === emptyLineDocxProperty);
+      if (property) try {
+        const indexes = JSON.parse(property.textContent || 'null');
+        if (Array.isArray(indexes) && indexes.length <= pages.length && indexes.every(i => Number.isInteger(i) && i >= 0 && i < pages.length)) {
+          for (const index of indexes) pages[index].hideEmptyLines = true;
+          if (indexes.length) warnings.push(emptyLineCompatibilityWarning);
+        }
+      } catch { /* A malformed optional policy must not damage the body. */ }
+    }
+  }
   doc.page = pages[0] ?? { ...defaultPage };
   const metadata = await prepareDocxMetadata(zip, body, pages);
   doc.comments = metadata.comments;
@@ -1367,6 +1385,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     title: document.title,
     creator: 'Word Studio',
     description: 'Created with Word Studio',
+    customProperties: groups.some(group => group.page.hideEmptyLines)
+      ? [{ name: emptyLineDocxProperty, value: JSON.stringify(groups.flatMap((group, index) => group.page.hideEmptyLines ? [index] : [])) }] : [],
     evenAndOddHeaderAndFooters: groups.some(group => group.page.differentOddEven),
     compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false), doNotBreakWrappedTables: false },
     numbering: { config: numbering },

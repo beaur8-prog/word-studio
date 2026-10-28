@@ -24,6 +24,8 @@ export interface PageSettings {
   gutterTop?: boolean;
   breakType?: 'nextPage' | 'continuous' | 'evenPage' | 'oddPage' | 'nextColumn';
   columns?: { count: number; space: number; widths?: number[]; balance?: boolean };
+  /** Imported Hancom section policy; preserve the paragraphs in the model. */
+  hideEmptyLines?: boolean;
   headerHtml?: string;
   footerHtml?: string;
   firstHeaderHtml?: string;

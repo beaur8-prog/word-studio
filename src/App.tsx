@@ -2127,6 +2127,7 @@ export default function App() {
                 data-page-height={pageHeight}
                 data-margin={margin}
                 data-bottom-margin={margins.bottom * 96 / 25.4}
+                data-hide-empty-lines={page.hideEmptyLines === true}
                 ref={stackRef}
                 style={
                   {

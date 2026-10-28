@@ -54,5 +54,24 @@ export function measureParagraphLines(view: EditorView, block: HTMLElement, natu
     line.before = Math.max(0, previous ? (line.top - previous.bottom) / 2 : line.top - naturalY(box.top));
     line.after = Math.max(0, next ? (next.top - line.bottom) / 2 : naturalY(box.bottom) - line.bottom);
   }
+  // A font's glyph box need not sit symmetrically inside an exact line strut.
+  // Halving the gap between glyph boxes can undercount the actual line by a
+  // fraction of a pixel and keep a line which print moves to the next sheet.
+  // Use the real paragraph grid only when uniform measured lines prove it.
+  // Mixed-height lines, overlapping glyphs, objects and AUTO/minimum leading
+  // keep the individual geometry above.
+  if (blockLines.length > 1 && /(?:px|pt)$/.test(block.style.lineHeight) && !['auto', 'atLeast'].includes(block.dataset.wordLineRule || '') &&
+    !block.querySelector('img,svg,table,[data-note-reference],[data-page-number]')) {
+    const css = getComputedStyle(block), top = naturalY(box.top), pitch = (naturalY(box.bottom) - top) / blockLines.length;
+    const first = blockLines[0], firstHeight = first.bottom - first.top;
+    if (pitch > 0 && Math.abs(pitch - parseFloat(css.lineHeight)) <= .5 && firstHeight <= pitch + .5 &&
+      ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].every(key => !(parseFloat(css[key as 'paddingTop']) || 0)) &&
+      blockLines.every((line, i) => Math.abs(line.top - first.top - i * pitch) <= .5 && Math.abs(line.bottom - line.top - firstHeight) <= .5)) {
+      for (let i = 0; i < blockLines.length; i++) {
+        blockLines[i].before = Math.max(0, blockLines[i].top - top - i * pitch);
+        blockLines[i].after = Math.max(0, top + (i + 1) * pitch - blockLines[i].bottom);
+      }
+    }
+  }
   return blockLines;
 }

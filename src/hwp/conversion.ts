@@ -17,6 +17,7 @@ import { hwpBookmark, hwpTabAttribute, stageHwpTextNavigation } from './text-nav
 import { hwpTableGrid } from './table-grid';
 import { nestedTableGeometry } from './nested-tables';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss } from './paragraph-layout';
+import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -191,7 +192,10 @@ function pageSettings(doc: HwpDocument, section: number, warnings: Set<string>):
   const letter = Math.abs(p.width - 61200) < 150 && Math.abs(p.height - 79200) < 150;
   const custom = !letter && (Math.abs(p.width - 59528) > 150 || Math.abs(p.height - 84188) > 150);
   const column = JSON.parse(doc.getColumnDef(section));
+  const hideEmptyLines = JSON.parse(doc.getSectionDef(section)).hideEmptyLine === true;
+  if (hideEmptyLines) warnings.add(emptyLineCompatibilityWarning);
   const page: PageSettings = { size: custom ? 'Custom' : letter ? 'Letter' : 'A4', ...(custom ? { width: mm(p.width), height: mm(p.height) } : {}), orientation: p.landscape ? 'landscape' : 'portrait',
+    ...(hideEmptyLines ? { hideEmptyLines: true } : {}),
     ...(column.columnCount > 1 ? { columns: { count: column.columnCount, space: px(column.spacing), balance: column.columnType === 1 } } : {}),
     margin: mm(p.marginLeft), margins: { top: mm(p.marginTop + p.marginHeader), right: mm(p.marginRight), bottom: mm(p.marginBottom + p.marginFooter), left: mm(p.marginLeft) },
     header: '', footer: '', pageNumbers: false, headerDistance: mm(p.marginTop), footerDistance: mm(p.marginBottom), gutter: mm(p.marginGutter) };
@@ -777,6 +781,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
 }
 
 export function setHwpPage(doc: HwpDocument, page: PageSettings, section = 0) {
+  doc.setSectionDef(section, JSON.stringify({ hideEmptyLine: page.hideEmptyLines === true }));
   const m = page.margins ?? { top: page.margin, right: page.margin, bottom: page.margin, left: page.margin };
   const letter = page.size === 'Letter';
   const header = Math.min(m.top, page.headerDistance ?? Math.max(0, m.top / 2 - 3));

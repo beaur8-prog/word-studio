@@ -1,11 +1,11 @@
 {
   "date": "2026-10-28",
-  "status": "paragraph-anchor checkpoint; approved twelve-hour work continues",
+  "status": "fourth-hour checkpoint; approved twelve-hour work continues",
   "baseCommit": "bfc5137",
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
   "coreVersion": "0.8.7-wordstudio.6",
-  "browserTests": 290,
+  "browserTests": 298,
   "nativeUnitTests": 86,
   "productionBuild": "passed",
   "baselineFailedNewBrowserScenarios": 3,
@@ -82,13 +82,13 @@
     {
       "id": "06-mixed-document",
       "sourcePages": 35,
-      "printPages": 39,
+      "printPages": 37,
       "textMatchesPrior": true,
       "images": 44,
       "docxPages": [
-        39,
-        39,
-        39
+        37,
+        37,
+        37
       ],
       "docxTextMatches": true
     },
@@ -148,7 +148,7 @@
   "fixedAnchors": {
     "count": 160,
     "beforeMismatches": 122,
-    "afterMismatches": 103,
+    "afterMismatches": 99,
     "perDocument": [
       {
         "id": "02-work-rules",
@@ -166,7 +166,7 @@
         "id": "06-mixed-document",
         "count": 40,
         "missing": 0,
-        "mismatched": 29
+        "mismatched": 25
       },
       {
         "id": "07-english-exam",
@@ -178,9 +178,10 @@
   },
   "extraPages": {
     "before": 8,
-    "after": 6,
+    "after": 4,
     "target": 4,
-    "targetAchieved": false
+    "targetAchieved": true,
+    "scope": "Word Studio editor/print/PDF; external Word/Hancom layout not verified"
   },
   "nativeElectron": {
     "passed": true,
@@ -198,16 +199,16 @@
     "installationPackageTested": false,
     "pdfPages": [
       {
-        "id": "04-language-plan",
-        "pages": 36,
-        "bytes": 1825550,
-        "firstPageTextLength": 67
+        "id": "02-work-rules",
+        "pages": 163,
+        "bytes": 1718965,
+        "firstPageTextLength": 531
       },
       {
-        "id": "07-english-exam",
-        "pages": 9,
-        "bytes": 2953918,
-        "firstPageTextLength": 2376
+        "id": "04-language-plan",
+        "pages": 36,
+        "bytes": 1825552,
+        "firstPageTextLength": 67
       },
       {
         "id": "05-return-form",
@@ -217,15 +218,15 @@
       },
       {
         "id": "06-mixed-document",
-        "pages": 39,
-        "bytes": 2316910,
-        "firstPageTextLength": 1559
+        "pages": 37,
+        "bytes": 2313953,
+        "firstPageTextLength": 1562
       },
       {
-        "id": "02-work-rules",
-        "pages": 163,
-        "bytes": 1718965,
-        "firstPageTextLength": 531
+        "id": "07-english-exam",
+        "pages": 9,
+        "bytes": 2953918,
+        "firstPageTextLength": 2376
       },
       {
         "id": "08-math-exam",
@@ -270,24 +271,20 @@
   },
   "crossPlatform": {
     "workflow": ".github/workflows/hwp-layout-validation.yml",
-    "commit": "c95c3bba0641d27c4f637a4f8f54985115f20675",
-    "status": "passed; checkpoint c95, newer paragraph-anchor implementation under validation",
-    "focusedRun": 40694374982,
-    "windows": "passed",
-    "linux": "passed",
-    "installedWindows": {
-      "run": 40694427260,
-      "result": "passed"
+    "status": "current checkpoint pending CI",
+    "previousCheckpoint": {
+      "commit": "f83ec98bc3cadab7c46d2ba19fd670104c6e7ee2",
+      "focusedRun": 40704195653,
+      "windows": "passed",
+      "linux": "passed"
     },
-    "installedLinux": {
-      "run": 40698537125,
+    "installedPreviousCheckpoint": {
+      "commit": "c95c3bba0641d27c4f637a4f8f54985115f20675",
+      "windowsRun": 40694427260,
+      "windows": "passed",
+      "linuxRun": 40698537125,
       "ubuntu22": "passed",
       "ubuntu24": "passed"
-    },
-    "earlierFullRun": {
-      "run": 40694427260,
-      "linux22": "all browser/build/package/install checks passed; cancelled while uploading evidence at job time limit",
-      "linux24": "skipped; passed in native-only retry"
     }
   },
   "coreReproducibility": {
@@ -381,9 +378,11 @@
     "Source native geometry shares the parser; independent PDF page matches apply to selected anchors only.",
     "Image counts do not establish identical image dimensions or placement.",
     "Actual Word/Hancom and complete installation packages were not exercised in this checkpoint.",
-    "Blank paragraph boundaries, general floating tables, language-specific font and character width remain under investigation.",
     "Two existing editor/print paragraph start-page discrepancies remain in work-rules and English; unchanged from previous-checkpoint audits.",
-    "Merged-cell nested tables are supported when they stay intact inside a row fragment; splitting such nested tables or own footnotes remains a conservative fallback."
+    "Merged-cell nested tables are supported when they stay intact inside a row fragment; splitting such nested tables or own footnotes remains a conservative fallback.",
+    "The two-line Hancom section policy is retained for Word Studio in a DOCX custom property; external readers can show these blank lines and increase pages. Import warns explicitly.",
+    "Decorated, spaced or object-bearing blank paragraphs retain their flow; source row heights and intentional page breaks are preserved.",
+    "The fixed start-page mismatch target of at most 61 remains unmet: 99/160, despite reaching the internal extra-page target."
   ],
   "evidenceDirectory": "analysis/hwp-12h-2026-10-28/",
   "newRegressionEvidence": [
@@ -412,6 +411,17 @@
       "before": "7 failures on c95; six HWP/HWPX position cases and the second-section case",
       "after": "passed; 290 browser scenarios including interop fixes, zoom/edit/undo/two DOCX saves",
       "scope": "nonnegative paragraph offset, single empty host, no caption or columns; zoom, preceding edits/undo, two DOCX saves"
+    },
+    {
+      "scenario": "HWP/HWPX explicit hideEmptyLine section policy",
+      "before": "two enabled cases fail at f83; two disabled controls pass",
+      "after": "two DOCX saves, two HWP/HWPX saves, five zooms, input/undo/redo and composition-event visibility passed; highlight/spacing controls passed",
+      "scope": "at most two simple overflowing empty paragraphs; model preserved; external DOCX readers may render the retained paragraphs"
+    },
+    {
+      "scenario": "asymmetric exact line strut at fractional body/cell boundaries",
+      "before": "two browser failures; glyph-gap halving undercounts line by 0.203125px",
+      "after": "both pass across five zooms, editing/undo and two DOCX saves; notice editor/print start-page discrepancies 2 to 0"
     }
   ],
   "editorPrintAudit": {
@@ -424,7 +434,7 @@
         "matched": 674,
         "excluded": 1053,
         "mismatchedStartPages": 1,
-        "samePageYDifferencesAbove2px": 32
+        "samePageYDifferencesAbove2px": 31
       },
       {
         "id": "04-language-plan",
@@ -437,12 +447,12 @@
       },
       {
         "id": "06-mixed-document",
-        "editorPages": 39,
-        "printPages": 39,
-        "matched": 763,
-        "excluded": 125,
+        "editorPages": 37,
+        "printPages": 37,
+        "matched": 762,
+        "excluded": 126,
         "mismatchedStartPages": 0,
-        "samePageYDifferencesAbove2px": 158
+        "samePageYDifferencesAbove2px": 115
       },
       {
         "id": "07-english-exam",
@@ -470,17 +480,17 @@
         "alsoPresentAtPreviousCheckpoint": true
       }
     ],
-    "evidence": "paragraph-table-text-start-summary.json"
+    "evidence": "hide-final-text-start-summary.json"
   },
   "evidence": {
-    "fresh": "variant-paragraph-table/fresh.json",
-    "twoDocxSaves": "variant-paragraph-table/docx-interop-corpus.json",
+    "fresh": "variant-hide-final/fresh.json",
+    "twoDocxSaves": "variant-hide-empty/docx-corpus.json",
     "identicalFreshContentAndPageToRoundtripModels": true,
-    "browser": "paragraph-interop-browser.log",
-    "unit": "paragraph-table-unit.log",
-    "native": "native-paragraph-table/results.json",
-    "pdf": "native-paragraph-table/pdf-summary.json",
-    "anchors": "paragraph-table-final-page-correspondence.json"
+    "browser": "hide-final-browser.log",
+    "unit": "hide-final-unit.log",
+    "native": "native-hide-final/results.json",
+    "pdf": "native-hide-final/pdf-summary.json",
+    "anchors": "hide-empty-page-correspondence.json"
   },
   "paragraphTables": {
     "noticeTables": 18,
@@ -499,5 +509,16 @@
       "limitation": "independent Writer interoperability check, not Microsoft Word validation"
     },
     "ci": "pending on this checkpoint; c95 platform installation results remain separately recorded"
+  },
+  "emptyLinePolicy": {
+    "origin": "getSectionDef.hideEmptyLine",
+    "officialReference": "https://help.hancom.com/hoffice/multi/ko_kr/hwp/format/section/section.htm",
+    "docx": "standard custom property WordStudio.HwpEmptyLines preserves section indices for Word Studio; other readers do not necessarily apply this Hancom policy",
+    "noticePages": [
+      40,
+      39,
+      37
+    ],
+    "modelParagraphsDeleted": 0
   }
 }
