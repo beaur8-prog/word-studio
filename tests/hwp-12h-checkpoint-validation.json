@@ -1,11 +1,11 @@
 {
   "date": "2026-10-28",
-  "status": "mid-run checkpoint; approved twelve-hour work continues",
+  "status": "all final candidate checks passed; main integration pending",
   "baseCommit": "bfc5137",
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
   "coreVersion": "0.8.7-wordstudio.6",
-  "browserTests": 319,
+  "browserTests": 321,
   "nativeUnitTests": 88,
   "productionBuild": "passed",
   "baselineFailedNewBrowserScenarios": 3,
@@ -341,7 +341,7 @@
   },
   "crossPlatform": {
     "workflow": ".github/workflows/hwp-layout-validation.yml",
-    "status": "current consistency checkpoint pending CI; header-color checkpoint passed on Windows/Linux",
+    "status": "final candidate focused Windows/Linux and native/install Windows/Linux22/Linux24 passed",
     "previousCheckpoint": {
       "commit": "7ae35a607cece74c2f3e2914275c1b412e60a06a",
       "focusedRun": 40728433302,
@@ -368,7 +368,18 @@
       "Windows": "success",
       "Linux": "success"
     },
-    "currentBorderFollowup": "pending new commit CI"
+    "currentBorderFollowup": "pending new commit CI",
+    "finalCandidate": {
+      "commit": "b73c03034c529cc48840e6975017874b1aca55f0",
+      "focusedRun": 40770896328,
+      "focused": "passed",
+      "nativeRun": 40770899178,
+      "windows": "passed",
+      "ubuntu22": "passed",
+      "ubuntu24": "passed",
+      "nativeOnly": true,
+      "basis": "Previous319 full platform browser scenarios; current321 full local browser and affected-image/paragraph focused platform scenarios"
+    }
   },
   "coreReproducibility": {
     "revision": "1a76570e833917d15817415a53c09ad61ab3203f",
@@ -460,14 +471,15 @@
   "limitations": [
     "Source native geometry shares the parser; independent PDF page matches apply to selected anchors only.",
     "Image counts do not establish identical image dimensions or placement.",
-    "Actual Word/Hancom and complete installation packages were not exercised in this checkpoint.",
+    "Actual Word/Hancom were not exercised. Final Windows setup and installed Debian packages were tested on isolated Windows/Linux22/Linux24 runners.",
     "Merged-cell nested tables are supported when they stay intact inside a row fragment; splitting such nested tables or own footnotes remains a conservative fallback.",
     "The two-line Hancom section policy is retained for Word Studio in a DOCX custom property; external readers can show these blank lines and increase pages. Import warns explicitly.",
     "Decorated, spaced or object-bearing blank paragraphs retain their flow; source row heights and intentional page breaks are preserved.",
     "The fixed start-page mismatch target of at most 61 remains unmet: 99/160, despite reaching the internal extra-page target.",
     "Four core documents now match all 2292 uniquely corresponding complete paragraph start pages; 1257 split/duplicate paragraphs remain explicit exclusions and same-page coordinates still differ.",
     "An independent PDF marker audit found LH paragraph-page regressions despite retaining 5 pages; source title grouping/font effects remain under investigation.",
-    "Independent LibreOffice26.8 DOCX check: notice35→38 pages while internal Word Studio40→37; form2→1, rules177 unchanged. These are reader-specific results, not Microsoft Word validation."
+    "Independent LibreOffice26.8 DOCX check: notice35→38 pages while internal Word Studio40→37; form2→1, rules177 unchanged. These are reader-specific results, not Microsoft Word validation.",
+    "Final floating-image dimensions roundtrip for24 images; cell render bounds, inline fit and all pixel positions are not certified. Existing math body offsets and English footer-box width differences are recorded in float-size-visual/manifest.json."
   ],
   "evidenceDirectory": "analysis/hwp-12h-2026-10-28/",
   "newRegressionEvidence": [
@@ -565,15 +577,16 @@
     "matched": 2291
   },
   "evidence": {
-    "fresh": "variant-nested-borders/fresh.json",
-    "twoDocxSaves": "variant-nested-borders/docx-corpus.json",
-    "browser": "nested-borders-recovery-browser.log",
-    "unit": "nested-borders-recovery-unit.log",
-    "build": "nested-borders-recovery-build.log",
-    "native": "native-nested-borders/results.json",
+    "fresh": "variant-float-size/fresh.json",
+    "twoDocxSaves": "variant-float-size/docx-corpus-with-models.json",
+    "browser": "float-precision-browser.log",
+    "unit": "float-precision-unit.log",
+    "build": "float-precision-build.log",
+    "native": "native-hard-break/results.json",
     "pdf": "native-nested-borders/pdf-summary.json",
-    "anchors": "nested-borders-page-correspondence.json",
-    "logicalBody": "source-logical-order-final.json"
+    "anchors": "float-size-docx2-page-correspondence.json",
+    "logicalBody": "source-logical-float-size-after-two-docx.json",
+    "nativeDocx": "native-docx-float-size/result.json"
   },
   "paragraphTables": {
     "noticeTables": 18,
@@ -584,14 +597,14 @@
       "after": 824.53125,
       "units": "96-DPI pixels; same native parser source geometry"
     },
-    "docx": "standard tblpPr paragraph anchor with explicit distances to forbid body flow beside the table",
+    "docx": "standard inline tables with indentation and before/after spacers; optional ignorable MC attributes recover live paragraph anchors only while standard geometry is unchanged; avoids external Writer clipping",
     "libreOffice": {
       "version": "26.8.0.3",
       "before": "AFTER split into A/FTER beside the table; long fixture 3 pages",
       "after": "AFTER intact below table; long fixture 2 pages; zero/offset preserve 20px relative offset",
       "limitation": "independent Writer interoperability check, not Microsoft Word validation"
     },
-    "ci": "f83 run40704195653 and d582 run40713278948 passed on Windows/Linux"
+    "ci": "final candidate40770899178 Windows/Linux22/Linux24 installed packages and40770896328 focused Windows/Linux passed"
   },
   "emptyLinePolicy": {
     "origin": "getSectionDef.hideEmptyLine",
@@ -686,11 +699,11 @@
     "target": "Office2019",
     "samples": 10,
     "errors": 0,
-    "report": "analysis/hwp-12h-2026-10-28/openxml-final-candidate.json"
+    "report": "analysis/hwp-12h-2026-10-28/openxml-float-size.json"
   },
   "docxParagraphCountsPreservedAllTen": true,
-  "finalIntegration": "hard-break fix:319 browser/88 unit/build,10 actual native HWP+DOCX,10 two-save exact logical streams and official schema zero errors; new platform runs pending",
-  "validationCandidateCommit": "b08037355410325ff4bdfc11f3924e66b4f92b6c",
+  "finalIntegration": "321 browser/88 unit/build, ten source and two-save DOCX logical streams, actual hidden Mac DOCX, official schema, focused Windows/Linux and Windows/Linux22/Linux24 install/reinstall/uninstall passed; main integration pending",
+  "validationCandidateCommit": "b73c03034c529cc48840e6975017874b1aca55f0",
   "integratedApplicationVersion": "1.4.9",
   "nativeDocxReopen": {
     "samples": 10,
@@ -714,11 +727,13 @@
       5
     ],
     "rendererErrors": 0,
-    "report": "analysis/hwp-12h-2026-10-28/native-docx-hard-break/result.json"
+    "report": "analysis/hwp-12h-2026-10-28/native-docx-float-size/result.json"
   },
   "latestWorkflowRuns": {
-    "focused": 40753792285,
-    "fullDesktop": 40753810445
+    "focused": 40770896328,
+    "nativeDesktop": 40770899178,
+    "previousFullBrowserDesktop": 40764347389,
+    "previousFullSuccessfulDesktop": 40760988760
   },
   "sourceIntegrityWithHardBreaks": {
     "samples": 10,
@@ -732,7 +747,8 @@
     "scope": "logical body/table text and explicit line-break order/multiplicity; other whitespace normalized; shared native parser, excludes drawing text, fields and separate stories",
     "reports": [
       "source-logical-with-breaks.json",
-      "source-logical-after-two-docx.json"
+      "source-logical-after-two-docx.json",
+      "source-logical-float-size-after-two-docx.json"
     ]
   },
   "wordGapAudit": {
@@ -749,7 +765,8 @@
     "src/hwp/cell-content.ts": "9ef8059e4a908d5a1ca8ea331931110c4492d029a2d91f54c3d04aa56d37ed89",
     "src/hwp/conversion.ts": "953c3fba130bb6b58e537f457bd1a0061e024d6d5bb5924d15acf646e790a337",
     "src/docx-metadata.ts": "9d6a7ce4e1eeb5e6d6c665087fd818d6662540dd981cc20bb7a43ed51071e761",
-    "src/document-io.ts": "add77a0945afc3c50718e5faf574a63d68d3e9bde9b2efa58d32cd18b29c536d"
+    "src/document-io.ts": "27c8382c1117d314413ab1402b1b4b713604b834ed8dc631dd14e82346e00ed2",
+    "src/hwp/paragraph-layout.ts": "c452ed2158046d0cc6ed094faa46432d02c190f5fca45b9b4d93ca8911655908"
   },
   "externalWriterLatest": {
     "environment": "LibreOffice26.8.0.3 with isolated verified system Korean fonts",
@@ -766,5 +783,81 @@
       5
     ],
     "notMicrosoftWordOrHancom": true
+  },
+  "editorPrintAuditAfterTwoDocxSaves": {
+    "scope": "Complete uniquely matching paragraphs of at least10 normalized characters; duplicate/split paragraphs explicitly excluded",
+    "documents": [
+      {
+        "id": "02-work-rules",
+        "editorPages": 163,
+        "printPages": 163,
+        "matched": 675,
+        "excluded": 1052,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 21
+      },
+      {
+        "id": "04-language-plan",
+        "editorPages": 36,
+        "printPages": 36,
+        "matched": 588,
+        "excluded": 76,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 65
+      },
+      {
+        "id": "06-mixed-document",
+        "editorPages": 37,
+        "printPages": 37,
+        "matched": 761,
+        "excluded": 127,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 115
+      },
+      {
+        "id": "07-english-exam",
+        "editorPages": 9,
+        "printPages": 9,
+        "matched": 268,
+        "excluded": 2,
+        "mismatchedStartPages": 0,
+        "samePageYDifferencesAbove2px": 48
+      }
+    ],
+    "report": "float-size-docx2-text-start-summary.json"
+  },
+  "floatingImageSize": {
+    "sourceFailures": 2,
+    "focusedScenariosPassed": 16,
+    "imagesCheckedThroughTwoDocxSaves": 24,
+    "maximumFloatingDimensionDeltaPx": 5.24934383179243e-05,
+    "inlineFitBehavior": "unchanged",
+    "reports": [
+      "float-size-dimension-audit.json",
+      "float-precision-focused.log",
+      "native-docx-float-pdf/result.json",
+      "float-size-visual/manifest.json"
+    ],
+    "scope": "Explicit stored floating dimensions; not all image placement or independent Hancom geometry"
+  },
+  "consecutiveBlankLines": {
+    "nativeGapPx": 40.6,
+    "beforeGapPx": 81.1875,
+    "afterGapPx": 40.6,
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "report": "native-blank-line/result.json",
+    "tenSourceModelsEquivalent": true
+  },
+  "nativeLargeFullRoundtrip": {
+    "sourceBytes": 84843520,
+    "wordStudioBytes": 112203655,
+    "docxBytes": 21056340,
+    "allImageHashesPreserved": 12,
+    "bodyMarkersPreserved": 12,
+    "report": "native-large-full-roundtrip/result.json",
+    "scope": "Synthetic3 unique random-image assets repeated4 times; distinct from separate2-image56MB backup scenario"
   }
 }

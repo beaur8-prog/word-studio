@@ -1,5 +1,17 @@
 # HWP/HWPX 읽기·편집·변환 검증
 
+## 2026-10-29 · 최종 후보 b73c030: 떠 있는 그림 크기·플랫폼 설치
+
+**전체321/321·단위88/88·빌드 통과.** DOCX 저장에서 떠 있는 그림까지 본문/셀 폭과950px 높이로 줄이던 기존 결함을 수정했다. 원본1137.853px 세로 구분선이950px로, 셀 위93.467px 도형이43px로 변하던 재현을 확인했다. 떠 있는 그림은 명시 소수점 크기를 보존하며, 일반 본문 그림의 기존 크기 맞춤은 유지한다. 관련16개 검사와24개 떠 있는 그림의 두 번 DOCX 크기 대조에서 최대 오차0.000053px 미만이다.
+
+최신10개는 두 번 DOCX 뒤7/163/4/36/1/37/9/20/15/5쪽과140개 강제 줄바꿈 포함218937자 본문을 유지한다. 고정160개 시작쪽 차99 유지, 고유2292문단 편집/인쇄 시작쪽 차0이다. 같은쪽 y>2px 차는21/65/115/48개(DOCX두번)이며 원본변환의공고114와 구분한다. 공식OpenXML SDK3.5.1 최신10개 schema0, 실제 숨김Mac Electron10DOCX×5확대/인쇄 전부 통과·renderer0이다. Writer10개 쪽수와 각PDF추출문자수도 직전과 같다.
+
+실제Mac PDF의양식/영어/수학첫쪽을변환모델·저장보정전·후3열로추가검수했다. 시험지세로선길이는복원됐지만영어하단쪽번호상자폭과수학본문의작은기존저장오프셋등은남는다. 이3쌍은독립한컴PDF대조28쌍과구별하며모든그림배치/픽셀동등성을주장하지않는다.
+
+최신설치CI40770899178(native_only=true)는Windows·Ubuntu22·Ubuntu24 모두통과했다. 설치/실제앱/HWP읽기·편집/재설치/제거/사용자데이터와기본앱보존·지원확장자등록을확인했다. 직전624317 전체Windows검사는제품검사뒤제거된레지스트리루트를다시읽는시험스크립트에서실패했고,이를존재하는child만조회하도록보정해최신에서통과했다. 앞319전체플랫폼검사와최신321로컬전체,영향경로집중검사를구분한다. 최종집중CI40770896328도Windows/Linux모두통과했다. main반영을진행한다.
+
+근거:float-precision-{browser,unit,build,focused}.log,variant-float-size/,source-logical-float-size-after-two-docx.json,float-size-docx2-page-correspondence.json,float-size-docx2-text-start-summary.json,native-docx-float-size/,openxml-float-size.json,writer-float-size/,float-size-visual/,ci-b73-{windows,linux22,linux24}/. 최종전후수치와남은작업은[12시간 결과 보고서](HWP_CONVERSION_12H_REPORT.md)에정리한다. 공개배포/리토스갱신없음.
+
 ## 2026-10-29 · 원본 강제 줄바꿈 140개 복원
 
 최종 검증에서 Native selection HTML이 원본의 강제 줄바꿈을 누락하는 기존 결함을 찾았다. 본문은 원본 text API의 실제 newline 위치로 복원하고, 일반/중첩 셀은 직렬화된 `lineBreak`가 있을 때 단순 셀의 복구 생략 경로도 통과시킨다. 캐시된 시각적 줄바꿈을 고정하지 않는다. 엔터티·이모지·그림 앞뒤·연속/끝 줄바꿈을 포함한HWP/HWPX두경우는수정전실패했고수정후두번DOCX·두번한글저장·5확대·실제입력undo/redo를통과했다. control-only문단과텍스트API의count/end차이도기존그림/각주·10샘플로회귀검사했다.
