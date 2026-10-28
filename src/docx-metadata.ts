@@ -127,8 +127,13 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     const isEnd = all(paragraph, 'sectPr').length > 0;
     const parent = paragraph.parentElement;
     const cell = parent?.localName === 'tc' && Array.from(parent.children).find(c => c.localName === 'p') === paragraph ? parent : undefined;
-    const boundaryCarrier = isEnd && val(child(child(paragraph, 'pPr'), 'pStyle')) === SECTION_BOUNDARY_STYLE &&
-      Array.from(paragraph.children).every(c => c.localName === 'pPr');
+    const boundaryProperties = child(paragraph, 'pPr'), boundarySpacing = child(boundaryProperties, 'spacing');
+    const boundaryCarrier = isEnd && val(child(boundaryProperties, 'pStyle')) === SECTION_BOUNDARY_STYLE &&
+      Array.from(paragraph.children).every(c => c.localName === 'pPr') &&
+      Array.from(boundaryProperties?.children || []).every(c => ['pStyle', 'spacing', 'sectPr'].includes(c.localName)) &&
+      val(boundarySpacing, 'lineRule') === 'exact' && Number(val(boundarySpacing, 'line')) === 1 &&
+      Number(val(boundarySpacing, 'before')) === 0 && Number(val(boundarySpacing, 'after')) === 0 &&
+      Array.from(boundarySpacing?.attributes || []).every(a => ['before', 'after', 'line', 'lineRule'].includes(a.localName));
     markers.set(name, { kind: 'paragraph', paragraph, cell, page: pages[section], boundaryCarrier,
       ...(isEnd ? { nextPage: pages[++section] } : {}) });
     const properties = Array.from(paragraph.children).find(e => e.localName === 'pPr');

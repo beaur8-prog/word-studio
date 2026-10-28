@@ -37,9 +37,9 @@ for (const ending of ['table', 'blank'] as const) test(`DOCX ${ending} section e
   }
 });
 
-test('text added externally to a generated DOCX section boundary remains editable', async ({ page }) => {
+for (const change of ['text', 'spacing']) test(`${change} added externally to a generated DOCX section boundary remains editable`, async ({ page }) => {
   await page.goto('/');
-  const result = await page.evaluate(async () => {
+  const result = await page.evaluate(async change => {
     const { exportDocx, importFile } = await import('/src/document-io.ts');
     const { defaultPage } = await import('/src/types.ts');
     const { parseDocumentHtml } = await import('/src/extensions.ts');
@@ -50,11 +50,19 @@ test('text added externally to a generated DOCX section boundary remains editabl
     const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
     const xml = new DOMParser().parseFromString(await zip.file('word/document.xml')!.async('string'), 'application/xml');
     const carrier = [...xml.getElementsByTagNameNS(W, 'p')].find(p => p.getElementsByTagNameNS(W, 'sectPr').length)!;
-    const run = xml.createElementNS(W, 'w:r'), text = xml.createElementNS(W, 'w:t'); text.textContent = 'EXTERNAL TEXT'; run.append(text); carrier.append(run);
+    if (change === 'text') {
+      const run = xml.createElementNS(W, 'w:r'), text = xml.createElementNS(W, 'w:t'); text.textContent = 'EXTERNAL TEXT'; run.append(text); carrier.append(run);
+    } else {
+      const spacing = carrier.getElementsByTagNameNS(W, 'spacing')[0];
+      spacing.setAttributeNS(W, 'w:line', '300');
+    }
     zip.file('word/document.xml', new XMLSerializer().serializeToString(xml));
     const again = await importFile(new File([await zip.generateAsync({ type: 'blob' })], 'edited.docx'));
     const template = document.createElement('template'); template.innerHTML = again.html!;
-    return { text: template.content.textContent, sections: template.content.querySelectorAll('[data-section-page]').length };
-  });
-  expect(result.text).toContain('EXTERNAL TEXT'); expect(result.sections).toBe(1);
+    return { text: template.content.textContent, sections: template.content.querySelectorAll('[data-section-page]').length,
+      paragraphs: [...template.content.querySelectorAll('p')].map(p => ({ text: p.textContent, lineHeight: p.style.lineHeight })) };
+  }, change);
+  if (change === 'text') expect(result.text).toContain('EXTERNAL TEXT');
+  else { expect(result.paragraphs.map(p => p.text)).toEqual(['TABLE', '', 'AFTER']); expect(result.paragraphs[1].lineHeight).toBe('15pt'); }
+  expect(result.sections).toBe(1);
 });

@@ -5,7 +5,7 @@
   "startedAtUTC": "2026-10-28T10:33:26Z",
   "deadlineUTC": "2026-10-28T22:33:26Z",
   "coreVersion": "0.8.7-wordstudio.6",
-  "browserTests": 314,
+  "browserTests": 316,
   "nativeUnitTests": 86,
   "productionBuild": "passed",
   "baselineFailedNewBrowserScenarios": 3,
@@ -689,5 +689,35 @@
     "report": "analysis/hwp-12h-2026-10-28/openxml-final-candidate.json"
   },
   "docxParagraphCountsPreservedAllTen": true,
-  "finalIntegration": "full latest browser and platform runs pending"
+  "finalIntegration": "full latest Mac browser316/native86/build passed; full Windows/Linux and main integration pending",
+  "validationCandidateCommit": "b08037355410325ff4bdfc11f3924e66b4f92b6c",
+  "integratedApplicationVersion": "1.4.9",
+  "nativeDocxReopen": {
+    "samples": 10,
+    "zooms": [
+      100,
+      50,
+      125,
+      200,
+      100
+    ],
+    "editorPrintPages": [
+      7,
+      163,
+      4,
+      36,
+      1,
+      37,
+      9,
+      20,
+      15,
+      5
+    ],
+    "rendererErrors": 0,
+    "report": "analysis/hwp-12h-2026-10-28/native-docx-final/result.json"
+  },
+  "latestWorkflowRuns": {
+    "focused": 40753792285,
+    "fullDesktop": 40753810445
+  }
 }
