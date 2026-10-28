@@ -7,6 +7,7 @@ import { checkHwpHtmlSize, hwpHtmlBytes, type EditableHwp } from './conversion';
 import { createPrintLayout } from '../print-layout';
 import { pageMargins, paperDimensions } from '../types';
 import { imageFloating } from '../image-floating';
+import { parseTabStops } from '../document-tabs';
 import { paintHwpProgress, type HwpProgressReporter } from './progress';
 
 function renderedBody(root: HTMLElement, doc: StudioDocument): string {
@@ -21,6 +22,7 @@ function renderedBody(root: HTMLElement, doc: StudioDocument): string {
     for (const element of root.querySelectorAll<HTMLElement>('p,h1,h2,h3,h4,h5,h6')) {
       const computed = getComputedStyle(element), paragraph = document.createElement('p'), span = document.createElement('span');
       paragraph.style.cssText = element.style.cssText;
+      if (element.dataset.tabStops) paragraph.dataset.tabStops = element.dataset.tabStops;
       for (const property of ['text-align', 'line-height', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right', 'text-indent']) paragraph.style.setProperty(property, computed.getPropertyValue(property));
       // The engine's fixed-pixel line spacing uses a different internal scale.
       // Relative spacing preserves the measured CSS line box without halving it.
@@ -59,6 +61,13 @@ export function importEditableHwp(source: EditableHwp, name: string): StudioDocu
     if (/^[\t\r\n ]*[\r\n][\t\r\n ]*$/.test(text.data) && /^(P|TD|TH|TR|TABLE|TBODY|DIV)$/.test(text.parentElement?.tagName ?? '')) remove.push(text);
   }
   remove.forEach(text => text.remove());
+  const textNodes: Text[] = [], tabs = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  while (tabs.nextNode()) if (tabs.currentNode.textContent?.includes('\t') && tabs.currentNode.parentElement?.closest('[data-tab-stops]')) textNodes.push(tabs.currentNode as Text);
+  for (const node of textNodes) {
+    const parts = node.data.split('\t'), fragment = document.createDocumentFragment();
+    parts.forEach((part, i) => { if (i) { const tab = document.createElement('span'); tab.dataset.docxTab = 'true'; tab.textContent = '\t'; fragment.append(tab); } fragment.append(document.createTextNode(part)); });
+    node.replaceWith(fragment);
+  }
   return { format: 'word-studio', version: 1, id: crypto.randomUUID(), title: name.replace(/\.(hwp|hwpx)$/i, ''),
     content: parseDocumentHtml(root.innerHTML), page: source.page, comments: [], updatedAt: new Date().toISOString() };
 }
@@ -86,7 +95,9 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   if ([...root.querySelectorAll<HTMLElement>('[data-section-page]')].some(el => JSON.parse(el.dataset.sectionPage!).breakType === 'continuous')) warnings.push('같은 쪽의 연속 구역은 인쇄 쪽 단위로 저장합니다. 쪽 안에서 바뀌는 여백·머리말은 첫 구역 설정을 따를 수 있습니다.');
   const notes = [...root.querySelectorAll<HTMLElement>('[data-document-note]')].map(note => note.cloneNode(true) as HTMLElement);
   if (notes.some(note => !/^\d+$/.test(note.dataset.noteLabel || ''))) warnings.push('각주·미주의 사용자 지정 표시는 한글의 숫자 번호로 바뀝니다. 본문 참조와 각주·미주 내용은 유지합니다.');
-  warn('[data-docx-bookmark], a', '책갈피·링크는 표시된 텍스트만 저장합니다.');
+  warn('a', '링크는 표시된 텍스트만 저장합니다. 책갈피 위치는 유지합니다.');
+  if ([...root.querySelectorAll<HTMLElement>('[data-tab-stops]')].some(p => parseTabStops(p.dataset.tabStops).some(s => s.position < 0)))
+    warnings.push('한글 형식에는 음수 탭 위치를 저장하지 않습니다. 양수 탭 위치와 본문은 유지합니다. 원래 탭 설정은 DOCX 또는 백업으로 보관하세요.');
   warn('[data-image-floating]', '떠 있는 그림은 현재 인쇄 위치를 용지 기준 좌표로 저장합니다. 원래 문단·단에 연결된 이동 규칙은 바뀝니다.');
   if ([...root.querySelectorAll<HTMLElement>('[data-image-floating]')].some(el => { const g = imageFloating(el.dataset.imageFloating); return g?.polygon || g?.wrap?.type === 2 || g?.wrap?.type === 4; })) warnings.push('그림 윤곽을 따르는 감싸기는 사각형 감싸기로 저장합니다. 표시된 그림과 쪽 위치는 유지합니다.');
   warn('[data-word-overlap]', '겹쳐 쓰기와 특수 문자는 표시된 텍스트로 저장합니다.');

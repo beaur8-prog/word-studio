@@ -37,9 +37,12 @@ export function layoutTabs(root: HTMLElement) {
         const range = document.createRange(); range.selectNodeContents(paragraph); range.setStartAfter(tab);
         if (end) range.setEndBefore(end);
         const measure = document.createElement('span');
+        // Apply the document's font fallback rules to cloned styled runs too,
+        // while staying outside ProseMirror's observed editing DOM.
+        measure.className = 'tiptap';
         // Chromium can return an empty font shorthand for a mixed computed
         // style. Copy longhands so measurement uses the paragraph's typeface.
-        Object.assign(measure.style, { position: 'fixed', left: '-10000px', visibility: 'hidden', whiteSpace: 'pre', width: 'max-content', textIndent: '0',
+        Object.assign(measure.style, { position: 'fixed', left: '-10000px', visibility: 'hidden', whiteSpace: 'pre', width: 'max-content', textIndent: '0', padding: '0', minHeight: '0',
           fontFamily: paragraphStyle.fontFamily, fontSize: paragraphStyle.fontSize,
           fontWeight: paragraphStyle.fontWeight, fontStyle: paragraphStyle.fontStyle,
           fontStretch: paragraphStyle.fontStretch, fontVariant: paragraphStyle.fontVariant,
@@ -48,7 +51,16 @@ export function layoutTabs(root: HTMLElement) {
           letterSpacing: paragraphStyle.letterSpacing, wordSpacing: paragraphStyle.wordSpacing,
           textTransform: paragraphStyle.textTransform });
         measure.append(range.cloneContents());
-        if (stop.type === 'decimal') measure.textContent = measure.textContent?.split(/[.,]/)[0] ?? '';
+        if (stop.type === 'decimal') {
+          // Keep each run's font/size while measuring up to the separator.
+          // Flattening to text measured mixed-size numbers in the P font.
+          const walker = document.createTreeWalker(measure, NodeFilter.SHOW_TEXT);
+          while (walker.nextNode()) {
+            const node = walker.currentNode as Text, at = node.data.search(/[.,]/);
+            if (at < 0) continue;
+            const tail = document.createRange(); tail.selectNodeContents(measure); tail.setStart(node, at); tail.deleteContents(); break;
+          }
+        }
         // Measuring inside the editor would trigger ProseMirror's DOM observer
         // and reparse the paragraph, discarding the measured node view widths.
         document.body.append(measure); following = measure.getBoundingClientRect().width; measure.remove();

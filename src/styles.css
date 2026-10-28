@@ -881,11 +881,11 @@ button:hover:not(:disabled) {
 }
 .tiptap img[data-inline-image] { display: inline; margin: 0; vertical-align: baseline; }
 .tiptap img.ProseMirror-separator { display: inline !important; width: 0 !important; height: 0 !important; margin: 0 !important; }
-.document-tab { display: inline-block; position: relative; height: 1em; vertical-align: baseline; white-space: pre; overflow: hidden; text-indent: 0; }
-.document-tab[data-leader='dot']::after { content: '................................................................................................................................................................................................'; }
-.document-tab[data-leader='hyphen']::after { content: '------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------'; }
-.document-tab[data-leader='underscore']::after { content: '________________________________________________________________________________________________________________________________________________________________________________________________'; }
-.document-tab::after { position: absolute; left: 0; bottom: 0; white-space: pre; }
+.document-tab { display: inline-block; position: relative; height: 0; line-height: 0; vertical-align: baseline; white-space: pre; text-indent: 0; }
+.document-tab[data-leader='dot']::after { content: ''; border-bottom: .06em dotted currentColor; }
+.document-tab[data-leader='hyphen']::after { content: ''; border-bottom: .06em dashed currentColor; }
+.document-tab[data-leader='underscore']::after { content: ''; border-bottom: .06em solid currentColor; bottom: -.1em; }
+.document-tab::after { position: absolute; left: 0; bottom: 0; width: 100%; }
 .tiptap blockquote {
   border-left: 3px solid #a3b8d0;
   margin: 10px 0 18px;

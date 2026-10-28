@@ -23,7 +23,7 @@ export function measureParagraphLines(view: EditorView, block: HTMLElement, natu
       // line's inset when a paragraph starts with a footnote reference.
       if (box.width < .1 || box.height < 1) continue;
       add(naturalY(box.top), naturalY(box.bottom), () => view.posAtDOM(node.parentNode!, [...node.parentNode!.childNodes].indexOf(node)));
-    } else if (node instanceof Text && node.data && !node.parentElement?.closest('.pagination-gap,[data-flow-widget]')) {
+    } else if (node instanceof Text && node.data && !node.parentElement?.closest('.pagination-gap,[data-flow-widget],[data-docx-tab]')) {
       const range = document.createRange(); range.selectNodeContents(node);
       for (const box of range.getClientRects()) {
         if (box.width < .1 || box.height < 1) continue;

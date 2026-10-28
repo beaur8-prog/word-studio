@@ -1,13 +1,15 @@
 import type { HwpDocument } from '@rhwp/core';
 import { strFromU8 } from 'fflate';
 import { serializedParts } from './serialized-parts';
+import { hwpBookmark, hwpTabAttribute, hwpTabDefinitions } from './text-navigation';
+import type { DocumentTabStop } from '../document-tabs';
 
 export type CellPath = { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
 type Equation = { script: string; fontSize: number; color: number; width: number; height: number };
-export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string; noteId?: string; noteLabel?: string };
-type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[] };
-type Paragraph = { key: string; tables: number; cell: boolean; offset: number };
-type Cell = { key: string; paragraphs: number };
+export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string; noteId?: string; noteLabel?: string; bookmarkName?: string };
+type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[]; tabStops?: DocumentTabStop[] };
+type Paragraph = { key: string; tables: number; cell: boolean; offset: number; tabRef: string; width: number; tabCell?: Cell };
+type Cell = { key: string; paragraphs: number; width?: number };
 type Table = { key: string; cells: number };
 type Frame = { name: string; paragraph?: Paragraph; table?: Table; cell?: Cell; equation?: Equation; control?: SerializedControl };
 const fragment = (html: string) => html.match(/<!--StartFragment-->([\s\S]*?)<!--EndFragment-->/)?.[1].trim() ?? html;
@@ -23,9 +25,14 @@ export const entities = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|
  * nested cells, without changing the document or guessing from display text. */
 export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Map<string, CellContent> {
   const result = new Map<string, CellContent>();
+  const tabs = hwpTabDefinitions(files);
   for (const [name, bytes] of Object.entries(files)) {
     if (!/^Contents\/section\d+\.xml$/.test(name)) continue;
     const section = Number(name.match(/section(\d+)/)![1]), stack: Frame[] = [];
+    const pendingTabs = new Map<string, Paragraph>();
+    const pd = JSON.parse(doc.getPageDef(section));
+    const width = ((pd.landscape ? pd.height : pd.width) - pd.marginLeft - pd.marginRight) / 75;
+    const sectionXml = strFromU8(bytes), spacing = Number(sectionXml.match(/<hp:secPr\b[^>]*\btabStop="([^"]*)"/)?.[1]) || 8000;
     let paragraph = -1, note = 0;
     for (const token of strFromU8(bytes).matchAll(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>|<[^>]+>|[^<]+/g)) {
       const text = token[0], parent = stack.at(-1);
@@ -43,11 +50,11 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
       const frame: Frame = { ...parent, name };
       if (name === 'p') {
         if (parent?.name === 'sec') {
-          frame.paragraph = { key: `${section}:${++paragraph}`, tables: 0, cell: false, offset: 0 };
+          frame.paragraph = { key: `${section}:${++paragraph}`, tables: 0, cell: false, offset: 0, tabRef: attr('paraPrIDRef'), width };
           result.set(frame.paragraph.key, { equations: [], controls: [], breaks: [] });
         }
         else if (parent?.name === 'subList' && stack.at(-2)?.name === 'tc' && parent.cell) {
-          frame.paragraph = { key: `${parent.cell.key}/p${parent.cell.paragraphs++}`, tables: 0, cell: true, offset: 0 };
+          frame.paragraph = { key: `${parent.cell.key}/p${parent.cell.paragraphs++}`, tables: 0, cell: true, offset: 0, tabRef: attr('paraPrIDRef'), width, tabCell: parent.cell };
           result.set(frame.paragraph.key, { equations: [], controls: [], breaks: [] });
         }
         else frame.paragraph = undefined; // Header/footer and textbox stories.
@@ -55,6 +62,8 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
         frame.table = { key: `${frame.paragraph.key}/t${frame.paragraph.tables++}`, cells: 0 };
       } else if (name === 'tc' && frame.table) {
         frame.cell = { key: `${frame.table.key}/c${frame.table.cells++}`, paragraphs: 0 };
+      } else if (name === 'cellSz' && frame.cell) {
+        frame.cell.width = Number(attr('width')) / 75;
       } else if (name === 'equation' && frame.paragraph?.cell) {
         const equation = { script: '', fontSize: Number(attr('baseUnit')) || 1200, color: parseInt(attr('textColor').replace('#', ''), 16) || 0, width: 0, height: 0 };
         result.get(frame.paragraph.key)!.equations.push(equation); frame.equation = equation;
@@ -67,15 +76,20 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
         if (name === 'autoNum') control.numberType = attr('numType');
         if (name === 'header') control.emptyHeader = true;
         if (name === 'ole') control.binaryItem = attr('binaryItemIDRef');
+        if (name === 'bookmark') control.bookmarkName = entities(attr('name'));
         if (name === 'footNote' || name === 'endNote') { control.noteId = `hwp-note-${section}-${note++}`; control.noteLabel = attr('number') || '1'; }
         result.get(parent.paragraph.key)!.controls.push(control); frame.control = control;
       }
       if (parent?.name === 't' && parent.paragraph && ['tab', 'lineBreak', 'hyphen', 'nbSpace', 'fwSpace'].includes(name)) {
+        if (name === 'tab') pendingTabs.set(parent.paragraph.key, parent.paragraph);
         if (name === 'lineBreak' && parent.paragraph.cell) result.get(parent.paragraph.key)!.breaks.push(parent.paragraph.offset);
         parent.paragraph.offset++;
       }
       if (!text.endsWith('/>')) stack.push(frame);
     }
+    // HWPX writes cellSz after the cell's paragraphs. Resolve those widths
+    // only after the whole section, rather than using the outer paper width.
+    for (const p of pendingTabs.values()) result.get(p.key)!.tabStops = tabs(p.tabRef, spacing, p.tabCell?.width || p.width);
   }
   return result;
 }
@@ -86,12 +100,12 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
 export function restoreCellContent(doc: HwpDocument, section: number, para: number, tableControl: number, tableOrdinal: number, html: string,
   equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
   picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined) {
-  const annotate = (content: string, paragraph: number) => {
+  const annotate = (content: string, paragraph: number, key: string) => {
     let tableDepth = 0;
     return content.replace(/<\/?(?:table|p)\b[^>]*>/g, tag => {
       if (/^<table\b/.test(tag)) tableDepth++;
       else if (tag === '</table>') tableDepth--;
-      else if (!tableDepth && /^<p\b/.test(tag)) return tag.replace(/>$/, ` data-hwp-cell-paragraph="${paragraph}">`);
+      else if (!tableDepth && /^<p\b/.test(tag)) return tag.replace(/>$/, ` data-hwp-cell-paragraph="${paragraph}"${hwpTabAttribute(metadata().get(key)?.tabStops)}>`);
       return tag;
     });
   };
@@ -131,6 +145,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
           }
           const data = metadata().get(paragraphKey);
           const known = (value: SerializedControl | undefined): string | undefined => {
+            if (value?.bookmarkName) return hwpBookmark(value.bookmarkName);
             if (value?.noteId) return note?.(value);
             if (value?.kind === 'autoNum' && ['PAGE', 'TOTAL_PAGE'].includes(value.numberType ?? ''))
               return `<span data-page-number="${value.numberType === 'PAGE' ? 'PAGE' : 'NUMPAGES'}">1</span>`;
@@ -169,7 +184,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
               if (value[0] === '&') { emit(); output += value; offset += entities(value).length; }
               else for (const char of value) { emit(); output += char; offset += char.length; }
             }
-            parts.push(annotate(output, p)); continue;
+            parts.push(annotate(output, p, paragraphKey)); continue;
           }
           let next = 0, eq = 0, nested = 0;
           const tableRanges: [number, number][] = [];
@@ -217,7 +232,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
         // A control-only paragraph can consist solely of a nested table,
         // without an outer P. Carry the source index to following paragraphs
         // so tableGeometry does not shift their formatting by one slot.
-        content = annotate(content, p);
+        content = annotate(content, p, paragraphKey);
         parts.push(content.replace(/<img\b(?![^>]*\bdata-inline-image=)/g, '<img data-inline-image="true"'));
       }
       output += source.slice(cursor, start) + parts.join('\n'); cursor = match.index!;

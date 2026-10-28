@@ -19,6 +19,7 @@ function paragraphLineOffsets(element: HTMLElement) {
   let offset = 0, previousTop: number | undefined;
   while (walker.nextNode()) {
     const node = walker.currentNode as Text, range = document.createRange();
+    if (node.parentElement?.closest('[data-docx-tab]')) { offset += node.length; continue; }
     range.selectNodeContents(node);
     const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(node.data)].map(s => s.index);
     for (const rect of range.getClientRects()) {
