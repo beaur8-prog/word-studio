@@ -1,0 +1,415 @@
+{
+  "date": "2026-10-28",
+  "baseCommit": "2b5bd77",
+  "productCommit": "8c20357",
+  "scope": [
+    "one-column breaks advance vertically rather than generating off-paper columns",
+    "automatic trailing blank pages agree between editor and print; explicit breaks and rules remain meaningful",
+    "tabbed HWP/HWPX paragraphs keep physical line leading through DOCX roundtrips"
+  ],
+  "baselineReproductionsFailed": 6,
+  "newRegressionScenarios": 8,
+  "browserTests": 265,
+  "nativeUnitTests": 81,
+  "focusedBrowserTests": 24,
+  "nativeElectron": {
+    "passed": true,
+    "rendererErrors": [],
+    "results": [
+      {
+        "id": "02-work-rules",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8520
+          },
+          {
+            "zoom": 50,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8520
+          },
+          {
+            "zoom": 125,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8520
+          },
+          {
+            "zoom": 200,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8520
+          },
+          {
+            "zoom": 100,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8520
+          }
+        ],
+        "printPages": 164
+      },
+      {
+        "id": "04-language-plan",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3137
+          },
+          {
+            "zoom": 50,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3136
+          },
+          {
+            "zoom": 125,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3138
+          },
+          {
+            "zoom": 200,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3138
+          },
+          {
+            "zoom": 100,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3137
+          }
+        ],
+        "printPages": 36
+      },
+      {
+        "id": "05-return-form",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          },
+          {
+            "zoom": 50,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          },
+          {
+            "zoom": 125,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          },
+          {
+            "zoom": 200,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          },
+          {
+            "zoom": 100,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          }
+        ],
+        "printPages": 1
+      },
+      {
+        "id": "06-mixed-document",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3190
+          },
+          {
+            "zoom": 50,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3190
+          },
+          {
+            "zoom": 125,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3190
+          },
+          {
+            "zoom": 200,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3190
+          },
+          {
+            "zoom": 100,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3190
+          }
+        ],
+        "printPages": 40
+      },
+      {
+        "id": "07-english-exam",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          },
+          {
+            "zoom": 50,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          },
+          {
+            "zoom": 125,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          },
+          {
+            "zoom": 200,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          },
+          {
+            "zoom": 100,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          }
+        ],
+        "printPages": 9
+      },
+      {
+        "id": "08-math-exam",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          },
+          {
+            "zoom": 50,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          },
+          {
+            "zoom": 125,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          },
+          {
+            "zoom": 200,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          },
+          {
+            "zoom": 100,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          }
+        ],
+        "printPages": 20
+      }
+    ]
+  },
+  "samples": [
+    {
+      "id": "01-employment-contract",
+      "inputSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "sourcePages": 7,
+      "currentPages": 7,
+      "textMatchesPrior": true,
+      "images": 0,
+      "docxSavePages": [
+        7,
+        7,
+        7
+      ]
+    },
+    {
+      "id": "02-work-rules",
+      "inputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "sourcePages": 163,
+      "currentPages": 164,
+      "textMatchesPrior": true,
+      "images": 2,
+      "docxSavePages": [
+        164,
+        164,
+        164
+      ]
+    },
+    {
+      "id": "03-health-table",
+      "inputSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+      "sourcePages": 4,
+      "currentPages": 4,
+      "textMatchesPrior": true,
+      "images": 0,
+      "docxSavePages": [
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "id": "04-language-plan",
+      "inputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+      "sourcePages": 35,
+      "currentPages": 36,
+      "textMatchesPrior": true,
+      "images": 4,
+      "docxSavePages": [
+        36,
+        36,
+        36
+      ]
+    },
+    {
+      "id": "05-return-form",
+      "inputSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+      "sourcePages": 1,
+      "currentPages": 1,
+      "textMatchesPrior": true,
+      "images": 3,
+      "docxSavePages": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "06-mixed-document",
+      "inputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "sourcePages": 35,
+      "currentPages": 40,
+      "textMatchesPrior": true,
+      "images": 44,
+      "docxSavePages": [
+        40,
+        40,
+        40
+      ]
+    },
+    {
+      "id": "07-english-exam",
+      "inputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+      "sourcePages": 8,
+      "currentPages": 9,
+      "textMatchesPrior": true,
+      "images": 16,
+      "docxSavePages": [
+        9,
+        9,
+        9
+      ]
+    },
+    {
+      "id": "08-math-exam",
+      "inputSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "sourcePages": 20,
+      "currentPages": 20,
+      "textMatchesPrior": true,
+      "images": 543,
+      "docxSavePages": [
+        20,
+        20,
+        20
+      ]
+    },
+    {
+      "id": "09-korean-exam",
+      "inputSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+      "sourcePages": 15,
+      "currentPages": 15,
+      "textMatchesPrior": true,
+      "images": 23,
+      "docxSavePages": [
+        15,
+        15,
+        15
+      ]
+    },
+    {
+      "id": "10-lh-plan",
+      "inputSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+      "sourcePages": 5,
+      "currentPages": 5,
+      "textMatchesPrior": true,
+      "images": 3,
+      "docxSavePages": [
+        5,
+        5,
+        5
+      ]
+    }
+  ],
+  "crossPlatform": {
+    "run": "https://github.com/beaur8-prog/word-studio/actions/runs/40661419857",
+    "status": "passed",
+    "windowsBrowserTests": 73,
+    "linuxBrowserTests": 43
+  },
+  "unshippedExperiments": [
+    "Ignoring a final text line box beyond the page bottom did not reduce corpus page counts.",
+    "Negative cell-final paragraph margins made work-rules grow from 164 to 166 pages; this trial was rejected."
+  ],
+  "remaining": [
+    "Original/current page counts remain work rules 163/164, language plan 35/36, notice 35/40 and English exam 8/9.",
+    "General floating table positioning, cell-final line leading and language-specific font metrics still need improvement.",
+    "Independent all-page comparisons and actual Microsoft Word/Hancom verification remain incomplete."
+  ],
+  "evidenceDirectory": "analysis/hwp-page-boundaries-2026-10-28/"
+}

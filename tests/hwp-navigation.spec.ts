@@ -7,6 +7,33 @@ const fixture = createRequire(import.meta.url)('./hwp-navigation-fixture.cjs');
 let directory: string, files: Record<string, string>;
 test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-hwp-navigation-')); files = await fixture(directory); });
 test.afterAll(async () => { await fs.rm(directory, { recursive: true, force: true }); });
+for (const format of ['hwp', 'hwpx']) test(`${format}: tabbed paragraph line heights remain physical through two DOCX saves`, async ({ page }) => {
+  await page.goto('/');
+  const states = await page.evaluate(async ({ bytes, format }) => {
+    const { HwpReaderSession } = await import('/src/hwp/reader.ts'), { importEditableHwp } = await import('/src/hwp/editing.ts');
+    const { exportDocx, importFile } = await import('/src/document-io.ts');
+    const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js'), { createPrintLayout } = await import('/src/print-layout.ts');
+    const session = new HwpReaderSession();
+    try {
+      await session.open(new File([new Uint8Array(bytes)], 'tabs.' + format));
+      let doc = importEditableHwp(await session.editable(), 'tabs.' + format); const states = [];
+      for (let save = 0; save < 3; save++) {
+        const layout = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+        try { states.push({ pages: layout.pages, paragraphs: [...layout.element.querySelectorAll<HTMLElement>('.print-content p[data-tab-stops]')].map(p => ({ text: p.textContent, height: p.getBoundingClientRect().height })) }); }
+        finally { layout.dispose(); }
+        if (save < 2) { const again = await importFile(new File([await exportDocx(doc)], 'again.docx')); doc = { ...again.document, content: parseDocumentHtml(again.html!) }; }
+      }
+      return states;
+    } finally { session.close(); }
+  }, { bytes: [...await fs.readFile(files[format])], format });
+  expect(states[0].paragraphs).toHaveLength(5);
+  for (const state of states) {
+    expect(state.pages).toBe(states[0].pages);
+    expect(state.paragraphs.map(p => p.text)).toEqual(states[0].paragraphs.map(p => p.text));
+    state.paragraphs.forEach((p, i) => expect(p.height).toBeCloseTo(states[0].paragraphs[i].height, 0));
+  }
+});
 for (const format of ['hwp', 'hwpx'] as const) for (const saveAs of ['docx', 'hwp', 'hwpx'] as const) test(`${format} → ${saveAs}: body/nested bookmarks and tab alignment survive two saves`, async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async ({ bytes, format, saveAs }) => {
