@@ -1,0 +1,892 @@
+{
+  "date": "2026-10-28",
+  "baseCommit": "ddc31bb",
+  "scope": [
+    "source column widths in nested HWP/HWPX tables, including merged cells and deeper nesting",
+    "source vertical alignment without changing effective cell padding or fixing row heights",
+    "standard column metadata survives DOCX saves and editor undo/zoom"
+  ],
+  "baselineReproductionsFailed": 2,
+  "newRegressionScenarios": 2,
+  "browserTests": 267,
+  "nativeUnitTests": 81,
+  "productionBuild": "passed",
+  "crossPlatform": {
+    "workflow": ".github/workflows/hwp-layout-validation.yml",
+    "windowsScenarios": 75,
+    "linuxScenarios": 45,
+    "results": "See the pull request checks for this change"
+  },
+  "noticeNestedTables": {
+    "tables": 8,
+    "firstRowCells": 23,
+    "reference": "native source reader control geometry; shares parser with import and is not independent Word/Hancom evidence",
+    "meanWidthErrorPx": {
+      "before": 79.10597826086955,
+      "after": 0.23478260869564996
+    },
+    "maxWidthErrorPx": {
+      "before": 273.8875,
+      "after": 0.5
+    },
+    "meanHeightErrorPx": {
+      "before": 38.02578125,
+      "after": 19.794921875
+    },
+    "comparison": [
+      {
+        "index": 0,
+        "sourcePage": 1,
+        "sourceWidth": 659.4,
+        "sourceHeight": 67.7,
+        "columns": [
+          {
+            "source": 659.4,
+            "before": 712.25,
+            "after": 659
+          }
+        ],
+        "beforeHeight": 65.75,
+        "afterHeight": 65.75
+      },
+      {
+        "index": 1,
+        "sourcePage": 3,
+        "sourceWidth": 604.3,
+        "sourceHeight": 203.6,
+        "columns": [
+          {
+            "source": 258.8,
+            "before": 315.203125,
+            "after": 259
+          },
+          {
+            "source": 345.5,
+            "before": 315.203125,
+            "after": 346
+          }
+        ],
+        "beforeHeight": 218.078125,
+        "afterHeight": 218.078125
+      },
+      {
+        "index": 2,
+        "sourcePage": 3,
+        "sourceWidth": 604.7,
+        "sourceHeight": 148.6,
+        "columns": [
+          {
+            "source": 140.8,
+            "before": 314.203125,
+            "after": 141
+          },
+          {
+            "source": 463.9,
+            "before": 314.203125,
+            "after": 464
+          }
+        ],
+        "beforeHeight": 209.96875,
+        "afterHeight": 135.28125
+      },
+      {
+        "index": 3,
+        "sourcePage": 4,
+        "sourceWidth": 580,
+        "sourceHeight": 153,
+        "columns": [
+          {
+            "source": 75.7,
+            "before": 154.1875,
+            "after": 76
+          },
+          {
+            "source": 168.1,
+            "before": 154.1875,
+            "after": 168
+          },
+          {
+            "source": 168.1,
+            "before": 154.1875,
+            "after": 168
+          },
+          {
+            "source": 168.1,
+            "before": 154.1875,
+            "after": 168
+          }
+        ],
+        "beforeHeight": 220.296875,
+        "afterHeight": 220.296875
+      },
+      {
+        "index": 4,
+        "sourcePage": 29,
+        "sourceWidth": 655.9,
+        "sourceHeight": 285.1,
+        "columns": [
+          {
+            "source": 62.2,
+            "before": 232.796875,
+            "after": 62
+          },
+          {
+            "source": 86.9,
+            "before": 232.796875,
+            "after": 87
+          },
+          {
+            "source": 506.7,
+            "before": 232.8125,
+            "after": 507
+          }
+        ],
+        "beforeHeight": 352.65625,
+        "afterHeight": 286.09375
+      },
+      {
+        "index": 5,
+        "sourcePage": 30,
+        "sourceWidth": 657.8,
+        "sourceHeight": 310.1,
+        "columns": [
+          {
+            "source": 136.5,
+            "before": 232.796875,
+            "after": 136
+          },
+          {
+            "source": 193.5,
+            "before": 232.796875,
+            "after": 194
+          },
+          {
+            "source": 327.8,
+            "before": 232.8125,
+            "after": 328
+          }
+        ],
+        "beforeHeight": 234.140625,
+        "afterHeight": 268.046875
+      },
+      {
+        "index": 6,
+        "sourcePage": 31,
+        "sourceWidth": 575.4,
+        "sourceHeight": 122.3,
+        "columns": [
+          {
+            "source": 65,
+            "before": 197.328125,
+            "after": 65
+          },
+          {
+            "source": 253.3,
+            "before": 197.328125,
+            "after": 253
+          },
+          {
+            "source": 257.2,
+            "before": 197.34375,
+            "after": 257
+          }
+        ],
+        "beforeHeight": 121.1875,
+        "afterHeight": 118.515625
+      },
+      {
+        "index": 7,
+        "sourcePage": 31,
+        "sourceWidth": 576.9,
+        "sourceHeight": 286,
+        "columns": [
+          {
+            "source": 62.7,
+            "before": 118.390625,
+            "after": 63
+          },
+          {
+            "source": 111.8,
+            "before": 118.390625,
+            "after": 112
+          },
+          {
+            "source": 185.9,
+            "before": 118.390625,
+            "after": 186
+          },
+          {
+            "source": 89.4,
+            "before": 118.390625,
+            "after": 89
+          },
+          {
+            "source": 127.1,
+            "before": 118.4375,
+            "after": 127
+          }
+        ],
+        "beforeHeight": 300.484375,
+        "afterHeight": 300.484375
+      }
+    ]
+  },
+  "nativeElectron": {
+    "passed": true,
+    "rendererErrors": [],
+    "results": [
+      {
+        "id": "02-work-rules",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8531
+          },
+          {
+            "zoom": 50,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8531
+          },
+          {
+            "zoom": 125,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8531
+          },
+          {
+            "zoom": 200,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8531
+          },
+          {
+            "zoom": 100,
+            "pages": 164,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 8531
+          }
+        ],
+        "printPages": 164
+      },
+      {
+        "id": "04-language-plan",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3137
+          },
+          {
+            "zoom": 50,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3136
+          },
+          {
+            "zoom": 125,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3138
+          },
+          {
+            "zoom": 200,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3138
+          },
+          {
+            "zoom": 100,
+            "pages": 36,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3137
+          }
+        ],
+        "printPages": 36
+      },
+      {
+        "id": "05-return-form",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          },
+          {
+            "zoom": 50,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          },
+          {
+            "zoom": 125,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          },
+          {
+            "zoom": 200,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          },
+          {
+            "zoom": 100,
+            "pages": 1,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 64
+          }
+        ],
+        "printPages": 1
+      },
+      {
+        "id": "06-mixed-document",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3183
+          },
+          {
+            "zoom": 50,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3183
+          },
+          {
+            "zoom": 125,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3183
+          },
+          {
+            "zoom": 200,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3183
+          },
+          {
+            "zoom": 100,
+            "pages": 40,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 3183
+          }
+        ],
+        "printPages": 40
+      },
+      {
+        "id": "07-english-exam",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          },
+          {
+            "zoom": 50,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          },
+          {
+            "zoom": 125,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          },
+          {
+            "zoom": 200,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          },
+          {
+            "zoom": 100,
+            "pages": 9,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 2,
+            "totalTextLineRects": 1013
+          }
+        ],
+        "printPages": 9
+      },
+      {
+        "id": "08-math-exam",
+        "states": [
+          {
+            "zoom": 100,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          },
+          {
+            "zoom": 50,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          },
+          {
+            "zoom": 125,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          },
+          {
+            "zoom": 200,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          },
+          {
+            "zoom": 100,
+            "pages": 20,
+            "marginLineRects": 0,
+            "anchoredMarginLineRects": 0,
+            "totalTextLineRects": 762
+          }
+        ],
+        "printPages": 20
+      }
+    ]
+  },
+  "corpus": [
+    {
+      "id": "01-employment-contract",
+      "inputSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "sourcePages": 7,
+      "printPages": 7,
+      "textMatchesPrior": true,
+      "images": 0,
+      "equationImages": 0,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 7,
+          "textMatches": true,
+          "textLength": 4966,
+          "images": 0,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 1,
+          "pages": 7,
+          "textMatches": true,
+          "textLength": 4966,
+          "images": 0,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 2,
+          "pages": 7,
+          "textMatches": true,
+          "textLength": 4966,
+          "images": 0,
+          "fields": 0,
+          "stories": 0
+        }
+      ]
+    },
+    {
+      "id": "02-work-rules",
+      "inputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "sourcePages": 163,
+      "printPages": 164,
+      "textMatchesPrior": true,
+      "images": 2,
+      "equationImages": 0,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 164,
+          "textMatches": true,
+          "textLength": 90902,
+          "images": 2,
+          "fields": 0,
+          "stories": 7
+        },
+        {
+          "save": 1,
+          "pages": 164,
+          "textMatches": true,
+          "textLength": 90902,
+          "images": 2,
+          "fields": 0,
+          "stories": 7
+        },
+        {
+          "save": 2,
+          "pages": 164,
+          "textMatches": true,
+          "textLength": 90902,
+          "images": 2,
+          "fields": 0,
+          "stories": 7
+        }
+      ]
+    },
+    {
+      "id": "03-health-table",
+      "inputSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+      "sourcePages": 4,
+      "printPages": 4,
+      "textMatchesPrior": true,
+      "images": 0,
+      "equationImages": 0,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 4,
+          "textMatches": true,
+          "textLength": 2121,
+          "images": 0,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 1,
+          "pages": 4,
+          "textMatches": true,
+          "textLength": 2121,
+          "images": 0,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 2,
+          "pages": 4,
+          "textMatches": true,
+          "textLength": 2121,
+          "images": 0,
+          "fields": 0,
+          "stories": 0
+        }
+      ]
+    },
+    {
+      "id": "04-language-plan",
+      "inputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+      "sourcePages": 35,
+      "printPages": 36,
+      "textMatchesPrior": true,
+      "images": 4,
+      "equationImages": 0,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 36,
+          "textMatches": true,
+          "textLength": 23851,
+          "images": 4,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 1,
+          "pages": 36,
+          "textMatches": true,
+          "textLength": 23851,
+          "images": 4,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 2,
+          "pages": 36,
+          "textMatches": true,
+          "textLength": 23851,
+          "images": 4,
+          "fields": 0,
+          "stories": 0
+        }
+      ]
+    },
+    {
+      "id": "05-return-form",
+      "inputSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+      "sourcePages": 1,
+      "printPages": 1,
+      "textMatchesPrior": true,
+      "images": 3,
+      "equationImages": 0,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 1,
+          "textMatches": true,
+          "textLength": 813,
+          "images": 3,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 1,
+          "pages": 1,
+          "textMatches": true,
+          "textLength": 813,
+          "images": 3,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 2,
+          "pages": 1,
+          "textMatches": true,
+          "textLength": 813,
+          "images": 3,
+          "fields": 0,
+          "stories": 0
+        }
+      ]
+    },
+    {
+      "id": "06-mixed-document",
+      "inputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "sourcePages": 35,
+      "printPages": 40,
+      "textMatchesPrior": true,
+      "images": 44,
+      "equationImages": 0,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 40,
+          "textMatches": true,
+          "textLength": 37494,
+          "images": 44,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 1,
+          "pages": 40,
+          "textMatches": true,
+          "textLength": 37494,
+          "images": 44,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 2,
+          "pages": 40,
+          "textMatches": true,
+          "textLength": 37494,
+          "images": 44,
+          "fields": 0,
+          "stories": 0
+        }
+      ]
+    },
+    {
+      "id": "07-english-exam",
+      "inputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+      "sourcePages": 8,
+      "printPages": 9,
+      "textMatchesPrior": true,
+      "images": 16,
+      "equationImages": 0,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 9,
+          "textMatches": true,
+          "textLength": 27522,
+          "images": 16,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 1,
+          "pages": 9,
+          "textMatches": true,
+          "textLength": 27522,
+          "images": 16,
+          "fields": 0,
+          "stories": 2
+        },
+        {
+          "save": 2,
+          "pages": 9,
+          "textMatches": true,
+          "textLength": 27522,
+          "images": 16,
+          "fields": 0,
+          "stories": 2
+        }
+      ]
+    },
+    {
+      "id": "08-math-exam",
+      "inputSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "sourcePages": 20,
+      "printPages": 20,
+      "textMatchesPrior": true,
+      "images": 543,
+      "equationImages": 522,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 20,
+          "textMatches": true,
+          "textLength": 3217,
+          "images": 543,
+          "fields": 0,
+          "stories": 10
+        },
+        {
+          "save": 1,
+          "pages": 20,
+          "textMatches": true,
+          "textLength": 3217,
+          "images": 543,
+          "fields": 0,
+          "stories": 14
+        },
+        {
+          "save": 2,
+          "pages": 20,
+          "textMatches": true,
+          "textLength": 3217,
+          "images": 543,
+          "fields": 0,
+          "stories": 14
+        }
+      ]
+    },
+    {
+      "id": "09-korean-exam",
+      "inputSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+      "sourcePages": 15,
+      "printPages": 15,
+      "textMatchesPrior": true,
+      "images": 23,
+      "equationImages": 0,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 15,
+          "textMatches": true,
+          "textLength": 24887,
+          "images": 23,
+          "fields": 2,
+          "stories": 0
+        },
+        {
+          "save": 1,
+          "pages": 15,
+          "textMatches": true,
+          "textLength": 24887,
+          "images": 23,
+          "fields": 2,
+          "stories": 1
+        },
+        {
+          "save": 2,
+          "pages": 15,
+          "textMatches": true,
+          "textLength": 24887,
+          "images": 23,
+          "fields": 2,
+          "stories": 1
+        }
+      ]
+    },
+    {
+      "id": "10-lh-plan",
+      "inputSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+      "sourcePages": 5,
+      "printPages": 5,
+      "textMatchesPrior": true,
+      "images": 3,
+      "equationImages": 0,
+      "docx": [
+        {
+          "save": 0,
+          "pages": 5,
+          "textMatches": true,
+          "textLength": 3042,
+          "images": 3,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 1,
+          "pages": 5,
+          "textMatches": true,
+          "textLength": 3042,
+          "images": 3,
+          "fields": 0,
+          "stories": 0
+        },
+        {
+          "save": 2,
+          "pages": 5,
+          "textMatches": true,
+          "textLength": 3042,
+          "images": 3,
+          "fields": 0,
+          "stories": 0
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "The source/converted page counts remain 163/164, 35/36, 35/40 and 8/9 for the four discrepant samples.",
+    "Some nested table heights still differ; this change restores columns and vertical alignment, not all paragraph metrics.",
+    "Actual Microsoft Word/Hancom and independent full-page PDF comparisons remain pending.",
+    "No release or installation-package retest was performed."
+  ],
+  "evidence": {
+    "localDirectory": "analysis/hwp-table-flow-2026-10-28/",
+    "baseline": "nested-before.log",
+    "regression": "nested-tests.log",
+    "browser": "browser.log",
+    "build": "build.log",
+    "units": "native-unit.log",
+    "fresh": "fresh.json",
+    "docx": "docx-corpus.json",
+    "geometry": "nested-comparison.json",
+    "native": "native-final/results.json",
+    "screenshots": [
+      "nested-2-before.png",
+      "nested-2-after.png",
+      "nested-4-before.png",
+      "nested-4-after.png"
+    ]
+  }
+}

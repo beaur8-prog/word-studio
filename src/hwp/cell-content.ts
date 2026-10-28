@@ -99,7 +99,8 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
  * HTML. Cell paths distinguish nested tables and separate document stories. */
 export function restoreCellContent(doc: HwpDocument, section: number, para: number, tableControl: number, tableOrdinal: number, html: string,
   equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
-  picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined) {
+  picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined,
+  nestedTable?: (path: CellPath, html: string) => string) {
   const annotate = (content: string, paragraph: number, key: string) => {
     let tableDepth = 0;
     return content.replace(/<\/?(?:table|p)\b[^>]*>/g, tag => {
@@ -110,6 +111,8 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
     });
   };
   const repair = (source: string, parents: CellPath, control: number, key: string, depth = 0): string => {
+    if (parents.length && nestedTable && depth <= 12)
+      source = nestedTable([...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }], source);
     if ((!/<!--\s*rhwp:|<img\b/.test(source) && !/<table\b[\s\S]*<table\b/.test(source)) || depth > 12) return source;
     const tablePath = [...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }];
     const dims = parents.length ? JSON.parse(doc.getTableDimensionsByPath(section, para, JSON.stringify(tablePath))) : JSON.parse(doc.getTableDimensions(section, para, control));
