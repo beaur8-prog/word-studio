@@ -13,6 +13,7 @@ import { stageHwpColumns } from './export-columns';
 import { stageHwpSections } from './export-sections';
 import { stageHwpFurniture } from './export-furniture';
 import { stageHwpPictures } from './export-pictures';
+import { hwpBookmark, hwpTabAttribute, stageHwpTextNavigation } from './text-navigation';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -99,7 +100,7 @@ function sourceLinePitches(doc: HwpDocument): Map<string, number> {
   return pitches;
 }
 
-function tableGeometry(doc: HwpDocument, section: number, para: number, control: number, html: string, pitches: Map<string, number>): string {
+function tableGeometry(doc: HwpDocument, section: number, para: number, control: number, html: string, pitches: Map<string, number>, tabs?: (cell: number, paragraph: number) => string): string {
   const dims = JSON.parse(doc.getTableDimensions(section, para, control));
   if (dims.cellCount > 50000 || dims.colCount > 1000 || dims.rowCount > 10000) throw new Error('편집할 표의 셀 수가 너무 많습니다.');
   const tableProperties = JSON.parse(doc.getTableProperties(section, para, control));
@@ -214,6 +215,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
           const requested = pitch ?? physicalLineHeight(properties, char);
           if (inkHeight > 0 && requested > inkHeight) finalPitch = inkHeight;
         }
+        if (text.includes('\t') && !tag.includes('data-tab-stops')) tag = tag.replace(/>$/, `${tabs?.(index, cellParagraph - 1) ?? ''}>`);
         return cssStyle(tag, paragraphCss(properties, char, cap, false) + (finalPitch ? `line-height:${finalPitch}px;` : ''));
       } catch { return tag; }
     }
@@ -568,6 +570,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const range = (start: number, end: number) => fragment(doc.exportSelectionHtml(section, para, start, para, end));
       const whole = range(0, 0xffffffff);
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';
+      if (whole.includes('\t')) open = open.replace(/>$/, `${hwpTabAttribute(equationMetadata().get(`${section}:${para}`)?.tabStops)}>`);
       open = cssStyle(open, paragraphCss(properties, JSON.parse(doc.getCharPropertiesAt(section, para, 0))));
       const pitch = pitches.get(`${section}:${para}`);
       if (pitch) open = cssStyle(open, `line-height:${pitch}px;`);
@@ -582,9 +585,16 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       for (const c of byParagraph.get(globalPara) ?? []) {
         if (backgroundControls.has(c.controlIndex)) continue;
         if (['secd', 'cold', 'head', 'foot', 'pgnp', 'pgct', 'pghd', 'nwno'].includes(c.ctrlId)) continue;
-        if (c.ctrlId === 'bokm') { warnings.add('책갈피 위치 정보는 편집본에 전달되지 않습니다. 본문 내용은 유지합니다.'); continue; }
         const pos = Math.max(cursor, positions[c.controlIndex] ?? cursor);
         appendInline(inline(range(cursor, pos))); cursor = pos;
+        if (c.ctrlId === 'bokm') {
+          const ordinal = paragraphControls.filter(c => c.ctrlId === 'bokm').indexOf(c);
+          const name = equationMetadata().get(`${section}:${para}`)?.controls.filter(c => c.kind === 'bookmark')[ordinal]?.bookmarkName;
+          const bookmark = hwpBookmark(name);
+          if (bookmark) appendInline(bookmark);
+          else warnings.add('일부 책갈피 이름을 가져오지 못했습니다. 본문 내용은 유지합니다.');
+          continue;
+        }
         onProgress?.({ label: c.ctrlId === 'tbl' ? '표를 변환하는 중…' : c.ctrlId === 'gso' ? '그림·도형을 변환하는 중…' : '문서 개체를 변환하는 중…' });
         let controlHtml = fragment(doc.exportControlHtml(section, para, '[]', c.controlIndex));
         if (c.ctrlId === 'fn' || c.ctrlId === 'en') {
@@ -634,7 +644,8 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             }
             catch { return html; }
           }, noteReference);
-          controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches);
+          controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches,
+            (cell, p) => hwpTabAttribute(equationMetadata().get(`${section}:${para}/t${ordinal}/c${cell}/p${p}`)?.tabStops));
           const background = tableBackgrounds.get(c.controlIndex);
           if (background) {
             const target = /(<t[dh]\b[^>]*>\s*<p\b[^>]*>)/;
@@ -831,7 +842,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     const notes = stageHwpNotes(furniture.html);
     const pictures = stageHwpPictures(notes.html);
     const fields = stageHwpFields(pictures.html);
-    const columns = stageHwpColumns(fields.html, page);
+    const navigation = stageHwpTextNavigation(fields.html);
+    const columns = stageHwpColumns(navigation.html, page);
     const converted = columns.html.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
     checkHwpHtmlSize(hwpHtmlBytes(converted));
     // The first pasted paragraph inherits the host's paragraph shape even on
@@ -855,6 +867,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withPictures !== doc) { doc.free(); doc = withPictures; }
     const withFields = fields.restore(Core, doc);
     if (withFields !== doc) { doc.free(); doc = withFields; }
+    const withNavigation = navigation.restore(Core, doc);
+    if (withNavigation !== doc) { doc.free(); doc = withNavigation; }
     const withColumns = columns.restore(Core, doc);
     if (withColumns !== doc) { doc.free(); doc = withColumns; }
     const withNotes = notes.restore(Core, doc);
