@@ -31,7 +31,10 @@ export function paragraphCss(properties: Record<string, any>, char?: Record<stri
     (['left', 'center', 'right', 'justify'].includes(properties.alignment) ? `text-align:${properties.alignment};` : '') +
     (includeSpacing ? `margin-top:${(Number(properties.spacingBefore) || 0) / 2}px;margin-bottom:${(Number(properties.spacingAfter) || 0) / 2}px;` : '') +
     (char?.fontSize ? `font-size:${char.fontSize / 100}pt;font-family:${escape(JSON.stringify(char.fontFamily || 'serif'))};` : '') +
-    (spacing ? `line-height:${spacing};` : '');
+    (spacing ? `line-height:${spacing};` : '') +
+    // The native numeric API uses 0 for Korean word boundaries and 1 for
+    // character boundaries. Do not infer this from HWPX's Latin enum names.
+    (properties.koreanBreakUnit === 0 ? 'word-break:keep-all;' : '');
 }
 
 export function sourceLinePitches(doc: HwpDocument): Map<string, number> {

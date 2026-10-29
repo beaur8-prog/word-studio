@@ -896,6 +896,9 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
       .map(m => fontPoints(m.attrs?.fontSize) ?? 0))) * 1.65 * 20);
   return {
     alignment: alignment(node.attrs?.textAlign),
+    // docx 9.x's true option emits w:wordWrap w:val="0" (disable breaking
+    // inside words); passing false omits the XML element entirely.
+    ...(node.attrs?.wordBreak === 'keep-all' ? { wordWrap: true } : {}),
     tabStops: parseTabStops(node.attrs?.tabStops).map(stop => ({ position: Math.round(stop.position * 15), type: stop.type,
       ...(['dot', 'hyphen', 'underscore'].includes(stop.leader || '') ? { leader: stop.leader } : {}) })),
     indent: {

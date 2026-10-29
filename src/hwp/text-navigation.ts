@@ -3,7 +3,8 @@ import type { DocumentTabStop } from '../document-tabs';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import documentLimits from '../../electron/document-limits.json';
 
-const attr = (tag: string, key: string) => tag.match(new RegExp(`\\b${key}=["']([^"']*)["']`))?.[1] ?? '';
+// CSS can contain a quoted font family inside the opposite HTML delimiter.
+const attr = (tag: string, key: string) => tag.match(new RegExp(`\\b${key}=(["'])([\\s\\S]*?)\\1`))?.[2] ?? '';
 const escape = (text: string) => text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 const decode = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/gi, e => {
   const names: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" };
@@ -49,11 +50,12 @@ export function hwpTabDefinitions(files: Record<string, Uint8Array>) {
 export const hwpTabAttribute = (stops?: DocumentTabStop[]) => stops?.length ? ` data-tab-stops="${escape(JSON.stringify(stops))}"` : '';
 export const hwpBookmark = (name?: string) => name && name.length <= 1000 ? `<span data-docx-bookmark="${escape(name)}"></span>` : undefined;
 
-/** Keep point bookmarks and paragraph tab definitions through the native HTML
- * bridge, including nested cells. Restore real HWP controls/DocInfo records. */
+/** Keep point bookmarks, paragraph tabs and Korean word wrapping through the
+ * native HTML bridge, including nested cells. Restore real DocInfo records. */
 export function stageHwpTextNavigation(html: string) {
   const prefix = `WORDSTUDIO-NAV-${crypto.randomUUID()}-`;
-  const bookmarks = new Map<string, string>(), tabMarkers = new Map<string, DocumentTabStop[]>();
+  const bookmarks = new Map<string, string>();
+  const paragraphMarkers = new Map<string, { stops?: DocumentTabStop[]; keepWord?: boolean }>();
   const bookmarkNames = new Set<string>();
   let sequence = 0;
   html = html.replace(/<span\b[^>]*\bdata-docx-bookmark=["'][^"']*["'][^>]*>\s*<\/span>/g, tag => {
@@ -65,15 +67,18 @@ export function stageHwpTextNavigation(html: string) {
     bookmarkNames.add(name);
     const token = `${prefix}${sequence++}-END`; bookmarks.set(token, name);
     return `<span>${token}</span>`;
-  }).replace(/<p\b[^>]*\bdata-tab-stops=["'][^"']*["'][^>]*>/g, tag => {
+  }).replace(/<p\b[^>]*>/g, tag => {
     const raw = decode(attr(tag, 'data-tab-stops'));
+    const keepWord = /(?:^|;)\s*word-break\s*:\s*keep-all\s*(?:;|$)/i.test(decode(attr(tag, 'style')));
+    if (!raw && !keepWord) return tag;
     if (raw.length > 10000) throw Error('저장할 탭 정보가 너무 큽니다.');
-    const stops = JSON.parse(raw) as DocumentTabStop[];
+    const stops = raw ? JSON.parse(raw) as DocumentTabStop[] : [];
     if (!Array.isArray(stops) || stops.length > 100 || stops.some(s => !s || !types.includes(s.type) || !Number.isFinite(s.position) || Math.abs(s.position) > 10000))
       throw Error('저장할 탭 정보가 올바르지 않습니다.');
     const supported = stops.filter(s => s.position >= 0);
-    if (!supported.length) return tag;
-    const token = `${prefix}${sequence++}-END`; tabMarkers.set(token, supported);
+    if (!supported.length && !keepWord) return tag;
+    const token = `${prefix}${sequence++}-END`;
+    paragraphMarkers.set(token, { ...(supported.length ? { stops: supported } : {}), ...(keepWord ? { keepWord: true } : {}) });
     return tag + `<span>${token}</span>`;
   });
   return { html, restore(Core: typeof HwpDocument, doc: HwpDocument) {
@@ -96,17 +101,26 @@ export function stageHwpTextNavigation(html: string) {
         return tag.replace(new RegExp(`${prefix}\\d+-END`, 'g'), token => {
           const bookmark = bookmarks.get(token);
           if (bookmark !== undefined) { found++; return `</hp:t><hp:ctrl><hp:bookmark name="${escape(bookmark)}"/></hp:ctrl><hp:t>`; }
-          const stops = tabMarkers.get(token), paragraph = stack.at(-1);
-          if (!stops || !paragraph) throw Error('한글 책갈피·탭 위치가 올바르지 않습니다.');
+          const change = paragraphMarkers.get(token), paragraph = stack.at(-1);
+          if (!change || !paragraph) throw Error('한글 문단·책갈피·탭 위치가 올바르지 않습니다.');
           found++;
-          const key = paragraph.ref + ':' + JSON.stringify(stops);
+          const key = paragraph.ref + ':' + JSON.stringify(change);
           let id = reused.get(key);
           if (id === undefined) {
             const base = paraShapes.get(paragraph.ref); if (!base) throw Error('한글 문단 서식을 찾지 못했습니다.');
             id = nextPara++; reused.set(key, id);
-            const tabId = nextTab++;
-            newTabs.push(`<hh:tabPr id="${tabId}" autoTabLeft="0" autoTabRight="0">` + stops.map(s => `<hh:tabItem pos="${Math.round(s.position * 150)}" type="${s.type.toUpperCase()}" leader="${s.leader === 'dot' ? 'DOT' : s.leader === 'hyphen' ? 'DASH' : s.leader === 'underscore' ? 'SOLID' : 'NONE'}"/>`).join('') + '</hh:tabPr>');
-            newParas.push(base.replace(/\bid="[^"]*"/, `id="${id}"`).replace(/\btabPrIDRef="[^"]*"/, `tabPrIDRef="${tabId}"`));
+            let shape = base.replace(/\bid="[^"]*"/, `id="${id}"`);
+            if (change.stops) {
+              const tabId = nextTab++;
+              newTabs.push(`<hh:tabPr id="${tabId}" autoTabLeft="0" autoTabRight="0">` + change.stops.map(s => `<hh:tabItem pos="${Math.round(s.position * 150)}" type="${s.type.toUpperCase()}" leader="${s.leader === 'dot' ? 'DOT' : s.leader === 'hyphen' ? 'DASH' : s.leader === 'underscore' ? 'SOLID' : 'NONE'}"/>`).join('') + '</hh:tabPr>');
+              shape = shape.replace(/\btabPrIDRef="[^"]*"/, `tabPrIDRef="${tabId}"`);
+            }
+            if (change.keepWord) {
+              // Native 0 / HWPX non-Latin BREAK_WORD keeps an eojeol whole.
+              // The native HTML paste otherwise resets this setting to 1.
+              shape = shape.replace(/<hh:breakSetting\b[^>]*>/, tag => tag.replace(/\bbreakNonLatinWord="[^"]*"/, 'breakNonLatinWord="BREAK_WORD"'));
+            }
+            newParas.push(shape);
           }
           paragraph.replacement = id; return '';
         });
