@@ -1,0 +1,294 @@
+{
+  "baseCommit": "c7d165a57684c37f1cadf5cbcf7ca0c5bde692e9",
+  "scope": "Nested source row minimum and trailing table/inline-host spacing; no public release",
+  "productFiles": {
+    "src/hwp/nested-tables.ts": "788cd694385f4bdea87d918381991be4086252db643df1fce44e4c3e1d3a9f07",
+    "tests/hwp-nested-height-fixture.cjs": "16c7d15a801e22bd0a4a0eb7438c10265c15615c68fcc5e3aa6a9947e7d9485f",
+    "tests/hwp-nested-height.spec.ts": "f9086775941cf274e81e354a9ccb574daa9b64ff8371c90cb216b7a54e6643b7",
+    ".github/workflows/hwp-layout-validation.yml": "1851146f4ad9608170ca3f9261a2778f3b3dff0b6b38b5fd186d23fc3d2f9fd5"
+  },
+  "local": {
+    "build": true,
+    "browserTestsPassed": 333,
+    "nativeUnitTestsPassed": 88,
+    "newReproductions": 12,
+    "newReproductionsFailOnBase": 12,
+    "newReproductionsPass": 12
+  },
+  "documents": [
+    {
+      "id": "01-employment-contract",
+      "inputSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "sourcePages": 7,
+      "printPages": 7,
+      "textMatchesPrior": true,
+      "equationImages": 0,
+      "images": 0,
+      "durationMs": 396.59999990463257,
+      "contentExactlyMatchesPrior": false,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "02-work-rules",
+      "inputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "sourcePages": 163,
+      "printPages": 163,
+      "textMatchesPrior": true,
+      "equationImages": 0,
+      "images": 2,
+      "durationMs": 3036.7999997138977,
+      "contentExactlyMatchesPrior": false,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "도형·글상자는 원래 위치와 모양의 그림으로 가져옵니다. 글상자 내용은 그림 설명에 보존하지만 개체 내부는 편집할 수 없습니다.",
+        "일부 떠 있는 표는 본문 흐름 안으로 옮깁니다. 음수 위치·호스트 본문·단·겹침·캡션은 원본과 다를 수 있습니다.",
+        "표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "03-health-table",
+      "inputSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+      "sourcePages": 4,
+      "printPages": 4,
+      "textMatchesPrior": true,
+      "equationImages": 0,
+      "images": 0,
+      "durationMs": 375.69999980926514,
+      "contentExactlyMatchesPrior": true,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "04-language-plan",
+      "inputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+      "sourcePages": 35,
+      "printPages": 36,
+      "textMatchesPrior": true,
+      "equationImages": 0,
+      "images": 4,
+      "durationMs": 1281,
+      "contentExactlyMatchesPrior": false,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "OLE 개체는 파일에 저장된 미리보기 그림으로 가져옵니다. 원본 OLE 데이터는 원본 한글 파일에 남아 있으며 편집본에서는 개체 내부를 편집할 수 없습니다.",
+        "일부 떠 있는 표는 본문 흐름 안으로 옮깁니다. 음수 위치·호스트 본문·단·겹침·캡션은 원본과 다를 수 있습니다.",
+        "원본의 쪽 숨김 설정은 편집본에 전달되지 않습니다. 본문 내용은 유지합니다.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "05-return-form",
+      "inputSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+      "sourcePages": 1,
+      "printPages": 1,
+      "textMatchesPrior": true,
+      "equationImages": 0,
+      "images": 3,
+      "durationMs": 359.7999997138977,
+      "contentExactlyMatchesPrior": true,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "도형·글상자는 원래 위치와 모양의 그림으로 가져옵니다. 글상자 내용은 그림 설명에 보존하지만 개체 내부는 편집할 수 없습니다.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "06-mixed-document",
+      "inputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "sourcePages": 35,
+      "printPages": 37,
+      "textMatchesPrior": true,
+      "equationImages": 0,
+      "images": 44,
+      "durationMs": 2723.4000000953674,
+      "contentExactlyMatchesPrior": false,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "원본의 쪽 시작 빈 줄 감추기를 적용합니다. DOCX를 다른 앱에서 열면 숨긴 빈 줄이 다시 나타나 쪽 수가 늘 수 있습니다.",
+        "일부 떠 있는 표는 본문 흐름 안으로 옮깁니다. 음수 위치·호스트 본문·단·겹침·캡션은 원본과 다를 수 있습니다.",
+        "도형·글상자는 원래 위치와 모양의 그림으로 가져옵니다. 글상자 내용은 그림 설명에 보존하지만 개체 내부는 편집할 수 없습니다.",
+        "표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "07-english-exam",
+      "inputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+      "sourcePages": 8,
+      "printPages": 9,
+      "textMatchesPrior": true,
+      "equationImages": 0,
+      "images": 16,
+      "durationMs": 9048.299999713898,
+      "contentExactlyMatchesPrior": false,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "도형·글상자는 원래 위치와 모양의 그림으로 가져옵니다. 글상자 내용은 그림 설명에 보존하지만 개체 내부는 편집할 수 없습니다.",
+        "일부 떠 있는 표는 본문 흐름 안으로 옮깁니다. 음수 위치·호스트 본문·단·겹침·캡션은 원본과 다를 수 있습니다.",
+        "겹친 표와 배경 그림은 편집 가능한 표와 셀 배경 그림으로 함께 가져옵니다.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "08-math-exam",
+      "inputSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "sourcePages": 20,
+      "printPages": 20,
+      "textMatchesPrior": true,
+      "equationImages": 522,
+      "images": 543,
+      "durationMs": 6097.300000190735,
+      "contentExactlyMatchesPrior": true,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "도형·글상자는 원래 위치와 모양의 그림으로 가져옵니다. 글상자 내용은 그림 설명에 보존하지만 개체 내부는 편집할 수 없습니다.",
+        "일부 떠 있는 표는 본문 흐름 안으로 옮깁니다. 음수 위치·호스트 본문·단·겹침·캡션은 원본과 다를 수 있습니다.",
+        "수식은 원래 모양의 그림으로 가져옵니다. 수식 명령어는 그림 설명에 보존하지만 수식 자체는 편집할 수 없습니다.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "09-korean-exam",
+      "inputSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+      "sourcePages": 15,
+      "printPages": 15,
+      "textMatchesPrior": true,
+      "equationImages": 0,
+      "images": 23,
+      "durationMs": 1001.5999999046326,
+      "contentExactlyMatchesPrior": false,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "원본의 쪽 시작 빈 줄 감추기를 적용합니다. DOCX를 다른 앱에서 열면 숨긴 빈 줄이 다시 나타나 쪽 수가 늘 수 있습니다.",
+        "도형·글상자는 원래 위치와 모양의 그림으로 가져옵니다. 글상자 내용은 그림 설명에 보존하지만 개체 내부는 편집할 수 없습니다.",
+        "일부 떠 있는 표는 본문 흐름 안으로 옮깁니다. 음수 위치·호스트 본문·단·겹침·캡션은 원본과 다를 수 있습니다.",
+        "표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    },
+    {
+      "id": "10-lh-plan",
+      "inputSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+      "sourcePages": 5,
+      "printPages": 5,
+      "textMatchesPrior": true,
+      "equationImages": 0,
+      "images": 3,
+      "durationMs": 240.5,
+      "contentExactlyMatchesPrior": false,
+      "pageExactlyMatchesPrior": true,
+      "placeholderParagraphs": 0,
+      "placeholderOccurrences": 0,
+      "warnings": [
+        "표 안의 단 설정은 단일 흐름으로 가져옵니다. 원본의 셀 안 배치를 확인하세요.",
+        "복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요."
+      ]
+    }
+  ],
+  "bodyPreservation": {
+    "documents": 10,
+    "characters": 218937,
+    "hardBreaksIncluded": true,
+    "twoDocxSaves": true
+  },
+  "fixedAnchors": {
+    "total": 160,
+    "mismatchesBefore": 99,
+    "mismatchesAfter": 99,
+    "absolutePageErrorBefore": 109,
+    "absolutePageErrorAfter": 110,
+    "worsened": [
+      {
+        "id": "02-work-rules",
+        "key": "1:9/t0/c114/p2",
+        "sourcePage": 43,
+        "beforePage": 42,
+        "afterPage": 41
+      }
+    ]
+  },
+  "native": {
+    "hwp": true,
+    "docx": true,
+    "zooms": [
+      100,
+      50,
+      125,
+      200,
+      100
+    ],
+    "pdfPages": [
+      {
+        "file": "01-employment-contract.pdf",
+        "pages": 7
+      },
+      {
+        "file": "02-work-rules.pdf",
+        "pages": 163
+      },
+      {
+        "file": "03-health-table.pdf",
+        "pages": 4
+      },
+      {
+        "file": "04-language-plan.pdf",
+        "pages": 36
+      },
+      {
+        "file": "05-return-form.pdf",
+        "pages": 1
+      },
+      {
+        "file": "06-mixed-document.pdf",
+        "pages": 37
+      },
+      {
+        "file": "07-english-exam.pdf",
+        "pages": 9
+      },
+      {
+        "file": "08-math-exam.pdf",
+        "pages": 20
+      },
+      {
+        "file": "09-korean-exam.pdf",
+        "pages": 15
+      },
+      {
+        "file": "10-lh-plan.pdf",
+        "pages": 5
+      }
+    ]
+  },
+  "remaining": [
+    "Final multiline cell leading and reflowed single-line source paragraphs",
+    "Known overlapping cell lines in notice page32",
+    "Fixed-anchor page mismatch99/160",
+    "Four extra pages across language plan, notice and English exam",
+    "Nested source outerTop and general floating placement"
+  ]
+}
