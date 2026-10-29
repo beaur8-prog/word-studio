@@ -92,11 +92,13 @@ test('DOCX word-wrap booleans inherit through styles and a direct edit overrides
     const { defaultPage } = await import('/src/types.ts');
     const { default: JSZip } = await import('/node_modules/.vite/deps/jszip.js');
     const doc = { format: 'word-studio', version: 1, id: 'wrap-styles', title: 'Wrap styles', page: defaultPage, comments: [],
-      updatedAt: new Date().toISOString(), content: parseDocumentHtml('<p style="word-break:keep-all">상속된 어절 설정</p><p style="word-break:keep-all">외부에서 수정한 설정</p>') };
+      updatedAt: new Date().toISOString(), content: parseDocumentHtml('<p style="word-break:keep-all" data-tab-stops=\'[{"position":100,"type":"left"}]\'>상속된 어절 설정</p><p style="word-break:keep-all">외부에서 수정한 설정</p>') };
     const original = await exportDocx(doc), originalZip = await JSZip.loadAsync(await original.arrayBuffer());
     const xml = await originalZip.file('word/document.xml')!.async('string');
     const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
-    const off = [...new DOMParser().parseFromString(xml, 'application/xml').getElementsByTagNameNS(W, 'wordWrap')].map(e => e.getAttributeNS(W, 'val'));
+    const originalDom = new DOMParser().parseFromString(xml, 'application/xml');
+    const off = [...originalDom.getElementsByTagNameNS(W, 'wordWrap')].map(e => e.getAttributeNS(W, 'val'));
+    const propertyOrder = [...originalDom.getElementsByTagNameNS(W, 'pPr')[0].children].map(e => e.localName);
     const variants = [];
     for (const value of ['0', 'false', 'off']) {
       const zip = await JSZip.loadAsync(await original.arrayBuffer()), dom = new DOMParser().parseFromString(xml, 'application/xml');
@@ -116,9 +118,11 @@ test('DOCX word-wrap booleans inherit through styles and a direct edit overrides
       const root = document.createElement('div'); root.innerHTML = loaded.html!;
       variants.push({ value, styles: [...root.querySelectorAll('p')].map(p => p.style.wordBreak) });
     }
-    return { off, variants };
+    return { off, variants, propertyOrder };
   });
   expect(result.off).toEqual(['0', '0']);
+  expect(result.propertyOrder.indexOf('tabs')).toBeGreaterThanOrEqual(0);
+  expect(result.propertyOrder.indexOf('tabs')).toBeLessThan(result.propertyOrder.indexOf('wordWrap'));
   for (const variant of result.variants) expect(variant.styles).toEqual(['keep-all', 'normal']);
 });
 
