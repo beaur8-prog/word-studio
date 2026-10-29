@@ -1,5 +1,6 @@
 import type { HwpDocument } from '@rhwp/core';
 import type { CellPath } from './cell-content';
+import { encodeHwpCellLine } from '../hwp-cell-line';
 
 const escape = (text: string) => text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -83,10 +84,18 @@ export function cellParagraphCss(properties: Record<string, any>, char: Record<s
   pitch?: number; inkHeight?: number; cap?: number; final: boolean; lines?: number; simple: boolean;
 }): string {
   let pitch = options.pitch;
-  if (options.final && options.lines !== undefined && options.lines <= 1 && options.simple) {
+  let policy = '';
+  if (options.final && options.lines !== undefined && options.simple) {
     const inkHeight = options.inkHeight ?? Number(char.fontSize) / 75;
     const requested = pitch ?? physicalLineHeight(properties, char);
-    if (inkHeight > 0 && requested > inkHeight) pitch = inkHeight;
+    if (inkHeight > 0 && requested > inkHeight) {
+      if (options.lines <= 1) pitch = inkHeight;
+      const font = Number(char.fontSize) / 75;
+      if (['Percent', 'SpaceOnly', 'Minimum', 'Fixed'].includes(properties.lineSpacingType) && Math.abs(inkHeight - font) < .5) {
+        pitch = options.lines <= 1 ? inkHeight : requested;
+        policy = `--hwp-cell-line:${encodeHwpCellLine({ rule: properties.lineSpacingType, font, advance: requested, end: inkHeight, base: options.lines <= 1 ? inkHeight : requested })};`;
+      }
+    }
   }
-  return paragraphCss(properties, char, options.cap, false) + (pitch ? `line-height:${pitch}px;` : '');
+  return paragraphCss(properties, char, options.cap, false) + (pitch ? `line-height:${pitch}px;` : '') + policy;
 }

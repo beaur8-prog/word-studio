@@ -109,7 +109,7 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       }
       let containsTable = false;
       if (row.node.childCount === 1) row.node.firstChild!.forEach(block => { if (block.type.name === 'table') containsTable = true; });
-      if ((height > usableHeight || containsTable) && end === i + 1 && row.node.childCount === 1) {
+      if ((height > usableHeight || containsTable) && end === i + 1 && row.node.childCount === 1 && row.node.attrs.rowSplit !== 'allow') {
         const cell = row.node.firstChild!;
         cell.forEach((block, offset) => walk(block, row.pos + 2 + offset));
       } else {
@@ -242,9 +242,10 @@ export const Pagination = Extension.create({
                 if (piece.header && !tablePages.has(piece.header.table)) tablePages.set(piece.header.table,
                   Math.max(0, Math.floor(((piece.tableTop ?? piece.top) + extra - top + .5) / stride)));
                 const trialPages = new Set<number>();
+                const measureRepeatAt = (page: number) => !piece.header || page <= (tablePages.get(piece.header.table) ?? page) ? 0 : piece.header.height;
                 const repeatAt = (page: number) => {
-                  if (!piece.header || page <= (tablePages.get(piece.header.table) ?? page)) return 0;
-                  trialPages.add(page); return piece.header.height;
+                  const height = measureRepeatAt(page);
+                  if (height) trialPages.add(page); return height;
                 };
                 const commitHeaders = () => trialPages.forEach(page => repeat(piece.header, page));
                 const candidate = () => (piece.references || []).filter(ref => noteNodes.has(ref.id) && !assigned.has(ref.id) && !placedNotes.has(ref.id))
@@ -263,7 +264,7 @@ export const Pagination = Extension.create({
                 // A permitted merge may be shorter than a whole sheet but
                 // still need a row-boundary break after preceding content.
                 if (piece.mergedRows && y + piece.height > end + .5) {
-                  const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed, repeatAt, reserveAt: page => reserve(page, refs) });
+                  const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed, repeatAt, measureRepeatAt, reserveAt: page => reserve(page, refs) });
                   if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
                 }
                 if (piece.cellRow && y + piece.height > end + .5) {

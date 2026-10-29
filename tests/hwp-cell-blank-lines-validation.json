@@ -1,0 +1,77 @@
+{
+  "dateUTC": "2026-10-29T05:28:25.696711+00:00",
+  "scope": "Third checkpoint in the ongoing eight-hour campaign: preserve consecutive and terminal hard-break line boxes in cell fragments and ordinary paragraphs. Not a final campaign result or release.",
+  "baseCheckpoint": "b0c7fb7a741c0aa63edc60d570c3ecaa751c82c8",
+  "validation": {
+    "latestBlankAndOfficialRegressionTestsPassed": 92,
+    "priorBlankAndRelatedTestsPassed": 139,
+    "pureBreakParagraphAndFragmentTestsPassed": 94,
+    "fullSuiteEarlier": {
+      "passed": 430,
+      "failed": 1,
+      "failure": "Automatic trailing raw-HTML <p><br></p> placeholders were incorrectly kept as blank sheets.",
+      "resolution": "Preserve provenance for authored multi-line/text-derived tails; latest 92-test run includes and passes the unchanged original regression. Full suite will be repeated."
+    },
+    "nativeUnitTestsPassed": 88,
+    "build": "passed before the final marker-only correction; final build pending",
+    "newCellVariants": 22,
+    "ordinaryParagraphCases": 3,
+    "newCellVariantsScope": "126 real hard breaks with consecutive blank lines and two final hard breaks; HWP/HWPX, ordinary/nested/header/vertical merge/alignment/border matrix; two DOCX saves, five zooms, edit/undo, original model preserved."
+  },
+  "corpus": {
+    "latestRenderSnapshot": 5282,
+    "documents": 10,
+    "printPages": [
+      7,
+      163,
+      4,
+      36,
+      1,
+      37,
+      9,
+      20,
+      15,
+      5
+    ],
+    "bothDocxSavePagesPreserved": true,
+    "sourceBodyCharacters": 218937,
+    "sourceHardBreaks": 140,
+    "bothDocxLogicalBodyExact": true,
+    "fixedAnchors": 160,
+    "mismatches": 97,
+    "absolutePageOffset": 108,
+    "extraPagesStill": 4,
+    "sourceAndAnchorHashes": "analysis/hwp-8h-2026-10-29/baseline.json"
+  },
+  "platform": {
+    "run": 40820775676,
+    "source": "b0c7fb7",
+    "windowsPassed": 239,
+    "linuxPassed": 209,
+    "scope": "Previous product checkpoint, before this blank-line change. Final source remains to be checked."
+  },
+  "actualMac": {
+    "previousImmutableBuild": "25481f4",
+    "hwpZoomStates": 50,
+    "pdfDocuments": 10,
+    "docxFirstFiveZoomStates": 25,
+    "docxTailFiveZoomStates": 25,
+    "scope": "Previous product checkpoint. The first DOCX run used a 5-second print wait and stopped at document 6; the remaining five passed with a 90-second wait. Latest blank-line source remains to be checked."
+  },
+  "limitations": [
+    "No additional whole-page reduction; fixed-anchor target 80/90 is not met.",
+    "Two previously recorded new rule-document anchor mismatches remain.",
+    "A separate mixed-style terminal-height experiment is not included in this checkpoint.",
+    "No actual Microsoft Word or Hancom app validation. No deployment."
+  ],
+  "productSHA256": {
+    "src/editor-lines.ts": "cdb2a7119b4712594ddd7efc7eda2a6a4ee771c7aadad4f9a606af0378ceb4db",
+    "src/editor-merged-fragments.ts": "7b834f42b8ea58d0970365acc2cb5001f0792c7d121445f57f551f7424a7eacd",
+    "src/hwp-cell-line-metrics.ts": "e27e72165652c4bae67c75dc36a485039b55629d2c1d938dab311601fc81727d",
+    "src/hwp-cell-terminal.ts": "ff16712e59f7a3518bb1709eabaea56049b8e9ae4ffb9de4e267664c727cb2a5",
+    "src/paragraph-fragments.ts": "7534ab0b930591d051a1f81abdf1e36acf12976e077591a261e54619f2dcf947",
+    "src/print-layout.ts": "d46509aa13b4376b97b5b62e7ce8baaeb218520eb2440449b2c5757c484b083b",
+    "src/styles.css": "140d355adceaee6eeafc4ba1d5236ff0695573396387299a2fcb806a23906f8a",
+    "src/table-fragments.ts": "ccf03fe57f7074d7e89b19f9cdafd9b510d537a574fdb38516062a3676eb8b22"
+  }
+}

@@ -2,8 +2,9 @@ import type { EditorView } from '@tiptap/pm/view';
 import { Decoration } from '@tiptap/pm/view';
 
 import { measureParagraphLines } from './editor-lines';
+import { measuredMergedFragments } from './editor-merged-fragments';
 type Reference = { id: string; page: number };
-type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; references?: { id: string; top: number }[]; reserveAt?: (page: number, own?: Reference[]) => number };
+type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; references?: { id: string; top: number }[]; reserveAt?: (page: number, own?: Reference[]) => number };
 
 /** Insert view-only gaps in each column of a continuing row. The row and its
  * cells remain single editable model nodes, so selection/history/save do not
@@ -168,6 +169,10 @@ function mergedRowFlow(view: EditorView, rows: HTMLTableRowElement[], geometry: 
     ? view.posAtDOM(block.parentNode!, [...block.parentNode!.childNodes].indexOf(block)) : view.posAtDOM(block, 0) - 1;
   if (!merges.length || rows.some(r => r.dataset.wordRowRule === 'exact' || r.dataset.rowSplit === 'avoid' || r.getBoundingClientRect().height / g.scale > usable) ||
     merges.some(({ cell }) => cell.dataset.cellSplit !== 'allow' || [...cell.children].some(block => !block.matches('p,h1,h2,h3,h4,h5,h6') && !atomicTable(block)) || cell.querySelector('img[data-image-floating],[data-note-reference]'))) return null;
+  if (!attempt) {
+    const measured = measuredMergedFragments(view, rows, g);
+    if (measured) return measured;
+  }
   const decorations: Decoration[] = [], signatures: string[] = [], offsets = [0], topOffsets: number[] = [], pageGaps: number[] = [];
   const collapsed = rows[0].closest('table') && getComputedStyle(rows[0].closest('table')!).borderCollapse === 'collapse';
   const borderFactor = collapsed ? .5 : 1;

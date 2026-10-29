@@ -1,0 +1,91 @@
+{
+  "dateUTC": "2026-10-29T02:30:38.253672+00:00",
+  "scope": "First eight-hour checkpoint: preserve native HWP cell baseline advance after text/font/width reflow; retain single-line terminal height and external DOCX edits. Further multi-line terminal and pagination work remains.",
+  "baseCommit": "803d3090aacee56a2e1580228b577da7bc01533c",
+  "beforeReflowFailures": 12,
+  "newReflowAndProtectionTestsPassed": 21,
+  "focusedBrowserTestsPassed": 69,
+  "nativeUnitTestsPassed": 88,
+  "build": "passed",
+  "printPages": [
+    7,
+    163,
+    4,
+    36,
+    1,
+    37,
+    9,
+    20,
+    15,
+    5
+  ],
+  "docxSave1Pages": [
+    7,
+    163,
+    4,
+    36,
+    1,
+    37,
+    9,
+    20,
+    15,
+    5
+  ],
+  "docxSave2Pages": [
+    7,
+    163,
+    4,
+    36,
+    1,
+    37,
+    9,
+    20,
+    15,
+    5
+  ],
+  "sourceBodyCharacters": 218937,
+  "sourceHardBreaks": 140,
+  "allFreshAndTwoDocxBodyStreamsExact": true,
+  "fixedAnchors": {
+    "count": 160,
+    "mismatches": 99,
+    "absolutePageOffset": 110
+  },
+  "schema": {
+    "sdk": "3.5.1",
+    "runtime": "8.0.33",
+    "target": "Office2019",
+    "documents": 10,
+    "errors": 0
+  },
+  "independentReader": {
+    "name": "LibreOffice 26.8.0.3 bce0998afefdbc355585ca324285661a2170ba77",
+    "scope": "Three unchanged source DOCX; isolated system-font directory/profiles; before/after same total pages and glyph streams. This is not Microsoft Word or Hancom validation.",
+    "pages": {
+      "01-employment-contract": 7,
+      "03-health-table": 6,
+      "06-mixed-document": 38
+    }
+  },
+  "notYetValidated": [
+    "Full browser suite after this checkpoint",
+    "Actual hidden Electron regression for this checkpoint",
+    "Windows/Linux CI for this checkpoint",
+    "Live Microsoft Word and Hancom interoperability",
+    "Fixed HWP rule and general multi-line terminal leading remain follow-up work"
+  ],
+  "evidenceDirectory": "analysis/hwp-8h-2026-10-29",
+  "sourceSHA256": {
+    "src/hwp-cell-line.ts": "e762c8d4dcc1b1152756aaffdd59e5d41903d918d199c03804ec0e073fac3853",
+    "src/hwp-cell-line-metrics.ts": "b976498bd7a3a327b56ea4a0cf95d678fb190bca24a3fb982efc90c31c57e8dc",
+    "src/hwp-cell-line-export.ts": "5fd9a9919edbab3e1e229db418a9d63a5ed8d37b426cd3e1293b23cce793f9eb",
+    "src/docx-hwp-cell-line.ts": "1054597bd958bf9a9d8d7b992faddc2ea9e10a03a4939fcd39b50ede746fc336",
+    "src/hwp/paragraph-layout.ts": "07e7cb6d27274878774ff6ca57b250f1cf6b482effc970f04cdc86ca663f55a1",
+    "src/hwp/editing.ts": "fd53738d7604dd391434de25ab38ed0109fd515f93248dfc4de59969efa99b53",
+    "src/document-html.ts": "58f42c01c559de89598eac65db9f3a9c94332f43fb8af3424a5a2e7857aa1e6e",
+    "src/document-io.ts": "a8beeede800e5b4313d518bb8310947de6b9bc68d5ac3df7e546ce1c9091c586",
+    "src/docx-metadata.ts": "432116fd9b4a91724349d99fd3609d938901d68469cc5e3535db2c1e53919f8b",
+    "src/extensions.ts": "99a95b65e93c4b5cf7698babc209662ac92b28ffb89b1e778673e8b3b4a40160",
+    "src/print-layout.ts": "f42527690a649b4c36a5ab285979a72760cc5d58f2d405849d874916c3110ec6"
+  }
+}

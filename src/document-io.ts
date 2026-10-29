@@ -1,4 +1,7 @@
 import { sanitizeImportedHtml, validImage, safeLink, RASTER_DATA } from "./document-html";
+import { activeHwpCellLine, cssPixels, encodeHwpCellLine, hwpCellFont, parseHwpCellLine } from './hwp-cell-line';
+import { HwpCellParagraph } from './docx-hwp-cell-line';
+import { measureHwpCellExportLines } from './hwp-cell-line-export';
 export { sanitizeImportedHtml } from "./document-html";
 import type { JSONContent } from "@tiptap/react";
 import JSZip from "jszip";
@@ -269,6 +272,7 @@ export function validateDocument(input: unknown): StudioDocument {
       }
     }
     const attrs = value.attrs as Record<string, unknown> | undefined;
+    if (attrs?.hwpCellLine != null && !parseHwpCellLine(attrs.hwpCellLine)) fail('한글 셀의 줄 간격 정보가 올바르지 않습니다.');
     if (type === 'documentSymbol' && (!boundedString(attrs?.font, 100) || !attrs?.font || !/^\d{1,5}$/.test(String(attrs?.code)) || !finite(Number(attrs?.code), 0, 65535) || !boundedString(attrs?.glyph, 100))) fail('기호 글자가 올바르지 않습니다.');
     if (type === 'documentBookmark' && (!boundedString(attrs?.name, 1000) || !attrs?.name)) fail('책갈피 이름이 올바르지 않습니다.');
     if (type === 'documentField' && !['PAGE','NUMPAGES'].includes(String(attrs?.kind))) fail('페이지 필드가 올바르지 않습니다.');
@@ -865,8 +869,9 @@ function alignment(value: unknown) {
     )[String(value) as "left"] ?? AlignmentType.LEFT
   );
 }
-function paragraphOptions(node: JSONContent, defaultAfter = 150): IParagraphOptions {
-  const lineHeight =
+function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLine?: number): IParagraphOptions {
+  const cellLine = activeHwpCellLine(node.attrs);
+  const lineHeight = cellLine ? `${measuredCellLine ?? cellLine.base}px` :
     node.attrs?.lineSpacing ??
     node.attrs?.lineHeight ??
     node.content
@@ -979,6 +984,7 @@ async function imageRun(
 
 export async function exportDocx(document: StudioDocument): Promise<Blob> {
   validateDocument(document);
+  const cellLineHeights = await measureHwpCellExportLines(document);
   const page = document.page;
   const geometries = new Map<string, ImageGeometryRecord>();
   const mmToTwip = (mm: number) => Math.round((mm * 1440) / 25.4);
@@ -1104,7 +1110,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           HeadingLevel.HEADING_5,
           HeadingLevel.HEADING_6,
         ];
-        let paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150);
+        let paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150, cellLineHeights.get(node));
+        const cellLine = activeHwpCellLine(node.attrs);
         const previous = output.at(-1);
         const gap = previous instanceof Table ? tableSpacing.get(previous) || 0 : 0;
         // Inline OOXML tables have no bottom-margin property. Carry their CSS
@@ -1112,7 +1119,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         // render too. Do not silently drop it at a page boundary.
         if (gap) paragraph = { ...paragraph, spacing: { ...paragraph.spacing, before: Math.max(Number(paragraph.spacing?.before) || 0, Math.round(gap * 15)) } };
         output.push(
-          new Paragraph({
+          new HwpCellParagraph({
             ...paragraph,
             children: await inline(node.content ?? [], width, { ...context.cellRun, ...paragraph.run }),
             ...(context.cellRun ? { run: { ...context.cellRun, ...paragraph.run } } : {}),
@@ -1127,7 +1134,15 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               : {}),
             ...(context.list ? { numbering: context.list } : {}),
             ...(context.indent ? { indent: { left: context.indent } } : {}),
-          }),
+          }, cellLine ? JSON.stringify({
+            policy: encodeHwpCellLine(cellLine), line: paragraph.spacing?.line,
+            // Run sizes are serialized as integral half-points too. Compare
+            // against that representation, including source sizes like 9.6pt.
+            font: Math.round(hwpCellFont(node, cellLine) * 1.5) / 1.5,
+            ...(cssPixels(node.attrs?.paragraphSize) !== null ? {
+              strutFont: cssPixels(node.attrs?.paragraphSize), defaultFont: Number(paragraph.run?.size),
+            } : {}),
+          }) : undefined),
         );
       } else if (node.type === "image")
         output.push(

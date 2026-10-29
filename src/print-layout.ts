@@ -1,6 +1,9 @@
+import { paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
+import { tableFragmenter } from './table-fragments';
 import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
+import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns, columnGroupFits } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
@@ -14,55 +17,6 @@ export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: W
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
 const PX = 96 / 25.4;
 const dimensions = paperDimensions;
-/** Use existing visual lines: truncating at arbitrary characters can pull part
- * of the next word onto the preceding line, unlike the editable paragraph. */
-function paragraphLineOffsets(element: HTMLElement) {
-  const breaks = new Set<number>(), walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let offset = 0, previousTop: number | undefined;
-  while (walker.nextNode()) {
-    const node = walker.currentNode as Text, range = document.createRange();
-    if (node.parentElement?.closest('[data-docx-tab]')) { offset += node.length; continue; }
-    range.selectNodeContents(node);
-    const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(node.data)].map(s => s.index);
-    for (const rect of range.getClientRects()) {
-      if (rect.width < .1 || rect.height < 1) continue;
-      if (previousTop === undefined || Math.abs(rect.top - previousTop) > rect.height * .5) {
-        let low = 0, high = offsets.length - 1, first = 0;
-        while (low <= high) {
-          const mid = (low + high) >> 1;
-          range.setStart(node, offsets[mid]); range.setEnd(node, offsets[mid + 1] ?? node.length);
-          if (range.getBoundingClientRect().top < rect.top - .5) { first = mid + 1; low = mid + 1; } else high = mid - 1;
-        }
-        const position = offset + (offsets[Math.min(first, offsets.length - 1)] ?? 0);
-        if (position) breaks.add(position);
-        previousTop = rect.top;
-      }
-    }
-    offset += node.length;
-  }
-  return [...breaks].sort((a, b) => a - b);
-}
-function splitText(element: HTMLElement, offset: number): [HTMLElement, HTMLElement] {
-  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-  let remaining = offset, node: Node | null = walker.nextNode();
-  while (node && remaining > (node.textContent?.length ?? 0)) {
-    remaining -= node.textContent!.length; node = walker.nextNode();
-  }
-  const before = document.createRange(), after = document.createRange();
-  before.selectNodeContents(element); after.selectNodeContents(element);
-  if (node) {
-    const atomic = node.parentElement?.closest('[data-note-reference],[data-symbol-font],[data-page-number],[data-docx-tab],[data-docx-bookmark]');
-    if (atomic && remaining < (node.textContent?.length || 0)) { before.setEndBefore(atomic); after.setStartBefore(atomic); }
-    else { before.setEnd(node, remaining); after.setStart(node, remaining); }
-  }
-  else after.collapse(false);
-  const a = element.cloneNode(false) as HTMLElement, b = element.cloneNode(false) as HTMLElement;
-  a.append(before.cloneContents()); b.append(after.cloneContents());
-  // Fragment boundaries retain the same line budget as editor continuation.
-  a.dataset.printParagraphFragment = 'true'; b.dataset.printParagraphFragment = 'true';
-  a.style.marginBottom = '0'; b.style.marginTop = '0'; b.style.textIndent = '0';
-  return [a, b];
-}
 
 /** Build one measured page tree used unchanged by preview, PDF and native printing. */
 export async function createPrintLayout(html: string, initialPage: PageSettings, onProgress?: (value: PrintLayoutProgress) => void, signal?: AbortSignal): Promise<PrintLayout> {
@@ -74,6 +28,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   document.body.append(host);
   const style = document.createElement('style'); host.append(style);
   const source = document.createElement('div'); source.innerHTML = html;
+  prepareParagraphEnds(source);
   // The editable table NodeView fixes the width from colgroup; static HTML
   // must do the same or nested tables stretch to the whole printable width.
   for (const table of source.querySelectorAll('table')) {
@@ -163,6 +118,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     refreshNotes();
     layoutTableAnchors(content);
     layoutWordLines(content);
+    layoutHwpCellLines(content);
     layoutTabs(content);
     layoutColumns(content, content.getBoundingClientRect().bottom);
     applyFloatingLayout(content);
@@ -189,142 +145,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       warnings.add('한 페이지보다 큰 그림·병합 셀 묶음은 잘리지 않도록 축소했습니다.');
     }
   }
-  // Split editable form rows at paragraph or nested-table row boundaries. A
-  // large single cell must not shrink all its text just to fit one sheet.
-  function splitElement(element: HTMLElement, boundary: number, depth = 0): HTMLElement | null {
-    if (depth > 30) return null;
-    if (element.matches('p,h1,h2,h3,h4,h5,h6') && (element.textContent?.length ?? 0) > 1) {
-      let offsets = paragraphLineOffsets(element);
-      if (hasDeferredNote(element)) {
-        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT); let offset = 0;
-        while (walker.nextNode()) {
-          const text = walker.currentNode as Text, ref = text.parentElement?.closest<HTMLElement>('[data-note-reference]');
-          if (ref && deferredNotes.has(ref.dataset.noteReference!)) break;
-          offset += text.length;
-        }
-        const limit = Math.max(0, ...offsets.filter(n => n <= offset));
-        offsets = offsets.filter(n => n <= limit);
-      }
-      let low = 0, high = offsets.length - 1, best = 0;
-      const marker = document.createComment('split'); element.replaceWith(marker);
-      while (low <= high) {
-        const mid = (low + high) >> 1, [head] = splitText(element, offsets[mid]); marker.before(head);
-        if (head.getBoundingClientRect().bottom <= boundary + .5) { best = offsets[mid]; low = mid + 1; } else high = mid - 1;
-        head.remove();
-      }
-      marker.replaceWith(element);
-      if (!best) return null;
-      const [head, tail] = splitText(element, best); element.replaceChildren(...head.childNodes); element.style.marginBottom = '0'; return tail;
-    }
-    if (element.matches('tr')) {
-      if (element.dataset.rowSplit === 'avoid' || element.dataset.wordRowRule === 'exact') return null;
-      const row = element as HTMLTableRowElement;
-      if (row.cells.length > 1) {
-        if (row.dataset.rowSplit !== 'allow' || [...row.cells].some(c => c.rowSpan > 1)) return null;
-        const original = row.cloneNode(true) as HTMLTableRowElement, height = row.getBoundingClientRect().height;
-        const available = boundary - row.getBoundingClientRect().top;
-        if (available <= .5) return null;
-        const tail = row.cloneNode(false) as HTMLTableRowElement;
-        row.style.removeProperty('height');
-        let moved = false, reservedSpace = false;
-        // Split every column against the same physical boundary. Even a
-        // finished column needs its empty continuation cell to keep the grid.
-        for (const cell of [...row.cells]) {
-          const next = cell.cloneNode(false) as HTMLTableCellElement; tail.append(next);
-          const rest = splitElement(cell, boundary, depth + 1);
-          if (rest) { next.append(...rest.childNodes); moved = true; }
-          else if (hasDeferredNote(cell) || [...cell.children].some(child => child.getBoundingClientRect().bottom > boundary - (parseFloat(getComputedStyle(cell).paddingBottom) || 0) + .5)) {
-            next.append(...cell.childNodes); moved = true;
-          }
-        }
-        // A stored minimum height can reserve space after the text. Divide
-        // that reserve too; repeating the full height on the continuation
-        // would enlarge the row, while dropping it would shorten the form.
-        if (!moved && height > available + .5) {
-          row.style.height = `${available}px`; moved = reservedSpace = true;
-        }
-        const progress = reservedSpace || [...row.cells].some(c => c.textContent?.trim() || c.querySelector('img,table'));
-        if (!moved || !progress || row.getBoundingClientRect().bottom > boundary + .5) {
-          row.replaceChildren(...original.childNodes); row.style.cssText = original.style.cssText; return null;
-        }
-        tail.style.height = `${Math.max(0, height - row.getBoundingClientRect().height)}px`;
-        return tail;
-      }
-    }
-    if (element.matches('table')) {
-      const table = element as HTMLTableElement;
-      // A nested form table that fits a sheet moves as a unit. Splitting its
-      // cell paragraphs merely to fill the preceding sheet changes the form.
-      if (table.rows.length === 1 && table.getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return null;
-      if ([...table.rows].some(row => [...row.cells].some(cell => cell.rowSpan > 1))) return null;
-    }
-    const children = [...element.children] as HTMLElement[];
-    const style = getComputedStyle(element);
-    const innerBoundary = boundary - (parseFloat(style.paddingBottom) || 0) - (parseFloat(style.borderBottomWidth) || 0);
-    const index = children.findIndex(child => !child.matches('colgroup') && (hasDeferredNote(child) || child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0) > innerBoundary + .5));
-    if (index < 0) return null;
-    const child = children[index], tail = element.cloneNode(false) as HTMLElement;
-    const childTail = splitElement(child, innerBoundary - (parseFloat(getComputedStyle(child).marginBottom) || 0), depth + 1);
-    if (childTail) tail.append(childTail);
-    else if (index === 0 || children.slice(0, index).every(c => c.matches('colgroup'))) return null;
-    else tail.append(child);
-    children.slice(index + 1).forEach(c => tail.append(c));
-    if (element.matches('table')) element.querySelectorAll(':scope > colgroup').forEach(c => tail.prepend(c.cloneNode(true)));
-    if (element.matches('tr')) { element.style.removeProperty('height'); tail.style.removeProperty('height'); }
-    return tail;
-  }
-  // Only explicitly permitted continuing merges may cross a row boundary. Keep
-  // the grid and every cell's content exactly once; this is print DOM only.
-  function splitMergedGroup(group: HTMLTableRowElement[], boundary: number): HTMLTableRowElement[] | null {
-    if (group.length < 2 || group.some(r => r.dataset.rowSplit === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
-    const entries: { cell: HTMLTableCellElement; row: number; col: number }[] = [];
-    const occupied: number[] = [];
-    for (let row = 0; row < group.length; row++) {
-      let col = 0;
-      for (const cell of [...group[row].cells]) {
-        while ((occupied[col] || 0) > row) col++;
-        entries.push({ cell, row, col });
-        for (let j = col; j < col + cell.colSpan; j++) occupied[j] = row + cell.rowSpan;
-        col += cell.colSpan;
-      }
-    }
-    for (let cut = group.length - 1; cut > 0; cut--) {
-      if (group[cut - 1].getBoundingClientRect().bottom > boundary + .5) continue;
-      const crossings = entries.filter(e => e.row < cut && e.row + e.cell.rowSpan > cut);
-      if (!crossings.length || crossings.some(e => e.cell.dataset.cellSplit !== 'allow')) continue;
-      const tails = group.slice(cut);
-      // The continuation starts at a source row boundary, not at the bottom
-      // of the sheet. Filling the unused area below that row stretches the
-      // retained rows and makes editor and print disagree about the grid.
-      const rowBoundary = group[cut - 1].getBoundingClientRect().bottom;
-      for (const { cell, row, col } of crossings) {
-        const next = cell.cloneNode(false) as HTMLTableCellElement;
-        next.dataset.printMergeContinuation = 'true';
-        // Partition rich content using the available row height. Applying a
-        // whole-cell middle/bottom offset before partitioning can leave most
-        // of the first fragment empty and overflow the last one. Each printed
-        // fragment then applies the original vertical alignment independently.
-        const align = cell.style.verticalAlign;
-        const cellStyle = getComputedStyle(cell), child = cell.firstElementChild as HTMLElement | null;
-        const childStyle = child && getComputedStyle(child);
-        const rich = cell.dataset.printMergeFlow === 'rich' || cell.children.length > 1 ||
-          (child?.getBoundingClientRect().height ?? 0) + (parseFloat(childStyle?.marginTop || '') || 0) + (parseFloat(childStyle?.marginBottom || '') || 0) >
-          rowBoundary - cell.getBoundingClientRect().top - (parseFloat(cellStyle.paddingTop) || 0) - (parseFloat(cellStyle.paddingBottom) || 0);
-        if (rich) { cell.style.verticalAlign = 'top'; next.dataset.printMergeFlow = 'rich'; }
-        const remainder = splitElement(cell, rowBoundary);
-        if (remainder) next.append(...remainder.childNodes);
-        else if ([...cell.children].some(c => c.getBoundingClientRect().bottom > rowBoundary + .5)) next.append(...cell.childNodes);
-        cell.style.verticalAlign = align;
-        next.rowSpan = row + cell.rowSpan - cut; cell.rowSpan = cut - row;
-        cell.style.removeProperty('height'); next.style.removeProperty('height');
-        const following = entries.find(e => e.row === cut && e.col > col)?.cell;
-        tails[0].insertBefore(next, following || null);
-      }
-      tails.forEach(r => r.remove()); group.splice(cut);
-      return tails;
-    }
-    return null;
-  }
+  const { splitMergedGroup, splitElement } = tableFragmenter({
+    bodyHeight: () => content.getBoundingClientRect().height, hasDeferredNote, deferredNotes: () => deferredNotes,
+  });
   function appendTable(table: HTMLTableElement) {
     const rows = Array.from(table.rows);
     const headers: HTMLTableRowElement[] = [];
@@ -436,8 +259,10 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       tail.replaceChildren(...children.slice(best).map(child => child.cloneNode(true)));
       content.append(head);
       const next = tail.firstElementChild as HTMLElement | null;
-      if (next?.matches('p,h1,h2,h3,h4,h5,h6') && (next.textContent?.length ?? 0) > 1) {
-        const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(next.textContent!)].map(s => s.index).slice(1);
+      if (next?.matches('p,h1,h2,h3,h4,h5,h6') && ((next.textContent?.length ?? 0) > 1 || next.querySelector('br'))) {
+        const walker = paragraphTextWalker(next); let text = '';
+        while (walker.nextNode()) text += walker.currentNode instanceof HTMLBRElement ? '\n' : walker.currentNode.textContent;
+        const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].map(s => s.index).slice(1);
         let left = 0, right = offsets.length - 1, cut = 0;
         while (left <= right) {
           const mid = (left + right) >> 1, [part] = splitText(next, offsets[mid]); head.append(part);
@@ -486,7 +311,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       hiddenEmptyLines++; element.classList.add(hiddenEmptyLineClass); fits(); return;
     }
     if (fitsPage) return;
-    if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && (element.textContent?.length ?? 0) > 1) {
+    // Explicit empty lines have flow even when the paragraph has no letters.
+    if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && ((element.textContent?.length ?? 0) > 1 || element.querySelector('br'))) {
       const offsets = paragraphLineOffsets(element);
       let low = 0, high = offsets.length - 1, best = 0;
       element.remove();
@@ -537,7 +363,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // an extra blank sheet produced only by those trailing line boxes.
     let last = host.querySelector<HTMLElement>('.print-page:last-child');
     while (pageNumber > 1 && last && !last.dataset.keepBlank && !last.querySelector('.print-content')?.textContent?.trim()
-      && !last.querySelector('.print-content img,.print-content table,.print-content hr,.print-footnotes [data-document-note]')) {
+      && !last.querySelector('.print-content img,.print-content table,.print-content hr,.print-content [data-print-keep-trailing],.print-footnotes [data-document-note]')) {
       last.remove(); pageNumber--; last = host.querySelector<HTMLElement>('.print-page:last-child');
     }
     for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="NUMPAGES"]')) field.textContent = String(pageNumber);
