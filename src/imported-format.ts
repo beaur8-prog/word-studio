@@ -6,6 +6,7 @@ import { tableAnchor } from './table-anchor';
 const properties = {
   spaceBefore: 'margin-top', spaceAfter: 'margin-bottom', rightIndent: 'margin-right', firstLineIndent: 'text-indent',
   paragraphFont: 'font-family', paragraphSize: 'font-size', paragraphColor: 'color',
+  wordBreak: 'word-break',
 } as const;
 function css(property: string, value: unknown) {
   if (typeof value !== 'string' || /[;{}\\]|url\s*\(|var\s*\(/i.test(value)) return '';

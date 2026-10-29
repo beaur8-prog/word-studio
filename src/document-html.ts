@@ -141,6 +141,7 @@ export function sanitizeImportedHtml(source: string): {
     "margin-right", "margin-top", "margin-bottom", "text-indent", "letter-spacing",
     "vertical-align",
     "white-space",
+    "word-break",
     "width",
     "height",
     "border", "border-top", "border-right", "border-bottom", "border-left",
