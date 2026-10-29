@@ -1,0 +1,307 @@
+{
+  "date": "2026-10-30",
+  "topic": "Mixed-size HWP leading and live page-bottom tables",
+  "baseCommit": "4d7260af9d822b5c06c0d537dcf68f0a74177843",
+  "testedHead": "85d356976c2f6a044db54b16f5c36004ccc98a0e",
+  "pullRequest": "https://github.com/beaur8-prog/word-studio/pull/11",
+  "version": "1.4.9",
+  "changes": [
+    "Preserve original Percent leading per real text run in mixed-size body paragraphs and columns without changing fonts or adding cached line breaks.",
+    "Keep one-page Page/Paper Bottom InFront tables editable over a zero-height frame; large tables retain splittable flow, and translated painting prevents multicol fragmentation.",
+    "Preserve policies through two DOCX and two HWP/HWPX saves; retire after explicit spacing or standard external position edits.",
+    "Use the established physical DOCX fallback for unedited paragraphs and grow it when font edits exceed the original maximum. Word Studio restores native live percentage leading through optional MC metadata.",
+    "Normalize already-resolved native table outer gaps to prevent the HTML bridge adding another 283 HWPUNIT on each save."
+  ],
+  "fidelity": {
+    "comparisonStage": "Same pre-task DOCX2 versus final DOCX2; frozen original 160 anchors and same 3007 unique logical paragraphs.",
+    "additionalCorePages": {
+      "before": 4,
+      "after": 3
+    },
+    "fixedAnchors": 160,
+    "fixedAnchorMismatch": {
+      "before": 97,
+      "after": 72
+    },
+    "fixedAnchorAbsolutePageError": {
+      "before": 108,
+      "after": 83
+    },
+    "uniqueParagraphs": 3007,
+    "uniquePageMismatch": {
+      "before": 1950,
+      "after": 1750
+    },
+    "uniqueAbsolutePageError": {
+      "before": 2217,
+      "after": 2017
+    },
+    "newCorrectUnique": 201,
+    "newWrongUnique": [
+      {
+        "id": "04-language-plan",
+        "key": "0:385",
+        "before": 0,
+        "after": 1
+      }
+    ],
+    "lineComparable": 1741,
+    "lineExcluded": 1,
+    "exactLineBoundaries": {
+      "before": 806,
+      "after": 806
+    },
+    "changedLineCountParagraphs": {
+      "before": 325,
+      "after": 325
+    },
+    "sameWrappingDifferentPage": {
+      "before": 537,
+      "after": 444
+    },
+    "sourceAndConvertedCorePages": [
+      {
+        "id": "02-work-rules",
+        "source": 163,
+        "converted": 163
+      },
+      {
+        "id": "04-language-plan",
+        "source": 35,
+        "converted": 36
+      },
+      {
+        "id": "06-mixed-document",
+        "source": 35,
+        "converted": 37
+      },
+      {
+        "id": "07-english-exam",
+        "source": 8,
+        "converted": 8
+      }
+    ],
+    "englishUniqueStarts": {
+      "matched": 307,
+      "correctBefore": 106,
+      "correctAfter": 307
+    },
+    "independentSourceLayout": false
+  },
+  "validation": {
+    "browser": {
+      "passed": 518,
+      "total": 518,
+      "log": "full-complete.log"
+    },
+    "focused": {
+      "passed": 24,
+      "total": 24,
+      "includes": "18 body/table/font cases and 6 empty-line controls",
+      "log": "final-edit.log"
+    },
+    "nativeUnit": {
+      "passed": 88,
+      "total": 88,
+      "log": "unit-final.log"
+    },
+    "build": "passed",
+    "platformCI": {
+      "status": "success",
+      "windowsRun": "https://github.com/beaur8-prog/word-studio/actions/runs/40893934020",
+      "windowsHead": "85d356976c2f6a044db54b16f5c36004ccc98a0e",
+      "linuxRun": "https://github.com/beaur8-prog/word-studio/actions/runs/40885713179",
+      "linuxHead": "585efeef84d7e3b1e6c66cb535918cae22b7b07b",
+      "linux": {
+        "passed": 335,
+        "total": 335,
+        "pdfTextOrderPassed": 7
+      },
+      "productTreeUnchanged": true,
+      "windowsEnvironmentFailure": {
+        "run": 40885713179,
+        "passed": 364,
+        "failed": 1,
+        "test": "official-sample-regressions.spec.ts footnotes/endnotes",
+        "console": "App.tsx failed with net::ERR_NO_BUFFER_SPACE",
+        "fix": "Recycle browser after110-case terminal matrix; preserve both output directories. Same365 test coverage."
+      },
+      "windows": {
+        "passed": 365,
+        "total": 365,
+        "batches": [
+          110,
+          255
+        ],
+        "pdfTextOrderPassed": 7
+      }
+    },
+    "sourceSamples": 10,
+    "twoDocxSaves": 10,
+    "pagesAfterBothSaves": [
+      7,
+      163,
+      4,
+      36,
+      1,
+      37,
+      8,
+      20,
+      15,
+      5
+    ],
+    "logicalBodyCharacters": 218937,
+    "explicitHardBreaks": 140,
+    "bodyOrderMultiplicityAndExplicitBreaksExact": true,
+    "bodyImages": 638,
+    "rawImageBytesExact": true,
+    "nonPolicyAndNonOverlayModelContentAndPageSettingsVsPriorSame": true,
+    "openXmlSdk": {
+      "version": "3.5.1",
+      "target": "Office2019",
+      "exportedDocx": 10,
+      "nativeSavedDocx": 4,
+      "errors": 0
+    },
+    "actualMacElectron": {
+      "packaged": false,
+      "hwpDocuments": 10,
+      "hwpZoomStates": 50,
+      "docxDocuments": 10,
+      "docxZoomStates": 50,
+      "rendererErrors": 0,
+      "visibleTextMarginOverflow": 0,
+      "actualNativeDocxSaves": [
+        {
+          "id": "07-english-exam",
+          "saves": [
+            {
+              "save": 1,
+              "saveMs": 9822,
+              "reopenMs": 6190,
+              "bytes": 46766339,
+              "textExact": true,
+              "logicalCharacters": 27522,
+              "bodySHA256": "d7f85d3638b98e8e9cd2c87573ecf4b096773ed621af7481a06eda9336f280cb"
+            },
+            {
+              "save": 2,
+              "saveMs": 6569,
+              "reopenMs": 4687,
+              "bytes": 46783696,
+              "textExact": true,
+              "logicalCharacters": 27522,
+              "bodySHA256": "d7f85d3638b98e8e9cd2c87573ecf4b096773ed621af7481a06eda9336f280cb"
+            }
+          ]
+        },
+        {
+          "id": "08-math-exam",
+          "saves": [
+            {
+              "save": 1,
+              "saveMs": 3911,
+              "reopenMs": 4301,
+              "bytes": 3666829,
+              "textExact": true,
+              "logicalCharacters": 3258,
+              "bodySHA256": "b6f2d02a4c7992049d9f01e141588858e5cab4a991ebfb9faed46b7565c05e7c"
+            },
+            {
+              "save": 2,
+              "saveMs": 2787,
+              "reopenMs": 3639,
+              "bytes": 3699823,
+              "textExact": true,
+              "logicalCharacters": 3258,
+              "bodySHA256": "b6f2d02a4c7992049d9f01e141588858e5cab4a991ebfb9faed46b7565c05e7c"
+            }
+          ]
+        }
+      ],
+      "normalAppAtCompletion": {
+        "screenLocked": true,
+        "existingUserAppPreserved": true,
+        "normalAppLaunched": false
+      }
+    },
+    "nativePDF": {
+      "files": 10,
+      "totalPages": 296,
+      "expectedDynamicFieldChangeOnly": {
+        "removed": {
+          "9": 10
+        },
+        "added": {
+          "8": 8
+        }
+      },
+      "scope": "English PAGE/NUMPAGES change with 9 to 8 pages; all other character multiplicities remain identical.",
+      "visualChecked": [
+        "english-page1-comparison.png",
+        "english-page2-comparison.png"
+      ],
+      "finalEnglishVisualPixelsMatchReviewedPDFPages": [
+        1,
+        2
+      ]
+    },
+    "writer": {
+      "version": "26.8.0.3",
+      "documents": 10,
+      "pagesBeforeAndAfter": [
+        7,
+        173,
+        6,
+        40,
+        2,
+        38,
+        16,
+        20,
+        16,
+        5
+      ],
+      "allCharacterInventoriesPreserved": true,
+      "englishReadingOrderChanged": true,
+      "microsoftWordTested": false,
+      "scope": "Isolated profile and real system Korean font configuration; Word AUTO uses different font line metrics, so original physical fallback is retained."
+    },
+    "pdfCellTextOrder": {
+      "passed": 7,
+      "total": 7
+    },
+    "manualInlineWrapperReview": {
+      "cases": [
+        "plain",
+        "bold",
+        "italic",
+        "underline",
+        "highlight"
+      ],
+      "twoLineHeightPixels": 55.984375,
+      "nativeReferenceAdvancePixels": 56,
+      "passed": true
+    },
+    "frozenBaselineSHAUnchangedFiles": 14,
+    "frozenProductSHAUnchangedFiles": 121
+  },
+  "remaining": [
+    "Core additional pages still 3: language 35->36 and notice35->37; target2 not yet met.",
+    "Language paragraph0:385 newly starts on20 instead of original19; 201 English matches gained and1 language match lost.",
+    "Exact line boundaries remain806/1741; original fonts, run widths, characters and paragraph/page budgets still need work.",
+    "Only one-page in-front bottom anchors are supported here. Other wrap/exclusion and horizontal-anchor semantics retain existing fallbacks.",
+    "Writer English remains16 pages versus original8. No actual Microsoft Word/Hancom all-page verification or font/pixel equivalence is claimed.",
+    "Previously observed notice page33 date/addressee overlap, second mixed-tab definition loss and slow large DOCX saves remain."
+  ],
+  "localEvidence": "analysis/hwp-page-budget-2026-10-29",
+  "release": {
+    "published": false,
+    "lithosChanged": false,
+    "versionBumped": false,
+    "automationsResumed": false
+  },
+  "validatedProduct": "585efeef84d7e3b1e6c66cb535918cae22b7b07b",
+  "mergeCommit": "e5d451b34221ea2fe4d5aedaa84482f1bfe939e1",
+  "completedUTC": "2026-10-29T15:27:00.903478+00:00",
+  "reportTimeZone": "Asia/Seoul"
+}
