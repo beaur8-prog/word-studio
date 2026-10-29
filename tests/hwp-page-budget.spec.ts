@@ -220,3 +220,36 @@ test('an explicit editor line spacing change retires percentage layout', async (
   });
   expect(result.policy).toBeUndefined(); expect(result.active).toBeUndefined(); expect(result.height).toBe(48); expect(result.text).toBe('A smaller text');
 });
+
+test('growing the label font keeps DOCX fallback tall enough for the edited text', async ({ page }) => {
+  await page.goto('/'); const source = files['1-percent-hwp'];
+  const result = await page.evaluate(async bytes => {
+    const { HwpReaderSession } = await import('/src/hwp/reader.ts'), { importEditableHwp } = await import('/src/hwp/editing.ts');
+    const { exportDocx, importFile } = await import('/src/document-io.ts'), { default: JSZip } = await import('/node_modules/.vite/deps/jszip.js');
+    const { editorExtensions, parseDocumentHtml } = await import('/src/extensions.ts'), { createPrintLayout } = await import('/src/print-layout.ts');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js');
+    const session = new HwpReaderSession(); let doc;
+    try { await session.open(new File([new Uint8Array(bytes)], 'body.hwp')); doc = importEditableHwp(await session.editable(), 'body.hwp'); } finally { session.close(); }
+    const paragraph = doc.content.content![0], label = paragraph.content!.find(n => n.text?.includes('1.'))!;
+    label.marks!.find(m => m.type === 'textStyle')!.attrs!.fontSize = '30pt';
+    const states = [], fallbacks = [];
+    for (let save = 0; save < 3; save++) {
+      const layout = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+      try { const p = [...layout.element.querySelectorAll('p')].find(p => p.textContent?.startsWith('1. small'))!; states.push({ text: p.textContent, height: p.getBoundingClientRect().height, active: p.dataset.hwpBodyLayout }); }
+      finally { layout.dispose(); }
+      if (save < 2) {
+        const blob = await exportDocx(doc), zip = await JSZip.loadAsync(await blob.arrayBuffer());
+        const xml = new DOMParser().parseFromString(await zip.file('word/document.xml')!.async('string'), 'application/xml');
+        const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+        const p = [...xml.getElementsByTagNameNS(W, 'p')].find(p => p.textContent?.includes('small words'))!;
+        const spacing = p.getElementsByTagNameNS(W, 'spacing')[0];
+        fallbacks.push({ rule: spacing.getAttributeNS(W, 'lineRule'), pixels: Number(spacing.getAttributeNS(W, 'line')) / 15 });
+        const loaded = await importFile(new File([blob], 'again.docx')); doc = { ...loaded.document, content: parseDocumentHtml(loaded.html!) };
+      }
+    }
+    return { states, fallbacks };
+  }, [...await fs.readFile(source.file)]);
+  await fs.writeFile(test.info().outputPath('font-states.json'), JSON.stringify(result, null, 2));
+  for (const state of result.states) { expect(state.active).toBe('true'); expect(state.text).toBe(source.text); expect(state.height).toBeCloseTo(80, 0); }
+  for (const fallback of result.fallbacks) { expect(fallback.rule).toBe('exact'); expect(fallback.pixels).toBeCloseTo(60, 0); }
+});

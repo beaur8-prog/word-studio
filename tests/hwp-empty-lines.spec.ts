@@ -87,6 +87,7 @@ for (const kind of ['highlight', 'spacing']) test(`explicit hide-empty policy pr
   expect(result.pages).toBe(2); expect(result.hidden).toBe(0); expect(result.afterY).toBeCloseTo(10 * 96 / 25.4 + 20 + (kind === 'spacing' ? 8 : 0), 0);
   await page.locator('input[type=file]').first().setInputFiles({ name: 'authored.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(result.doc)) });
   const editor = page.getByRole('textbox', { name: '문서 편집 영역' });
+  await expect(editor.locator(':scope > p').last()).toHaveText('AFTER');
   await expect(editor.locator('.pagination-hidden-empty-line')).toHaveCount(0);
   await expect.poll(() => editor.locator(':scope > p').last().evaluate(p => {
     const sheet = p.closest<HTMLElement>('.document-stack')!;

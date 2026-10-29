@@ -532,10 +532,12 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const pitch = pitches.get(`${section}:${para}`);
       if (pitch) open = cssStyle(open, `line-height:${pitch}px;`);
       const sizes = [...whole.matchAll(/font-size:\s*([\d.]+)(pt|px)/gi)].map(m => Number(m[1]) * (m[2].toLowerCase() === 'pt' ? 4 / 3 : 1));
+      const largest = sizes.reduce((maximum, size) => Math.max(maximum, size), 0);
+      const smallest = sizes.reduce((minimum, size) => Math.min(minimum, size), Infinity);
       const base = pitch ?? physicalLineHeight(properties, paragraphChar);
       if (properties.lineSpacingType === 'Percent' && !properties.fontLineHeight && Number(properties.lineSpacing) > 0 &&
-        Number.isFinite(base) && base > 0 && Number(paragraphChar.fontSize) > 0 && sizes.length && Math.max(...sizes) - Math.min(...sizes) > .1)
-        open = cssStyle(open, `--hwp-body-line:${encodeHwpBodyLine({ percent: Number(properties.lineSpacing), font: Number(paragraphChar.fontSize) / 75, base })};`);
+        Number.isFinite(base) && base > 0 && Number(paragraphChar.fontSize) > 0 && sizes.length && largest - smallest > .1)
+        open = cssStyle(open, `--hwp-body-line:${encodeHwpBodyLine({ percent: Number(properties.lineSpacing), font: Math.max(largest, Number(paragraphChar.fontSize) / 75), base })};`);
       const inline = (html: string) => html.replace(/^<p\b[^>]*>\s*/, '').replace(/<\/p>\s*$/, '');
       const onlyFloating = (html: string) => html.includes('data-image-floating') && !html.replace(/<[^>]*>/g, '').trim() &&
         [...html.matchAll(/<img\b[^>]*>/g)].every(m => m[0].includes('data-image-floating'));

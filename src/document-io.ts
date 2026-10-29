@@ -59,7 +59,7 @@ import { imageFloating, restoreImageGeometry, type ImageGeometryRecord } from '.
 import type { PageSettings, StudioDocument } from "./types";
 import { PreservedTable, PreservedTableCell } from './docx-table-cell';
 import { tableAnchor } from './table-anchor';
-import { encodeHwpBodyLine, hwpBodyTextLine, type HwpBodyLine } from './hwp-body-line';
+import { encodeHwpBodyLine, hwpBodyTextLine, hwpBodyFallback, type HwpBodyLine } from './hwp-body-line';
 import documentLimits from '../electron/document-limits.json';
 const bookmarkNamesProperty = 'WordStudio.BookmarkNames';
 
@@ -875,7 +875,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
   // Word's AUTO percentage scales its font line metrics, whereas native HWP
   // scales the em size. Keep the established physical fallback for other
   // readers; our ignorable policy restores live, run-dependent leading here.
-  const lineHeight = bodyLine ? `${bodyLine.base}px` : cellLine ? `${measuredCellLine ?? cellLine.base}px` :
+  const lineHeight = bodyLine ? `${hwpBodyFallback(node, bodyLine)}px` : cellLine ? `${measuredCellLine ?? cellLine.base}px` :
     node.attrs?.lineSpacing ??
     node.attrs?.lineHeight ??
     node.content
