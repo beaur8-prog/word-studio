@@ -4,6 +4,7 @@ import { measureParagraphLines } from './editor-lines';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { layoutWordLines } from './word-line-metrics';
 import { tableFragmenter } from './table-fragments';
+import { prepareParagraphEnds } from './paragraph-fragments';
 
 type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number;
   removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; reserveAt?: (page: number) => number };
@@ -15,7 +16,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const merges = rows.flatMap(row => [...row.cells].filter(cell => cell.rowSpan > 1));
   if (!merges.some(cell => cell.querySelector('[data-hwp-cell-line]')) ||
     merges.some(cell => [...cell.children].some(p => !p.matches('p,h1,h2,h3,h4,h5,h6') ||
-      p.querySelector('img,svg,table,[data-page-number],[data-note-reference],[data-docx-tab],[data-docx-bookmark],[data-word-overlap]')))) return null;
+      p.querySelector('img:not(.ProseMirror-separator),svg,table,[data-page-number],[data-note-reference],[data-docx-tab],[data-docx-bookmark],[data-word-overlap]')))) return null;
   const table = rows[0].closest('table')!;
   const naturalY = (value: number) => {
     const y = (value - g.origin) / g.scale;
@@ -36,7 +37,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const body = document.createElement('tbody'); probe.append(body); host.append(probe);
   const copies = rows.map((row, i) => {
     const copy = row.cloneNode(true) as HTMLTableRowElement; copy.dataset.fragmentRow = String(i);
-    for (const widget of copy.querySelectorAll('.ProseMirror-widget,.pagination-gap,.ProseMirror-trailingBreak')) widget.remove();
+    for (const widget of copy.querySelectorAll('.ProseMirror-widget,.pagination-gap,.ProseMirror-trailingBreak,.ProseMirror-separator')) widget.remove();
     for (const node of [copy, ...copy.querySelectorAll<HTMLElement>('*')])
       node.classList.remove('pagination-merge-row', 'pagination-merge-padding', 'pagination-merge-flow', 'pagination-merge-label', 'pagination-split-row');
     for (let n = 0; n < row.cells.length; n++) {
@@ -60,7 +61,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const fragments = tableFragmenter({ bodyHeight: () => usable - (g.reserveAt?.(page) ?? 0), hasDeferredNote: () => false, deferredNotes: () => new Set() });
   try {
     for (let pass = 0; pending.length && pass < 512; pass++) {
-      body.replaceChildren(...pending); layoutWordLines(probe); layoutHwpCellLines(probe);
+      body.replaceChildren(...pending); prepareParagraphEnds(probe); layoutWordLines(probe); layoutHwpCellLines(probe);
       const origin = probe.getBoundingClientRect().top;
       // Source and repeated-header positions address the first row; a new
       // bare table starts at its outer border. Do not count that half-border

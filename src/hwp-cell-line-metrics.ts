@@ -31,7 +31,7 @@ function viewHeight(p: HTMLElement, line: HwpCellLine, font: number, mixedGrowth
   const advance = hwpCellAdvance(line, font);
   // Inline objects must be allowed their full line budget. Mixed-size text
   // runs may still share a single baseline and retain its terminal height.
-  const simple = !p.querySelector('img,sub,sup,[data-note-reference],[data-word-overlap],[data-page-number]');
+  const simple = !p.querySelector('img:not(.ProseMirror-separator),sub,sup,[data-note-reference],[data-word-overlap],[data-page-number]');
   return simple && !mixedGrowth && !multipleLines(p) ? Math.min(advance, line.end * font / line.font)
     : line.rule === 'Fixed' ? advance : Math.max(advance, font);
 }
@@ -55,10 +55,10 @@ export function layoutHwpCellLines(root: HTMLElement) {
     const advance = hwpCellAdvance(line, font), end = Math.min(advance, line.end * font / line.font);
     p.style.lineHeight = `${end}px`;
     p.style.setProperty('--exact-line-height', `${end}px`);
-    const height = p.dataset.hwpCellContinuation ? advance : viewHeight(p, line, font, !profile.uniform && font > line.font + .05);
+    const height = p.dataset.hwpCellContinuation || p.dataset.hwpCellFullLine ? advance : viewHeight(p, line, font, !profile.uniform && font > line.font + .05);
     p.style.lineHeight = `${height}px`;
     p.style.setProperty('--exact-line-height', `${height}px`);
-    const terminal = profile.uniform && hwpCellTerminalLayout(p, font, advance, end);
+    const terminal = !p.dataset.hwpCellFullLine && profile.uniform && hwpCellTerminalLayout(p, font, advance, end);
     if (terminal) applyHwpCellTerminal(p, terminal, advance, end);
   }
 }

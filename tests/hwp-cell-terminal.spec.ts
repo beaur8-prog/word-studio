@@ -8,7 +8,7 @@ let directory: string, samples: Record<string, any>;
 test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-cell-terminal-')); samples = await fixture(directory); });
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
 
-for (const format of ['hwp', 'hwpx']) for (const kind of ['wrapped', 'breaks']) for (const mode of ['ordinary', 'nested', 'headers', 'merge-top', 'merge-middle', 'merge-bottom', 'merge-header-top', 'merge-header-middle', 'merge-header-bottom', 'merge-border-top', 'merge-header-border-middle'])
+for (const format of ['hwp', 'hwpx']) for (const kind of ['wrapped', 'breaks', 'blank-breaks']) for (const mode of ['ordinary', 'nested', 'headers', 'merge-top', 'merge-middle', 'merge-bottom', 'merge-header-top', 'merge-header-middle', 'merge-header-bottom', 'merge-border-top', 'merge-header-border-middle'])
 test(`${format} ${mode} ${kind}: terminal cell budget survives page fragments, editing and two DOCX saves`, async ({ page }, info) => {
   await page.goto('/');
   const result = await page.evaluate(async ({ bytes, format, kind, mode }) => {
@@ -27,8 +27,10 @@ test(`${format} ${mode} ${kind}: terminal cell budget survives page fragments, e
       }; find(doc.content, null);
       const marks = structuredClone(paragraph.content[0].marks);
       const p = (text: string, height = '20px') => ({ type: 'paragraph', attrs: { ...paragraph.attrs, hwpCellLine: null, paragraphSize: '10pt', lineSpacing: height, spaceBefore: '0px', spaceAfter: '0px' }, content: [{ type: 'text', text, marks: structuredClone(marks) }] });
-      const words = Array.from({ length: kind === 'breaks' ? 110 : 120 }, (_, i) => `ITEM${String(i).padStart(3, '0')}`);
-      paragraph.content = kind === 'wrapped' ? [{ type: 'text', text: words.join(' '), marks }] : words.flatMap((text, i) => [...(i ? [{ type: 'hardBreak' }] : []), { type: 'text', text, marks: structuredClone(marks) }]);
+      const words = Array.from({ length: kind === 'wrapped' ? 120 : 110 }, (_, i) => `ITEM${String(i).padStart(3, '0')}`);
+      paragraph.content = kind === 'wrapped' ? [{ type: 'text', text: words.join(' '), marks }] : words.flatMap((text, i) => [...(i ? [{ type: 'hardBreak' }, ...(kind === 'blank-breaks' && i % 7 === 0 ? [{ type: 'hardBreak' }] : [])] : []), { type: 'text', text, marks: structuredClone(marks) }]);
+      if (kind === 'blank-breaks') paragraph.content.push({ type: 'hardBreak' }, { type: 'hardBreak' });
+      const expectedBreaks = paragraph.content.filter((n: any) => n.type === 'hardBreak').length;
       cell.attrs = { ...cell.attrs, colwidth: [160], paddingTop: '4px', paddingBottom: '4px', paddingLeft: '4px', paddingRight: '4px', verticalAlign: mode.startsWith('merge-') ? mode.split('-').at(-1) : 'top' };
       if (mode.includes('border')) Object.assign(cell.attrs, { borderTop: '4px solid #000000', borderRight: '4px solid #000000', borderBottom: '4px solid #000000', borderLeft: '4px solid #000000', paddingTop: '11px', paddingBottom: '7px' });
       const relax = (n: any) => { if (n.type === 'tableRow') n.attrs = { ...n.attrs, rowSplit: 'allow' }; if (n.type === 'tableCell' && n !== cell) n.attrs = { ...n.attrs, colwidth: [420] }; n.content?.forEach(relax); }; relax(doc.content);
@@ -64,7 +66,7 @@ test(`${format} ${mode} ${kind}: terminal cell budget survives page fragments, e
         } finally { layout.dispose(); }
         if (save < 2) { const loaded = await importFile(new File([await exportDocx(doc)], 'again.docx')); doc = { ...loaded.document, content: parseDocumentHtml(loaded.html!) }; }
       }
-      return { original, states, expected: words.join('') };
+      return { original, states, expected: words.join(''), expectedBreaks };
     } finally { session.close(); }
   }, { bytes: [...await fs.readFile(samples[`${mode === 'nested' ? 'nested' : 'ordinary'}-short-${format}`].file)], format, kind, mode });
   await fs.writeFile(info.outputPath('terminal-model.json'), JSON.stringify(result.original));
@@ -72,7 +74,7 @@ test(`${format} ${mode} ${kind}: terminal cell budget survives page fragments, e
   const expected = result.states[0];
   for (const state of result.states) {
     expect(state.scaled).toBe(false); expect(state.pages).toBeGreaterThan(1);
-    expect(state.hardBreaks).toBe(kind === 'breaks' ? 109 : 0);
+    expect(state.hardBreaks).toBe(result.expectedBreaks);
     if (mode.includes('border')) expect(state.borders.every(b => b === 4)).toBe(true);
     expect(state.ink.map(p => p.text).join('')).toBe(result.expected);
     expect(state.ink.map(p => p.text)).toEqual(expected.ink.map(p => p.text));

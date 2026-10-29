@@ -1,4 +1,4 @@
-import { paragraphLineOffsets, paragraphTextWalker, splitText } from './paragraph-fragments';
+import { paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
 import { tableFragmenter } from './table-fragments';
 import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
@@ -28,6 +28,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   document.body.append(host);
   const style = document.createElement('style'); host.append(style);
   const source = document.createElement('div'); source.innerHTML = html;
+  prepareParagraphEnds(source);
   // The editable table NodeView fixes the width from colgroup; static HTML
   // must do the same or nested tables stretch to the whole printable width.
   for (const table of source.querySelectorAll('table')) {
@@ -258,7 +259,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       tail.replaceChildren(...children.slice(best).map(child => child.cloneNode(true)));
       content.append(head);
       const next = tail.firstElementChild as HTMLElement | null;
-      if (next?.matches('p,h1,h2,h3,h4,h5,h6') && (next.textContent?.length ?? 0) > 1) {
+      if (next?.matches('p,h1,h2,h3,h4,h5,h6') && ((next.textContent?.length ?? 0) > 1 || next.querySelector('br'))) {
         const walker = paragraphTextWalker(next); let text = '';
         while (walker.nextNode()) text += walker.currentNode instanceof HTMLBRElement ? '\n' : walker.currentNode.textContent;
         const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text)].map(s => s.index).slice(1);
@@ -310,7 +311,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       hiddenEmptyLines++; element.classList.add(hiddenEmptyLineClass); fits(); return;
     }
     if (fitsPage) return;
-    if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && (element.textContent?.length ?? 0) > 1) {
+    // Explicit empty lines have flow even when the paragraph has no letters.
+    if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && ((element.textContent?.length ?? 0) > 1 || element.querySelector('br'))) {
       const offsets = paragraphLineOffsets(element);
       let low = 0, high = offsets.length - 1, best = 0;
       element.remove();
@@ -361,7 +363,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // an extra blank sheet produced only by those trailing line boxes.
     let last = host.querySelector<HTMLElement>('.print-page:last-child');
     while (pageNumber > 1 && last && !last.dataset.keepBlank && !last.querySelector('.print-content')?.textContent?.trim()
-      && !last.querySelector('.print-content img,.print-content table,.print-content hr,.print-footnotes [data-document-note]')) {
+      && !last.querySelector('.print-content img,.print-content table,.print-content hr,.print-content [data-print-keep-trailing],.print-footnotes [data-document-note]')) {
       last.remove(); pageNumber--; last = host.querySelector<HTMLElement>('.print-page:last-child');
     }
     for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="NUMPAGES"]')) field.textContent = String(pageNumber);

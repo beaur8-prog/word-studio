@@ -3,7 +3,7 @@
  * No text, hard break, stored margin, or row minimum is removed. */
 export interface CellTerminalLayout { node: Node; offset: number; shift: number }
 const profiles = new Map<string, number | null>();
-const excluded = 'img,svg,table,sup,sub,mark,u,s,del,[data-note-reference],[data-word-overlap],[data-page-number],[data-docx-tab],[data-docx-bookmark],[data-symbol-font]';
+const excluded = 'img:not(.ProseMirror-separator),svg,table,sup,sub,mark,u,s,del,[data-note-reference],[data-word-overlap],[data-page-number],[data-docx-tab],[data-docx-bookmark],[data-symbol-font]';
 const widgets = '.pagination-gap,.pagination-cell-gap,[data-flow-widget]';
 
 export function unwrapHwpCellPrefixes(root: HTMLElement) {

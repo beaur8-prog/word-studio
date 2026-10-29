@@ -9,7 +9,7 @@ export function tableFragmenter(context: FragmentContext) {
   // large single cell must not shrink all its text just to fit one sheet.
   function splitElement(element: HTMLElement, boundary: number, depth = 0): HTMLElement | null {
     if (depth > 30) return null;
-    if (element.matches('p,h1,h2,h3,h4,h5,h6') && (element.textContent?.length ?? 0) > 1) {
+    if (element.matches('p,h1,h2,h3,h4,h5,h6') && ((element.textContent?.length ?? 0) > 1 || element.querySelector('br'))) {
       let offsets = paragraphLineOffsets(element);
       if (context.hasDeferredNote(element)) {
         const walker = paragraphTextWalker(element); let offset = 0;
@@ -32,7 +32,9 @@ export function tableFragmenter(context: FragmentContext) {
       marker.replaceWith(element);
       if (!best) return null;
       const [head, tail] = splitText(element, best); element.replaceChildren(...head.childNodes); element.style.marginBottom = '0';
+      element.dataset.printSoftEnd = 'true'; delete element.dataset.printTrailingBreak;
       if (head.dataset.hwpCellContinuation) element.dataset.hwpCellContinuation = 'true';
+      if (head.dataset.hwpCellFullLine) element.dataset.hwpCellFullLine = 'true';
       layoutHwpCellLines(element); return tail;
     }
     if (element.matches('tr')) {
