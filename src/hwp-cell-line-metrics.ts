@@ -58,7 +58,7 @@ export function layoutHwpCellLines(root: HTMLElement) {
     const height = p.dataset.hwpCellContinuation || p.dataset.hwpCellFullLine ? advance : viewHeight(p, line, font, !profile.uniform && font > line.font + .05);
     p.style.lineHeight = `${height}px`;
     p.style.setProperty('--exact-line-height', `${height}px`);
-    const terminal = !p.dataset.hwpCellFullLine && profile.uniform && hwpCellTerminalLayout(p, font, advance, end);
+    const terminal = !p.dataset.hwpCellFullLine && (profile.uniform || font <= line.font + .05) && hwpCellTerminalLayout(p, font, advance, end);
     if (terminal) applyHwpCellTerminal(p, terminal, advance, end);
   }
 }
@@ -87,14 +87,14 @@ export const HwpCellLineMetrics = Extension.create({
           if (!(dom instanceof HTMLElement) || !dom.closest('td,th')) return;
           const profile = hwpCellFontProfile(node.toJSON(), line), { font } = profile;
           const advance = hwpCellAdvance(line, font), end = Math.min(advance, line.end * font / line.font);
-          const terminal = profile.uniform && hwpCellTerminalLayout(dom, font, advance, end);
+          const terminal = (profile.uniform || font <= line.font + .05) && hwpCellTerminalLayout(dom, font, advance, end);
           const height = terminal ? end : viewHeight(dom, line, font, !profile.uniform && font > line.font + .05);
           const attributes: Record<string, string> = { style: `font-size:${profile.uniform ? font : profile.inherited}px;line-height:${height}px;--exact-line-height:${height}px` };
           if (terminal) Object.assign(attributes, { 'data-hwp-cell-terminal': 'true', 'data-hwp-cell-advance': String(advance), 'data-hwp-cell-end': String(end) });
           decorations.push(Decoration.node(pos, pos + node.nodeSize, attributes));
           const prefixEnd = terminal ? view.posAtDOM(terminal.node, terminal.offset) : pos + 1;
           if (terminal && prefixEnd > pos + 1) decorations.push(Decoration.inline(pos + 1, prefixEnd,
-            { 'data-hwp-cell-prefix': 'true', style: hwpCellPrefixStyle(advance, terminal.shift) }));
+            { 'data-hwp-cell-prefix': 'true', style: hwpCellPrefixStyle(advance, end) }));
           values.push(`${pos}:${font}:${height}:${prefixEnd}:${terminal ? terminal.shift : ''}`);
         });
         const next = values.join(',');

@@ -1,0 +1,75 @@
+{
+  "dateUTC": "2026-10-29T06:33:04.131439+00:00",
+  "scope": "Fourth checkpoint during the ongoing eight-hour campaign: compatible mixed run terminal boxes and ordinary inline painting that preserves PDF text order. Final validation is in progress.",
+  "previousCheckpoint": "2d24b3e",
+  "nativeFixture": {
+    "formats": [
+      "hwp",
+      "hwpx"
+    ],
+    "variants": [
+      "bold",
+      "smaller-run",
+      "font-family"
+    ],
+    "cases": 6,
+    "nativeHeightPx": 247.9,
+    "beforeHeightPx": 255.5625,
+    "afterHeightPx": 247.5625,
+    "twoDocxSaves": true,
+    "fiveZoomsGlyphPositionsAndSizes": true,
+    "editUndoRedo": true
+  },
+  "pdfOrder": {
+    "relativePositionedPrefixCasesExact": 0,
+    "inlinePrefixCasesExact": 6,
+    "pairedGlyphGeometryIdenticalAtHundredthPoint": true,
+    "latestActualPdfCasesExact": 7,
+    "includesLongCellWithLeadingInternalAndPreterminalBlankLines": true,
+    "verifier": "scripts/verify-cell-pdf-order.py",
+    "verifierDependency": "pypdf==6.10.0"
+  },
+  "validation": {
+    "latestFocusedCasesPassed": 10,
+    "previousInlineCandidateCasesPassed": 126,
+    "previousMixedCandidateFullBrowserCasesPassed": 462,
+    "latestFullBrowserCases": 484,
+    "latestFullBrowserStatus": "running",
+    "latestBuild": "passed",
+    "currentTenFreshPageVector": [
+      7,
+      163,
+      4,
+      36,
+      1,
+      37,
+      9,
+      20,
+      15,
+      5
+    ],
+    "freshLogicalBodyCharacters": 218937,
+    "freshHardBreaks": 140,
+    "twoDocxCorpusStatus": "running",
+    "actualNativeAndWindowsLinuxStatus": "pending for this final inline source"
+  },
+  "conservativeLimits": [
+    "Paragraphs containing genuine blank lines keep full struts; terminal leading is not compacted there.",
+    "Mixed-size lines without the base size, increased mixed fonts and incompatible fallback profiles retain full struts.",
+    "Fields, images, notes and raised/lowered or complex decorated runs keep the existing path."
+  ],
+  "fidelityTargets": {
+    "extraPagesBefore": 4,
+    "extraPagesCurrent": 4,
+    "extraPagesTarget": 2,
+    "latestVerifiedFixedAnchors": 160,
+    "mismatches": 97,
+    "absolutePageOffset": 108,
+    "note": "Previous mixed candidate and this checkpoint fresh pages preserve the corpus; final inline anchor and second-save checks are running."
+  },
+  "productSHA256": {
+    "src/hwp-cell-line-metrics.ts": "dcd1839c44b3d66cbf11b56a4285e8cda30d4636f17e0a2aa5f1b2b73c95d703",
+    "src/hwp-cell-terminal.ts": "73cd82a1c6cc4a44923283bf29fd70999c4e8c19923f47ddfdb2d12f96d94b0a"
+  },
+  "notReleased": true
+}
