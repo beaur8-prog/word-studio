@@ -1,0 +1,335 @@
+{
+  "date": "2026-10-29",
+  "topic": "Preserve original Korean word wrapping and separate font/wrapping/spacing experiments",
+  "baseCommit": "7b5f187a92481841c23aa21c08aa6cfddf68af6b",
+  "testedHead": "b856bfeea206bc70868f7fc031bc2a7f3c2f1d96",
+  "pullRequest": "https://github.com/beaur8-prog/word-studio/pull/10",
+  "version": "1.4.9",
+  "changes": [
+    "Preserve native Korean break unit0 as CSS keep-all through body/ordinary/nested cells, sanitizer and paragraph schema.",
+    "Read standard DOCX wordWrap inheritance/direct overrides and export keep-all as w:wordWrap=0; reorder tabs before wordWrap for valid CT_PPr.",
+    "Restore actual HWP/HWPX paragraph word policy alongside tabs/bookmarks; quoted font families no longer truncate HTML style.",
+    "Optional --lines audit reports first different visible line boundary, same-wrap/different-page cases, exclusions and counts without regenerating frozen anchors or injecting cached line breaks."
+  ],
+  "experiments": {
+    "exactSourceFontsInstalled": false,
+    "exactSourceFontBytesFound": 0,
+    "substituteFontControls": [
+      "Noto Serif KR",
+      "AppleMyungjo"
+    ],
+    "fullSerifControlRulesPages": {
+      "before": 163,
+      "after": 165
+    },
+    "fullSerifControlLanguagePages": {
+      "before": 36,
+      "after": 37
+    },
+    "allCellParagraphSpacingRulesPages": {
+      "before": 163,
+      "after": 167
+    },
+    "fontOrSpacingChangeShipped": false,
+    "initialWrongPolicyExperiment": "Exploratory factorial keep-all on native1 was invalidated by native HWP/HWPX fixtures. Final corrected experiments and product use native0=word/native1=character."
+  },
+  "fidelity": {
+    "comparisonStage": "same pre-task DOCX2 versus final DOCX2, same renderer and original paragraph sets",
+    "sourceAndConvertedCorePages": [
+      {
+        "id": "02-work-rules",
+        "source": 163,
+        "converted": 163
+      },
+      {
+        "id": "04-language-plan",
+        "source": 35,
+        "converted": 36
+      },
+      {
+        "id": "06-mixed-document",
+        "source": 35,
+        "converted": 37
+      },
+      {
+        "id": "07-english-exam",
+        "source": 8,
+        "converted": 9
+      }
+    ],
+    "additionalCorePages": {
+      "before": 4,
+      "after": 4
+    },
+    "fixedAnchors": 160,
+    "fixedAnchorMismatch": {
+      "before": 97,
+      "after": 97
+    },
+    "fixedAnchorAbsolutePageError": {
+      "before": 108,
+      "after": 108
+    },
+    "uniqueParagraphs": 3007,
+    "uniquePageMismatch": {
+      "before": 1950,
+      "after": 1950
+    },
+    "uniqueAbsolutePageError": {
+      "before": 2217,
+      "after": 2217
+    },
+    "lineComparable": 1741,
+    "lineExcluded": 1,
+    "exactLineBoundaries": {
+      "before": 805,
+      "after": 806
+    },
+    "changedLineCountParagraphs": {
+      "before": 326,
+      "after": 325
+    },
+    "gainedExactLineParagraph": "06-mixed-document:0:237/t0/c5/p4/t0/c4/p0",
+    "lostExactLineParagraphs": 0,
+    "independentSourceLayout": false,
+    "sameWrappingDifferentPage": {
+      "before": 536,
+      "after": 537
+    },
+    "remainingFixedAnchorCategories": {
+      "differentLineCount": 10,
+      "sameWrappingDifferentPage": 58,
+      "differentLineEndsSameCount": 29
+    },
+    "firstEnglishPageDrift": {
+      "key": "0:66",
+      "text": "⑤ You’re right. The hotel’s view is amazing.",
+      "sourcePage": 1,
+      "convertedPage": 2,
+      "sameLineBoundaries": true,
+      "sourceY": 1402.2,
+      "convertedY": 213.53125,
+      "scope": "First observed unique paragraph with a different starting page; diagnosis of previous-content budgets still required."
+    }
+  },
+  "validation": {
+    "browser": {
+      "passed": 500,
+      "total": 500,
+      "log": "full-xml-order.log"
+    },
+    "focused": {
+      "passed": 16,
+      "total": 16,
+      "log": "word-wrap-xml-order.log"
+    },
+    "nativeUnit": {
+      "passed": 88,
+      "total": 88,
+      "log": "unit-final.log"
+    },
+    "build": "passed",
+    "pdfCellTextOrder": {
+      "passed": 7,
+      "total": 7
+    },
+    "platformCI": {
+      "run": "https://github.com/beaur8-prog/word-studio/actions/runs/40864427804",
+      "testedHead": "b856bfeea206bc70868f7fc031bc2a7f3c2f1d96",
+      "status": "success",
+      "windows": {
+        "passed": 347,
+        "total": 347,
+        "pdfTextOrderPassed": 7
+      },
+      "linux": {
+        "passed": 317,
+        "total": 317,
+        "pdfTextOrderPassed": 7
+      }
+    },
+    "sourceSamples": 10,
+    "twoDocxSaves": 10,
+    "pagesAfterBothSaves": [
+      7,
+      163,
+      4,
+      36,
+      1,
+      37,
+      9,
+      20,
+      15,
+      5
+    ],
+    "logicalBodyCharacters": 218937,
+    "explicitHardBreaks": 140,
+    "bodyOrderMultiplicityAndExplicitBreaksExact": true,
+    "bodyImages": 638,
+    "rawImageBytesExact": true,
+    "nonPolicyModelContentAndPageSettingsVsPriorSame": true,
+    "openXmlSdk": {
+      "version": "3.5.1",
+      "target": "Office2019",
+      "exportedDocx": 10,
+      "nativeSavedDocx": 4,
+      "errors": 0
+    },
+    "actualMacElectron": {
+      "packaged": false,
+      "hwpDocuments": 10,
+      "hwpZoomStates": 50,
+      "docxDocuments": 10,
+      "docxZoomStates": 50,
+      "rendererErrors": 0,
+      "visibleTextMarginOverflow": 0,
+      "largeDocument": {
+        "version": "42.11.15",
+        "sourceBytes": 21220352,
+        "importedImages": 3,
+        "individualImageBytes": 21033539,
+        "savedBytes": 84135679,
+        "savedImages": 3,
+        "nativeRecovery": true,
+        "nativeOpenAndSave": true,
+        "imagesPreserved": true
+      },
+      "heavyNativeDocxSaves": [
+        {
+          "id": "02-work-rules",
+          "openEditingMs": 596,
+          "sourceCharacters": 90963,
+          "saves": [
+            {
+              "save": 1,
+              "saveMs": 14456,
+              "reopenMs": 4242,
+              "bytes": 3447947,
+              "textExact": true,
+              "logicalCharacters": 90963,
+              "bodySHA256": "276202746c775e6300171a301e441ac5ddc6b31c21dcac7bead5eb5e8edd09f0"
+            },
+            {
+              "save": 2,
+              "saveMs": 23440,
+              "reopenMs": 6127,
+              "bytes": 3530523,
+              "textExact": true,
+              "logicalCharacters": 90963,
+              "bodySHA256": "276202746c775e6300171a301e441ac5ddc6b31c21dcac7bead5eb5e8edd09f0"
+            }
+          ]
+        },
+        {
+          "id": "08-math-exam",
+          "openEditingMs": 1744,
+          "sourceCharacters": 3258,
+          "saves": [
+            {
+              "save": 1,
+              "saveMs": 6898,
+              "reopenMs": 6488,
+              "bytes": 3666796,
+              "textExact": true,
+              "logicalCharacters": 3258,
+              "bodySHA256": "b6f2d02a4c7992049d9f01e141588858e5cab4a991ebfb9faed46b7565c05e7c"
+            },
+            {
+              "save": 2,
+              "saveMs": 2609,
+              "reopenMs": 3719,
+              "bytes": 3699795,
+              "textExact": true,
+              "logicalCharacters": 3258,
+              "bodySHA256": "b6f2d02a4c7992049d9f01e141588858e5cab4a991ebfb9faed46b7565c05e7c"
+            }
+          ]
+        }
+      ],
+      "normalAppAtCompletion": {
+        "screenLocked": true,
+        "existingUserAppPreserved": true,
+        "normalAppLaunched": false
+      }
+    },
+    "nativePDF": {
+      "files": 10,
+      "totalPages": 297,
+      "characterInventoryAndMultiplicityExact": true,
+      "normalizedReadingOrderExactFiles": 9,
+      "rulesChangedPages": [
+        38,
+        39,
+        121,
+        122,
+        123,
+        124
+      ],
+      "visuallyReviewedBeforeAfterPairs": 8,
+      "readingOrderLimitation": "Rules narrow nested-table text reflows over existing page/column boundaries; all characters and 528 shared long unique source paragraphs remain. No claim of unchanged entire PDF reading order or original pixel equivalence."
+    },
+    "writer": {
+      "privateProfile": true,
+      "systemFontConfig": true,
+      "comparisons": [
+        {
+          "id": "01-employment-contract",
+          "beforePages": 7,
+          "afterPages": 7,
+          "beforeCharacters": 4966,
+          "afterCharacters": 4966,
+          "normalizedReadingOrderExact": true,
+          "characterInventoryExact": true,
+          "changedPageText": [],
+          "beforeSHA256": "3052ad48feb9c076ce654ae2f2fcbe8a536314ee8535a0c35f45d2c5ba536baf",
+          "afterSHA256": "f1d9dae0935ed707ff1dc8324fdfabb64a4f72ffc4e55cefd6bb48e538c707cf"
+        },
+        {
+          "id": "03-health-table",
+          "beforePages": 6,
+          "afterPages": 6,
+          "beforeCharacters": 2156,
+          "afterCharacters": 2156,
+          "normalizedReadingOrderExact": true,
+          "characterInventoryExact": true,
+          "changedPageText": [],
+          "beforeSHA256": "fb0df2fd842251735223ba7a4e9956aa04a51ccd3e114644a24d627519d3aed3",
+          "afterSHA256": "6bab2afdf6e6873dbff024dd016468f3d618de6bc95e5164aa23c853b9ec4351"
+        },
+        {
+          "id": "06-mixed-document",
+          "beforePages": 38,
+          "afterPages": 38,
+          "beforeCharacters": 37509,
+          "afterCharacters": 37509,
+          "normalizedReadingOrderExact": true,
+          "characterInventoryExact": true,
+          "changedPageText": [],
+          "beforeSHA256": "62c58f5899d93f62353a005d93d9f92d4dd41ba9775ce4ebc020c892cba1f313",
+          "afterSHA256": "e404e6086036409b18b638ed4abcc92e2ef622475593c87e85929e73fcc781a0"
+        }
+      ],
+      "actualMicrosoftWordOrHancom": false
+    },
+    "integrity": {
+      "productSourceFiles": 120,
+      "immutableBundleFiles": 1032,
+      "sourceAndBundleHashesVerified": true,
+      "originalHwpHashesUnchanged": 10,
+      "frozenAnchorFilesUnchanged": 4
+    }
+  },
+  "remaining": [
+    "Obtain exact original Human Myeongjo/Hanyang fonts and independent Hancom/Word reference renderings before judging font metrics.",
+    "Additional4pages and97/160 starting-page mismatches remain; first-line diagnostics enable targeted work but do not solve cumulative layout drift.",
+    "Rules narrow-table reflow at six pages needs original-reference comparison; notice date/addressee overlap at page33 remains before and after.",
+    "Existing multiple tab definition loss (left100 plus right180) reproduced before and after; not fixed in this word-policy change.",
+    "Actual163-page native DOCX save remains slow:14.456s and23.440s in this run."
+  ],
+  "localEvidence": "analysis/hwp-font-wrap-2026-10-29/",
+  "deployed": false,
+  "lithosUpdated": false,
+  "automations": "hwp-8 and hwp-12 stay paused",
+  "mergedMainCommit": "33fff7b8be2aba046e35a6e27341dfafb5e891e0",
+  "mergedTreeExactlyMatchesTestedHead": true
+}
