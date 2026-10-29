@@ -59,6 +59,7 @@ import { imageFloating, restoreImageGeometry, type ImageGeometryRecord } from '.
 import type { PageSettings, StudioDocument } from "./types";
 import { PreservedTable, PreservedTableCell } from './docx-table-cell';
 import { tableAnchor } from './table-anchor';
+import { encodeHwpBodyLine, hwpBodyTextLine, type HwpBodyLine } from './hwp-body-line';
 import documentLimits from '../electron/document-limits.json';
 const bookmarkNamesProperty = 'WordStudio.BookmarkNames';
 
@@ -869,9 +870,9 @@ function alignment(value: unknown) {
     )[String(value) as "left"] ?? AlignmentType.LEFT
   );
 }
-function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLine?: number): IParagraphOptions {
+function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLine?: number, bodyLine?: HwpBodyLine | null): IParagraphOptions {
   const cellLine = activeHwpCellLine(node.attrs);
-  const lineHeight = cellLine ? `${measuredCellLine ?? cellLine.base}px` :
+  const lineHeight = bodyLine ? `${bodyLine.percent}%` : cellLine ? `${measuredCellLine ?? cellLine.base}px` :
     node.attrs?.lineSpacing ??
     node.attrs?.lineHeight ??
     node.content
@@ -993,6 +994,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const mmToTwip = (mm: number) => Math.round((mm * 1440) / 25.4);
   const [portraitWidth, portraitHeight] = paperSize(page);
   let currentLeftMargin = pageMargins(page).left * 96 / 25.4;
+  let currentPaperBottom = (page.orientation === 'landscape' ? portraitWidth : portraitHeight) * 96 / 25.4;
+  let currentBodyBottom = currentPaperBottom - pageMargins(page).bottom * 96 / 25.4;
   let contentWidth = mmToTwip(
     (page.orientation === "landscape" ? portraitHeight : portraitWidth) -
       pageMargins(page).left - pageMargins(page).right,
@@ -1113,7 +1116,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           HeadingLevel.HEADING_5,
           HeadingLevel.HEADING_6,
         ];
-        let paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150, cellLineHeights.get(node));
+        const bodyLine = context.cellRun ? null : hwpBodyTextLine(node);
+        let paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150, cellLineHeights.get(node), bodyLine);
         const cellLine = activeHwpCellLine(node.attrs);
         const previous = output.at(-1);
         const gap = previous instanceof Table ? tableSpacing.get(previous) || 0 : 0;
@@ -1145,7 +1149,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             ...(cssPixels(node.attrs?.paragraphSize) !== null ? {
               strutFont: cssPixels(node.attrs?.paragraphSize), defaultFont: Number(paragraph.run?.size),
             } : {}),
-          }) : undefined),
+          }) : undefined, bodyLine ? JSON.stringify({ policy: encodeHwpBodyLine(bodyLine),
+            line: paragraph.spacing?.line, rule: paragraph.spacing?.lineRule }) : undefined),
         );
       } else if (node.type === "image")
         output.push(
@@ -1323,8 +1328,12 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             }),
           );
         }
-        const anchor = tableAnchor(node.attrs?.tableAnchor);
+        const requestedAnchor = tableAnchor(node.attrs?.tableAnchor), overlayHeight = cellLineHeights.get(node);
+        const anchor = requestedAnchor?.overlay && !(overlayHeight && overlayHeight > 0) ? undefined : requestedAnchor;
         const paragraphAnchor = anchor?.reference === 'paragraph' ? anchor : undefined;
+        const overlayPosition = anchor?.overlay ? { x: Math.round(anchor.x * 15) / 15,
+          y: Math.round(((anchor.overlay === 'page-bottom' ? currentBodyBottom : currentPaperBottom) - anchor.y - overlayHeight!) * 15) / 15,
+          width: columnWidths.reduce((a, b) => a + b, 0) / 15 } : undefined;
         const inlineIndent = paragraphAnchor ? paragraphAnchor.x - (paragraphAnchor.horizontal === 'margin' ? 0 : currentLeftMargin) : undefined;
         const table = new PreservedTable({
             rows,
@@ -1334,11 +1343,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             columnWidths,
             ...(anchor && !paragraphAnchor ? { float: { horizontalAnchor: anchor.horizontal === 'margin' ? TableAnchorType.MARGIN : TableAnchorType.PAGE,
               verticalAnchor: anchor.reference === 'paragraph' ? TableAnchorType.TEXT : TableAnchorType.PAGE,
-              absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round(anchor.y * 15), bottomFromText: Math.round(anchor.bottom * 15),
+              absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round((overlayPosition?.y ?? anchor.y) * 15), bottomFromText: Math.round(anchor.bottom * 15),
               // These supported floats wrap above/below. Otherwise Word/Writer
               // can squeeze body characters into a narrow space at either side.
-              leftFromText: contentWidth, rightFromText: contentWidth } } : {}),
-          }, paragraphAnchor);
+              leftFromText: overlayPosition ? 0 : contentWidth, rightFromText: overlayPosition ? 0 : contentWidth } } : {}),
+          }, overlayPosition ? anchor : paragraphAnchor, overlayPosition);
         // Missing imported CSS uses the editor's 18px table gap. Furniture
         // and note tables have a zero default, passed through nested blocks.
         tableSpacing.set(table, anchor ? 0 : Math.max(0, fontPoints(node.attrs?.tableSpacing) ?? (context.tableGap ?? 18) * .75) * 4 / 3);
@@ -1381,6 +1390,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const [portraitWidth, portraitHeight] = paperSize(page);
   const margins = pageMargins(page);
   currentLeftMargin = margins.left * 96 / 25.4;
+  currentPaperBottom = (page.orientation === 'landscape' ? portraitWidth : portraitHeight) * 96 / 25.4;
+  currentBodyBottom = currentPaperBottom - margins.bottom * 96 / 25.4;
   const fullWidth = mmToTwip((page.orientation === 'landscape' ? portraitHeight : portraitWidth) - margins.left - margins.right);
   const count = page.columns?.count || 1;
   contentWidth = Math.max(1, Math.floor((fullWidth - Math.round((page.columns?.space || 0) * 15) * (count - 1)) / count));

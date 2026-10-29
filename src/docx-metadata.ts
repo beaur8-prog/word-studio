@@ -7,6 +7,7 @@ import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
 import { tableAnchor, paragraphTableNamespace } from './table-anchor';
 import { cssPixels, encodeHwpCellLine, hwpCellLineNamespace, parseHwpCellLine } from './hwp-cell-line';
+import { encodeHwpBodyLine, hwpBodyLineNamespace, parseHwpBodyLine } from './hwp-body-line';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
 // A standard paragraph style identifies the otherwise invisible separator
 // required by Word between adjacent tables and after a table inside a cell.
@@ -224,6 +225,19 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
               val(indent, 'type') === 'dxa' && Math.abs(Number(val(indent, 'w')) / 15 - stored.x + (stored.horizontal === 'margin' ? 0 : margins.left * 96 / 25.4)) <= 1 / 15 + .001 &&
               unchangedOffset(sourceTable.previousElementSibling, stored.y) && unchangedOffset(sourceTable.nextElementSibling, stored.bottom))
               table.dataset.tableAnchor = JSON.stringify(stored);
+            const overlayPosition = sourceTable.getAttributeNS(paragraphTableNamespace, 'overlayPosition');
+            if (stored?.overlay && floating && overlayPosition && overlayPosition.length < 500 &&
+              val(floating, 'horzAnchor') === 'page' && val(floating, 'vertAnchor') === 'page' &&
+              !val(floating, 'tblpXSpec') && !val(floating, 'tblpYSpec')) {
+              try {
+                const position = JSON.parse(overlayPosition);
+                if ([position.x, position.y, position.width].every(Number.isFinite) && position.width > 0 &&
+                  Math.abs(Number(val(floating, 'tblpX')) / 15 - position.x) <= 1 / 15 + .001 &&
+                  Math.abs(Number(val(floating, 'tblpY')) / 15 - position.y) <= 1 / 15 + .001 &&
+                  Math.abs(gridWidth - position.width) <= 1 / 15 + .001)
+                  table.dataset.tableAnchor = JSON.stringify(stored);
+              } catch { /* Changed or missing optional geometry keeps the standard table. */ }
+            }
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
@@ -263,6 +277,18 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')))
           tableOffsetParagraphs.add(p);
         p.setAttribute('data-word-line-rule', format.lineRule(marker.paragraph));
+        const storedBodyLine = marker.paragraph.getAttributeNS(hwpBodyLineNamespace, 'bodyLine');
+        if (storedBodyLine && storedBodyLine.length < 500 && !p.closest('td,th')) {
+          try {
+            const stored = JSON.parse(storedBodyLine), line = parseHwpBodyLine(stored.policy);
+            const spacing = child(child(marker.paragraph, 'pPr'), 'spacing');
+            if (line && val(spacing, 'lineRule') === stored.rule && Number(val(spacing, 'line')) === stored.line) {
+              p.dataset.hwpBodyLine = encodeHwpBodyLine(line);
+              p.style.lineHeight = `${line.base}px`;
+              p.dataset.wordLineRule = 'exact';
+            }
+          } catch { /* Standard Word spacing remains usable without our optional policy. */ }
+        }
         const tabs = format.tabs(marker.paragraph);
         if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
         if (cell && marker.cell && !all(marker.cell, 't').some(t => t.textContent) && !all(marker.cell, 'tbl').length) {

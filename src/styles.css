@@ -844,6 +844,25 @@ button:hover:not(:disabled) {
 .tiptap [data-exact-line-height]:not(:has([data-note-reference], sup, sub)) :is(span, strong, em, b, i, u, s, mark, a) {
   line-height: min(1em, var(--exact-line-height));
 }
+.tiptap [data-hwp-body-layout] :is(span, strong, em, b, i, u, s, mark, a) {
+  line-height: var(--hwp-body-ratio) !important;
+}
+.tiptap .table-overlay-frame {
+  position: relative;
+  height: 0;
+  overflow: visible !important;
+  break-after: avoid;
+}
+.tiptap .table-overlay-frame > .table-overlay-active {
+  position: absolute;
+  left: 0;
+  top: 0;
+  /* A large top offset inside a short multicol fragment is itself fragmented
+     into later columns. Translate the painted box after column layout. */
+  transform: translate(var(--table-overlay-left), var(--table-overlay-top));
+  margin: 0 !important;
+  z-index: 1;
+}
 .tiptap [data-word-line-rule] { letter-spacing: normal; }
 .word-overlap { display: inline-grid; vertical-align: baseline; text-indent: 0; }
 .word-overlap > span { grid-area: 1 / 1; align-self: center; justify-self: center; }

@@ -11,6 +11,8 @@ import { parseTabStops } from '../document-tabs';
 import { paintHwpProgress, type HwpProgressReporter } from './progress';
 import { hwpCellAdvance, parseHwpCellLine } from '../hwp-cell-line';
 import { unwrapHwpCellPrefixes } from '../hwp-cell-terminal';
+import { parseHwpBodyLine } from '../hwp-body-line';
+import { tableAnchor } from '../table-anchor';
 
 function renderedBody(root: HTMLElement, doc: StudioDocument): string {
   // HTML does not carry editor CSS. Resolve the document defaults and heading
@@ -29,8 +31,10 @@ function renderedBody(root: HTMLElement, doc: StudioDocument): string {
       // The engine's fixed-pixel line spacing uses a different internal scale.
       // Relative spacing preserves the measured CSS line box without halving it.
       const font = parseFloat(computed.fontSize), policy = parseHwpCellLine(element.dataset.hwpCellLine);
+      const bodyLine = parseFloat(computed.lineHeight) === 0 && parseHwpBodyLine(element.dataset.hwpBodyLine);
       const line = policy ? hwpCellAdvance(policy, font) : parseFloat(computed.lineHeight);
-      if (line > 0 && font > 0) paragraph.style.lineHeight = `${Math.round(line / font * 100)}%`;
+      if (bodyLine) paragraph.style.lineHeight = `${bodyLine.percent}%`;
+      else if (line > 0 && font > 0) paragraph.style.lineHeight = `${Math.round(line / font * 100)}%`;
       for (const property of ['font-family', 'font-size', 'font-weight', 'font-style', 'color']) span.style.setProperty(property, computed.getPropertyValue(property));
       span.append(...element.childNodes); paragraph.append(span); element.replaceWith(paragraph);
     }
@@ -122,6 +126,13 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     let previousPage = doc.page;
     root.innerHTML = [...layout.element.querySelectorAll('.print-page')].map((sheet, index) => {
       const paper = sheet.getBoundingClientRect();
+      for (const table of sheet.querySelectorAll<HTMLElement>('table.table-overlay-active')) {
+        const anchor = tableAnchor(table.dataset.tableAnchor); if (!anchor?.overlay) continue;
+        const box = table.getBoundingClientRect();
+        // Resolve the current body edge before the page fragment is detached.
+        table.dataset.tableAnchor = JSON.stringify({ x: box.left - paper.left,
+          y: Math.max(0, paper.bottom - box.bottom), bottom: 0, overlay: 'paper-bottom' });
+      }
       for (const image of sheet.querySelectorAll<HTMLElement>('.print-content img[data-image-floating]')) {
         const g = imageFloating(image.dataset.imageFloating); if (!g) continue;
         const box = image.getBoundingClientRect();
