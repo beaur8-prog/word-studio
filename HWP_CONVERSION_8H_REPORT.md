@@ -78,4 +78,4 @@
 - `writer-terminal-shared/`, `inline-final/standard-package-vs-writer-input.json`: 외부 Writer 입력·전후 화면·최종 XML 일치.
 - `progress.md`: 구현·폐기한 실험·실패와 재검증을 포함한 시간순 기록. 중간 `tests/hwp-cell-*-validation.json`은 해당 checkpoint의 기록이며 이 최종 검증을 대신하지 않는다.
 
-[PR #9](https://github.com/beaur8-prog/word-studio/pull/9)를 통해 **main `14f60eb38bc25fffbd202b39d3d8374966cfd664`에 07:59:43 UTC 반영했다.** 병합 부모는 기준 `803d309`와 검사 head `e6d27f9`이며 병합 후 제품 파일도 검사한 `0350415`와 같다. 구현은 동결했고 남은 마감 시간에는 정리·회귀 점검만 한다. 이어가기 자동화는 예정 종료 09:09:23 UTC 이후 마감 확인에서 중지한다. 공개 배포와 리토스 갱신은 별도 배포 요청 때 진행한다.
+[PR #9](https://github.com/beaur8-prog/word-studio/pull/9)를 통해 **main `14f60eb38bc25fffbd202b39d3d8374966cfd664`에 07:59:43 UTC 반영했다.** 병합 부모는 기준 `803d309`와 검사 head `e6d27f9`이며 병합 후 제품 파일도 검사한 `0350415`와 같다. 예정된 작업은 09:09:23 UTC에 종료했고, 이후 첫 마감 확인인 **09:15:54 UTC / 18:15:54 KST에 hwp-8 자동화를 PAUSED로 중지했다.** 이전 hwp-12도 PAUSED를 유지한다. 종료 시 제품 코드를 추가로 수정하지 않았고 최종 검증 결과와 원시 증적을 보존했다. 목표 미달과 위의 남은 문제는 그대로다. 공개 배포와 리토스 갱신은 하지 않았으며 별도 배포 요청 때 진행한다.

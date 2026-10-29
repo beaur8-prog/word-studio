@@ -372,7 +372,8 @@
   "automation": {
     "id": "hwp-8",
     "plannedEndUtc": "2026-10-29T09:09:23Z",
-    "status": "active until scheduled end audit; implementation frozen",
-    "previousHwp12": "paused"
+    "status": "PAUSED",
+    "endAuditUtc": "2026-10-29T09:15:54Z",
+    "previousHwp12": "PAUSED"
   }
 }

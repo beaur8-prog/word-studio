@@ -8,7 +8,7 @@
 
 **추가쪽수4→4로 목표2이하 미달**, 고정160시작쪽불일치99→97/절대110→108도 목표80/90에 미달한다. 고유3007불일치1976→1950은 새일치28/새오차2의 순변화다. 규정의두새오차·c114·대체폰트/문단간격·기존그림/시험지배치 차이와 관찰한163쪽DOCX저장17~29초를 숨기지 않고 기록했다. 실제Word/한컴 검증이나 전체 픽셀동등성을 주장하지 않는다.
 
-[전체 결과·남은 작업](HWP_CONVERSION_8H_REPORT.md), [계획 체크리스트](HWP_CONVERSION_8H_PLAN.md), tests/hwp-cell-eight-hour-validation.json을 참조한다. [최종플랫폼CI](https://github.com/beaur8-prog/word-studio/actions/runs/40834344422)의 head e6d27f9는 테스트예산만 바꾸며 제품은0350415와 같다. 구현동결/필수검증/main반영을 마쳤고09:09UTC예정마감의자동화종료확인은남아있다. 공개배포/리토스갱신없음.
+[전체 결과·남은 작업](HWP_CONVERSION_8H_REPORT.md), [계획 체크리스트](HWP_CONVERSION_8H_PLAN.md), tests/hwp-cell-eight-hour-validation.json을 참조한다. [최종플랫폼CI](https://github.com/beaur8-prog/word-studio/actions/runs/40834344422)의 head e6d27f9는 테스트예산만 바꾸며 제품은0350415와 같다. 구현동결/필수검증/main반영을 마쳤다. 예정 종료09:09:23UTC 이후09:15:54UTC 마감 확인에서 hwp-8을PAUSED로 중지했고 이전hwp-12도PAUSED를 유지한다. 종료 시 제품 코드 변경과 공개배포/리토스갱신은 없다.
 
 ---
 
