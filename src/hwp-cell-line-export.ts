@@ -34,7 +34,7 @@ export async function measureHwpCellExportLines(doc: StudioDocument): Promise<We
       // fragments do not. A paragraph split into one line per page still
       // needs full advance in the unfragmented DOCX paragraph.
       const fragmented = fragments.some(p => p.textContent !== text[index]);
-      const height = fragmented ? advance : Math.max(...fragments.map(p => parseFloat(getComputedStyle(p).lineHeight)));
+      const height = fragmented ? advance : Math.max(...fragments.map(p => p.dataset.hwpCellTerminal ? Number(p.dataset.hwpCellAdvance) : parseFloat(getComputedStyle(p).lineHeight)));
       if (Number.isFinite(height) && height > 0) heights.set(node, height);
     }
   } finally { layout.dispose(); }

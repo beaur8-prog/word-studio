@@ -72,6 +72,7 @@ for (const nested of [false, true]) for (const format of ['hwp', 'hwpx']) for (c
         tops.sort((a, b) => a - b);
         return Math.max(...tops.slice(1).map((y, i) => Math.abs((y - tops[i]) / (zoom / 100) - expectedAdvance)));
       }, { zoom, expectedAdvance })).toBeLessThan(.6);
+      await expect.poll(async () => Math.abs(await p.evaluate((p, zoom) => p.getBoundingClientRect().height / (zoom / 100), zoom) - result.states[0].height)).toBeLessThan(.6);
     }
     const index = await p.evaluate(p => [...p.closest('.tiptap')!.querySelectorAll('p')].indexOf(p));
     const target = page.getByRole('textbox', { name: '문서 편집 영역', exact: true }).locator('p').nth(index);
@@ -80,7 +81,7 @@ for (const nested of [false, true]) for (const format of ['hwp', 'hwpx']) for (c
     await page.getByRole('button', { name: '실행 취소 (Ctrl+Z)' }).click(); await expect(target).toHaveText(original!);
   });
 
-for (const change of ['line', 'font', 'malformed']) test(`DOCX ${change} changes override optional HWP line metadata`, async ({ page }) => {
+for (const change of ['line', 'font', 'paragraph-font', 'malformed']) test(`DOCX ${change} changes override optional HWP line metadata`, async ({ page }) => {
   await page.goto('/');
   const bytes = await page.evaluate(async bytes => {
     const { HwpReaderSession } = await import('/src/hwp/reader.ts'), { importEditableHwp } = await import('/src/hwp/editing.ts');
@@ -94,6 +95,7 @@ for (const change of ['line', 'font', 'malformed']) test(`DOCX ${change} changes
   expect(xml).toContain('wsh:cellLine=');
   if (change === 'line') xml = xml.replace(/w:line="200"/g, 'w:line="450"');
   else if (change === 'font') xml = xml.replace(/w:sz w:val="20"/g, 'w:sz w:val="48"');
+  else if (change === 'paragraph-font') xml = xml.replace(/<w:pPr>[\s\S]*?<\/w:pPr>/g, p => p.replace(/w:sz w:val="20"/g, 'w:sz w:val="48"'));
   else xml = xml.replace(/wsh:cellLine="[^"]+"/g, 'wsh:cellLine="invalid"');
   zip.file('word/document.xml', xml);
   const result = await page.evaluate(async bytes => {

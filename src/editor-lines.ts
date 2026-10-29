@@ -54,6 +54,21 @@ export function measureParagraphLines(view: EditorView, block: HTMLElement, natu
     line.before = Math.max(0, previous ? (line.top - previous.bottom) / 2 : line.top - naturalY(box.top));
     line.after = Math.max(0, next ? (next.top - line.bottom) / 2 : naturalY(box.bottom) - line.bottom);
   }
+  if (block.dataset.hwpCellTerminal && blockLines.length > 1) {
+    const advance = Number(block.dataset.hwpCellAdvance), end = Number(block.dataset.hwpCellEnd), top = naturalY(box.top);
+    const first = blockLines[0], pitch = (blockLines.at(-1)!.top - first.top) / (blockLines.length - 1);
+    const expected = naturalY(box.bottom) - top, terminal = expected - (blockLines.length - 1) * pitch;
+    // CSS rounds each line to a layout unit. Accumulating the unrounded
+    // imported pitch can otherwise reject a fitting line on a long cell.
+    if (advance > 0 && end > 0 && pitch > 0 && Math.abs(pitch - advance) <= .5 && Math.abs(terminal - end) <= .6 &&
+      blockLines.every((line, i) => Math.abs(line.top - first.top - i * pitch) <= .6)) {
+      for (let i = 0; i < blockLines.length; i++) {
+        blockLines[i].before = blockLines[i].top - top - i * pitch;
+        blockLines[i].after = top + (i === blockLines.length - 1 ? expected : (i + 1) * pitch) - blockLines[i].bottom;
+      }
+      return blockLines;
+    }
+  }
   // A font's glyph box need not sit symmetrically inside an exact line strut.
   // Halving the gap between glyph boxes can undercount the actual line by a
   // fraction of a pixel and keep a line which print moves to the next sheet.

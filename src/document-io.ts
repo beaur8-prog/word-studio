@@ -1,5 +1,5 @@
 import { sanitizeImportedHtml, validImage, safeLink, RASTER_DATA } from "./document-html";
-import { activeHwpCellLine, encodeHwpCellLine, hwpCellFont, parseHwpCellLine } from './hwp-cell-line';
+import { activeHwpCellLine, cssPixels, encodeHwpCellLine, hwpCellFont, parseHwpCellLine } from './hwp-cell-line';
 import { HwpCellParagraph } from './docx-hwp-cell-line';
 import { measureHwpCellExportLines } from './hwp-cell-line-export';
 export { sanitizeImportedHtml } from "./document-html";
@@ -1139,6 +1139,9 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             // Run sizes are serialized as integral half-points too. Compare
             // against that representation, including source sizes like 9.6pt.
             font: Math.round(hwpCellFont(node, cellLine) * 1.5) / 1.5,
+            ...(cssPixels(node.attrs?.paragraphSize) !== null ? {
+              strutFont: cssPixels(node.attrs?.paragraphSize), defaultFont: Number(paragraph.run?.size),
+            } : {}),
           }) : undefined),
         );
       } else if (node.type === "image")

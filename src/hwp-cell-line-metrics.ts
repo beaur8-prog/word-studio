@@ -1,7 +1,8 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { activeHwpCellLine, encodeHwpCellLine, hwpCellAdvance, hwpCellFont, parseHwpCellLine, type HwpCellLine } from './hwp-cell-line';
+import { activeHwpCellLine, encodeHwpCellLine, hwpCellAdvance, hwpCellFontProfile, parseHwpCellLine, type HwpCellLine } from './hwp-cell-line';
+import { applyHwpCellTerminal, hwpCellPrefixStyle, hwpCellTerminalLayout, unwrapHwpCellPrefixes } from './hwp-cell-terminal';
 
 function multipleLines(p: HTMLElement): boolean {
   if (p.querySelector('br:not(.ProseMirror-trailingBreak)')) return true;
@@ -26,33 +27,39 @@ function multipleLines(p: HTMLElement): boolean {
   }
   return false;
 }
-function viewHeight(p: HTMLElement, line: HwpCellLine, font: number): number {
+function viewHeight(p: HTMLElement, line: HwpCellLine, font: number, mixedGrowth = false): number {
   const advance = hwpCellAdvance(line, font);
   // Inline objects must be allowed their full line budget. Mixed-size text
   // runs may still share a single baseline and retain its terminal height.
   const simple = !p.querySelector('img,sub,sup,[data-note-reference],[data-word-overlap],[data-page-number]');
-  return simple && !multipleLines(p) ? Math.min(advance, line.end * font / line.font) : Math.max(advance, font);
+  return simple && !mixedGrowth && !multipleLines(p) ? Math.min(advance, line.end * font / line.font)
+    : line.rule === 'Fixed' ? advance : Math.max(advance, font);
 }
 export function layoutHwpCellLines(root: HTMLElement) {
-  for (const p of root.querySelectorAll<HTMLElement>('[data-hwp-cell-line]')) {
+  const paragraphs = [...(root.matches('[data-hwp-cell-line]') ? [root] : []), ...root.querySelectorAll<HTMLElement>('[data-hwp-cell-line]')];
+  for (const p of paragraphs) {
     const line = parseHwpCellLine(p.dataset.hwpCellLine);
     if (!line || !p.closest('td,th')) continue;
+    unwrapHwpCellPrefixes(p);
+    delete p.dataset.hwpCellTerminal; delete p.dataset.hwpCellAdvance; delete p.dataset.hwpCellEnd;
     const inherited = p.dataset.hwpCellSourceSize || p.style.fontSize;
     if (!p.dataset.hwpCellSourceSize) p.dataset.hwpCellSourceSize = inherited;
     const content = [], walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) if (walker.currentNode.textContent?.trim()) {
+    while (walker.nextNode()) if (walker.currentNode.textContent?.length && !walker.currentNode.parentElement?.closest('.pagination-gap,.pagination-cell-gap,[data-flow-widget]')) {
       let parent = walker.currentNode.parentElement, size = inherited;
       while (parent && parent !== p) { if (parent.style.fontSize) { size = parent.style.fontSize; break; } parent = parent.parentElement; }
       content.push({ type: 'text', text: walker.currentNode.textContent, marks: [{ type: 'textStyle', attrs: { fontSize: size } }] });
     }
-    const font = hwpCellFont({ attrs: { paragraphSize: inherited }, content }, line);
-    p.style.fontSize = `${font}px`;
-    const end = Math.min(hwpCellAdvance(line, font), line.end * font / line.font);
+    const profile = hwpCellFontProfile({ attrs: { paragraphSize: inherited }, content }, line), { font } = profile;
+    p.style.fontSize = `${profile.uniform ? font : profile.inherited}px`;
+    const advance = hwpCellAdvance(line, font), end = Math.min(advance, line.end * font / line.font);
     p.style.lineHeight = `${end}px`;
     p.style.setProperty('--exact-line-height', `${end}px`);
-    const height = viewHeight(p, line, font);
+    const height = p.dataset.hwpCellContinuation ? advance : viewHeight(p, line, font, !profile.uniform && font > line.font + .05);
     p.style.lineHeight = `${height}px`;
     p.style.setProperty('--exact-line-height', `${height}px`);
+    const terminal = profile.uniform && hwpCellTerminalLayout(p, font, advance, end);
+    if (terminal) applyHwpCellTerminal(p, terminal, advance, end);
   }
 }
 const key = new PluginKey('hwpCellLineMetrics');
@@ -78,9 +85,17 @@ export const HwpCellLineMetrics = Extension.create({
           if (!line) return;
           const dom = view.nodeDOM(pos);
           if (!(dom instanceof HTMLElement) || !dom.closest('td,th')) return;
-          const font = hwpCellFont(node.toJSON(), line), height = viewHeight(dom, line, font);
-          decorations.push(Decoration.node(pos, pos + node.nodeSize, { style: `font-size:${font}px;line-height:${height}px;--exact-line-height:${height}px` }));
-          values.push(`${pos}:${font}:${height}`);
+          const profile = hwpCellFontProfile(node.toJSON(), line), { font } = profile;
+          const advance = hwpCellAdvance(line, font), end = Math.min(advance, line.end * font / line.font);
+          const terminal = profile.uniform && hwpCellTerminalLayout(dom, font, advance, end);
+          const height = terminal ? end : viewHeight(dom, line, font, !profile.uniform && font > line.font + .05);
+          const attributes: Record<string, string> = { style: `font-size:${profile.uniform ? font : profile.inherited}px;line-height:${height}px;--exact-line-height:${height}px` };
+          if (terminal) Object.assign(attributes, { 'data-hwp-cell-terminal': 'true', 'data-hwp-cell-advance': String(advance), 'data-hwp-cell-end': String(end) });
+          decorations.push(Decoration.node(pos, pos + node.nodeSize, attributes));
+          const prefixEnd = terminal ? view.posAtDOM(terminal.node, terminal.offset) : pos + 1;
+          if (terminal && prefixEnd > pos + 1) decorations.push(Decoration.inline(pos + 1, prefixEnd,
+            { 'data-hwp-cell-prefix': 'true', style: hwpCellPrefixStyle(advance, terminal.shift) }));
+          values.push(`${pos}:${font}:${height}:${prefixEnd}:${terminal ? terminal.shift : ''}`);
         });
         const next = values.join(',');
         if (next !== signature || lastDocument !== view.state.doc) {

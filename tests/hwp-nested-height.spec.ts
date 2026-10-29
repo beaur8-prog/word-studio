@@ -35,7 +35,7 @@ for (const mode of ['rows', 'merged', 'deep', 'grow', 'gap-zero', 'gap-large']) 
     expect(Math.abs(state.spacing - samples[mode + '-' + format].spacing)).toBeLessThan(.08);
     expect(state.rows[0]).toBeGreaterThanOrEqual(95); expect(state.rows[1]).toBeGreaterThanOrEqual(71);
     expect(state.text).toBe(result.states[0].text);
-    if (mode === 'grow') expect(state.rows[0]).toBeGreaterThan(150);
+    if (mode === 'grow') expect(Math.abs(state.rows[0] - samples[mode + '-' + format].native[0].h)).toBeLessThan(.6);
     else { expect(state.rows[0]).toBeLessThan(98); expect(state.rows[1]).toBeLessThan(74); }
   }
   await page.locator('input[type=file]').first().setInputFiles({ name: 'height.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(result.original)) });
@@ -45,6 +45,7 @@ for (const mode of ['rows', 'merged', 'deep', 'grow', 'gap-zero', 'gap-large']) 
     const layout = await table.evaluate((t, zoom) => ({ rows: [...(t as HTMLTableElement).rows].map(r => r.getBoundingClientRect().height / (zoom / 100)),
       spacing: parseFloat(getComputedStyle(t.parentElement!).marginBottom) }), zoom);
     expect(layout.rows[0]).toBeGreaterThanOrEqual(95); expect(layout.rows[1]).toBeGreaterThanOrEqual(71);
+    if (mode === 'grow') expect(Math.abs(layout.rows[0] - samples[mode + '-' + format].native[0].h)).toBeLessThan(.6);
     expect(Math.abs(layout.spacing - samples[mode + '-' + format].spacing)).toBeLessThan(.08);
   }
   const p = table.locator('p').filter({ hasText: /^TALL B$/ }); await p.fill('EDITED'); await page.keyboard.press('ControlOrMeta+z'); await expect(p).toHaveText('TALL B');

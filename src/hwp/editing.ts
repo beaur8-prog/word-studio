@@ -10,6 +10,7 @@ import { imageFloating } from '../image-floating';
 import { parseTabStops } from '../document-tabs';
 import { paintHwpProgress, type HwpProgressReporter } from './progress';
 import { hwpCellAdvance, parseHwpCellLine } from '../hwp-cell-line';
+import { unwrapHwpCellPrefixes } from '../hwp-cell-terminal';
 
 function renderedBody(root: HTMLElement, doc: StudioDocument): string {
   // HTML does not carry editor CSS. Resolve the document defaults and heading
@@ -146,6 +147,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       return (index ? marker.outerHTML : '') + body + (sheet.querySelector('.print-footnotes')?.innerHTML || '');
     }).join('');
     root.querySelectorAll('[data-flow-widget]').forEach(widget => widget.remove());
+    unwrapHwpCellPrefixes(root);
     root.innerHTML = sanitizeImportedHtml(root.innerHTML).html;
     // Print places footnotes at page bottoms. Save their complete source
     // stories once, including notes that continued onto another print page.

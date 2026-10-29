@@ -85,14 +85,16 @@ export function cellParagraphCss(properties: Record<string, any>, char: Record<s
 }): string {
   let pitch = options.pitch;
   let policy = '';
-  if (options.final && options.lines !== undefined && options.lines <= 1 && options.simple) {
+  if (options.final && options.lines !== undefined && options.simple) {
     const inkHeight = options.inkHeight ?? Number(char.fontSize) / 75;
     const requested = pitch ?? physicalLineHeight(properties, char);
     if (inkHeight > 0 && requested > inkHeight) {
-      pitch = inkHeight;
+      if (options.lines <= 1) pitch = inkHeight;
       const font = Number(char.fontSize) / 75;
-      if (['Percent', 'SpaceOnly', 'Minimum'].includes(properties.lineSpacingType) && Math.abs(inkHeight - font) < .5)
-        policy = `--hwp-cell-line:${encodeHwpCellLine({ rule: properties.lineSpacingType, font, advance: requested, end: inkHeight, base: inkHeight })};`;
+      if (['Percent', 'SpaceOnly', 'Minimum', 'Fixed'].includes(properties.lineSpacingType) && Math.abs(inkHeight - font) < .5) {
+        pitch = options.lines <= 1 ? inkHeight : requested;
+        policy = `--hwp-cell-line:${encodeHwpCellLine({ rule: properties.lineSpacingType, font, advance: requested, end: inkHeight, base: options.lines <= 1 ? inkHeight : requested })};`;
+      }
     }
   }
   return paragraphCss(properties, char, options.cap, false) + (pitch ? `line-height:${pitch}px;` : '') + policy;

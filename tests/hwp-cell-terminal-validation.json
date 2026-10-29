@@ -1,0 +1,128 @@
+{
+  "dateUTC": "2026-10-29T04:19:19.675850+00:00",
+  "scope": "Second checkpoint in the ongoing eight-hour campaign: terminal line boxes, cell continuation budgets, shared measured merge fragments and stable mixed-font struts. Not a release or final campaign result.",
+  "baseCommit": "803d3090aacee56a2e1580228b577da7bc01533c",
+  "firstCheckpoint": "c635d82ec0482272e85cd737046cb5f369a85fae",
+  "validation": {
+    "fullBrowserTestsPassed": 401,
+    "fullSuiteNote": "Latest mixed-font/MC implementation passed 401 tests. Subsequent 4px collapsed-border correction passed all 44 cell fragment scenarios; full suite will be repeated during final validation.",
+    "latestCellFragmentTestsPassed": 44,
+    "nativeRuleReflowAndExternalEditTestsPassed": 32,
+    "nativeUnitTestsPassed": 88,
+    "build": "passed",
+    "nativeGrowReferencePx": 184,
+    "nativeGrowEditorPrintPx": 183.671875
+  },
+  "printPages": [
+    7,
+    163,
+    4,
+    36,
+    1,
+    37,
+    9,
+    20,
+    15,
+    5
+  ],
+  "docxSave1Pages": [
+    7,
+    163,
+    4,
+    36,
+    1,
+    37,
+    9,
+    20,
+    15,
+    5
+  ],
+  "docxSave2Pages": [
+    7,
+    163,
+    4,
+    36,
+    1,
+    37,
+    9,
+    20,
+    15,
+    5
+  ],
+  "sourceBodyCharacters": 218937,
+  "sourceHardBreaks": 140,
+  "allFreshAndTwoDocxBodyStreamsExact": true,
+  "fixedAnchors": {
+    "count": 160,
+    "beforeMismatches": 99,
+    "mismatches": 97,
+    "beforeAbsoluteOffset": 110,
+    "absolutePageOffset": 108
+  },
+  "uniqueMatches": {
+    "count": 3007,
+    "beforeMismatches": 1976,
+    "mismatches": 1950,
+    "beforeAbsoluteOffset": 2243,
+    "absolutePageOffset": 2217,
+    "newMatches": 28,
+    "newMismatches": 2,
+    "newMismatchKeys": [
+      "1:9/t0/c108/p0",
+      "1:113/t0/c100/p0"
+    ]
+  },
+  "schema": {
+    "sdk": "3.5.1",
+    "runtime": "8.0.33",
+    "target": "Office2019",
+    "documents": 10,
+    "errors": 0
+  },
+  "actualMac": {
+    "hwpDocuments": 10,
+    "hwpZoomStates": 50,
+    "docxDocuments": 10,
+    "docxZoomStates": 50,
+    "pdfDocuments": 10,
+    "result": "passed",
+    "scope": "Previous terminal implementation before final mixed-font metadata and 4px edge corrections. Latest source is queued for an immutable native build; results are not relabeled as that later build."
+  },
+  "independentWriter": {
+    "version": "LibreOffice 26.8.0.3",
+    "documents": 3,
+    "pages": [
+      7,
+      6,
+      38
+    ],
+    "sameGlyphStreams": true,
+    "scope": "Shared terminal implementation. All ten latest DOCX standard paragraph-property streams are identical to these tested inputs. Optional metadata does not supply external layout.",
+    "notMicrosoftWordOrHancom": true
+  },
+  "remaining": [
+    "Extra page total remains 4; fixed-anchor goal 80/90 not reached.",
+    "Investigate the two new rule-document mismatches and c114/p2; keep reference anchors frozen.",
+    "Additional reproduction of genuinely blank last lines at a page boundary.",
+    "Latest native build, Windows/Linux CI, final visual checks and full suite before integration.",
+    "Live Microsoft Word and Hancom validation unavailable."
+  ],
+  "evidenceDirectory": "analysis/hwp-8h-2026-10-29",
+  "sourceSHA256": {
+    "src/document-io.ts": "d440fb9eb3ca771f1076c39a4810982e07e370e3edf802e06dc296aa7c62db60",
+    "src/docx-metadata.ts": "4c2db3da0518c2a01358b01b3d2e08388178d68066ce2ddc04817014bd629ec2",
+    "src/editor-cell-pagination.ts": "a6402b144d4f79f0f078c093d94b3c04a36357f41219a94e593ab01e5069de03",
+    "src/editor-lines.ts": "1751978aee4114b61970ffc50caadb7e41c14f1ff763e5a9bc16a40d1d237e5a",
+    "src/editor-merged-fragments.ts": "eb104cfad0fe5f80cf508e5c431644a4a360e005cba1084d9fe858c8ef5406c8",
+    "src/hwp-cell-line-export.ts": "c3dbea94dadef55edb54aecab04995d7757ad2faac1c496a5e5758de5089d123",
+    "src/hwp-cell-line-metrics.ts": "659e372d16a0bfd7f3995c060f26aff376cc5a65b914ce0bd0bf11a2fad39d4d",
+    "src/hwp-cell-line.ts": "55a0b0d25b0f2ea3157e9c5013d781cf3fb4641999e28ba5835d53a926852af4",
+    "src/hwp-cell-terminal.ts": "4a500ce5f46750708ce6381fbc42fff6b6dbaa26f4635d026b040e817df78c97",
+    "src/hwp/editing.ts": "22a48a1ab0be57e5e4a0c2886959b1193fff3bee63028233f636885832fa29b9",
+    "src/hwp/paragraph-layout.ts": "5e3a1729cb68543796616d26306d3da23d075c7cd31a4ecb4c8b9a3455cea7fe",
+    "src/pagination.ts": "ef7f5665233752f974717eff1036b7b7ee6361746c0d91cab8a1d6927b9475ed",
+    "src/paragraph-fragments.ts": "d1e9b3305e59ae89e323d7d492e5b4ff84b63576e591310c5bc7fa5173855e51",
+    "src/print-layout.ts": "a42a5eb84b8b0c94ab0ebc553f165cf157ee86df78d3f6b8314bca5cdf9bcbbb",
+    "src/table-fragments.ts": "85eaec17998ad18c6850610f0359eeb9893eaccfaa2fe479f89040114d223d91"
+  }
+}

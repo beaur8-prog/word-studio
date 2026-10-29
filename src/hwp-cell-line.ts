@@ -2,14 +2,14 @@
  * separate from the baseline advance so editing a formerly single line does
  * not apply its compact height to every new line. Values are physical pixels. */
 export interface HwpCellLine {
-  rule: 'Percent' | 'SpaceOnly' | 'Minimum';
+  rule: 'Percent' | 'SpaceOnly' | 'Minimum' | 'Fixed';
   font: number;
   advance: number;
   end: number;
   base: number;
 }
 export const hwpCellLineNamespace = 'urn:word-studio:hwp-cell-lines:1';
-const rules = ['Percent', 'SpaceOnly', 'Minimum'];
+const rules = ['Percent', 'SpaceOnly', 'Minimum', 'Fixed'];
 export function parseHwpCellLine(value: unknown): HwpCellLine | null {
   if (typeof value !== 'string' || value.length > 200) return null;
   const [version, rule, ...values] = value.trim().split(/\s+/);
@@ -35,15 +35,18 @@ export function activeHwpCellLine(attrs?: Record<string, any>): HwpCellLine | nu
 }
 export function hwpCellAdvance(line: HwpCellLine, font: number): number {
   return line.rule === 'Percent' ? line.advance * font / line.font
-    : line.rule === 'SpaceOnly' ? font + line.advance - line.font : Math.max(font, line.advance);
+    : line.rule === 'SpaceOnly' ? font + line.advance - line.font
+    : line.rule === 'Fixed' ? line.advance : Math.max(font, line.advance);
 }
 /** Read the document's font sizes, not prior view decorations. A cleared text
  * mark must inherit the stored paragraph size rather than a stale view size. */
-export function hwpCellFont(node: { attrs?: Record<string, any>; content?: readonly any[] }, line: HwpCellLine): number {
+export function hwpCellFontProfile(node: { attrs?: Record<string, any>; content?: readonly any[] }, line: HwpCellLine) {
   const inherited = cssPixels(node.attrs?.paragraphSize) ?? line.font, sizes: number[] = [];
-  for (const run of node.content ?? []) if (run.type === 'text' && run.text?.trim()) {
+  for (const run of node.content ?? []) if (run.type === 'text' && run.text?.length) {
     const style = run.marks?.find((m: any) => m.type === 'textStyle');
     sizes.push(cssPixels(style?.attrs?.fontSize) ?? inherited);
   }
-  return Math.max(...(sizes.length ? sizes : [inherited]));
+  const font = sizes.reduce((max, size) => Math.max(max, size), sizes.length ? 0 : inherited);
+  return { inherited, font, uniform: sizes.every(size => Math.abs(size - font) <= .05) };
 }
+export const hwpCellFont = (node: { attrs?: Record<string, any>; content?: readonly any[] }, line: HwpCellLine) => hwpCellFontProfile(node, line).font;
