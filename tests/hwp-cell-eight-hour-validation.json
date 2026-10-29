@@ -1,0 +1,378 @@
+{
+  "scope": "Final verification for the approved eight-hour HWP editing/layout work. Native-source anchors and independent Writer evidence are different comparisons; this is not a Microsoft Word/Hancom fidelity certificate.",
+  "baseCommit": "803d3090aacee56a2e1580228b577da7bc01533c",
+  "productSourceCommit": "03504152ce6f8d9b7ea1244d7f64d149c90f77ed",
+  "validationHeadCommit": "e6d27f9cdfc09c0319e450e692524338c82690e6",
+  "packageVersionUnchanged": "1.4.9",
+  "releasePublished": false,
+  "lithosUpdated": false,
+  "metrics": {
+    "additionalPages": {
+      "before": 4,
+      "after": 4,
+      "targetAtMost": 2,
+      "targetMet": false
+    },
+    "fixed160": {
+      "beforeWrong": 99,
+      "afterWrong": 97,
+      "beforeAbsoluteOffset": 110,
+      "afterAbsoluteOffset": 108,
+      "targetWrongAtMost": 80,
+      "targetAbsoluteAtMost": 90,
+      "targetMet": false
+    },
+    "unique3007": {
+      "beforeWrong": 1976,
+      "afterWrong": 1950,
+      "beforeAbsoluteOffset": 2243,
+      "afterAbsoluteOffset": 2217,
+      "becameCorrect": 28,
+      "becameWrong": 2
+    },
+    "logicalBody": {
+      "documents": 10,
+      "charactersWithExplicitBreaks": 218937,
+      "hardBreaks": 140,
+      "exactFreshAndAfterTwoDocxSaves": true
+    },
+    "nestedTables": 38,
+    "bodyImageRawBytes": {
+      "images": 638,
+      "documentsExactAfterTwoDocxSaves": 10
+    }
+  },
+  "documents": [
+    {
+      "id": "01-employment-contract",
+      "sourcePages": 7,
+      "beforePages": 7,
+      "afterPages": 7
+    },
+    {
+      "id": "02-work-rules",
+      "sourcePages": 163,
+      "beforePages": 163,
+      "afterPages": 163
+    },
+    {
+      "id": "03-health-table",
+      "sourcePages": 4,
+      "beforePages": 4,
+      "afterPages": 4
+    },
+    {
+      "id": "04-language-plan",
+      "sourcePages": 35,
+      "beforePages": 36,
+      "afterPages": 36
+    },
+    {
+      "id": "05-return-form",
+      "sourcePages": 1,
+      "beforePages": 1,
+      "afterPages": 1
+    },
+    {
+      "id": "06-mixed-document",
+      "sourcePages": 35,
+      "beforePages": 37,
+      "afterPages": 37
+    },
+    {
+      "id": "07-english-exam",
+      "sourcePages": 8,
+      "beforePages": 9,
+      "afterPages": 9
+    },
+    {
+      "id": "08-math-exam",
+      "sourcePages": 20,
+      "beforePages": 20,
+      "afterPages": 20
+    },
+    {
+      "id": "09-korean-exam",
+      "sourcePages": 15,
+      "beforePages": 15,
+      "afterPages": 15
+    },
+    {
+      "id": "10-lh-plan",
+      "sourcePages": 5,
+      "beforePages": 5,
+      "afterPages": 5
+    }
+  ],
+  "frozenAnchors": [
+    {
+      "id": "02-work-rules",
+      "count": 40,
+      "sha256": "d19dc8952aa26e6450d2e2790dee99fcb74cc4a4a106145f424a1d477ee55e8d"
+    },
+    {
+      "id": "04-language-plan",
+      "count": 40,
+      "sha256": "99030ce83da028e15a89d69299f46c0e40fc3f05e2ef2ca29242f119b0a8d0b5"
+    },
+    {
+      "id": "06-mixed-document",
+      "count": 40,
+      "sha256": "7cf4c53c0dcb3f3c059716a06c90e9a55dedde4cd0acbea86a1678a33232230a"
+    },
+    {
+      "id": "07-english-exam",
+      "count": 40,
+      "sha256": "10ab4e8aee7aba86abee9e2b5beb7d3843f0fc5a2b528d188b079e1aeaa32c55"
+    }
+  ],
+  "inputSHA256": [
+    {
+      "id": "01-employment-contract",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/01-employment-contract.hwp",
+      "sha256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c"
+    },
+    {
+      "id": "02-work-rules",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/02-work-rules.hwp",
+      "sha256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec"
+    },
+    {
+      "id": "03-health-table",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/03-health-table.hwp",
+      "sha256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13"
+    },
+    {
+      "id": "04-language-plan",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/04-language-plan.hwp",
+      "sha256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9"
+    },
+    {
+      "id": "05-return-form",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/05-return-form.hwp",
+      "sha256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4"
+    },
+    {
+      "id": "06-mixed-document",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/06-mixed-document.hwp",
+      "sha256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b"
+    },
+    {
+      "id": "07-english-exam",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/07-english-exam.hwp",
+      "sha256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b"
+    },
+    {
+      "id": "08-math-exam",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/08-math-exam.hwp",
+      "sha256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe"
+    },
+    {
+      "id": "09-korean-exam",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/09-korean-exam.hwp",
+      "sha256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15"
+    },
+    {
+      "id": "10-lh-plan",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/10-lh-plan.hwp",
+      "sha256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb"
+    }
+  ],
+  "knownNewMismatches": [
+    {
+      "document": "02-work-rules",
+      "key": "1:9/t0/c108/p0",
+      "sourcePage": 38,
+      "beforePage": 38,
+      "afterPage": 37
+    },
+    {
+      "document": "02-work-rules",
+      "key": "1:113/t0/c100/p0",
+      "sourcePage": 119,
+      "beforePage": 119,
+      "afterPage": 118
+    }
+  ],
+  "localValidation": {
+    "browser": {
+      "passed": 484,
+      "failed": 0,
+      "minutes": 17.0
+    },
+    "unit": {
+      "passed": 88,
+      "failed": 0
+    },
+    "buildPassed": true,
+    "openXmlSdk": "3.5.1 / Office 2019",
+    "openXmlDocx10Errors": 0,
+    "browserCellPdfTextOrder": {
+      "passed": 7,
+      "total": 7
+    },
+    "mac": {
+      "runtime": "Electron 42.11.15 / Chromium 148",
+      "packaged": false,
+      "isolatedProfile": true,
+      "hiddenNoFocus": true,
+      "hwpDocuments": 10,
+      "hwpZoomStates": 50,
+      "hwpActualPdfs": 10,
+      "docxDocuments": 10,
+      "docxZoomStates": 50,
+      "styleFixtures": 6,
+      "styleZoomStates": 30,
+      "styleActualPdfs": 6,
+      "stylePdfOrderExact": 6,
+      "rendererErrors": 0,
+      "sourceHwpBytes": 21220352,
+      "editingDocumentBytes": 84135650,
+      "largeImagesPreserved": true,
+      "nativeStorageRecoveryPassed": true,
+      "recoveryWriteFailureProtected": true,
+      "heavyDocxNativeOpenSaveTwicePassed": true,
+      "heavyDocxOpenXmlErrors": 0,
+      "observedRulesDocxSaveMs": [
+        17220,
+        29054
+      ],
+      "saveTimingNote": "One isolated Mac run, not a latency guarantee; further optimization remains."
+    }
+  },
+  "platformValidation": {
+    "runId": 40834344422,
+    "url": "https://github.com/beaur8-prog/word-studio/actions/runs/40834344422",
+    "status": "success",
+    "previousRunId": 40830141908,
+    "previousWindows": {
+      "passed": 328,
+      "timedOutAt45Seconds": 3,
+      "assertionFailures": 0,
+      "downloadedCellPdfOrderPassed": 7
+    },
+    "linuxSource035": {
+      "passed": 301,
+      "cellPdfOrderPassed": 7
+    },
+    "testBudgetChange": "Only the 110 multi-stage terminal scenarios use 90 seconds. Expectations, repetitions and product sources are unchanged.",
+    "windows": {
+      "passed": 331,
+      "failed": 0,
+      "minutes": 37.5,
+      "cellPdfOrderPassed": 7
+    },
+    "linux": {
+      "passed": 301,
+      "failed": 0,
+      "minutes": 32.1,
+      "cellPdfOrderPassed": 7
+    }
+  },
+  "sourceFileSHA256": {
+    "src/App.tsx": "224931057cb7bc225902d674e516872d4593962a031b22201c56b1452d35ecdb",
+    "src/TableContextMenu.tsx": "72399373b6767baf084c2ce6e522502275274497f22d579ac27aadc6916bfc8d",
+    "src/assets/fonts/NotoEmoji.ttf": "de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551",
+    "src/assets/fonts/NotoSansDevanagari.ttf": "14ec4af41f27482216d1c2229f417ff9b1425e1babb014e57d1d40d03229853e",
+    "src/assets/fonts/NotoSansMath-Regular.ttf": "3f495fe933c06786e4d5f6d86b8ee70b6753a68ee3b9d87528726de0f6e2c47d",
+    "src/assets/fonts/NotoSansMono.ttf": "2cb2adb378a8f574213e23df697050b83c54c27df465a2015552740b2769a081",
+    "src/assets/fonts/NotoSansSymbols.ttf": "f7e7e04b4a24b6c78893d50cbfd2b2f6cae49617ab047bfef668d252adb128f7",
+    "src/assets/fonts/NotoSansSymbols2-Regular.ttf": "7d5fb73b7ca67a6798101741f5d280a3d016a56a197afcd4199dbb57b4b82a21",
+    "src/assets/fonts/SOURCES.json": "880d47e1d58c490e264110f81b5f595bd29e12fffbc77c7a521cc9a23d5d74e8",
+    "src/clipboard.ts": "49be0d874244b0e125e2a12a6260b71680146b17d06d43a83f0a871edb227b05",
+    "src/column-layout.ts": "6a6db09a2d259d6b8f9a5fcbfeed9f9abcd8298e2488b44a7c0ab72dc7fbeed4",
+    "src/desktop.d.ts": "769ba39b7defbe48cb99a42771c8639d9814f416992279151b8f59588aad8817",
+    "src/document-anchors.ts": "4ae72886f1b75062ad8c8a7e0501c19bbbf29799f61178242bf1813cf5ebec51",
+    "src/document-history.ts": "853d3a6035ced0f5c368de0e6d936aded3eed145e741aefda1437cca5a0761f8",
+    "src/document-html.ts": "58f42c01c559de89598eac65db9f3a9c94332f43fb8af3424a5a2e7857aa1e6e",
+    "src/document-image.ts": "4a33be2cf4e0e6d942932f4ebde271ba94537e4794f86ac62d71028096ad8a0c",
+    "src/document-io.ts": "d440fb9eb3ca771f1076c39a4810982e07e370e3edf802e06dc296aa7c62db60",
+    "src/document-scale.ts": "294cf9c01782ecbae82806e722d74d5d1bef52d885972cfac9d5eb709495e2e4",
+    "src/document-stories.ts": "338ddf5a32aba2487a483afb939a40e7d3afc47946048d045c45d437ef0ef639",
+    "src/document-symbols.ts": "d4d0d61d0d6b95a6734c1d2f39455da7bd1ad422f1166c48c9282e3f0335d2da",
+    "src/document-tabs.ts": "239c27a25c0a99d578b76afb3a605dfdaf3be62869028db87c39ab346dab061a",
+    "src/docx-format.ts": "ac7cbc9326fe6086295116f1bd0f6bd1344badc775a5bc2904938108cdc20b4a",
+    "src/docx-hwp-cell-line.ts": "1054597bd958bf9a9d8d7b992faddc2ea9e10a03a4939fcd39b50ede746fc336",
+    "src/docx-images.ts": "31e2830a52c6db181c7277a212660ee30439145d47a00a4aca1d3619a20ddd38",
+    "src/docx-metadata.ts": "4c2db3da0518c2a01358b01b3d2e08388178d68066ce2ddc04817014bd629ec2",
+    "src/docx-stories.ts": "c7f532a73b5dad8681686cf6da91d95fa86426279c898dc70a09719cc58631f7",
+    "src/docx-table-cell.ts": "61124494a88700614b5e34e9287f53f43682c16399cf277208ba287b4b5f8a23",
+    "src/docx-table-grid.ts": "60b7a81e75066856a30ef4af2f715dc4b759e9bb8054ec3c5d3af469e786b83d",
+    "src/editor-cell-pagination.ts": "a6402b144d4f79f0f078c093d94b3c04a36357f41219a94e593ab01e5069de03",
+    "src/editor-lines.ts": "cdb2a7119b4712594ddd7efc7eda2a6a4ee771c7aadad4f9a606af0378ceb4db",
+    "src/editor-merged-fragments.ts": "7b834f42b8ea58d0970365acc2cb5001f0792c7d121445f57f551f7424a7eacd",
+    "src/editor-paragraph-pagination.ts": "e2477d4e421e016f9650dd0a61043e9273961d99ac1e0043cc8b8696fc3a0a3b",
+    "src/extensions.ts": "99a95b65e93c4b5cf7698babc209662ac92b28ffb89b1e778673e8b3b4a40160",
+    "src/floating-layout.ts": "03998d2213e99e75ef07491764c3e1d3146d5fb4b32e60f41e54ba5ad551274e",
+    "src/furniture-layout.ts": "e0c2ed782168dc50b20eef255d647808170c4e182337f6ff96979d7ebd2abef1",
+    "src/hwp/ExportDialog.tsx": "0af03022a5ebb73710da43cdfc590e20fd1319300a85cdc6d2d70e56d8436c15",
+    "src/hwp/HwpReader.tsx": "b293981cab8b1d338e99f2b4acd89b9a719c6a13b358078ada608c508de142b5",
+    "src/hwp/HwpViewport.tsx": "8488ae2e6da5b935f9502fb4359873b36aa10352a99ff81e91cb98a1d697b6d6",
+    "src/hwp/ProgressPanel.tsx": "b2858c3de313f26aed62cadee2971ca9e410fb9be47ed4831942c962db023ccf",
+    "src/hwp/cell-borders.ts": "836bd24ea3c664b4c3de6f8a2697a34ea200ac6201d94f82526835dfd09fedf3",
+    "src/hwp/cell-content.ts": "9ef8059e4a908d5a1ca8ea331931110c4492d029a2d91f54c3d04aa56d37ed89",
+    "src/hwp/conversion.ts": "953c3fba130bb6b58e537f457bd1a0061e024d6d5bb5924d15acf646e790a337",
+    "src/hwp/editing.ts": "22a48a1ab0be57e5e4a0c2886959b1193fff3bee63028233f636885832fa29b9",
+    "src/hwp/export-columns.ts": "6ad82d5a3454f12da727f1481cbc0475a9c7161f2bf0d295aed29575c75de43d",
+    "src/hwp/export-fields.ts": "606e0376083707320b029a0a9aa6566ac57ddd56af30ba0f614cbffeaa0feb5f",
+    "src/hwp/export-furniture.ts": "731c841dbec1ec8ca3717c76ee6a5eed777a8a71659a659c3f8eaa89b0245ebe",
+    "src/hwp/export-pictures.ts": "67fb62a8c5a7ce0edb993849714ecfbe52b95ec57a5434bf25c84f02178b63c8",
+    "src/hwp/export-sections.ts": "09a667f4347028ed18c670c036eff0ad8cf8cf97e4fa10b4ec838800447dd10c",
+    "src/hwp/header-stories.ts": "8e0f0e4c84ddb0158b5fea1e3d933908c840217e6c2f163945abdb3d03291596",
+    "src/hwp/layout-metadata.ts": "decd8024431fd79a349545e19594b92f09668c1f41d47d4f44131ee95b2394a3",
+    "src/hwp/markup-ranges.ts": "6c46b9512a730aa39777208464419545e70b591e1f62460f324e7c9d2de436fd",
+    "src/hwp/nested-tables.ts": "788cd694385f4bdea87d918381991be4086252db643df1fce44e4c3e1d3a9f07",
+    "src/hwp/note-stories.ts": "909e5b764f8639393e4747cf18d9c23924610716406085fe5f2f9b1978d8ebd5",
+    "src/hwp/object-preview.ts": "e3855cc60437202db8f53aecfc0635cae8f4fa0538c423159a214763e5c7a6ed",
+    "src/hwp/ole-preview.ts": "44f7988b06c39a75f14ed1913e8f2d068c88e9169a67d74568a6b68279e33d4b",
+    "src/hwp/paragraph-layout.ts": "5e3a1729cb68543796616d26306d3da23d075c7cd31a4ecb4c8b9a3455cea7fe",
+    "src/hwp/progress.ts": "bc2adb236274657b3df1db31d38076a4c251ceab2c4d80868e06ffe7e73d304e",
+    "src/hwp/reader-worker.ts": "cd94c9ef6aba05933d207e39f7fc78876117e63e327573e850458d18ebb7728a",
+    "src/hwp/reader.css": "e17e4a9465691b990bfadf392d2f862036c5f2abc4b34f2c8eca1da27c04b831",
+    "src/hwp/reader.ts": "5bd74e9b5a44a933af8c4b97fe5e196844ad8e4c842a7643735306463d6e2282",
+    "src/hwp/serialized-parts.ts": "e48f9cc1db7f83ce012cde4845b6e6f0dc171fc4073c0fe9ab449e8a6be8fd5a",
+    "src/hwp/svg-images.ts": "f43b0f524e21f513d9c64b57a6603d544543ef780ad319927a38dd6f69be8908",
+    "src/hwp/table-grid.ts": "77eb810ee4ecd8d2d51504fb92def356ea840aac3705be3c8ff1b663e3c09ce0",
+    "src/hwp/text-navigation.ts": "693b4ef913315b679e687c4e01c9f2543cbd0c6e4f9beefb0fe2840bdc8455fa",
+    "src/hwp/viewport-layout.ts": "819e22fa02e8805aac5f6f305a9cdcf854c5286ced0c21472f3d19cd729bbb3f",
+    "src/hwp-cell-line-export.ts": "c3dbea94dadef55edb54aecab04995d7757ad2faac1c496a5e5758de5089d123",
+    "src/hwp-cell-line-metrics.ts": "dcd1839c44b3d66cbf11b56a4285e8cda30d4636f17e0a2aa5f1b2b73c95d703",
+    "src/hwp-cell-line.ts": "55a0b0d25b0f2ea3157e9c5013d781cf3fb4641999e28ba5835d53a926852af4",
+    "src/hwp-cell-terminal.ts": "73cd82a1c6cc4a44923283bf29fd70999c4e8c19923f47ddfdb2d12f96d94b0a",
+    "src/image-floating.ts": "79a159a0598fde10f3d22960c9947a4520c372331b81e98020821f41d40bea8d",
+    "src/imported-format.ts": "c656600596b78019c44170fe26952fb6ed02081923ba99d0297ed6b569f669da",
+    "src/main.tsx": "dfb66441b46fe97a5d1df9fb82db13f62df62a937e3c00276e5c83e064cbf517",
+    "src/outline-fonts.ts": "cae0955141d18966a5517d84deb9bb784835e9aac22cbae68bef35b2e4f38f01",
+    "src/page-empty-lines.ts": "b8b2460d2c490593a101565d8d2108a46f37bd32bef78d28fb9cde4794372141",
+    "src/pagination.ts": "ef7f5665233752f974717eff1036b7b7ee6361746c0d91cab8a1d6927b9475ed",
+    "src/paragraph-fit.ts": "eff8fd915efc0ecbe0ed39ce2c0745fc2be1d46e7c2089141b7cdb38df1341ea",
+    "src/paragraph-fragments.ts": "7534ab0b930591d051a1f81abdf1e36acf12976e077591a261e54619f2dcf947",
+    "src/print-layout.ts": "d46509aa13b4376b97b5b62e7ce8baaeb218520eb2440449b2c5757c484b083b",
+    "src/recovery.ts": "df096bf4f28072b58a5b45c47d2e0265d6b8e8ef38ab5e95080b059865244d0e",
+    "src/section-node-view.ts": "17aff3b69fbdbf957a60f8243eabe39d18dbc61e8ccaf925c5b4f0aa2a1d6c7a",
+    "src/styles.css": "140d355adceaee6eeafc4ba1d5236ff0695573396387299a2fcb806a23906f8a",
+    "src/symbol-font-maps.json": "3da394bc788e104679a701148e5d196cfcae9ffc6c934abf54bcc290823b1823",
+    "src/table-anchor.ts": "83e871c1f39b9db06f21b40e5ce7650dceb946d480a79201f399bf6d44ddb468",
+    "src/table-format.ts": "df34bca8507c22d33f6ab5158e9d4e72714ce816821483b9ce65044f813797b6",
+    "src/table-fragments.ts": "ccf03fe57f7074d7e89b19f9cdafd9b510d537a574fdb38516062a3676eb8b22",
+    "src/table-navigation.ts": "58f5a97aa3fe31a1ca8ddb46ef2b923e5023a68e3bd42bbffbdff97502073553",
+    "src/table-row-resize.ts": "06b7729bf12ba373ab795d9fa7f479866bad06923dff3951ecc176aa24fe62e3",
+    "src/types.ts": "a370fd5424ff9dd40030a4d39d4e7f2be59da132a6fc43b8a45897eea51a2c07",
+    "src/word-line-metrics.ts": "adf278bc92f74820ff181366815a4134c1182162d719ad7194aa7fe85cad1dc3",
+    "src/word-overlap.ts": "fd09965791e07a993ec6a4f30b374a66748928ed8de71cade2f438e8896afc59"
+  },
+  "notes": [
+    "The original 8-hour goals remain unmet.",
+    "Some source-to-DOCX geometry/default conversions predate this change. Body image/field/bookmark/count invariants are exact vs the pre-task DOCX2 baseline for ten documents.",
+    "Actual Microsoft Word and Hancom were not run.",
+    "Raw logs, PDFs, model snapshots and rejected experiments remain local under analysis/hwp-8h-2026-10-29/."
+  ],
+  "mainMergeCommit": "14f60eb38bc25fffbd202b39d3d8374966cfd664",
+  "mainMergedAt": "2026-10-29T07:59:43Z",
+  "automation": {
+    "id": "hwp-8",
+    "plannedEndUtc": "2026-10-29T09:09:23Z",
+    "status": "active until scheduled end audit; implementation frozen",
+    "previousHwp12": "paused"
+  }
+}
