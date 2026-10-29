@@ -105,3 +105,7 @@ paragraph-floating 표의 새 회귀는 공고 내용을 33,349자로 잘라 235
 다음 우선순위는 규정 해당 문단 앞의 병합 셀 분할 예산, 글꼴 재흐름 뒤 여러 줄이 된 마지막 셀 문단의 줄 높이, 공고의 추가 2쪽·업무계획/영어의 각 추가 1쪽이다. 원본 최소 높이·본문·동결 기준점을 함께 보존하며 검증해야 한다. 이번 작업은 소스 반영이며 공개 릴리즈와 리토스 갱신은 별도 배포 요청 때 진행한다.
 
 재현 및 세부 근거는 `analysis/hwp-cell-metrics-2026-10-29/progress.md`, `final/fresh.json`, `final/docx-corpus-with-models.json`, `final-page-correspondence.json`, `final-docx2-page-correspondence.json`, `native-hwp/results.json`, `native-docx/result.json`에 남겼다.
+
+추가 저장 속성 대조에서는 중첩 표 **38개**의 표·행 개수가 유지되고, 두 번 DOCX 저장 후 표 뒤 간격 차이가 최대 **0.03px**였다. 요청한 최소 행 높이가 셀 패딩·테두리보다 작은 경우에는 DOCX의 양수 텍스트 높이 하한 때문에 저장 속성이 최대 **6.67px** 증가했다. 이 경우에도 확인한 실제 쪽 수와 본문은 유지했지만, 모든 최소 높이 속성이 정확히 동일하다고 표현하지 않는다. 고유하게 대조 가능한 문단 3,007개에서도 전체 불일치 수는 1,976개로 같다. 규정은 363→364개, 공고는 687→686개이며, 계획·영어는 변화가 없다. 중복 문단과 확인할 수 없는 시작 위치는 이 추가 통계에서 제외했다. 원본 쪽 배치 개선과 양식 정보 보존을 구분하는 근거다.
+
+소스 `1b21c41`의 [Windows·Linux 집중 CI 40794797087](https://github.com/beaur8-prog/word-studio/actions/runs/40794797087)가 모두 통과했다. [PR #8](https://github.com/beaur8-prog/word-studio/pull/8)은 2026-10-29 00:43:10 UTC에 main `ea215e4`로 병합했다. 검증용 서버 7개·복사본 8개·불필요한 추적 압축 파일 41개를 정리하고 JSON·그림·재현 생성기는 보존했다. 이번 변경으로 설치 파일을 새로 배포하거나 리토스를 갱신하지 않았다.

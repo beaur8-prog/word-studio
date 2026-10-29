@@ -289,6 +289,77 @@
     "Known overlapping cell lines in notice page32",
     "Fixed-anchor page mismatch99/160",
     "Four extra pages across language plan, notice and English exam",
-    "Nested source outerTop and general floating placement"
-  ]
+    "Nested source outerTop and general floating placement",
+    "Requested minimum row heights below the cell padding/border budget do not retain identical stored values through DOCX"
+  ],
+  "sourceCommit": "1b21c41d8f86349c51d069d40f87983e13cf3cfa",
+  "mergeCommit": "ea215e4ff585c9b431d397be2a950f6668861912",
+  "pullRequest": "https://github.com/beaur8-prog/word-studio/pull/8",
+  "ci": {
+    "runId": 40794797087,
+    "sourceCommit": "1b21c41d8f86349c51d069d40f87983e13cf3cfa",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "windows-layout",
+        "conclusion": "success"
+      },
+      {
+        "name": "linux-navigation",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "nestedTableRoundtrip": {
+    "tables": 38,
+    "tableAndRowCountsPreserved": true,
+    "maxTrailingGapDeltaPx": 0.03,
+    "maxStoredMinimumDeltaPx": 6.66667,
+    "qualification": "Requested minimums below the cell padding and border budget acquire the DOCX positive text-height floor; verified physical pages and logical body stay unchanged."
+  },
+  "comparableParagraphAudit": {
+    "scope": "Unique substantive and short paragraphs matched by existing source keys, not all paragraphs; duplicates and unavailable starts excluded. Two DOCX saves on both sides. Frozen160 remain primary.",
+    "documents": [
+      {
+        "id": "02-work-rules",
+        "comparable": 714,
+        "beforeWrong": 363,
+        "afterWrong": 364,
+        "beforeAbsoluteSum": 382,
+        "afterAbsoluteSum": 384,
+        "becameCorrect": 0,
+        "becameWrong": 1
+      },
+      {
+        "id": "04-language-plan",
+        "comparable": 878,
+        "beforeWrong": 725,
+        "afterWrong": 725,
+        "beforeAbsoluteSum": 725,
+        "afterAbsoluteSum": 725,
+        "becameCorrect": 0,
+        "becameWrong": 0
+      },
+      {
+        "id": "06-mixed-document",
+        "comparable": 1108,
+        "beforeWrong": 687,
+        "afterWrong": 686,
+        "beforeAbsoluteSum": 934,
+        "afterAbsoluteSum": 933,
+        "becameCorrect": 1,
+        "becameWrong": 0
+      },
+      {
+        "id": "07-english-exam",
+        "comparable": 307,
+        "beforeWrong": 201,
+        "afterWrong": 201,
+        "beforeAbsoluteSum": 201,
+        "afterAbsoluteSum": 201,
+        "becameCorrect": 0,
+        "becameWrong": 0
+      }
+    ]
+  }
 }
