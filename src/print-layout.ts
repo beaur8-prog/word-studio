@@ -1,6 +1,7 @@
 import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
+import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns, columnGroupFits } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
@@ -163,6 +164,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     refreshNotes();
     layoutTableAnchors(content);
     layoutWordLines(content);
+    layoutHwpCellLines(content);
     layoutTabs(content);
     layoutColumns(content, content.getBoundingClientRect().bottom);
     applyFloatingLayout(content);

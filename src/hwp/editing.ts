@@ -9,6 +9,7 @@ import { pageMargins, paperDimensions } from '../types';
 import { imageFloating } from '../image-floating';
 import { parseTabStops } from '../document-tabs';
 import { paintHwpProgress, type HwpProgressReporter } from './progress';
+import { hwpCellAdvance, parseHwpCellLine } from '../hwp-cell-line';
 
 function renderedBody(root: HTMLElement, doc: StudioDocument): string {
   // HTML does not carry editor CSS. Resolve the document defaults and heading
@@ -26,7 +27,8 @@ function renderedBody(root: HTMLElement, doc: StudioDocument): string {
       for (const property of ['text-align', 'line-height', 'margin-top', 'margin-bottom', 'margin-left', 'margin-right', 'text-indent']) paragraph.style.setProperty(property, computed.getPropertyValue(property));
       // The engine's fixed-pixel line spacing uses a different internal scale.
       // Relative spacing preserves the measured CSS line box without halving it.
-      const line = parseFloat(computed.lineHeight), font = parseFloat(computed.fontSize);
+      const font = parseFloat(computed.fontSize), policy = parseHwpCellLine(element.dataset.hwpCellLine);
+      const line = policy ? hwpCellAdvance(policy, font) : parseFloat(computed.lineHeight);
       if (line > 0 && font > 0) paragraph.style.lineHeight = `${Math.round(line / font * 100)}%`;
       for (const property of ['font-family', 'font-size', 'font-weight', 'font-style', 'color']) span.style.setProperty(property, computed.getPropertyValue(property));
       span.append(...element.childNodes); paragraph.append(span); element.replaceWith(paragraph);

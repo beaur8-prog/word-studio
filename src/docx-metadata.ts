@@ -6,6 +6,7 @@ import { symbolFont, symbolElement } from './document-symbols';
 import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
 import { tableAnchor, paragraphTableNamespace } from './table-anchor';
+import { cssPixels, encodeHwpCellLine, hwpCellLineNamespace, parseHwpCellLine } from './hwp-cell-line';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
 // A standard paragraph style identifies the otherwise invisible separator
 // required by Word between adjacent tables and after a table inside a cell.
@@ -226,6 +227,21 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
+        const storedCellLine = marker.paragraph.getAttributeNS(hwpCellLineNamespace, 'cellLine');
+        if (storedCellLine && storedCellLine.length < 500 && p.closest('td,th')) {
+          try {
+            const stored = JSON.parse(storedCellLine), line = parseHwpCellLine(stored.policy);
+            const spacing = child(child(marker.paragraph, 'pPr'), 'spacing');
+            // An external editor may preserve unknown attributes while changing
+            // the standard line rule. Such explicit changes take precedence.
+            const font = cssPixels(p.style.fontSize);
+            if (line && font !== null && Number.isFinite(stored.font) && Math.abs(font - stored.font) < .08 &&
+              val(spacing, 'lineRule') === 'exact' && Number(val(spacing, 'line')) === stored.line) {
+              p.dataset.hwpCellLine = encodeHwpCellLine(line);
+              p.style.lineHeight = `${line.base}px`;
+            }
+          } catch { /* Optional foreign metadata is never required to open DOCX. */ }
+        }
         const properties = child(marker.paragraph, 'pPr');
         if (val(child(properties, 'pStyle')) === TABLE_GAP_STYLE &&
             Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark'))) {
