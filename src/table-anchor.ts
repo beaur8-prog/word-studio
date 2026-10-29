@@ -1,27 +1,44 @@
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { documentScale } from './document-scale';
-
-export type TableAnchor = { x: number; y: number; bottom: number; reference?: 'paragraph'; horizontal?: 'margin' };
-export const paragraphTableNamespace = 'urn:wordstudio:paragraph-table:1';
-
-/** Full-width tables wrapping above/below the body. Other
- * floating table wraps need their own exclusion layout and are not inferred. */
-export function tableAnchor(value: unknown): TableAnchor | undefined {
-  try {
-    const a = typeof value === 'string' ? JSON.parse(value) : value;
-    if (a && [a.x, a.y, a.bottom].every(Number.isFinite) && a.x >= 0 && a.x <= 5000 && a.y >= 0 && a.y <= 5000 && a.bottom >= 0 && a.bottom <= 1000 &&
-      (a.reference === undefined || a.reference === 'paragraph') && (a.horizontal === undefined || a.horizontal === 'margin'))
-      return { x: a.x, y: a.y, bottom: a.bottom, ...(a.reference ? { reference: a.reference } : {}), ...(a.horizontal ? { horizontal: a.horizontal } : {}) };
-  } catch { /* Unknown floating settings remain ordinary flow. */ }
-}
+import { tableAnchor } from './table-anchor-data';
+export { tableAnchor, paragraphTableNamespace, type TableAnchor } from './table-anchor-data';
 
 export function layoutTableAnchors(root: HTMLElement) {
+  // Restore natural geometry before resolving again; classes and variables
+  // also survive print fragments cloned while searching for a page break.
+  for (const frame of root.querySelectorAll<HTMLElement>('.table-overlay-frame')) {
+    frame.classList.remove('table-overlay-frame');
+    frame.style.removeProperty('--table-overlay-left'); frame.style.removeProperty('--table-overlay-top');
+  }
+  for (const table of root.querySelectorAll('.table-overlay-active')) table.classList.remove('table-overlay-active');
   for (const table of root.querySelectorAll<HTMLElement>('table[data-table-anchor]')) {
     const anchor = tableAnchor(table.dataset.tableAnchor); if (!anchor) continue;
-    const target = table.parentElement?.classList.contains('tableWrapper') ? table.parentElement : table;
+    let target = table.parentElement?.classList.contains('tableWrapper') || table.parentElement?.hasAttribute('data-table-overlay-wrapper') ? table.parentElement! : table;
     const sheet = target.closest<HTMLElement>('.print-page,.document-section-content,.document-stack'); if (!sheet) continue;
     const scale = documentScale(target), paper = sheet.getBoundingClientRect();
+    if (anchor.overlay) {
+      const height = Number(sheet.dataset.pageHeight) || paper.height / scale;
+      const top = sheet.classList.contains('print-page') ? (root.getBoundingClientRect().top - paper.top) / scale : Number(sheet.dataset.margin) || 0;
+      const bottom = sheet.classList.contains('print-page') ? (root.getBoundingClientRect().bottom - paper.top) / scale
+        : height - (Number(sheet.dataset.bottomMargin) || Number(sheet.dataset.margin) || 0);
+      const tableHeight = table.getBoundingClientRect().height / scale;
+      const flowHeight = [...table.getClientRects()].reduce((sum, rect) => sum + rect.height / scale, 0);
+      // A table enlarged beyond one sheet must remain ordinary, splittable
+      // flow rather than disappear below an absolute frame.
+      if (!(scale > 0) || Math.max(tableHeight, flowHeight) > bottom - top + .5) continue;
+      if (target === table) {
+        const frame = document.createElement('div'); frame.dataset.tableOverlayWrapper = 'true';
+        table.replaceWith(frame); frame.append(table); target = frame;
+      }
+      target.classList.add('table-overlay-frame'); table.classList.add('table-overlay-active');
+      const rect = target.getBoundingClientRect(), naturalTop = (rect.top - paper.top) / scale;
+      const stride = height + 24;
+      const page = sheet.classList.contains('print-page') ? 0 : Math.max(0, Math.floor((naturalTop - top + .5) / stride));
+      target.style.setProperty('--table-overlay-left', `${anchor.x - (rect.left - paper.left) / scale}px`);
+      target.style.setProperty('--table-overlay-top', `${page * stride + (anchor.overlay === 'page-bottom' ? bottom : height) - anchor.y - tableHeight - naturalTop}px`);
+      continue;
+    }
     const oldTop = parseFloat(target.style.marginTop) || 0, oldLeft = parseFloat(target.style.marginLeft) || 0;
     const rect = target.getBoundingClientRect(), naturalTop = (rect.top - paper.top) / scale - oldTop;
     const stride = (Number(sheet.dataset.pageHeight) || sheet.clientHeight) + 24;

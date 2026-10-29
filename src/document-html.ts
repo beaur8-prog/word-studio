@@ -1,6 +1,7 @@
 import DOMPurify from "dompurify";
 import documentLimits from '../electron/document-limits.json';
 import { encodeHwpCellLine, parseHwpCellLine } from './hwp-cell-line';
+import { encodeHwpBodyLine, parseHwpBodyLine } from './hwp-body-line';
 // Base64 expansion of one supported embedded raster, plus its data-URI header.
 const MAX_IMAGE_SOURCE_LENGTH = Math.ceil(documentLimits.embeddedImageBytes / 3) * 4 + 64;
 export const RASTER_DATA =
@@ -93,6 +94,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-word-line-rule", "data-word-line",
       "data-exact-line-height",
       "data-hwp-cell-line",
+      "data-hwp-body-line",
       "data-word-row-rule",
       "data-row-split", "data-cell-split",
       "data-word-overlap",
@@ -156,6 +158,9 @@ export function sanitizeImportedHtml(source: string): {
     const cellLine = parseHwpCellLine(oldStyle.getPropertyValue('--hwp-cell-line') || element.dataset.hwpCellLine);
     if (cellLine) element.dataset.hwpCellLine = encodeHwpCellLine(cellLine);
     else element.removeAttribute('data-hwp-cell-line');
+    const bodyLine = parseHwpBodyLine(oldStyle.getPropertyValue('--hwp-body-line') || element.dataset.hwpBodyLine);
+    if (bodyLine) element.dataset.hwpBodyLine = encodeHwpBodyLine(bodyLine);
+    else element.removeAttribute('data-hwp-body-line');
     const output: string[] = [];
     // New Chromium versions enumerate white-space's longhands instead of the
     // authored shorthand. Retain the validated shorthand for import parsers.

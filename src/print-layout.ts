@@ -4,6 +4,7 @@ import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from '
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
+import { layoutHwpBodyLines } from './hwp-body-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns, columnGroupFits } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
@@ -119,8 +120,12 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutTableAnchors(content);
     layoutWordLines(content);
     layoutHwpCellLines(content);
+    layoutHwpBodyLines(content);
     layoutTabs(content);
     layoutColumns(content, content.getBoundingClientRect().bottom);
+    // Removing overlay flow can move its zero-height frame to another
+    // column. Resolve its coordinates against the final column geometry.
+    layoutTableAnchors(content);
     applyFloatingLayout(content);
     const last = content.lastElementChild as HTMLElement | null;
     return !hasDeferredNote(content) && (!last || paragraphFitBottom(last) <= content.getBoundingClientRect().bottom + 0.5)
@@ -228,6 +233,12 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       newPage(true); return;
     }
     if (element.hasAttribute('data-section-content')) { for (const child of [...element.children]) append(child as HTMLElement); return; }
+    if (element.tagName === 'TABLE' && tableAnchor(element.dataset.tableAnchor)?.overlay) {
+      content.append(element); fits();
+      if (element.classList.contains('table-overlay-active')) return;
+      element.remove();
+      element.removeAttribute('data-table-anchor');
+    }
     if (element.hasAttribute('data-column-count')) {
       if ([...element.children].some(child => child.hasAttribute('data-page-break') || child.hasAttribute('data-section-page'))) {
         let part = element.cloneNode(false) as HTMLElement;

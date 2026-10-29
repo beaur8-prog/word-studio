@@ -1,11 +1,17 @@
 name: HWP layout validation
 on:
   workflow_dispatch:
+    inputs:
+      windows_only:
+        description: 'Retry Windows validation after unchanged product passes Linux'
+        type: boolean
+        default: false
   pull_request:
     paths:
       - '.github/workflows/hwp-layout-validation.yml'
       - 'src/hwp/**'
       - 'src/hwp-cell-*.ts'
+      - 'src/hwp-body-*.ts'
       - 'src/editor-merged-fragments.ts'
       - 'src/paragraph-fragments.ts'
       - 'src/table-fragments.ts'
@@ -19,6 +25,7 @@ on:
       - 'src/print-layout.ts'
       - 'src/paragraph-fit.ts'
       - 'src/table-anchor.ts'
+      - 'src/table-anchor-data.ts'
       - 'src/table-format.ts'
       - 'src/document-io.ts'
       - 'src/docx-metadata.ts'
@@ -58,8 +65,14 @@ jobs:
       - run: npm ci
       - name: Prepare PDF text verification
         run: python -m pip install --disable-pip-version-check --quiet pypdf==6.10.0
+      # Recycle Chromium after the long cell matrix. A single Windows browser
+      # previously exhausted network buffers and could not load App.tsx.
+      - name: Test native terminal cell matrix in a separate browser
+        run: npx playwright test tests/hwp-cell-terminal.spec.ts --output=test-results/terminal-matrix --reporter=line
+        env:
+          HWP_LAYOUT_DIAGNOSTICS: '1'
       - name: Test font metrics, paragraph pagination and inline tables
-        run: npx playwright test tests/paragraph-flow.spec.ts tests/paragraph-fit.spec.ts tests/paragraph-blank-breaks.spec.ts tests/official-sample-regressions.spec.ts tests/exact-line-height.spec.ts tests/footnote-flow.spec.ts tests/hwp-textflow.spec.ts tests/hwp-inline-tables.spec.ts tests/hwp-inline-tail.spec.ts tests/hwp-cell-paragraphs.spec.ts tests/hwp-merge-row-break.spec.ts tests/hwp-paragraph-table.spec.ts tests/hwp-empty-lines.spec.ts tests/hwp-cell-colors.spec.ts tests/hwp-row-flow.spec.ts tests/exact-line-boundary.spec.ts tests/table-anchor.spec.ts tests/hwp-navigation.spec.ts tests/hwp-nested-grid.spec.ts tests/hwp-nested-height.spec.ts tests/hwp-cell-reflow.spec.ts tests/hwp-cell-terminal.spec.ts tests/hwp-cell-style.spec.ts tests/hwp-cell-rules.spec.ts tests/merged-cell-flow.spec.ts tests/merged-cell-reserve.spec.ts tests/table-spacing.spec.ts tests/column-page-breaks.spec.ts tests/column-table-borders.spec.ts tests/repeating-header-boundary.spec.ts tests/borderless-tables.spec.ts tests/hwp-nested-borders.spec.ts tests/hwp-hard-breaks.spec.ts tests/hwp-word-wrap.spec.ts tests/section-table-boundary.spec.ts tests/docx-bookmark-names.spec.ts tests/docx-floating-size.spec.ts tests/hwp-shapes.spec.ts tests/hwp-crop.spec.ts tests/hwp-floating-export.spec.ts tests/hwp-floating-cells.spec.ts --reporter=line
+        run: npx playwright test tests/paragraph-flow.spec.ts tests/paragraph-fit.spec.ts tests/paragraph-blank-breaks.spec.ts tests/official-sample-regressions.spec.ts tests/exact-line-height.spec.ts tests/footnote-flow.spec.ts tests/hwp-textflow.spec.ts tests/hwp-inline-tables.spec.ts tests/hwp-inline-tail.spec.ts tests/hwp-cell-paragraphs.spec.ts tests/hwp-merge-row-break.spec.ts tests/hwp-paragraph-table.spec.ts tests/hwp-empty-lines.spec.ts tests/hwp-cell-colors.spec.ts tests/hwp-row-flow.spec.ts tests/exact-line-boundary.spec.ts tests/table-anchor.spec.ts tests/hwp-navigation.spec.ts tests/hwp-nested-grid.spec.ts tests/hwp-nested-height.spec.ts tests/hwp-cell-reflow.spec.ts tests/hwp-cell-style.spec.ts tests/hwp-cell-rules.spec.ts tests/merged-cell-flow.spec.ts tests/merged-cell-reserve.spec.ts tests/table-spacing.spec.ts tests/column-page-breaks.spec.ts tests/column-table-borders.spec.ts tests/repeating-header-boundary.spec.ts tests/borderless-tables.spec.ts tests/hwp-nested-borders.spec.ts tests/hwp-hard-breaks.spec.ts tests/hwp-word-wrap.spec.ts tests/section-table-boundary.spec.ts tests/docx-bookmark-names.spec.ts tests/docx-floating-size.spec.ts tests/hwp-shapes.spec.ts tests/hwp-crop.spec.ts tests/hwp-floating-export.spec.ts tests/hwp-floating-cells.spec.ts tests/hwp-page-budget.spec.ts --output=test-results/general --reporter=line
         env:
           HWP_LAYOUT_DIAGNOSTICS: '1'
       - name: Verify cell PDF text order
@@ -70,6 +83,7 @@ jobs:
           name: windows-layout-evidence
           path: test-results/
   linux-navigation:
+    if: ${{ !inputs.windows_only }}
     runs-on: ubuntu-22.04
     timeout-minutes: 50
     steps:
@@ -84,7 +98,7 @@ jobs:
       - name: Prepare Linux browser and fonts
         run: bash scripts/prepare-linux-ci.sh browser
       - name: Test navigation and page boundaries
-        run: npx playwright test tests/paragraph-fit.spec.ts tests/paragraph-blank-breaks.spec.ts tests/official-sample-regressions.spec.ts tests/exact-line-height.spec.ts tests/hwp-merge-row-break.spec.ts tests/hwp-paragraph-table.spec.ts tests/hwp-empty-lines.spec.ts tests/hwp-cell-colors.spec.ts tests/hwp-row-flow.spec.ts tests/exact-line-boundary.spec.ts tests/table-anchor.spec.ts tests/merged-cell-reserve.spec.ts tests/hwp-navigation.spec.ts tests/hwp-nested-grid.spec.ts tests/hwp-nested-height.spec.ts tests/hwp-cell-reflow.spec.ts tests/hwp-cell-terminal.spec.ts tests/hwp-cell-style.spec.ts tests/hwp-cell-rules.spec.ts tests/word-use-cases.spec.ts tests/column-page-breaks.spec.ts tests/editor-page-boundaries.spec.ts tests/column-table-borders.spec.ts tests/repeating-header-boundary.spec.ts tests/borderless-tables.spec.ts tests/hwp-nested-borders.spec.ts tests/hwp-hard-breaks.spec.ts tests/hwp-word-wrap.spec.ts tests/section-table-boundary.spec.ts tests/docx-bookmark-names.spec.ts tests/docx-floating-size.spec.ts tests/hwp-shapes.spec.ts tests/hwp-crop.spec.ts tests/hwp-floating-export.spec.ts tests/hwp-floating-cells.spec.ts --reporter=line
+        run: npx playwright test tests/paragraph-fit.spec.ts tests/paragraph-blank-breaks.spec.ts tests/official-sample-regressions.spec.ts tests/exact-line-height.spec.ts tests/hwp-merge-row-break.spec.ts tests/hwp-paragraph-table.spec.ts tests/hwp-empty-lines.spec.ts tests/hwp-cell-colors.spec.ts tests/hwp-row-flow.spec.ts tests/exact-line-boundary.spec.ts tests/table-anchor.spec.ts tests/merged-cell-reserve.spec.ts tests/hwp-navigation.spec.ts tests/hwp-nested-grid.spec.ts tests/hwp-nested-height.spec.ts tests/hwp-cell-reflow.spec.ts tests/hwp-cell-terminal.spec.ts tests/hwp-cell-style.spec.ts tests/hwp-cell-rules.spec.ts tests/word-use-cases.spec.ts tests/column-page-breaks.spec.ts tests/editor-page-boundaries.spec.ts tests/column-table-borders.spec.ts tests/repeating-header-boundary.spec.ts tests/borderless-tables.spec.ts tests/hwp-nested-borders.spec.ts tests/hwp-hard-breaks.spec.ts tests/hwp-word-wrap.spec.ts tests/section-table-boundary.spec.ts tests/docx-bookmark-names.spec.ts tests/docx-floating-size.spec.ts tests/hwp-shapes.spec.ts tests/hwp-crop.spec.ts tests/hwp-floating-export.spec.ts tests/hwp-floating-cells.spec.ts tests/hwp-page-budget.spec.ts --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - name: Verify cell PDF text order

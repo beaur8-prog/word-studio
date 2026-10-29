@@ -2,6 +2,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
+import { layoutHwpBodyLines } from './hwp-body-line-metrics';
 import { documentScale } from './document-scale';
 
 const keptTables = new WeakMap<HTMLElement, { breakBefore: string; paddingTop: string }>();
@@ -99,7 +100,7 @@ export function layoutColumns(root: HTMLElement, bottom?: number) {
       const count = Number(group.dataset.columnCount) || 1, gap = Number(group.dataset.columnSpace) || 0;
       const measure = document.createElement('div'); measure.className = 'tiptap column-measure';
       Object.assign(measure.style, { position: 'absolute', visibility: 'hidden', left: '-100000px', top: '0', width: `${(group.clientWidth - gap * (count - 1)) / count}px`, padding: '0', minHeight: '0' });
-      measure.innerHTML = group.innerHTML; document.body.append(measure); layoutWordLines(measure); layoutTabs(measure);
+      measure.innerHTML = group.innerHTML; document.body.append(measure); layoutWordLines(measure); layoutHwpBodyLines(measure); layoutTabs(measure);
       const natural = Math.ceil(measure.getBoundingClientRect().height); measure.remove();
       group.style.height = `${Math.min(natural || 1, cap)}px`;
     }

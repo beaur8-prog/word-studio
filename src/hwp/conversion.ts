@@ -19,6 +19,8 @@ import { nestedTableGeometry } from './nested-tables';
 import { hwpCellBorders } from './cell-borders';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss } from './paragraph-layout';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
+import { encodeHwpBodyLine } from '../hwp-body-line';
+import { stageHwpTables } from './export-tables';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -525,9 +527,17 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const whole = range(0, 0xffffffff);
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';
       if (whole.includes('\t')) open = open.replace(/>$/, `${hwpTabAttribute(equationMetadata().get(`${section}:${para}`)?.tabStops)}>`);
-      open = cssStyle(open, paragraphCss(properties, JSON.parse(doc.getCharPropertiesAt(section, para, 0))));
+      const paragraphChar = JSON.parse(doc.getCharPropertiesAt(section, para, 0));
+      open = cssStyle(open, paragraphCss(properties, paragraphChar));
       const pitch = pitches.get(`${section}:${para}`);
       if (pitch) open = cssStyle(open, `line-height:${pitch}px;`);
+      const sizes = [...whole.matchAll(/font-size:\s*([\d.]+)(pt|px)/gi)].map(m => Number(m[1]) * (m[2].toLowerCase() === 'pt' ? 4 / 3 : 1));
+      const largest = sizes.reduce((maximum, size) => Math.max(maximum, size), 0);
+      const smallest = sizes.reduce((minimum, size) => Math.min(minimum, size), Infinity);
+      const base = pitch ?? physicalLineHeight(properties, paragraphChar);
+      if (properties.lineSpacingType === 'Percent' && !properties.fontLineHeight && Number(properties.lineSpacing) > 0 &&
+        Number.isFinite(base) && base > 0 && Number(paragraphChar.fontSize) > 0 && sizes.length && largest - smallest > .1)
+        open = cssStyle(open, `--hwp-body-line:${encodeHwpBodyLine({ percent: Number(properties.lineSpacing), font: Math.max(largest, Number(paragraphChar.fontSize) / 75), base })};`);
       const inline = (html: string) => html.replace(/^<p\b[^>]*>\s*/, '').replace(/<\/p>\s*$/, '');
       const onlyFloating = (html: string) => html.includes('data-image-floating') && !html.replace(/<[^>]*>/g, '').trim() &&
         [...html.matchAll(/<img\b[^>]*>/g)].every(m => m[0].includes('data-image-floating'));
@@ -653,6 +663,19 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             : onlyFloating(content) ? cssStyle(open, 'line-height:1px;margin-top:0;margin-bottom:0;') : open) + content + '</p>');
           const tableWidth = Number(controlHtml.match(/^<table[^>]*style="[^"]*width:([\d.]+)px/)?.[1]);
           const pd: PageDef = JSON.parse(doc.getPageDef(section));
+          if (c.ctrlId === 'tbl' && !inlineTable) {
+            const props = JSON.parse(doc.getTableProperties(section, para, c.controlIndex));
+            if (props.textWrap === 'InFrontOfText' && ['Page', 'Paper'].includes(props.vertRelTo) && props.vertAlign === 'Bottom' && !props.hasCaption) {
+              const position = controlPosition(section, para, c.controlIndex);
+              const pages = new Set(JSON.parse(doc.getTableCellBboxes(section, para, c.controlIndex)).map((b: any) => b.pageIndex));
+              const height = px(pd.landscape ? pd.width : pd.height);
+              const edge = height - (props.vertRelTo === 'Page' ? px(pd.marginBottom + pd.marginFooter) : 0);
+              const gap = position && edge - position.y - position.h;
+              if (position && pages.size === 1 && position.x >= 0 && Number.isFinite(gap) && gap >= -.5 && gap <= 1000)
+                controlHtml = controlHtml.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify({ x: position.x, y: Math.max(0, gap), bottom: 0,
+                  overlay: props.vertRelTo === 'Page' ? 'page-bottom' : 'paper-bottom' }))}"`);
+            }
+          }
           if (inlineTable && columnCount === 1) {
             const position = controlPosition(section, para, c.controlIndex);
             if (position) controlHtml = controlHtml.replace(/^<table\b[^>]*>/, tag => cssStyle(tag, `margin-left:${Math.round((position.x - px(pd.marginLeft)) * 100) / 100}px;`));
@@ -820,7 +843,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     const sections = stageHwpSections(html, page);
     const furniture = stageHwpFurniture(sections.html, sections.settings);
     const notes = stageHwpNotes(furniture.html);
-    const pictures = stageHwpPictures(notes.html);
+    const tables = stageHwpTables(notes.html);
+    const pictures = stageHwpPictures(tables.html);
     const fields = stageHwpFields(pictures.html);
     const navigation = stageHwpTextNavigation(fields.html);
     const columns = stageHwpColumns(navigation.html, page);
@@ -849,6 +873,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withFields !== doc) { doc.free(); doc = withFields; }
     const withNavigation = navigation.restore(Core, doc);
     if (withNavigation !== doc) { doc.free(); doc = withNavigation; }
+    const withTables = tables.restore(Core, doc);
+    if (withTables !== doc) { doc.free(); doc = withTables; }
     const withColumns = columns.restore(Core, doc);
     if (withColumns !== doc) { doc.free(); doc = withColumns; }
     const withNotes = notes.restore(Core, doc);

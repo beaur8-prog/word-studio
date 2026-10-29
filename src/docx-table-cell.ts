@@ -4,7 +4,8 @@ import { paragraphTableNamespace, type TableAnchor } from './table-anchor';
 /** Inline tables can continue across readers without clipping floating merged
  * cells. Ignorable per-table metadata preserves the editor's live reference. */
 export class PreservedTable extends Table {
-  constructor(options: ITableOptions, private readonly anchor?: TableAnchor) { super(options); }
+  constructor(options: ITableOptions, private readonly anchor?: TableAnchor,
+    private readonly overlayPosition?: { x: number; y: number; width: number }) { super(options); }
   prepForXml(context: Parameters<Table['prepForXml']>[0]) {
     const result = super.prepForXml(context);
     const children = result?.['w:tbl'];
@@ -13,7 +14,8 @@ export class PreservedTable extends Table {
       if (!attributes) { attributes = {}; children.unshift({ _attr: attributes }); }
       Object.assign(attributes, { 'xmlns:ws': paragraphTableNamespace,
         'xmlns:mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006',
-        'mc:Ignorable': 'ws', 'mc:PreserveAttributes': 'ws:anchor', 'ws:anchor': JSON.stringify(this.anchor) });
+        'mc:Ignorable': 'ws', 'mc:PreserveAttributes': this.overlayPosition ? 'ws:anchor ws:overlayPosition' : 'ws:anchor',
+        'ws:anchor': JSON.stringify(this.anchor), ...(this.overlayPosition ? { 'ws:overlayPosition': JSON.stringify(this.overlayPosition) } : {}) });
     }
     return result;
   }

@@ -53,6 +53,7 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
   const walk = (node: PMNode, pos: number) => {
     const dom = view.nodeDOM(pos) as HTMLElement | null;
     if (!dom?.getBoundingClientRect) return;
+    if (node.type.name === 'table' && (dom.classList.contains('table-overlay-active') || dom.querySelector(':scope > .table-overlay-active'))) return;
     const box = rect(dom);
     if (node.type.name === 'columnGroup' && node.attrs.count === 1) { node.forEach((child, offset) => walk(child, pos + 1 + offset)); return; }
     if (node.type.name === 'columnGroup') {
@@ -158,7 +159,7 @@ export const Pagination = Extension.create({
             // Column prefixes depend on the previous page gaps. Resolve them
             // before measuring; min-height can keep the root's ResizeObserver
             // silent even when column fragments have moved inside the sheet.
-            layoutTableAnchors(view.dom); layoutColumns(view.dom);
+            layoutTableAnchors(view.dom); layoutColumns(view.dom); layoutTableAnchors(view.dom);
             view.dom.classList.add('pagination-measuring-cells');
             try {
             const dec: Decoration[] = [], signatures: string[] = [];
