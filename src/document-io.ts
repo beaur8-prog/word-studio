@@ -872,7 +872,10 @@ function alignment(value: unknown) {
 }
 function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLine?: number, bodyLine?: HwpBodyLine | null): IParagraphOptions {
   const cellLine = activeHwpCellLine(node.attrs);
-  const lineHeight = bodyLine ? `${bodyLine.percent}%` : cellLine ? `${measuredCellLine ?? cellLine.base}px` :
+  // Word's AUTO percentage scales its font line metrics, whereas native HWP
+  // scales the em size. Keep the established physical fallback for other
+  // readers; our ignorable policy restores live, run-dependent leading here.
+  const lineHeight = bodyLine ? `${bodyLine.base}px` : cellLine ? `${measuredCellLine ?? cellLine.base}px` :
     node.attrs?.lineSpacing ??
     node.attrs?.lineHeight ??
     node.content

@@ -126,13 +126,20 @@ test('external DOCX spacing edits retire the native percentage policy', async ({
     try { await session.open(new File([new Uint8Array(bytes)], 'body.hwp')); doc = importEditableHwp(await session.editable(), 'body.hwp'); } finally { session.close(); }
     const zip = await JSZip.loadAsync(await (await exportDocx(doc)).arrayBuffer()), W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
     const xml = new DOMParser().parseFromString(await zip.file('word/document.xml')!.async('string'), 'application/xml');
-    const spacing = xml.getElementsByTagNameNS(W, 'spacing')[0]; spacing.setAttributeNS(W, 'w:line', '720'); spacing.setAttributeNS(W, 'w:lineRule', 'exact');
+    const spacing = xml.getElementsByTagNameNS(W, 'spacing')[0];
+    const fallback = { rule: spacing.getAttributeNS(W, 'lineRule'), pixels: Number(spacing.getAttributeNS(W, 'line')) / 15 };
+    spacing.setAttributeNS(W, 'w:line', '720'); spacing.setAttributeNS(W, 'w:lineRule', 'exact');
     zip.file('word/document.xml', new XMLSerializer().serializeToString(xml));
     const loaded = await importFile(new File([await zip.generateAsync({ type: 'blob' })], 'external.docx'));
     const root = document.createElement('div'); root.innerHTML = loaded.html!;
-    const p = root.querySelector('p')!; return { policy: p.dataset.hwpBodyLine, lineHeight: p.style.lineHeight, text: p.textContent };
+    const p = root.querySelector('p')!; return { fallback, policy: p.dataset.hwpBodyLine, lineHeight: p.style.lineHeight, text: p.textContent };
   }, [...await fs.readFile(source.file)]);
   expect(result.policy).toBeUndefined(); expect(result.lineHeight).toBe('36pt'); expect(result.text).toBe(source.text);
+  // Other readers use font-metric AUTO leading rather than HWP's em-based
+  // percentage. Preserve the native first line's physical compatibility pitch.
+  expect(result.fallback.rule).toBe('exact');
+  const first = source.nativeLines[0];
+  expect(result.fallback.pixels).toBeCloseTo(first.advance ?? first.height + first.spacing, 0);
 });
 
 test('external DOCX floating position edits retire the old bottom anchor', async ({ page }) => {
