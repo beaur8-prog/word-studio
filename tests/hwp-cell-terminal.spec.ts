@@ -10,6 +10,10 @@ test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: t
 
 for (const format of ['hwp', 'hwpx']) for (const kind of ['wrapped', 'breaks', 'blank-breaks', 'mixed-breaks', 'inner-blanks']) for (const mode of ['ordinary', 'nested', 'headers', 'merge-top', 'merge-middle', 'merge-bottom', 'merge-header-top', 'merge-header-middle', 'merge-header-bottom', 'merge-border-top', 'merge-header-border-middle'])
 test(`${format} ${mode} ${kind}: terminal cell budget survives page fragments, editing and two DOCX saves`, async ({ page }, info) => {
+  // This scenario includes native import, two DOCX saves, five zooms, editing,
+  // undo and a final disk save. Windows runners can exceed the default 45s
+  // after all geometry assertions pass; retain every check with a full budget.
+  test.setTimeout(90_000);
   const sample = samples[`${mode === 'nested' ? 'nested' : 'ordinary'}-short-${format}`];
   await page.goto('/');
   const result = await page.evaluate(async ({ bytes, format, kind, mode }) => {

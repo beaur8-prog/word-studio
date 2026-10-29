@@ -45,7 +45,7 @@ permissions:
 jobs:
   windows-layout:
     runs-on: windows-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -68,7 +68,7 @@ jobs:
           path: test-results/
   linux-navigation:
     runs-on: ubuntu-22.04
-    timeout-minutes: 40
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
