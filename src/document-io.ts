@@ -26,6 +26,7 @@ import {
   PageOrientation,
   Paragraph,
   Table,
+  TableLayoutType,
   TableAnchorType,
   TableCell,
   TableRow,
@@ -1351,6 +1352,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         const inlineIndent = paragraphAnchor ? paragraphAnchor.x - (paragraphAnchor.horizontal === 'margin' ? 0 : currentLeftMargin) : undefined;
         const table = new PreservedTable({
             rows,
+            layout: node.attrs?.wordTableLayout === 'autofit' ? TableLayoutType.AUTOFIT : TableLayoutType.FIXED,
             width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
             ...(paragraphAnchor ? { alignment: AlignmentType.LEFT } : ['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
             ...(inlineIndent !== undefined || node.attrs?.tableIndent ? { indent: { size: Math.round((inlineIndent ?? Number.parseFloat(node.attrs!.tableIndent)) * 15) || 0, type: WidthType.DXA } } : {}),

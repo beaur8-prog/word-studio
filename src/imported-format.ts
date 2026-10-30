@@ -58,6 +58,9 @@ export const ImportedFormat = Extension.create({
         renderHTML: (a: Record<string, unknown>) => ['solid','double','dotted','dashed','wavy'].includes(String(a.decorationStyle)) ? { style: `text-decoration-style:${a.decorationStyle}` } : {} },
       } },
       { types: ['table'], attributes: {
+        wordTableLayout: { default: null,
+          parseHTML: (el: HTMLElement) => ['fixed', 'autofit'].includes(el.dataset.wordTableLayout || '') ? el.dataset.wordTableLayout : null,
+          renderHTML: (a: Record<string, unknown>) => ['fixed', 'autofit'].includes(String(a.wordTableLayout)) ? { 'data-word-table-layout': a.wordTableLayout } : {} },
         tableAnchor: { default: null, parseHTML: (el: HTMLElement) => { const a = tableAnchor(el.dataset.tableAnchor); return a ? JSON.stringify(a) : null; },
           renderHTML: (a: Record<string, unknown>) => tableAnchor(a.tableAnchor) ? { 'data-table-anchor': a.tableAnchor } : {} },
         tableAlignment: { default: null, parseHTML: (el: HTMLElement) => el.style.marginLeft === 'auto' ? el.style.marginRight === 'auto' ? 'center' : 'right' : null,

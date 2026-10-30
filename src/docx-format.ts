@@ -172,6 +172,17 @@ export async function docxFormat(zip: JSZip) {
       const layers = chain(val(child(props, 'tblStyle')) || val(normalTable, 'styleId')).map(s => child(s, 'tblPr'));
       decorateCell(cell, source, layers);
     },
+    tableLayout(table: Element): 'fixed' | 'autofit' {
+      const direct = child(table, 'tblPr');
+      const defaultStyle = all(styles, 'style').find(s => val(s, 'type') === 'table' && ['1', 'true', 'on'].includes(val(s, 'default')));
+      const layers = chain(val(child(direct, 'tblStyle')) || val(defaultStyle, 'styleId')).map(s => child(s, 'tblPr'));
+      let layout: 'fixed' | 'autofit' = 'autofit';
+      for (const props of [...layers, direct]) {
+        const value = val(child(props, 'tblLayout'), 'type');
+        if (value === 'fixed' || value === 'autofit') layout = value;
+      }
+      return layout;
+    },
     autoSpacing(p: Element) {
       // Resolve each standard property independently, including explicit false.
       const result = { de: true, dn: true };

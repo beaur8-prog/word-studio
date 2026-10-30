@@ -206,6 +206,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           const sourceTable = ancestor(marker.cell, 'tbl'), table = cell.closest('table');
           if (sourceTable && table && !sizedTables.has(table)) {
             sizedTables.set(table, sourceTable);
+            table.dataset.wordTableLayout = format.tableLayout(sourceTable);
             table.style.marginLeft = `${Number(val(child(child(sourceTable, 'tblPr'), 'tblInd'), 'w')) / 15}px`;
             const alignment = val(child(child(sourceTable, 'tblPr'), 'jc'), 'val');
             if (['center', 'right', 'end'].includes(alignment)) {
