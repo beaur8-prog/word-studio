@@ -1,0 +1,611 @@
+{
+  "date": "2026-10-30",
+  "status": "completed_verified_merged",
+  "baseCommit": "8ad78f89a4b713a0501105eff61177d14d2539ad",
+  "testedProductCommit": "995c727857736b536964d9afe3dbd05d1274e1f9",
+  "pullRequest": "https://github.com/beaur8-prog/word-studio/pull/13",
+  "version": "1.4.9",
+  "problem": "An exact-height structural separator between body tables follows the preceding table gap onto a new page, shifting titles and sometimes producing blank pages.",
+  "change": "Use ordinary before-spacing plus one twip of line height for body-table boundaries; import complete before+line+after spacing while retaining old representations and real blank/user content. Cell-end/nested line reserves stay unchanged.",
+  "writer": {
+    "version": "LibreOffice 26.8.0.3 bce0998afefdbc355585ca324285661a2170ba77",
+    "fontConfigSHA256": "b5236cad08ab1697336fde1e266f02cfd19e2e0cece11a98ae962e3a0c08081c",
+    "profile": "/Users/swryu/Developer/word-studio/.cache/hwp-table-boundary-20261030/writer-profile",
+    "allTenBeforeAndAfterNewlyRendered": true,
+    "beforePages": [
+      7,
+      173,
+      6,
+      40,
+      2,
+      38,
+      9,
+      20,
+      16,
+      5
+    ],
+    "afterPages": [
+      7,
+      167,
+      6,
+      40,
+      2,
+      38,
+      9,
+      20,
+      16,
+      5
+    ],
+    "beforeTotal": 316,
+    "afterTotal": 310,
+    "referenceTotal": 293,
+    "beforeExtraPages": 23,
+    "afterExtraPages": 17,
+    "workRulesReferencePages": 163,
+    "workRulesReferenceKind": "Shared Native parser/original viewer page count; no independent publisher PDF.",
+    "notMicrosoftWordValidation": true
+  },
+  "studio": {
+    "freshAndTwoSavePageCounts": [
+      7,
+      163,
+      4,
+      36,
+      1,
+      37,
+      8,
+      20,
+      15,
+      5
+    ],
+    "sameStageWholeContentAndPageModelsEqualPriorProductAllTen": true,
+    "freshRawHwpImports": 10,
+    "newDocxSavesPerFile": 2
+  },
+  "preservation": {
+    "canonicalNormalizedLogicalCharacters": 218937,
+    "hardBreaks": 140,
+    "rawImages": 638,
+    "sourceLogicalShaExactAllTen": true,
+    "rawImagesOrderAndAttributesExactAllTen": true,
+    "exactSourceParagraphsModelSourceIsSharedParser": true,
+    "allTenSourceHwpHashesEqualFrozenInputs": true
+  },
+  "geometry": {
+    "scope": "One exact unique body paragraph on publisher page3; synthetic second-table positions; conservative glyph-box intersection candidates in the two documents with material vertical changes. Bounding boxes are not ink, and this is not a proof of all-document layout equivalence.",
+    "languageFirstBody": {
+      "source": {
+        "page": 3,
+        "x": 56.64,
+        "y": 187.4104,
+        "maxBottom": 203.3704
+      },
+      "before": {
+        "page": 3,
+        "x": 56.8,
+        "y": 218.0208,
+        "maxBottom": 234.0208
+      },
+      "after": {
+        "page": 3,
+        "x": 56.8,
+        "y": 198.4208,
+        "maxBottom": 214.4208
+      },
+      "beforeErrorPoints": 30.6104,
+      "afterErrorPoints": 11.0104
+    },
+    "minimal": {
+      "page-boundary": {
+        "legacy": {
+          "page": 2,
+          "x": 28.45,
+          "y": 60.8822,
+          "maxBottom": 72.8822
+        },
+        "current": {
+          "page": 2,
+          "x": 28.45,
+          "y": 30.9322,
+          "maxBottom": 42.9322
+        },
+        "upwardChangePoints": 29.95
+      },
+      "same-page": {
+        "legacy": {
+          "page": 1,
+          "x": 28.45,
+          "y": 90.8822,
+          "maxBottom": 102.8822
+        },
+        "current": {
+          "page": 1,
+          "x": 28.45,
+          "y": 90.8822,
+          "maxBottom": 102.8822
+        },
+        "upwardChangePoints": 0.0
+      }
+    },
+    "boxIntersections": [
+      {
+        "id": "02-work-rules",
+        "glyphSequenceExact": true,
+        "glyphs": 93049,
+        "beforePairs": 31,
+        "afterPairs": 31,
+        "newBoxIntersectionCandidates": 0,
+        "examples": []
+      },
+      {
+        "id": "04-language-plan",
+        "glyphSequenceExact": true,
+        "glyphs": 24370,
+        "beforePairs": 258,
+        "afterPairs": 258,
+        "newBoxIntersectionCandidates": 0,
+        "examples": []
+      }
+    ]
+  },
+  "pdfAudit": {
+    "scope": "Independent Writer PDF glyphs. NFKC and whitespace normalization; expected PAGE/NUMPAGES furniture changes are separated. Nominal body-region order is not a complete logical-body proof. Repeated section-specific furniture needs separate review.",
+    "documents": [
+      {
+        "id": "01-employment-contract",
+        "beforePages": 7,
+        "afterPages": 7,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 0,
+        "afterImages": 0,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      },
+      {
+        "id": "02-work-rules",
+        "beforePages": 173,
+        "afterPages": 167,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 2,
+        "afterImages": 2,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      },
+      {
+        "id": "03-health-table",
+        "beforePages": 6,
+        "afterPages": 6,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 0,
+        "afterImages": 0,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      },
+      {
+        "id": "04-language-plan",
+        "beforePages": 40,
+        "afterPages": 40,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 4,
+        "afterImages": 4,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      },
+      {
+        "id": "05-return-form",
+        "beforePages": 2,
+        "afterPages": 2,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 2,
+        "afterImages": 2,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      },
+      {
+        "id": "06-mixed-document",
+        "beforePages": 38,
+        "afterPages": 38,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 44,
+        "afterImages": 44,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      },
+      {
+        "id": "07-english-exam",
+        "beforePages": 9,
+        "afterPages": 9,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 16,
+        "afterImages": 16,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      },
+      {
+        "id": "08-math-exam",
+        "beforePages": 20,
+        "afterPages": 20,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 550,
+        "afterImages": 550,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      },
+      {
+        "id": "09-korean-exam",
+        "beforePages": 16,
+        "afterPages": 16,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 23,
+        "afterImages": 23,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      },
+      {
+        "id": "10-lh-plan",
+        "beforePages": 5,
+        "afterPages": 5,
+        "allGlyphInventoryExact": true,
+        "inventoryExactAfterExpectedFurnitureFields": true,
+        "missingCharacters": {},
+        "addedCharacters": {},
+        "nominalBodyReadingOrderExact": true,
+        "beforeImages": 3,
+        "afterImages": 3,
+        "beforeOutsidePaperGlyphs": 0,
+        "afterOutsidePaperGlyphs": 0
+      }
+    ]
+  },
+  "rasterConfirmedBlankPages": [
+    {
+      "stage": "before",
+      "noTextPages": [
+        3,
+        5,
+        7,
+        9,
+        92,
+        93,
+        95,
+        97
+      ],
+      "rasterChecks": [
+        {
+          "page": 3,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        },
+        {
+          "page": 5,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        },
+        {
+          "page": 7,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        },
+        {
+          "page": 9,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        },
+        {
+          "page": 92,
+          "pixelRange": [
+            1,
+            255
+          ],
+          "allWhite": false
+        },
+        {
+          "page": 93,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        },
+        {
+          "page": 95,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        },
+        {
+          "page": 97,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        }
+      ],
+      "confirmedBlankPages": 7
+    },
+    {
+      "stage": "after",
+      "noTextPages": [
+        3,
+        5,
+        90,
+        91
+      ],
+      "rasterChecks": [
+        {
+          "page": 3,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        },
+        {
+          "page": 5,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        },
+        {
+          "page": 90,
+          "pixelRange": [
+            1,
+            255
+          ],
+          "allWhite": false
+        },
+        {
+          "page": 91,
+          "pixelRange": [
+            255,
+            255
+          ],
+          "allWhite": true
+        }
+      ],
+      "confirmedBlankPages": 3
+    }
+  ],
+  "validation": {
+    "product": "995c727857736b536964d9afe3dbd05d1274e1f9",
+    "negativeRegressionBeforeFix": {
+      "productBase": "8ad78f89a4b713a0501105eff61177d14d2539ad",
+      "tests": 2,
+      "failedAsExpected": 2,
+      "failures": [
+        {
+          "observedSeparatorLineTwips": 270,
+          "requiredLineTwips": 1
+        },
+        {
+          "observedRecoveredGapPixels": 0,
+          "requiredGapPixels": 21.4
+        }
+      ]
+    },
+    "browser": {
+      "focused": {
+        "passed": 15,
+        "failed": 0,
+        "durationSeconds": 10.4
+      },
+      "related": {
+        "passed": 55,
+        "failed": 0,
+        "durationSeconds": 54.0
+      },
+      "uniquePassed": 70,
+      "freshFullSuiteRun": false
+    },
+    "nativeUnit": {
+      "passed": 104,
+      "failed": 0
+    },
+    "buildPassed": true,
+    "openXmlSDK": "3.5.1",
+    "openXmlTarget": "Office2019",
+    "sdkErrors": 0,
+    "compiledMacActualFiles": 1,
+    "compiledMacDocxSavesAndReopens": 2,
+    "compiledMacPackagedInstaller": false,
+    "nativeBrowserStandardXmlByteExactStages": 2,
+    "externalWriterCases": 2,
+    "externalWriterCasesPass": 2,
+    "sdkFilesValidated": 26
+  },
+  "platformCI": {
+    "runId": 41026356106,
+    "url": "https://github.com/beaur8-prog/word-studio/actions/runs/41026356106",
+    "headSha": "995c727857736b536964d9afe3dbd05d1274e1f9",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "windows-layout",
+        "id": 123965287280,
+        "status": "completed",
+        "conclusion": "success",
+        "completedAtUTC": "2026-10-30T09:08:29Z",
+        "passedBatches": [
+          110,
+          271
+        ],
+        "totalPassed": 381,
+        "cellPDF": [
+          "7",
+          "7"
+        ],
+        "logPath": "analysis/hwp-floating-reservation-2026-10-30/ci/windows.log",
+        "rawLogSHA256": "f46d92a9284fde8979dcb5395a36e34e85436e2fec4f634e3b5ad03719fe9d69",
+        "logSHA256": "4675a4c7e04f20052c7793d5c410007fe8c6c20102ccb8e32e4d79becace3dd1",
+        "terminalEscapeSequencesRemoved": true
+      },
+      {
+        "name": "linux-navigation",
+        "id": 123965287681,
+        "status": "completed",
+        "conclusion": "success",
+        "completedAtUTC": "2026-10-30T09:02:30Z",
+        "passedBatches": [
+          356
+        ],
+        "totalPassed": 356,
+        "cellPDF": [
+          "7",
+          "7"
+        ],
+        "logPath": "analysis/hwp-floating-reservation-2026-10-30/ci/linux.log",
+        "rawLogSHA256": "636dc8698daeaa6344293bfaf0ada1772f75345e25f1c4440f9d020ef551c47d",
+        "logSHA256": "3050fcdd4f572fde7f1509bd42250beebfae1d8cc967c8290ea94cdf23f2ed46",
+        "terminalEscapeSequencesRemoved": true
+      }
+    ]
+  },
+  "limits": [
+    "Writer English remains9 pages versus source8; most other external font/leading/page differences remain.",
+    "Remaining white pages are not automatically classified as defects; source blank paragraphs and margins are retained.",
+    "The actual Writer resave renames the separator style and the reader conservatively retains a one-twip paragraph. Physical gap/text/real blank/page behavior survives two Studio saves; node counts are not asserted identical.",
+    "Glyph inventory/body-region paint order and the selected box-intersection check are not complete logical reading-order or all-page visual-equivalence proofs.",
+    "No new installer/package or Microsoft Word test was performed."
+  ],
+  "publicDeploymentPerformed": false,
+  "lithosUpdated": false,
+  "automationsResumed": false,
+  "localEvidence": [
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/corpus.json",
+      "sha256": "8dd400557338bcfe27cfcd18b5e10274eb28d5af3b27c8b6a20dafe1b8a9debd"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/source-preservation.json",
+      "sha256": "b0c1246fed6d2ea5b8917e4d834cdb5ae7b7b0a1d2751e1e614822c95c9867ab"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/writer.json",
+      "sha256": "d4325161282749f917fef4fa95a12603b78c27f950b82b93bcd80ea1cde8b601"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/geometry.json",
+      "sha256": "8ca0ef1a996327833f41f0dc412d84f380cb0ada0f6b60f5246a4fe5a5b13db4"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/pdf-audit/report.json",
+      "sha256": "26e05281ffe06b6c4959bc4904f2df31a1fa4ca52eca22c4f6f0cc5d035273f3"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/blank-pages.json",
+      "sha256": "1cb32666bdc010b849ac6bd81a6509916ffc69a3b15f6c1ac4ff0d5bf43986d7"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/native/result.json",
+      "sha256": "a563847794eec3edbf5a32091b716b5a18e07a3d33af0ac5ff2d201f42884e42"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/runtime.json",
+      "sha256": "318dd8935c5bb6e85b8771d02a773d5d243d0e9f2a6ee69a52fedc3cdc5632a5"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/openxml-corpus.json",
+      "sha256": "19be28dfc6340cc3320d1020f59868d02e7ebefd4453a3a4ebcac8dcc4e676c3"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/openxml-native-minimal.json",
+      "sha256": "2c75e23d6f7f62afb9b81bda70522416aca9f2a2ef9769175a9857d1863e41ce"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/external-writer/studio-roundtrip.json",
+      "sha256": "2a29731bef22bdc8debf125ae11e3bef0c6e435318580167f8d8cc8d2343811c"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/local-tests.json",
+      "sha256": "c7b30059c7f829494db4a699457c3207b27702365175df6e7ab4d966546c521a"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/qa-server.json",
+      "sha256": "554fc5c0d059c17de93a05aaabad428bb0d0cd5da03aa2c59f84c5fb4ec0d054"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/temporary-cleanup.json",
+      "sha256": "5c732a712e82de45c7c518f292550a070ed132876854ab3d9dd42bd8a4ea4c14"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/ci/results.json",
+      "sha256": "64193d34145b85101cc96b761f06db08f58decd93e227b9a0cd2aa39135b4a7a"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/ci/windows.log",
+      "sha256": "4675a4c7e04f20052c7793d5c410007fe8c6c20102ccb8e32e4d79becace3dd1"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/ci/linux.log",
+      "sha256": "3050fcdd4f572fde7f1509bd42250beebfae1d8cc967c8290ea94cdf23f2ed46"
+    },
+    {
+      "path": "analysis/hwp-floating-reservation-2026-10-30/git-integration.json",
+      "sha256": "60a0cb95c99b79b321f3521694ddc2cc372154cc1f7355197d798f3b027089a3"
+    }
+  ],
+  "gitIntegration": {
+    "pullRequest": "https://github.com/beaur8-prog/word-studio/pull/13",
+    "testedHead": "995c727857736b536964d9afe3dbd05d1274e1f9",
+    "base": "8ad78f89a4b713a0501105eff61177d14d2539ad",
+    "mergeCommit": "3759d296fa63e66167d648e30efd58c341d20c6b",
+    "mergedAtUTC": "2026-10-30T09:10:24Z",
+    "mergeTreeExactlyMatchesTestedHead": true,
+    "publicDeploymentPerformed": false
+  },
+  "completedAtUTC": "2026-10-30T09:12:39Z"
+}
