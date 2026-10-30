@@ -17,7 +17,7 @@ import { hwpBookmark, hwpTabAttribute, stageHwpTextNavigation } from './text-nav
 import { hwpTableGrid } from './table-grid';
 import { nestedTableGeometry } from './nested-tables';
 import { hwpCellBorders } from './cell-borders';
-import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss } from './paragraph-layout';
+import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss, paragraphAutoSpace } from './paragraph-layout';
 import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
@@ -112,7 +112,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
   for (const c of cells) if ((!c.isHeader || !tableProperties.repeatHeader) && c.rowSpan === 1 &&
     (cellPages.get(c.index)?.size ?? 0) > 1) continuationRows.add(c.row);
   const style = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old}${css}"`) : tag.replace(/>$/, ` style="${css}">`);
-  let depth = 0, cellIndex = 0, row = 0, cellParagraph = 0, header = false, paragraphStyle = '';
+  let depth = 0, cellIndex = 0, row = 0, cellParagraph = 0, header = false, paragraphStyle = '', paragraphProperties: Record<string, any> = {};
   return html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, (tag, offset: number) => {
     if (/^<table\b/.test(tag)) { depth++; return depth === 1 ? style(tag, `width:${columns.reduce((sum, n) => sum + n, 0)}px;margin-bottom:${px(Math.max(0, Number(tableProperties.outerBottom) || 0))}px;`) : tag; }
     if (tag === '</table>') { depth--; return tag; }
@@ -156,10 +156,10 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
           simple: !/<(?:img|table)\b|<!--\s*rhwp:/i.test(text),
         });
         if (text.includes('\t') && !tag.includes('data-tab-stops')) tag = tag.replace(/>$/, `${tabs?.(index, cellParagraph - 1) ?? ''}>`);
-        return cssStyle(tag, paragraphCssValue);
+        return paragraphAutoSpace(cssStyle(tag, paragraphCssValue), properties);
       } catch { return tag; }
     }
-    if (tag === '</td>') return `${cellParagraph ? '' : `<p style="${paragraphStyle}"></p>`}</${header ? 'th' : 'td'}>`;
+    if (tag === '</td>') return `${cellParagraph ? '' : paragraphAutoSpace(`<p style="${paragraphStyle}">`, paragraphProperties) + '</p>'}</${header ? 'th' : 'td'}>`;
     if (/^<tr\b/.test(tag)) {
       if (continuationRows.has(row)) tag = tag.replace(/>$/, ' data-row-split="allow">');
       return style(tag, `height:${rows[row++] ?? 1}px;`);
@@ -173,9 +173,9 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     // grant permission to cut an ordinary row through its cell text.
     if (!header && c.rowSpan > 1 && (Number(tableProperties.pageBreak) === 2 || (cellPages.get(c.index)?.size ?? 0) > 1))
       tag = tag.replace(/>$/, ' data-cell-split="allow">');
-    try { paragraphStyle = paragraphCss(JSON.parse(doc.getCellParaPropertiesAt(section, para, control, c.index, 0)), JSON.parse(doc.getCellCharPropertiesAt(section, para, control, c.index, 0, 0)),
+    try { paragraphProperties = JSON.parse(doc.getCellParaPropertiesAt(section, para, control, c.index, 0)); paragraphStyle = paragraphCss(paragraphProperties, JSON.parse(doc.getCellCharPropertiesAt(section, para, control, c.index, 0, 0)),
       c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined, false); }
-    catch { paragraphStyle = 'line-height:100%;font-size:10pt;'; }
+    catch { paragraphStyle = 'line-height:100%;font-size:10pt;'; paragraphProperties = {}; }
     const width = columns.slice(c.col, c.col + c.colSpan).map(n => Math.max(1, Math.round(n)));
     const borders = hwpCellBorders(c);
     let noWrap = false;
@@ -533,7 +533,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';
       if (whole.includes('\t')) open = open.replace(/>$/, `${hwpTabAttribute(equationMetadata().get(`${section}:${para}`)?.tabStops)}>`);
       const paragraphChar = JSON.parse(doc.getCharPropertiesAt(section, para, 0));
-      open = cssStyle(open, paragraphCss(properties, paragraphChar));
+      open = paragraphAutoSpace(cssStyle(open, paragraphCss(properties, paragraphChar)), properties);
       const pitch = pitches.get(`${section}:${para}`);
       if (pitch) open = cssStyle(open, `line-height:${pitch}px;`);
       const sizes = [...whole.matchAll(/font-size:\s*([\d.]+)(pt|px)/gi)].map(m => Number(m[1]) * (m[2].toLowerCase() === 'pt' ? 4 / 3 : 1));

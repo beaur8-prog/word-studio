@@ -1163,7 +1163,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               strutFont: cssPixels(node.attrs?.paragraphSize), defaultFont: Number(paragraph.run?.size),
             } : {}),
           }) : undefined, bodyLine ? JSON.stringify({ policy: encodeHwpBodyLine(bodyLine),
-            line: paragraph.spacing?.line, rule: paragraph.spacing?.lineRule }) : undefined),
+            line: paragraph.spacing?.line, rule: paragraph.spacing?.lineRule }) : undefined,
+            { de: node.attrs?.wordAutoSpaceDE, dn: node.attrs?.wordAutoSpaceDN }),
         );
       } else if (node.type === "image")
         output.push(

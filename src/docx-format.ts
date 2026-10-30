@@ -172,6 +172,16 @@ export async function docxFormat(zip: JSZip) {
       const layers = chain(val(child(props, 'tblStyle')) || val(normalTable, 'styleId')).map(s => child(s, 'tblPr'));
       decorateCell(cell, source, layers);
     },
+    autoSpacing(p: Element) {
+      // Resolve each standard property independently, including explicit false.
+      const result = { de: true, dn: true };
+      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
+        const de = child(props, 'autoSpaceDE'), dn = child(props, 'autoSpaceDN');
+        if (de) result.de = on(de);
+        if (dn) result.dn = on(dn);
+      }
+      return result;
+    },
     lineRule(p: Element) {
       let rule = 'auto';
       for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {

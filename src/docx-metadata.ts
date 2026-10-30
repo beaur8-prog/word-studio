@@ -241,6 +241,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
+        const autoSpacing = format.autoSpacing(marker.paragraph);
+        p.dataset.wordAutoSpaceDe = String(autoSpacing.de);
+        p.dataset.wordAutoSpaceDn = String(autoSpacing.dn);
         const storedCellLine = marker.paragraph.getAttributeNS(hwpCellLineNamespace, 'cellLine');
         if (storedCellLine && storedCellLine.length < 500 && p.closest('td,th')) {
           try {

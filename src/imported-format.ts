@@ -31,6 +31,11 @@ export const ImportedFormat = Extension.create({
       }])) },
       { types: ['paragraph', 'heading'], attributes: {
         ...Object.fromEntries(Object.entries(properties).map(([key, property]) => [key, attribute(property)])),
+        ...Object.fromEntries([['wordAutoSpaceDE', 'data-word-auto-space-de'], ['wordAutoSpaceDN', 'data-word-auto-space-dn']].map(([key, name]) => [key, {
+          default: null,
+          parseHTML: (el: HTMLElement) => { const value = el.getAttribute(name); return value === 'true' ? true : value === 'false' ? false : null; },
+          renderHTML: (a: Record<string, unknown>) => typeof a[key] === 'boolean' ? { [name]: String(a[key]) } : {},
+        }])),
         wordWidowControl: {
           default: null,
           parseHTML: (el: HTMLElement) => {

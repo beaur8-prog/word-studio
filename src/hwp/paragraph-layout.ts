@@ -7,6 +7,14 @@ const escape = (text: string) => text.replace(/[&<>"']/g, c => ({ '&': '&amp;', 
 export const cellParagraphKey = (section: number, paragraph: number, path: CellPath) =>
   `${section}:${paragraph}:` + path.map(c => `${c.controlIndex}:${c.cellIndex}:${c.cellParaIndex}`).join('/');
 
+/** Keep native paragraph policy separate from rendered font spacing. Word's
+ * omitted autoSpaceDE/DN defaults enable extra East Asian/Latin/number gaps. */
+export function paragraphAutoSpace(tag: string, properties: Record<string, any>): string {
+  const attributes = [['autoSpaceKrEn', 'de'], ['autoSpaceKrNum', 'dn']].flatMap(([key, suffix]) =>
+    typeof properties[key] === 'boolean' ? [`data-word-auto-space-${suffix}="${properties[key]}"`] : []);
+  return attributes.length ? tag.replace(/>$/, ` ${attributes.join(' ')}>`): tag;
+}
+
 export function physicalLineHeight(properties: Record<string, any>, char?: Record<string, any>): number {
   const fontPx = Number(char?.fontSize) / 75;
   const line = Number(properties.lineSpacing);
