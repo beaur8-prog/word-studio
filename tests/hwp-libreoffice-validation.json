@@ -1,6 +1,6 @@
 {
   "date": "2026-10-30",
-  "status": "verified_checkpoint_campaign_continues",
+  "status": "implementation_frozen_verification_campaign_continues",
   "testedProductCommit": "3ba12e792ad1c44810d27b6aa611b38e230d6a6f",
   "baseCommit": "103788907eb13b9accb44fbce4771a2d2bd5f708",
   "pullRequest": "https://github.com/beaur8-prog/word-studio/pull/12",
@@ -244,7 +244,79 @@
       "leaderFixtureStates": 30,
       "leaderFixtureParagraphPlacements": 90,
       "leaderFixtureHead": "92b9120",
-      "scope": "Unchanged code paths reuse earlier explicit checkpoints; not all latest installers or every current corpus document newly launched in native app."
+      "scope": "Historical checkpoint evidence. The later latestMacRawAndDocxCorpus section separately records all ten raw HWP and all ten current DOCX2 files opened in compiled3ba. No new installer packaging was tested."
+    },
+    "latestMacRawAndDocxCorpus": {
+      "sourceCommit": "3ba12e792ad1c44810d27b6aa611b38e230d6a6f",
+      "packaged": false,
+      "hwpDocuments": 10,
+      "docx2Documents": 10,
+      "zoomStates": 100,
+      "pdfPages": 592,
+      "rendererErrors": [],
+      "visibleBodyMarginInkFailures": 0,
+      "sourceHardBreaksEachCorpus": [
+        140,
+        140
+      ],
+      "modelImagesEachCorpus": [
+        638,
+        638
+      ],
+      "notAnUninterrupted20CaseRun": true,
+      "timeoutAndOracleFailuresPreserved": true,
+      "pageCountsEachCorpus": [
+        [
+          7,
+          163,
+          4,
+          36,
+          1,
+          37,
+          8,
+          20,
+          15,
+          5
+        ],
+        [
+          7,
+          163,
+          4,
+          36,
+          1,
+          37,
+          8,
+          20,
+          15,
+          5
+        ]
+      ],
+      "sourceTextChecks": {
+        "rawHwp": {
+          "samples": 10,
+          "normalizedCharacters": 218937,
+          "hardBreaks": 140
+        },
+        "currentDocx2": {
+          "samples": 10,
+          "normalizedCharacters": 218937,
+          "hardBreaks": 140
+        }
+      },
+      "sourceFilesAndFrozenFontConfigUnchanged": true,
+      "visibility": "Every QA native window hidden; disposable profiles removed; user apps/documents preserved.",
+      "rawImageScope": "638 model image instances include rasterized source drawings. For native raw-HWP generated images, exact-byte preservation uses actual previous56 output in the same renderer; current DOCX2 input images match their existing saved bytes. No pixel tolerance introduced.",
+      "rawHwpCompletedInSingleRun": false,
+      "docx2CompletedInSingleRun": false
+    },
+    "documentationHeadCI": {
+      "head": "830c11f94c458d87962b20203138e21786a41543",
+      "runId": 41005461341,
+      "conclusion": "success",
+      "productSourceIdenticalToTested3ba": true,
+      "windowsTotal": 377,
+      "linuxTotal": 347,
+      "cellPdfOrderEachPlatform": 7
     }
   },
   "independentLayout": {
@@ -287,6 +359,42 @@
       "writerInputSdkErrors": 2,
       "studioSourceAndBothOutputSdkErrors": 0,
       "entireBeforeAfterPdfIdentical": false
+    },
+    "nativeRawToDocx2Pdf": {
+      "allTenGlyphKindsAndMultiplicitiesExact": true,
+      "allTenImagePlacementCountsExact": true,
+      "nominalMaskExactDocuments": 8,
+      "workRulesResidual": {
+        "pages": [
+          137,
+          138
+        ],
+        "issue": "One Korean character 도 of a continuing paragraph moves from137 to138 after DOCX2. Logical text and glyph inventory are unchanged; not identical physical wrapping.",
+        "currentSecondModelEqualsPrior92SecondModel": true
+      },
+      "englishNominalMask": {
+        "pages": [
+          5,
+          8
+        ],
+        "issue": "The same instruction lines remain on the same pages, shifting fromtop160.305 to159.75pt across the audit global margin cutoff. Their physical x changes by less than0.024pt. This is not a missing instruction.",
+        "currentSecondModelEqualsPrior92SecondModel": true
+      },
+      "mathHeaderFontBox": {
+        "page": 3,
+        "text": "3",
+        "bboxRightPt": 771.5785937352906,
+        "paperRightPt": 770.88,
+        "sameCoordsInPrior56CurrentHwpCurrentDocx2": true,
+        "visuallyInspected": true,
+        "classification": "Existing page-number font bbox extends0.699pt past paper; rendered numeral inspected. Not counted as a new body-ink failure."
+      },
+      "wholeLayoutOrAllReadingOrderExact": false,
+      "pdfFiles": 20,
+      "pdfPages": 592,
+      "glyphInventoriesExact": 10,
+      "modelImagesPerCorpus": 638,
+      "notAllPaperFontBoxesInside": true
     }
   },
   "negativeExperiments": {
@@ -342,7 +450,11 @@
     "Source font absence, per-glyph fallback, script classification beyond the tested ranges, relative size/tracking/width and terminal-cell leading remain fidelity limits.",
     "The work-rules163 source reference uses Native/previous viewer evidence, not an independent publisher PDF.",
     "Fixed160 and unique3007 compare the shared Native parser source coordinates; they are not independent Microsoft Word accuracy percentages.",
-    "No Microsoft Word runtime, new installer packaging, public release, Lithos update or version change."
+    "No Microsoft Word runtime, new installer packaging, public release, Lithos update or version change.",
+    "Native raw-to-DOCX2 still moves one continuing Korean character from137 to138 in work-rules; its second-save model is exactly the prior92 checkpoint, so not attributed to the new width fix.",
+    "Existing native math page3 header3 font bbox extends0.699pt past the page; identical before/after and prior56, inspected visually. Body-ink margin failures remain0.",
+    "Long native previews can be slow: language-plan77.3s raw and86.4s DOCX2; one90s rules attempt timed out, isolated retry10.668s passed.",
+    "Legal unit-valued w:sz remains a separate import follow-up; current Studio falls back to11pt in the two diagnostic files while Writer rounds to9.5/12.0pt. Current product exports numeric half-points; no implementation was added after freeze."
   ],
   "localEvidence": [
     {
@@ -440,6 +552,85 @@
     {
       "path": "analysis/hwp-libreoffice-8h-2026-10-30/evidence-path-repair.json",
       "sha256": "ee7ac8a2e42cc2950505a9f1ad8595c9bb4af1eabfd9f837afef2639b6d04728"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/summary.json",
+      "sha256": "0b0cf44e9a55b248cb24b686f13743ada9358c80afccf49838b0165eb2ea4476"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/hwp/results.json",
+      "sha256": "32fbd82183de0c681f685905984a9489acafeb2219b1c2b7a37d25b915743a71"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/docx/results.json",
+      "sha256": "d5e7b8c27ded992bb078a3a3788f23a70ca90e2ceadb69d550a958359f67a913"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/hwp/source-text.json",
+      "sha256": "590833f7ac123512a89629bbc370a9b3aa8114926e251e11f466e11f0b15e755"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/docx/source-text.json",
+      "sha256": "590833f7ac123512a89629bbc370a9b3aa8114926e251e11f466e11f0b15e755"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/pdf-audit/report.json",
+      "sha256": "b06630f02f30d4b1e2c9e5ac15392f17e5597ae33a4039f1f087035cb6982dbc"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/pdf-audit/interpretation.json",
+      "sha256": "efa6622650217b1af6cab599a17917f3f7ef5d37179fcac30f4b761306dbffd1"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/pdf-audit/english-instructions-physical.json",
+      "sha256": "d719784c01d5796dedd095013a1942f5410687120ad618ad38e48b839adfafc0"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/pdf-audit/outside-paper-font-box.json",
+      "sha256": "0153b59b3fea54f3bc23413031ad665232f7f084ed2c2cbe45c79a85acb3e602"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/image-encoding-diff/report.json",
+      "sha256": "1eec04fb29a71b44a6046087c3b3c93c0a7245f14cacf73afdff9a19ac34f23e"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/image-encoding-diff/previous56-native-control.json",
+      "sha256": "23dd762129a2b2aa61221a79111666c0bda4707e8821eb2589cec88e5c6aca62"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/native-final/runtime-and-input-manifest.json",
+      "sha256": "b9a1983b31f9e73129e2b4c5a1876e0539146a8a2fd7e03d6e1292923d1e777d"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/experiments/fractional-font-units/interpretation.json",
+      "sha256": "d882e6dcecff85e182c27ac4f2b063c78d95ee0b14a5749691b589b75ce1fc78"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/table-indent/same-stage-full-model-equivalence.json",
+      "sha256": "13fac85f85d964029bafbbe85a245287189bf5843051aebc80f613abe511eb90"
     }
-  ]
+  ],
+  "futureDiagnostics": {
+    "universalFontSizeUnits": {
+      "productChanged": false,
+      "topic": "Valid universal-unit font sizes, diagnostic only",
+      "sdkFiles": 2,
+      "sdkErrors": 0,
+      "values": [
+        "9.6pt",
+        "12.195pt"
+      ],
+      "writerRenderedSizesPt": [
+        9.5,
+        12.0
+      ],
+      "currentStudioImportedSizePt": [
+        11,
+        11
+      ],
+      "finding": "Schema can carry unit-valued font sizes, but Writer rounds these samples and current Studio numeric-only parsing falls back to11pt. Supporting the units is a separate follow-up; current product exports numeric half-points. Do not call half-point quantization an absolute OOXML schema limit.",
+      "newImplementationAfterFreeze": false
+    },
+    "publisherFontInventory": "English PDF uses HCRBatang/HCRDotum/TNR; requested HWP face names alone are not an oracle of actual publisher-rendered faces. No frozen fonts or system font installation changed."
+  }
 }
