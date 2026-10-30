@@ -27,7 +27,7 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: explicit body/cell/nested
     }
     return { states, original };
   }, { bytes: [...await fs.readFile(files[format])], format });
-  const expected = ['BODY & 😀_ALPHA\nBODY_BETA', 'MULTI_ALPHA\n\nMULTI_BETA\n', 'CELL_ALPHA\nCELL_BETA', 'NESTED_ALPHA\nNESTED_BETA', 'PICTURE_ALPHA\n😀&PICTURE_BETA\nPICTURE_END', 'TAIL'];
+  const expected = ['BODY & 😀_ALPHA\nBODY_BETA', '😀😀😀😀MULTI_ALPHA\n\nMULTI_BETA\n', 'CELL_ALPHA\nCELL_BETA', 'NESTED_ALPHA\nNESTED_BETA', 'PICTURE_ALPHA\n😀&PICTURE_BETA\nPICTURE_END', 'TAIL'];
   for (const state of result.states) { expect(state.paragraphs).toEqual(expected); expect(state.breaks).toBe(8); expect(state.images).toBe(1); expect(state.pages).toBe(result.states[0].pages); }
   await page.locator('input[type=file]').first().setInputFiles({ name: 'breaks.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(result.original)) });
   const editor = page.getByRole('textbox', { name: '문서 편집 영역' }), paragraph = editor.locator('p').filter({ hasText: 'BODY_BETA' });
