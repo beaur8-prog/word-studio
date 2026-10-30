@@ -47,7 +47,7 @@ import type {
   ITableCellBorders,
 } from "docx";
 import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
-import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE } from './docx-metadata';
+import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE, TABLE_END_STYLE } from './docx-metadata';
 import { emptyLineDocxProperty, emptyLineCompatibilityWarning } from './page-empty-lines';
 import { normalizeDocxTables } from './docx-table-grid';
 import { parseTabStops } from './document-tabs';
@@ -1392,6 +1392,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     } else appendGroup(sectionPage, [node]);
   }
   const sections = [];
+  let hasTableEnd = false;
   const footnotes: Record<string, { children: Paragraph[] }> = {}, endnotes: Record<string, { children: Paragraph[] }> = {};
   for (const [id, note] of notes) {
     // Both paragraph and table objects implement the block XML component
@@ -1410,6 +1411,14 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const count = page.columns?.count || 1;
   contentWidth = Math.max(1, Math.floor((fullWidth - Math.round((page.columns?.space || 0) * 15) * (count - 1)) / count));
   const children = await blocks(group.nodes);
+  // An omitted Word end-paragraph is created with Normal's 11pt leading and
+  // can push a full-page form onto an otherwise blank second page.
+  if (group === groups.at(-1) && children.at(-1) instanceof Table) {
+    children.push(new Paragraph({ style: TABLE_END_STYLE, run: { size: 2 }, widowControl: false,
+      spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT } }));
+    hasTableEnd = true;
+  }
+
   const richBlocks = async (html: string) => blocks(parseDocumentHtml(sanitizeImportedHtml(html).html).content || [], { tableGap: 0 });
   const plainFurniture: IParagraphOptions = { run: { size: 18, color: '697386' }, spacing: { before: 0, after: 0, line: 336, lineRule: LineRuleType.AUTO } };
   // Keep explicit empty stories to prevent inheritance from earlier sections,
@@ -1473,7 +1482,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     footnotes, endnotes,
     comments: { children: comments },
     styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } },
-      paragraphStyles: [TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : id === SECTION_BOUNDARY_STYLE ? 'Section boundary' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })) },
+      paragraphStyles: [
+        ...[TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : id === SECTION_BOUNDARY_STYLE ? 'Section boundary' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })),
+        ...(hasTableEnd ? [{ id: TABLE_END_STYLE, name: 'Table end', next: 'Normal', semiHidden: true, run: { size: 2 },
+          paragraph: { spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT } } }] : []),
+      ] },
     sections,
   });
   const blob = await Packer.toBlob(docx);

@@ -17,10 +17,27 @@ export const TABLE_GAP_STYLE = 'WordStudioTableGap';
 export const TABLE_ANCHOR_STYLE = 'WordStudioTableAnchor';
 export const TABLE_OFFSET_STYLE = 'WordStudioTableOffset';
 export const SECTION_BOUNDARY_STYLE = 'WordStudioSectionBoundary';
+export const TABLE_END_STYLE = 'WordStudioTableEnd';
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
   const format = await docxFormat(zip);
+  // Word requires a final paragraph after a body table. Our small structural
+  // carrier is not an authored blank line. Keep it if an external editor has
+  // added content, a bookmark, section settings or changed its geometry.
+  for (const p of all(body, 'p')) {
+    const props = child(p, 'pPr'), run = child(props, 'rPr');
+    if (val(child(props, 'pStyle')) !== TABLE_END_STYLE || p.parentElement?.localName !== 'body' ||
+      p.previousElementSibling?.localName !== 'tbl' || p.nextElementSibling && p.nextElementSibling.localName !== 'sectPr' ||
+      !Array.from(p.children).every(c => c.localName === 'pPr' || c.localName === 'r' && Array.from(c.children).every(r => r.localName === 'rPr' && !r.children.length)) ||
+      !Array.from(props?.children || []).every(c => ['pStyle','spacing','rPr','widowControl'].includes(c.localName)) ||
+      !Array.from(run?.children || []).every(c => ['sz','szCs'].includes(c.localName))) continue;
+    const style = document.createElement('p').style; style.cssText = format.paragraph(p);
+    if (format.lineRule(p) === 'exact' && Math.abs((cssPixels(style.fontSize) ?? 0) - 4 / 3) < .001 &&
+      Math.abs((cssPixels(style.lineHeight) ?? 0) - 4 / 3) < .001 &&
+      Math.abs(parseFloat(style.marginTop) || 0) < .001 && Math.abs(parseFloat(style.marginBottom) || 0) < .001) p.remove();
+  }
+
   // An empty legacy floating-frame anchor has no inline line box. Treating
   // it as an ordinary paragraph after its table creates a spurious page.
   for (const p of all(body, 'p')) if (child(child(p, 'pPr'), 'framePr') && !ancestor(p, 'tc') &&
