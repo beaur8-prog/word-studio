@@ -348,8 +348,11 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const margins = page && pageMargins(page);
         const parent = table.parentElement?.closest<HTMLTableCellElement>('td,th');
         const parentWidth = parent?.getAttribute('colwidth')?.split(',').reduce((n, s) => n + Number(s), 0);
+        // tblInd positions a table without reducing its declared grid. The
+        // percentage width is also relative to the complete text column.
+        // Subtracting that indent again silently narrows columns on reopen.
         const available = Math.max(1, parentWidth ? parentWidth - (parseFloat(parent!.style.paddingLeft) || 0) - (parseFloat(parent!.style.paddingRight) || 0) - 2
-          : page && margins ? (paperDimensions(page)[0] - margins.left - margins.right) * 96 / 25.4 - Math.max(0, parseFloat(table.style.marginLeft) || 0) - 1 : 624);
+          : page && margins ? (paperDimensions(page)[0] - margins.left - margins.right) * 96 / 25.4 - 1 : 624);
         const grid = Array.from(child(source, 'tblGrid')?.children ?? []).map(c => Number(val(c, 'w')) / 15);
         const total = grid.reduce((n, w) => n + w, 0); if (!total || !grid.every(n => n > 0)) continue;
         const preferred = child(child(source, 'tblPr'), 'tblW');

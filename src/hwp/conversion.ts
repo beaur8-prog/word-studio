@@ -18,6 +18,7 @@ import { hwpTableGrid } from './table-grid';
 import { nestedTableGeometry } from './nested-tables';
 import { hwpCellBorders } from './cell-borders';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss } from './paragraph-layout';
+import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { stageHwpTables } from './export-tables';
@@ -447,6 +448,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   const firstPage = pageSettings(doc, 0, warnings);
   Object.assign(firstPage, storyChanges.get('0:0'));
   const total = Array.from({ length: doc.getSectionCount() }, (_, section) => doc.getParagraphCount(section)).reduce((sum, count) => sum + count, 0);
+  const fontRuns = new Map<number, readonly string[]>();
   onProgress?.({ label: '본문·표·그림을 변환하는 중…', completed: 0, total, unit: '문단' });
   for (let section = 0; section < doc.getSectionCount(); section++) {
     let currentPage = section ? { ...pageSettings(doc, section, warnings), ...storyChanges.get(`${section}:0`) } : firstPage;
@@ -522,7 +524,10 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         // getTextRange takes a count, whereas selection HTML takes an end.
         if (start >= textLength || end <= start) return html;
         const text = doc.getTextRange(section, para, start, Math.min(end, textLength) - start);
-        return restoreHardLineBreaks(html, [...text.matchAll(/\n/g)].map(m => m.index!));
+        const withBreaks = restoreHardLineBreaks(html, [...text.matchAll(/\n/g)].map(m => m.index!));
+        const runs = sourceFontRuns(doc.getCharShapeRuns(section, para, start, Math.min(end, textLength)), start, text,
+          offset => JSON.parse(doc.getCharPropertiesAt(section, para, offset)), fontRuns);
+        return restoreScriptFonts(withBreaks, text, runs);
       };
       const whole = range(0, 0xffffffff);
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';

@@ -3,6 +3,7 @@ import { strFromU8 } from 'fflate';
 import { serializedParts } from './serialized-parts';
 import { hwpBookmark, hwpTabAttribute, hwpTabDefinitions } from './text-navigation';
 import type { DocumentTabStop } from '../document-tabs';
+import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
 
 export type CellPath = { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
 type Equation = { script: string; fontSize: number; color: number; width: number; height: number };
@@ -133,6 +134,22 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
   nestedTable?: (path: CellPath, html: string) => string) {
   const breakKeys = [...metadata()].filter(([, value]) => value.breaks.length).map(([key]) => key);
   const hasBreaks = (prefix: string) => breakKeys.some(key => key.startsWith(prefix + '/'));
+  const fontCache = new Map<number, readonly string[]>();
+  const scriptFonts = (content: string, path: CellPath) => {
+    // Do not tokenize inline object payloads or guess text/control offsets.
+    if (/<(?:img|table)\b|<!--\s*rhwp:/i.test(content)) return content;
+    try {
+      const json = JSON.stringify(path), text = doc.getTextInCellByPath(section, para, json, 0, 0xffffffff);
+      if (!text) return content;
+      const runs = sourceFontRuns(doc.getCharShapeRunsInCellByPath(section, para, json, 0, [...text].length), 0, text,
+        offset => JSON.parse(doc.getCellCharPropertiesAtByPath(section, para, json, offset)), fontCache);
+      return restoreScriptFonts(content, text, runs);
+    } catch {
+      // Font recovery is optional. An unsupported character shape must not
+      // discard controls, fields or pictures already repaired in this table.
+      return content;
+    }
+  };
   const annotate = (content: string, paragraph: number, key: string) => {
     let tableDepth = 0;
     return content.replace(/<\/?(?:table|p)\b[^>]*>/g, tag => {
@@ -145,7 +162,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
   const repair = (source: string, parents: CellPath, control: number, key: string, depth = 0): string => {
     const finish = (html: string) => parents.length && nestedTable && depth <= 12
       ? nestedTable([...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }], html) : html;
-    if ((!/<!--\s*rhwp:|<img\b/.test(source) && !/<table\b[\s\S]*<table\b/.test(source) && !hasBreaks(key)) || depth > 12) return finish(source);
+    if (depth > 12) return finish(source);
     const tablePath = [...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }];
     const dims = parents.length ? JSON.parse(doc.getTableDimensionsByPath(section, para, JSON.stringify(tablePath))) : JSON.parse(doc.getTableDimensions(section, para, control));
     if (dims.cellCount > 50000) throw Error('편집할 표의 셀 수가 너무 많습니다.');
@@ -160,9 +177,27 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
       if (tableDepth !== 1) continue;
       if (/^<td\b/.test(tag)) { start = match.index! + tag.length; continue; }
       const original = source.slice(start, match.index), current = cells[cell++];
-      if (!current || (!/<!--\s*rhwp:|<(?:img|table)\b/.test(original) && !hasBreaks(`${key}/c${current.index}`))) continue;
+      if (!current) continue;
       const path = [...parents, { controlIndex: control, cellIndex: current.index, cellParaIndex: 0 }];
       const paragraphs = doc.getCellParagraphCountByPath(section, para, JSON.stringify(path));
+      if (!/<!--\s*rhwp:|<(?:img|table)\b/.test(original) && !hasBreaks(`${key}/c${current.index}`)) {
+        // Preserve the original clipboard HTML in ordinary cells. Re-exporting
+        // it just for fonts could lose omitted empty source paragraph slots.
+        const matches = original.match(/<p\b[^>]*>[\s\S]*?<\/p>/g) || [];
+        if (matches.length !== paragraphs) continue;
+        let p = 0;
+        const formatted = original.replace(/<p\b[^>]*>[\s\S]*?<\/p>/g, content => {
+          const index = p++, paragraphKey = `${key}/c${current.index}/p${index}`;
+          path[path.length - 1].cellParaIndex = index;
+          const formatted = scriptFonts(content, path);
+          // Top-level table geometry supplies flat cell tabs separately, but
+          // plain nested cells do not visit that callback. Keep their source
+          // paragraph stops too, without rebuilding the clipboard contents.
+          return metadata().get(paragraphKey)?.tabStops?.length ? annotate(formatted, index, paragraphKey) : formatted;
+        });
+        if (formatted !== original) { output += source.slice(cursor, start) + formatted; cursor = match.index!; }
+        continue;
+      }
       const parts: string[] = [];
       for (let p = 0; p < paragraphs; p++) {
         path[path.length - 1].cellParaIndex = p;
@@ -220,7 +255,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
               if (value[0] === '&') { emit(); output += value; offset += entities(value).length; }
               else for (const char of value) { emit(); output += char; offset += char.length; }
             }
-            parts.push(annotate(output, p, paragraphKey)); continue;
+            parts.push(annotate(scriptFonts(output, path), p, paragraphKey)); continue;
           }
           let next = 0, eq = 0, nested = 0;
           const tableRanges: [number, number][] = [];
@@ -268,7 +303,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
         // A control-only paragraph can consist solely of a nested table,
         // without an outer P. Carry the source index to following paragraphs
         // so tableGeometry does not shift their formatting by one slot.
-        content = annotate(content, p, paragraphKey);
+        content = annotate(scriptFonts(content, path), p, paragraphKey);
         parts.push(content.replace(/<img\b(?![^>]*\bdata-inline-image=)/g, '<img data-inline-image="true"'));
       }
       output += source.slice(cursor, start) + parts.join('\n'); cursor = match.index!;

@@ -57,7 +57,7 @@ export function sourceLinePitches(doc: HwpDocument): Map<string, number> {
   }
   for (const [key, group] of lines) {
     pitches.set(`lines:${key}`, group.length);
-    let text: string | undefined;
+    let text: string[] | undefined;
     const values = group.slice(1).flatMap((line, i) => {
       const previous = group[i];
       if (line.page !== previous.page) return [];
@@ -68,10 +68,13 @@ export function sourceLinePitches(doc: HwpDocument): Map<string, number> {
       let steps = 1;
       if (line.charStart !== undefined && previous.charStart !== undefined && line.charStart > previous.charStart) {
         try {
-          text ??= texts.get(key)?.();
+          // Paint-run character starts use native Unicode scalar offsets.
+          // JS string slicing would stop early after supplementary Unicode
+          // and mistake several explicit line pitches for one enlarged line.
+          text ??= Array.from(texts.get(key)?.() ?? '');
           // Empty explicit lines have no painted run. Their combined distance
           // is several line pitches, rather than an enlarged single pitch.
-          steps = Math.max(1, (text?.slice(previous.charStart, line.charStart).match(/\n/g) || []).length);
+          steps = Math.max(1, text.slice(previous.charStart, line.charStart).filter(char => char === '\n').length);
         } catch { /* Optional text metrics retain the measured fallback. */ }
       }
       const value = distance / steps;

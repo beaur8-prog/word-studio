@@ -23,7 +23,7 @@ const setup = (async () => {
     new Function('require', 'module', 'exports', code)(name => name.startsWith('.') && !path.extname(name) ? load(path.resolve(path.dirname(file), name + '.ts')) : nativeRequire(name), module, module.exports);
     return module.exports;
   };
-  return { HwpDocument, ...load(sourceFile) };
+  return { HwpDocument, ...load(sourceFile), ...load(path.join(path.dirname(sourceFile), 'paragraph-layout.ts')) };
 })();
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
@@ -269,6 +269,34 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: live PAGE/NUMPAGES surviv
       for (const text of ['START 😀', 'END', 'CELL', 'AFTER', 'NESTED 😀']) assert.ok(html.includes(text), text);
     } finally { doc.free(); }
   }
+});
+
+for (const format of ['hwp', 'hwpx']) test(`${format}: supplementary Unicode before empty lines keeps native body and cell pitch`, async () => {
+  const { HwpDocument, editableHwp, sourceLinePitches, cellParagraphKey } = await setup;
+  const native = HwpDocument.createEmpty(); let bytes;
+  const paragraph = kind => `<p>😀${kind}_ALPHA<br><br>${kind}_BETA</p>`;
+  try {
+    native.createBlankDocument();
+    native.pasteHtml(0, 0, 0, paragraph('BODY') + `<table style="width:500px"><tr><td>${paragraph('CELL')}</td></tr></table>`);
+    bytes = format === 'hwp' ? native.exportHwp() : native.exportHwpx();
+  } finally { native.free(); }
+  const doc = new HwpDocument(bytes);
+  try {
+    const runs = Array.from({ length: doc.pageCount() }, (_, page) => JSON.parse(doc.getPageTextLayout(page)).runs).flat();
+    const html = editableHwp(doc).html;
+    const pitches = sourceLinePitches(doc);
+    for (const kind of ['BODY', 'CELL']) {
+      const first = runs.find(r => r.text.includes(kind + '_ALPHA')), last = runs.find(r => r.text.includes(kind + '_BETA'));
+      assert.ok(first && last, kind + ': source lines missing');
+      const expected = (last.y - first.y) / 2;
+      const paragraph = [...html.matchAll(/<p\b([^>]*)>([\s\S]*?)<\/p>/g)].find(p => p[2].includes(kind + '_BETA'));
+      assert.ok(paragraph, kind + ': converted paragraph missing');
+      const key = first.parentParaIdx === undefined ? `${first.secIdx}:${first.paraIdx}`
+        : cellParagraphKey(first.secIdx, first.parentParaIdx, first.cellPath);
+      const actual = pitches.get(key);
+      assert.ok(Math.abs(actual - expected) < .1, `${kind}: source pitch ${expected}, converted ${actual}`);
+    }
+  } finally { doc.free(); }
 });
 
 test('custom physical paper and column spacing survive both Hancom writers and the edit bridge', async () => {

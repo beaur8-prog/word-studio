@@ -78,6 +78,7 @@ for (const format of ['hwp', 'hwpx'] as const) for (const saveAs of ['docx', 'hw
     expect(state.text?.replace(/\s/g, '')).toBe(result.states[0].text?.replace(/\s/g, ''));
     const stop = (t: typeof state.tabs[number]) => ({ ...t.stops[0], position: Math.round(t.stops[0].position * 100) / 100, leader: t.stops[0].leader || '' });
     expect(state.tabs.map(stop)).toEqual(result.states[0].tabs.map(stop));
+    expect(state.tabs.map(t => t.stops[0].leader || '')).toEqual(['hyphen', 'dot', 'underscore', '', '']);
   }
   expect(result.warnings.join('\n')).not.toMatch(/책갈피.*전달되지|변환하지 못한 개체/);
   await page.locator('input[type=file]').first().setInputFiles({ name: 'navigation.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(result.original)) });
