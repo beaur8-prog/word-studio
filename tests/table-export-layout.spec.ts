@@ -22,12 +22,60 @@ test('separate wide and narrow tables keep their grids and retain the default ta
     const saved = parseDocumentHtml(again.html!);
     return { grids: tables.map(t => [...t.getElementsByTagNameNS(W, 'gridCol')].map(c => Number(c.getAttributeNS(W, 'w')))),
       separator: separator.localName, line: separator.getElementsByTagNameNS(W, 'spacing')[0]?.getAttributeNS(W, 'line'),
+      before: separator.getElementsByTagNameNS(W, 'spacing')[0]?.getAttributeNS(W, 'before'),
       tables: saved.content?.filter(n => n.type === 'table').length, text: again.html };
   }, W);
   expect(result.grids).toEqual([[7200, 4800], [2700, 2700]]);
-  expect(result.separator).toBe('p'); expect(result.line).toBe('270'); // 18px default gap at 15 twips/px.
+  // A structural separator must not carry an 18px text line onto a new page.
+  // Its ordinary paragraph spacing still supplies all 18px within a page.
+  expect(result.separator).toBe('p'); expect(result.line).toBe('1');
+  expect(Number(result.before) + Number(result.line)).toBe(270);
   expect(result.tables).toBe(2);
   expect(result.text).toContain('WIDE LEFT'); expect(result.text).toContain('NARROW RIGHT');
+});
+
+test('old and spacing-based table separators retain their full gap, while user content and real blank paragraphs remain editable', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async W => {
+    const { importFile, exportDocx } = await import('/src/document-io.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const JSZip = (await import('/node_modules/.vite/deps/jszip.js')).default;
+    const table = (text: string) => `<table style="margin-bottom:18px"><tr><td><p>${text}</p></td></tr></table>`;
+    const loaded = await importFile(new File([table('FIRST') + table('SECOND') + '<p style="font-size:6pt;line-height:12px;margin:0"></p><p>AFTER</p>'], 'gaps.html'));
+    const original = { ...loaded.document, content: parseDocumentHtml(loaded.html!) };
+    const blob = await exportDocx(original), states = [];
+    for (const mode of ['legacy', 'spacing', 'edited']) {
+      const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+      const xml = new DOMParser().parseFromString(await zip.file('word/document.xml')!.async('string'), 'application/xml');
+      const separator = [...xml.getElementsByTagNameNS(W, 'p')].find(p =>
+        p.getElementsByTagNameNS(W, 'pStyle')[0]?.getAttributeNS(W, 'val') === 'WordStudioTableGap')!;
+      const spacing = separator.getElementsByTagNameNS(W, 'spacing')[0];
+      spacing.setAttributeNS(W, 'w:line', mode === 'legacy' ? '321' : '1');
+      spacing.setAttributeNS(W, 'w:before', mode === 'legacy' ? '0' : '240');
+      spacing.setAttributeNS(W, 'w:after', mode === 'legacy' ? '0' : '80');
+      if (mode === 'edited') {
+        const run = xml.createElementNS(W, 'w:r'), text = xml.createElementNS(W, 'w:t');
+        text.textContent = 'USER NOTE'; run.append(text); separator.append(run);
+      }
+      zip.file('word/document.xml', new XMLSerializer().serializeToString(xml));
+      let saved = await importFile(new File([await zip.generateAsync({ type: 'blob' })], 'external.docx'));
+      for (let stage = 0; stage < 2; stage++) {
+        const content = parseDocumentHtml(saved.html!);
+        states.push({ mode, stage, nodes: content.content!.map(n => n.type),
+          gap: parseFloat(content.content![0].attrs!.tableSpacing), text: saved.html });
+        if (!stage) saved = await importFile(new File([await exportDocx({ ...saved.document, content })], 'again.docx'));
+      }
+    }
+    return states;
+  }, W);
+  for (const state of result) {
+    expect(state.nodes).toEqual(state.mode === 'edited'
+      ? ['table', 'paragraph', 'table', 'paragraph', 'paragraph']
+      : ['table', 'table', 'paragraph', 'paragraph']);
+    if (state.mode === 'edited') expect(state.text).toContain('USER NOTE');
+    else expect(state.gap).toBeCloseTo(21.4, 1);
+    expect(state.text).toContain('FIRST'); expect(state.text).toContain('SECOND'); expect(state.text).toContain('AFTER');
+  }
 });
 
 test('nested tables use the padded parent cell width, including the row beneath a vertical merge', async ({ page }) => {

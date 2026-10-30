@@ -1097,7 +1097,17 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   };
   // Consumers coalesce adjacent tables when no paragraph separates them. The
   // later narrow table can then resize every preceding row of the long table.
-  const tableBoundary = (gap = 0) => new Paragraph({ style: TABLE_GAP_STYLE, spacing: { before: 0, after: 0, line: Math.max(1, Math.round(gap * 15)), lineRule: LineRuleType.EXACT }, run: { size: 2 } });
+  const tableBoundary = (gap = 0, pageSpacing = false) => {
+    const twips = Math.max(1, Math.round(gap * 15));
+    // Between body tables this is a margin, not a real blank text line.
+    // An exact-height spacer travels to the next page and pushes its title
+    // down; ordinary before-spacing can be discarded at that page boundary.
+    // Keep the full same-page gap and the existing cell-end line reserve.
+    return new Paragraph({ style: TABLE_GAP_STYLE, spacing: {
+      before: pageSpacing ? twips - 1 : 0, after: 0,
+      line: pageSpacing ? 1 : twips, lineRule: LineRuleType.EXACT,
+    }, run: { size: 2 } });
+  };
   const tableSpacing = new WeakMap<Table, number>();
   const blocks = async (
     nodes: JSONContent[],
@@ -1362,7 +1372,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       }
     }
     return output.flatMap((block, i) => i > 0 && block instanceof Table && output[i - 1] instanceof Table
-      ? [tableBoundary(tableSpacing.get(output[i - 1] as Table)), block] : [block]);
+      ? [tableBoundary(tableSpacing.get(output[i - 1] as Table), !context.cellRun), block] : [block]);
   };
   const groups: { page: PageSettings; nodes: JSONContent[] }[] = [{ page, nodes: [] }];
   let sectionPage = page;

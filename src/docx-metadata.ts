@@ -268,7 +268,14 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         if (val(child(properties, 'pStyle')) === TABLE_GAP_STYLE &&
             Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark'))) {
           const spacing = child(properties, 'spacing');
-          if (val(spacing, 'lineRule') === 'exact') tableGaps.set(p, Math.max(0, Number(val(spacing, 'line')) / 15));
+          if (val(spacing, 'lineRule') === 'exact') {
+            // Older exports put the whole gap in the line height. New body
+            // separators use before-spacing so it does not follow a table
+            // onto a new page. Both represent the same editable CSS margin;
+            // retain spacing changes made by another DOCX editor too.
+            const gap = ['before', 'line', 'after'].reduce((sum, name) => sum + Math.max(0, Number(val(spacing, name))), 0) / 15;
+            if (Number.isFinite(gap)) tableGaps.set(p, gap);
+          }
         }
         if (val(child(properties, 'pStyle')) === TABLE_ANCHOR_STYLE &&
           Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')))
