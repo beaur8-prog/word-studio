@@ -187,8 +187,13 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
         if (matches.length !== paragraphs) continue;
         let p = 0;
         const formatted = original.replace(/<p\b[^>]*>[\s\S]*?<\/p>/g, content => {
-          path[path.length - 1].cellParaIndex = p++;
-          return scriptFonts(content, path);
+          const index = p++, paragraphKey = `${key}/c${current.index}/p${index}`;
+          path[path.length - 1].cellParaIndex = index;
+          const formatted = scriptFonts(content, path);
+          // Top-level table geometry supplies flat cell tabs separately, but
+          // plain nested cells do not visit that callback. Keep their source
+          // paragraph stops too, without rebuilding the clipboard contents.
+          return metadata().get(paragraphKey)?.tabStops?.length ? annotate(formatted, index, paragraphKey) : formatted;
         });
         if (formatted !== original) { output += source.slice(cursor, start) + formatted; cursor = match.index!; }
         continue;

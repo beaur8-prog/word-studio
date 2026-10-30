@@ -21,7 +21,12 @@ export function hwpTabDefinitions(files: Record<string, Uint8Array>) {
   const header = files['Contents/header.xml'] ? strFromU8(files['Contents/header.xml']) : '';
   const tabs = new Map<string, { stops: DocumentTabStop[]; right: boolean }>();
   for (const m of header.matchAll(/<hh:tabPr\b[^>]*\/>|<hh:tabPr\b[^>]*>[\s\S]*?<\/hh:tabPr>/g)) {
-    const tag = m[0], branch = tag.match(/<hp:default>([\s\S]*?)<\/hp:default>/)?.[1] ?? tag;
+    const tag = m[0];
+    // Native HWPX wraps each stop in its own switch. Selecting only the
+    // first default loses every later stop; reading both cases doubles them
+    // and mixes HWPUNIT positions with the normalized doubled units.
+    const branch = tag.replace(/<hp:switch\b[^>]*>([\s\S]*?)<\/hp:switch>/g,
+      (_, contents: string) => contents.match(/<hp:default\b[^>]*>([\s\S]*?)<\/hp:default>/)?.[1] ?? '');
     const stops: DocumentTabStop[] = [];
     for (const item of branch.matchAll(/<hh:tabItem\b[^>]*>/g)) {
       const type = attr(item[0], 'type').toLowerCase() as DocumentTabStop['type'];
@@ -34,10 +39,14 @@ export function hwpTabDefinitions(files: Record<string, Uint8Array>) {
   const paragraphs = new Map<string, string>();
   for (const m of header.matchAll(/<hh:paraPr\b[^>]*>/g)) paragraphs.set(attr(m[0], 'id'), attr(m[0], 'tabPrIDRef'));
   return (paragraph: string, spacing: number, width: number): DocumentTabStop[] => {
-    const source = tabs.get(paragraphs.get(paragraph) ?? ''), stops = [...(source?.stops ?? [])];
+    const source = tabs.get(paragraphs.get(paragraph) ?? '');
+    // The materialized default grid can end one step beyond the text width.
+    // That later stop must not discard earlier, usable explicit positions
+    // when the paragraph is saved to HWP/HWPX and read again.
+    const stops = (source?.stops ?? []).filter(s => s.position <= width + .5);
     // Plain/default tabs may also carry stored inline widths in HWP. Keep
     // their existing text flow until those widths can be mapped together.
-    if (!stops.length || stops.some(s => s.position > width + .5)) return [];
+    if (!stops.length) return [];
     // Materialize the source's default grid as standard paragraph tab stops.
     // This survives DOCX and section-specific defaults without hidden metadata.
     const step = Number.isFinite(spacing) && spacing >= 150 ? spacing / 150 : 4000 / 75;
