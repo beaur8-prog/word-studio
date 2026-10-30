@@ -6,7 +6,7 @@
 >
 > 이 페이지에서 받은 Word Studio Setup 파일인지 확인한 뒤 진행하세요.
 
-**현재 배포 버전: 1.4.3 · 2026년 10월 23일**
+**현재 공개 다운로드: Windows·Mac 1.4.9 · Linux 1.4.3**
 
 Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DOCX와 PDF로 내보내는 로컬 문서 편집기입니다. 설치 후에는 Microsoft Word, Node.js, 계정 또는 인터넷 연결 없이 문서를 작성할 수 있습니다. Microsoft와 관련 없는 독립 앱이며 Word의 모든 기능을 지원하지는 않습니다.
 
@@ -23,19 +23,19 @@ Word Studio는 한국어 리본 메뉴로 글·표·이미지를 편집하고 DO
 
 ## 1. 다운로드
 
-[최신 릴리즈 페이지](https://github.com/beaur8-prog/word-studio/releases/latest)에서 운영체제에 맞는 설치 파일을 받으세요.
+[Windows·Mac 최신 릴리즈 페이지](https://github.com/beaur8-prog/word-studio/releases/latest)와 아래 표에서 운영체제에 맞는 설치 파일을 받으세요. 현재 Linux 설치본은 1.4.3 릴리즈에 있습니다.
 
 | 컴퓨터 | 배포 파일 | 설치 방식 |
 | --- | --- | --- |
-| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.4.3-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.3/Word-Studio-1.4.3-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
-| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.4.3-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.3/Word-Studio-1.4.3-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
+| Windows 10/11 · Intel/AMD 64비트(x64) | [Word-Studio-1.4.9-windows-x64-setup.exe](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.9/Word-Studio-1.4.9-windows-x64-setup.exe) | Setup 실행 → 설치 마법사 → 시작 메뉴에서 실행 |
+| Mac · Apple Silicon(M1 이상), macOS 12 이상 | [Word-Studio-1.4.9-mac-arm64.zip](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.9/Word-Studio-1.4.9-mac-arm64.zip) | 압축을 풀고 앱을 응용 프로그램으로 이동 |
 | Linux · Ubuntu 22.04 / 24.04 LTS · Intel/AMD 64비트(x64) | [Word-Studio-1.4.3-linux-x64.deb](https://github.com/beaur8-prog/word-studio/releases/download/v1.4.3/Word-Studio-1.4.3-linux-x64.deb) | apt로 설치 → 앱 메뉴 또는 word-studio 명령으로 실행 |
 
 Linux 배포본은 Ubuntu 22.04·24.04 LTS의 x64 데스크톱에서 검증한 DEB 패키지입니다. 다른 Debian 계열 배포판은 라이브러리 호환성을 확인해야 합니다. Intel Mac용, Windows ARM64용, Linux ARM64용 파일은 제공하지 않습니다. GitHub의 **Source code** 파일은 개발용 소스이므로 일반 설치에는 위의 운영체제별 배포 파일을 사용하세요.
 
 ## 2. Windows 설치 및 실행
 
-1. **Word-Studio-1.4.3-windows-x64-setup.exe**를 다운로드합니다. 다운로드 중 브라우저에서 **위험한 파일** 또는 **PC에 손상을 줄 수 있음**과 같은 경고가 뜰 수 있습니다. 경고 문구는 브라우저에 따라 다릅니다. 이 페이지의 다운로드 링크인지 확인하고, 출처를 신뢰할 때에만 다운로드를 계속하세요.
+1. **Word-Studio-1.4.9-windows-x64-setup.exe**를 다운로드합니다. 다운로드 중 브라우저에서 **위험한 파일** 또는 **PC에 손상을 줄 수 있음**과 같은 경고가 뜰 수 있습니다. 경고 문구는 브라우저에 따라 다릅니다. 이 페이지의 다운로드 링크인지 확인하고, 출처를 신뢰할 때에만 다운로드를 계속하세요.
 2. 받은 Setup 파일의 파일명과 함께 제공하는 SHA-256을 확인한 뒤 두 번 클릭합니다. 압축을 풀 필요가 없습니다.
 3. **Windows의 PC 보호** 화면에는 처음에 **실행 안 함** 버튼만 보이고 **실행** 버튼이 보이지 않을 수 있습니다. **추가 정보**를 누르면 **실행** 버튼이 나타납니다. 표시되는 앱이 받은 Setup 파일인지 확인하고 **실행**을 눌러 설치를 계속하세요. 영어 Windows에서는 **More info → Run anyway**입니다.
 4. 언어를 선택하고 설치 마법사를 진행합니다. **현재 사용자용** 설치가 기본이며, 필요하면 설치 경로를 바꿀 수 있습니다.
@@ -375,13 +375,13 @@ Mac의 본문 화면 일부에는 `Ctrl` 표기가 남아 있지만 기본 편�
 Mac 터미널:
 
 ```sh
-shasum -a 256 Word-Studio-1.4.3-mac-arm64.zip
+shasum -a 256 Word-Studio-1.4.9-mac-arm64.zip
 ```
 
 Windows PowerShell:
 
 ```powershell
-Get-FileHash .\Word-Studio-1.4.3-windows-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Word-Studio-1.4.9-windows-x64-setup.exe -Algorithm SHA256
 ```
 
 Linux 터미널:
@@ -392,7 +392,9 @@ sha256sum Word-Studio-1.4.3-linux-x64.deb
 
 표시된 값이 `SHA256SUMS.txt`의 해당 파일 값과 일치하는지 확인하세요.
 
-## 12. 이번 배포의 확인 결과
+## 12. 1.4.3 배포의 검증 기록
+
+아래 내용은 1.4.3 배포 당시의 기록입니다. 이후 Windows·Mac 배포 내역은 [1.4.9 릴리즈](https://github.com/beaur8-prog/word-studio/releases/tag/v1.4.9)에서 확인하세요.
 
 - Mac·Windows·Ubuntu 22.04에서 기능 시험 각각 **117개**와 단위 시험 각각 **29개**를 통과했습니다. [교차 플랫폼 검증](https://github.com/beaur8-prog/word-studio/actions/workflows/release-validation.yml)에서 릴리즈 버전의 실행 결과를 확인할 수 있습니다.
 - Windows Setup과 같은 Linux DEB를 설치한 Ubuntu 22.04·24.04에서 새 설치·실제 앱 실행·재설치·제거와 문서·복구 데이터 보존을 확인했습니다. Ubuntu 24.04에서는 같은 DEB의 설치 앱을 검사했습니다.

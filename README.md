@@ -24,7 +24,7 @@ npm start
 npm run package:win
 ```
 
-Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-1.4.3-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
+Windows x64 앱을 `release/windows/Word Studio`에 만든 뒤 NSIS 설치 마법사 `release/installer/Word-Studio-<버전>-windows-x64-setup.exe`를 생성합니다. 공식 Electron 런타임의 체크섬을 검증한 후 전용 아이콘을 적용한 앱을 설치 파일에 넣습니다. 설치 화면은 한국어·영어, 현재 사용자용 설치, 경로 선택, 바탕 화면·시작 메뉴 바로 가기와 제거를 지원합니다. 설치 후 실행에는 Node.js, Office 또는 인터넷 연결이 필요하지 않습니다.
 
 `npm run package:win:dir`은 앱 폴더만, `npm run package:win:setup`은 이미 만든 앱 폴더로 설치 파일만 생성합니다. 설치 파일 빌드와 실제 설치·재설치·제거 시험은 Windows GitHub Actions에서 수행합니다. 빌드 설정은 [electron-builder.config.cjs](electron-builder.config.cjs), 격리된 CI 시험은 [scripts/test-windows-installer.ps1](scripts/test-windows-installer.ps1)에 있습니다. NSIS 옵션은 [electron-builder 공식 문서](https://www.electron.build/docs/nsis/)를 따릅니다. 설치·재설치·제거는 `%APPDATA%\Word Studio` 복구 데이터와 사용자가 저장한 문서를 지우지 않습니다.
 
@@ -39,7 +39,7 @@ npm ci
 npm run package:linux
 ```
 
-Linux x64에서 `release/linux/Word-Studio-1.4.3-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
+Linux x64에서 `release/linux/Word-Studio-<버전>-linux-x64.deb`를 만듭니다. 프로덕션 앱만 별도 디렉터리에 넣어 ASAR로 패키징하며, 앱 메뉴·아이콘과 `word-studio` 실행 명령을 제공합니다. Ubuntu 22.04에서 패키징하고 같은 DEB를 Ubuntu 22.04·24.04에서 설치·재설치·제거 및 실제 앱 실행으로 검증합니다. 빌드 설정은 [electron-builder.linux.cjs](electron-builder.linux.cjs), 격리된 CI 설치 시험은 [scripts/test-linux-package.cjs](scripts/test-linux-package.cjs)에 있습니다.
 
 사용자는 다운로드 폴더에서 `sudo apt install ./Word-Studio-1.4.3-linux-x64.deb`로 설치하고 앱 메뉴 또는 `word-studio`로 실행합니다. 제거는 `sudo apt remove word-studio`입니다. 문서와 `~/.config/Word Studio/recovery`의 복구본은 유지됩니다. 자세한 설치·글꼴·업데이트 안내는 [사용 가이드](USER_GUIDE.md)를 참고하세요.
 
@@ -158,7 +158,7 @@ HWP 5.x·HWPX를 연 뒤 **Word 화면에서 편집 → 편집본 만들기**를
 
 ### 1.4.2 변환 진행 표시
 
-HWP/HWPX 열기·Word 편집본 변환·한글 저장에 처리 단계와 경과 시간을 표시합니다. 본문 문단, 그림, 쪽 배치 항목처럼 총량이 있는 단계는 실제 처리 개수와 해당 단계의 퍼센트를 보여줍니다. 표·그림 개체의 엔진 내부 처리, 서식 준비, 파일 생성·재검증처럼 진도를 측정하기 어려운 단계에는 모래시계를 표시합니다. 전체 변환의 완료율이나 남은 시간을 임의로 추정하지 않습니다. 원본 보기 창을 닫으면 변환과 진행 표시를 정리합니다. [1.4.2 릴리스](https://github.com/beaur8-prog/word-studio/releases/tag/v1.4.2)에서 Mac ZIP·Windows Setup·Linux DEB를 받을 수 있습니다.
+HWP/HWPX 열기·Word 편집본 변환·한글 저장에 처리 단계와 경과 시간을 표시합니다. 본문 문단, 그림, 쪽 배치 항목처럼 총량이 있는 단계는 실제 처리 개수와 해당 단계의 퍼센트를 보여줍니다. 표·그림 개체의 엔진 내부 처리, 서식 준비, 파일 생성·재검증처럼 진도를 측정하기 어려운 단계에는 모래시계를 표시합니다. 전체 변환의 완료율이나 남은 시간을 임의로 추정하지 않습니다. 원본 보기 창을 닫으면 변환과 진행 표시를 정리합니다. [Windows·Mac 최신 릴리즈](https://github.com/beaur8-prog/word-studio/releases/latest)에서 ZIP·Setup을, [Linux 릴리즈](https://github.com/beaur8-prog/word-studio/releases/tag/v1.4.3)에서 DEB를 받을 수 있습니다.
 
 ### 1.4.1 용량 확장·연속 스크롤·저장 형식 안내
 

@@ -1,6 +1,6 @@
 {
   "date": "2026-10-30",
-  "status": "implementation_frozen_verification_campaign_continues",
+  "status": "implementation_frozen_merged_final_reporting",
   "testedProductCommit": "3ba12e792ad1c44810d27b6aa611b38e230d6a6f",
   "baseCommit": "103788907eb13b9accb44fbce4771a2d2bd5f708",
   "pullRequest": "https://github.com/beaur8-prog/word-studio/pull/12",
@@ -317,6 +317,31 @@
       "windowsTotal": 377,
       "linuxTotal": 347,
       "cellPdfOrderEachPlatform": 7
+    },
+    "finalPreMergeCI": {
+      "head": "a98b15a7a2d9253abb20a66834c98cd192d76666",
+      "runId": 41012272103,
+      "windows": {
+        "job": 123920580710,
+        "conclusion": "success",
+        "terminal": 110,
+        "general": 267,
+        "cellPdfOrder": 7,
+        "rawResponseSHA256": "9fb96b889bbf5604f980b469f3d186ec6590f94fe2f4364468c8ec3bdf52c0c6",
+        "sanitizedLogSHA256": "6f079fd9afb900b84cd3eafdf751f55484b3867769c80b5caa6cc8354e9277d9"
+      },
+      "linux": {
+        "job": 123920580991,
+        "conclusion": "success",
+        "passed": 347,
+        "cellPdfOrder": 7,
+        "rawResponseSHA256": "1bb838eedff028626041b6d99a1b586adfd78696ac15a08ebef3bcb49b298d37",
+        "sanitizedLogSHA256": "76505ae323112e214aa2f432fd2c176a6b04710d47984f22c4d54aa2acace686"
+      },
+      "checkedAt": "2026-10-30T06:54:40.947979+00:00",
+      "conclusion": "success",
+      "productSourceIdenticalToTested3ba": true,
+      "url": "https://github.com/beaur8-prog/word-studio/actions/runs/41012272103"
     }
   },
   "independentLayout": {
@@ -608,6 +633,34 @@
     {
       "path": "analysis/hwp-libreoffice-8h-2026-10-30/table-indent/same-stage-full-model-equivalence.json",
       "sha256": "13fac85f85d964029bafbbe85a245287189bf5843051aebc80f613abe511eb90"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/final-ci/results.json",
+      "sha256": "54eac9e3080d972982e62ea48260f1bb0bfd0333c2df6f069866f1174ab3d0d2"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/final-ci/windows.log",
+      "sha256": "6f079fd9afb900b84cd3eafdf751f55484b3867769c80b5caa6cc8354e9277d9"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/final-ci/linux.log",
+      "sha256": "76505ae323112e214aa2f432fd2c176a6b04710d47984f22c4d54aa2acace686"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/git-integration.json",
+      "sha256": "a8092b4598da277c5cb62643b4b05243de0691749d61ad3b86b015b50522786a"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/old-validation-pruning.json",
+      "sha256": "1640c2051104cf78f4a91e5bdd0a4e75227ac98cb395f82dc5ac615ecfe1b018"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/old-github-release-assets-pruning.json",
+      "sha256": "732712ce2fc60e6a48fe091615dd3d78a820306d67c6a574f7048059630b054d"
+    },
+    {
+      "path": "analysis/hwp-libreoffice-8h-2026-10-30/cleanup-20261030/manifest.json",
+      "sha256": "8a72cc5eb9d96f210592697ce6e4f7eb7dee8ff8cdfd65a7b1771053404be17e"
     }
   ],
   "futureDiagnostics": {
@@ -632,5 +685,35 @@
       "newImplementationAfterFreeze": false
     },
     "publisherFontInventory": "English PDF uses HCRBatang/HCRDotum/TNR; requested HWP face names alone are not an oracle of actual publisher-rendered faces. No frozen fonts or system font installation changed."
+  },
+  "gitIntegration": {
+    "time": "2026-10-30T06:56:51.931991+00:00",
+    "pullRequest": "https://github.com/beaur8-prog/word-studio/pull/12",
+    "state": "MERGED",
+    "mergedAt": "2026-10-30T06:55:50Z",
+    "mergeCommit": "6786f12f0f293f0dbf98a57bc4950617868f2e30",
+    "validatedHead": "a98b15a7a2d9253abb20a66834c98cd192d76666",
+    "testedProductHead": "3ba12e792ad1c44810d27b6aa611b38e230d6a6f",
+    "currentBranch": "main",
+    "workingTreeClean": true,
+    "mergeTreeExactlyMatchesValidatedHead": true,
+    "version": "1.4.9",
+    "releaseOrLithosOrVersionChange": false
+  },
+  "artifactRetention": {
+    "requestedByUser": true,
+    "temporaryEntriesRemoved": 124,
+    "temporaryNetAllocatedBytesFreedApprox": 3463778304,
+    "obsoleteValidationFilesRemoved": 2918,
+    "obsoleteTestResultDirectoriesRemoved": 147,
+    "oldValidationAllocatedBytesFreedApprox": 4880142336,
+    "frozenBaselineAndPrimaryEvidenceFilesHashVerified": 93,
+    "historicalReportsMayReferencePrunedIntermediateFiles": true,
+    "latestBaselineTableIndentNativeFinalAndExternalEditCorporaRetained": true,
+    "testedRuntimeSnapshotsContentAddressedGzipArchive": "analysis/hwp-libreoffice-8h-2026-10-30/cleanup-20261030/manifest.json",
+    "oldReleaseAssetsDeleted": 23,
+    "currentMacWindowsReleaseRetained": "v1.4.9",
+    "latestAvailableLinuxReleaseRetained": "v1.4.3",
+    "releaseNotesAndGitTagsRetained": true
   }
 }
