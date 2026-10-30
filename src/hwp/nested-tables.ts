@@ -1,7 +1,7 @@
 import type { HwpDocument } from '@rhwp/core';
 import type { CellPath } from './cell-content';
 import { hwpTableGrid } from './table-grid';
-import { cellParagraphCss, cellParagraphKey, physicalLineHeight } from './paragraph-layout';
+import { cellParagraphCss, cellParagraphKey, physicalLineHeight, paragraphAutoSpace } from './paragraph-layout';
 import { hwpCellBorders } from './cell-borders';
 
 /** The clipboard HTML carries nested text and padding but omits its grid.
@@ -52,7 +52,7 @@ export function nestedTableGeometry(doc: HwpDocument, section: number, paragraph
       const text = html.slice(offset + tag.length, html.indexOf('</p>', offset));
       const css = cellParagraphCss(properties, char, { pitch: pitches.get(key), inkHeight: pitches.get(`height:${key}`),
         final: ++cellParagraph === count, lines: pitches.get(`lines:${key}`), simple: !/<(?:img|table)\b|<!--\s*rhwp:/i.test(text) });
-      return style(tag, css);
+      return paragraphAutoSpace(style(tag, css), properties);
     }
     if (!/^<td\b/.test(tag)) return tag;
     cellParagraph = 0;

@@ -172,6 +172,27 @@ export async function docxFormat(zip: JSZip) {
       const layers = chain(val(child(props, 'tblStyle')) || val(normalTable, 'styleId')).map(s => child(s, 'tblPr'));
       decorateCell(cell, source, layers);
     },
+    tableLayout(table: Element): 'fixed' | 'autofit' {
+      const direct = child(table, 'tblPr');
+      const defaultStyle = all(styles, 'style').find(s => val(s, 'type') === 'table' && ['1', 'true', 'on'].includes(val(s, 'default')));
+      const layers = chain(val(child(direct, 'tblStyle')) || val(defaultStyle, 'styleId')).map(s => child(s, 'tblPr'));
+      let layout: 'fixed' | 'autofit' = 'autofit';
+      for (const props of [...layers, direct]) {
+        const value = val(child(props, 'tblLayout'), 'type');
+        if (value === 'fixed' || value === 'autofit') layout = value;
+      }
+      return layout;
+    },
+    autoSpacing(p: Element) {
+      // Resolve each standard property independently, including explicit false.
+      const result = { de: true, dn: true };
+      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
+        const de = child(props, 'autoSpaceDE'), dn = child(props, 'autoSpaceDN');
+        if (de) result.de = on(de);
+        if (dn) result.dn = on(dn);
+      }
+      return result;
+    },
     lineRule(p: Element) {
       let rule = 'auto';
       for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
@@ -209,10 +230,15 @@ export async function docxFormat(zip: JSZip) {
         }
       }
       style.marginTop = '0px'; style.marginBottom = '0px'; style.lineHeight = 'normal';
+      // OOXML defaults to enabled; an inherited false and a direct override
+      // must both survive the same property-by-property style resolution.
+      style.widows = '2'; style.orphans = '2';
       for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
         if (!props) continue;
         const wrap = child(props, 'wordWrap');
         if (wrap) style.wordBreak = on(wrap) ? 'normal' : 'keep-all';
+        const widow = child(props, 'widowControl');
+        if (widow) { style.widows = on(widow) ? '2' : '1'; style.orphans = style.widows; }
         const alignment = val(child(props, 'jc'));
         if (['left', 'right', 'center', 'both', 'distribute'].includes(alignment)) style.textAlign = ['both', 'distribute'].includes(alignment) ? 'justify' : alignment;
         const spacing = child(props, 'spacing');

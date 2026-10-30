@@ -1,0 +1,114 @@
+{
+  "scope": "Preserve explicit paragraph widow/orphan policy during HWP/HWPX conversion and DOCX style/direct-format round trips. Word defaults remain enabled for authored paragraphs.",
+  "productVersion": "1.4.9",
+  "baselineProduct": "995c727857736b536964d9afe3dbd05d1274e1f9",
+  "tests": {
+    "beforeFix": "3/3 new regressions failed with disabled protection re-enabled",
+    "afterFix": "15/15 focused browser regressions passed; TypeScript and production build passed",
+    "nativeMac": {
+      "documents": 3,
+      "allBodyAndRawImagesExact": true,
+      "pages": [
+        163,
+        36,
+        8
+      ],
+      "pagePaintParity": [
+        {
+          "id": "02-work-rules",
+          "beforePages": 163,
+          "afterPages": 163,
+          "sameAllPagePaintOperatorBytes": true,
+          "changedPagePaintStreams": [],
+          "scope": "PDF page content stream byte equality; source model image bytes/order and logical content checked separately."
+        },
+        {
+          "id": "04-language-plan",
+          "beforePages": 36,
+          "afterPages": 36,
+          "sameAllPagePaintOperatorBytes": true,
+          "changedPagePaintStreams": [],
+          "scope": "PDF page content stream byte equality; source model image bytes/order and logical content checked separately."
+        },
+        {
+          "id": "07-english-exam",
+          "beforePages": 8,
+          "afterPages": 8,
+          "sameAllPagePaintOperatorBytes": true,
+          "changedPagePaintStreams": [],
+          "scope": "PDF page content stream byte equality; source model image bytes/order and logical content checked separately."
+        }
+      ]
+    },
+    "freshCorpus": {
+      "documents": 10,
+      "DOCXSaves": 2,
+      "pages": [
+        7,
+        163,
+        4,
+        36,
+        1,
+        37,
+        8,
+        20,
+        15,
+        5
+      ],
+      "logicalSourceCharacters": 218937,
+      "sourceHardBreaks": 140,
+      "images": 638,
+      "exactSourceLogicalStreams": 10,
+      "sameAllOtherContentModelAndPageSettings": true,
+      "allowedModelDifferences": [
+        "wordWidowControl",
+        "widows/orphans inline CSS in stories"
+      ]
+    }
+  },
+  "wordWebControlledExperiment": {
+    "method": "Only direct widowControl=true changed to false; all other source ZIP parts/text exact. Actual Microsoft UI-exported PDFs.",
+    "pages": {
+      "workRules": [
+        197,
+        196
+      ],
+      "languagePlan": [
+        40,
+        39
+      ],
+      "englishExam": [
+        9,
+        9
+      ]
+    },
+    "allNormalizedGlyphInventoriesExact": true,
+    "sameImages": [
+      2,
+      4,
+      16
+    ],
+    "outsidePaperGlyphBoxesBeforeAndAfter": 0,
+    "commonUniqueCompleteParagraphs": 1734,
+    "sameAllLineEndOffsets": true,
+    "fixedAnchors": {
+      "set": 120,
+      "uniquelyMatched": 119,
+      "ambiguousPDF": 1,
+      "startMismatchesBefore": 104,
+      "startMismatchesAfter": 101,
+      "absoluteStartPageErrorBefore": 795,
+      "absoluteStartPageErrorAfter": 738
+    },
+    "paintOrderCaveat": "Rules page29 retains an additional left-cell line on the preceding sheet; its interleaving with the right cell changes PDF paint/extraction order. Page29 visually checked; all 689 matched rules paragraphs retain complete text and line ends.",
+    "productParity": "All three actual product main document XMLs match the experiment after normalizing boolean aliases. The actual rules/exam also preserve source widow policy in several headers/footers; those extra policy changes have not yet been re-exported in Word."
+  },
+  "limitations": [
+    "This is the first correction in the ten-hour campaign, not full layout equivalence.",
+    "HWP narrow-glyph percentage tracking and per-script relative sizes/character scale remain open.",
+    "Word cloud-normalized DOCX copy download is pending; frozen local input hashes are preserved.",
+    "Full campaign suite and Windows/Linux validation are still pending.",
+    "No public release, Lithos update or version change performed."
+  ],
+  "evidenceRoot": "analysis/hwp-word-web-10h-2026-10-30"
+}
