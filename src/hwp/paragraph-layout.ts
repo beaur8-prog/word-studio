@@ -32,6 +32,9 @@ export function paragraphCss(properties: Record<string, any>, char?: Record<stri
     (includeSpacing ? `margin-top:${(Number(properties.spacingBefore) || 0) / 2}px;margin-bottom:${(Number(properties.spacingAfter) || 0) / 2}px;` : '') +
     (char?.fontSize ? `font-size:${char.fontSize / 100}pt;font-family:${escape(JSON.stringify(char.fontFamily || 'serif'))};` : '') +
     (spacing ? `line-height:${spacing};` : '') +
+    // HWP often permits a single first/last line at a page boundary. Retain
+    // that explicit policy instead of enabling Word's two-line protection.
+    (typeof properties.widowOrphan === 'boolean' ? `widows:${properties.widowOrphan ? 2 : 1};orphans:${properties.widowOrphan ? 2 : 1};` : '') +
     // The native numeric API uses 0 for Korean word boundaries and 1 for
     // character boundaries. Do not infer this from HWPX's Latin enum names.
     (properties.koreanBreakUnit === 0 ? 'word-break:keep-all;' : '');

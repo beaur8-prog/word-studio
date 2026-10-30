@@ -29,7 +29,18 @@ export const ImportedFormat = Extension.create({
         default: null, parseHTML: (el: HTMLElement) => el.getAttribute(`data-list-${key}`),
         renderHTML: (a: Record<string, unknown>) => a[`wordList${key[0].toUpperCase()}${key.slice(1)}`] != null ? { [`data-list-${key}`]: a[`wordList${key[0].toUpperCase()}${key.slice(1)}`] } : {},
       }])) },
-      { types: ['paragraph', 'heading'], attributes: Object.fromEntries(Object.entries(properties).map(([key, property]) => [key, attribute(property)])) },
+      { types: ['paragraph', 'heading'], attributes: {
+        ...Object.fromEntries(Object.entries(properties).map(([key, property]) => [key, attribute(property)])),
+        wordWidowControl: {
+          default: null,
+          parseHTML: (el: HTMLElement) => {
+            const count = Number(el.style.widows || el.style.orphans);
+            return count > 0 ? count > 1 : null;
+          },
+          renderHTML: (a: Record<string, unknown>) => typeof a.wordWidowControl === 'boolean'
+            ? { style: `widows:${a.wordWidowControl ? 2 : 1};orphans:${a.wordWidowControl ? 2 : 1}` } : {},
+        },
+      } },
       { types: ['textStyle'], attributes: { letterSpacing: {
         default: null, parseHTML: (el: HTMLElement) => el.style.letterSpacing || null,
         renderHTML: (a: Record<string, unknown>) => css('letter-spacing', a.letterSpacing) ? { style: `letter-spacing:${css('letter-spacing', a.letterSpacing)}` } : {},

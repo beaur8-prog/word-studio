@@ -922,7 +922,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
         ? { line: Math.round(line * 240), lineRule: LineRuleType.AUTO }
         : {}),
     },
-    widowControl: true,
+    widowControl: node.attrs?.wordWidowControl !== false,
   };
 }
 

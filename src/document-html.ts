@@ -144,6 +144,7 @@ export function sanitizeImportedHtml(source: string): {
     "vertical-align",
     "white-space",
     "word-break",
+    "widows", "orphans",
     "width",
     "height",
     "border", "border-top", "border-right", "border-bottom", "border-left",

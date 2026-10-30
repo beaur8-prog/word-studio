@@ -209,10 +209,15 @@ export async function docxFormat(zip: JSZip) {
         }
       }
       style.marginTop = '0px'; style.marginBottom = '0px'; style.lineHeight = 'normal';
+      // OOXML defaults to enabled; an inherited false and a direct override
+      // must both survive the same property-by-property style resolution.
+      style.widows = '2'; style.orphans = '2';
       for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
         if (!props) continue;
         const wrap = child(props, 'wordWrap');
         if (wrap) style.wordBreak = on(wrap) ? 'normal' : 'keep-all';
+        const widow = child(props, 'widowControl');
+        if (widow) { style.widows = on(widow) ? '2' : '1'; style.orphans = style.widows; }
         const alignment = val(child(props, 'jc'));
         if (['left', 'right', 'center', 'both', 'distribute'].includes(alignment)) style.textAlign = ['both', 'distribute'].includes(alignment) ? 'justify' : alignment;
         const spacing = child(props, 'spacing');
