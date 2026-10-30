@@ -13,7 +13,7 @@ module.exports = async function fixture(directory) {
       '<table style="width:350px"><tr><td style="padding:4px"><p style="font-family:Arial;font-size:12pt">NEST\tONE\tTWO</p></td></tr></table>' +
       '</td></tr></table><p>AFTER</p>');
     doc.applyParaFormat(0, 0, JSON.stringify({ tabStops: [
-      { position: 15000, type: 0, fill: 0 }, { position: 27000, type: 1, fill: 2 },
+      { position: 15000, type: 0, fill: 0 }, { position: 27000, type: 1, fill: 3 },
     ] }));
     const properties = JSON.parse(doc.getParaPropertiesAt(0, 0));
     if (properties.tabStops.length !== 2) throw Error('Native fixture must retain both source stops');

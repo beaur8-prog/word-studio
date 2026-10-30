@@ -13,7 +13,10 @@ const decode = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\
   return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '\ufffd';
 });
 const types = ['left', 'right', 'center', 'decimal'] as const;
-const leaders: Record<string, DocumentTabStop['leader']> = { SOLID: 'underscore', DASH: 'hyphen', DOT: 'dot' };
+// The native normalized HWPX names follow its binary line codes: DOT is
+// code 2 (dashed), DASH is code 3 (dotted). Interpreting the English names
+// literally swaps the publisher's dotted TOC and dashed leaders.
+const leaders: Record<string, DocumentTabStop['leader']> = { SOLID: 'underscore', DOT: 'hyphen', DASH: 'dot' };
 
 /** Read normalized engine HWPX: default branches retain the doubled native
  * units, unlike HWPUNIT switch cases. Paragraph IDs also cover nested cells. */
@@ -121,7 +124,7 @@ export function stageHwpTextNavigation(html: string) {
             let shape = base.replace(/\bid="[^"]*"/, `id="${id}"`);
             if (change.stops) {
               const tabId = nextTab++;
-              newTabs.push(`<hh:tabPr id="${tabId}" autoTabLeft="0" autoTabRight="0">` + change.stops.map(s => `<hh:tabItem pos="${Math.round(s.position * 150)}" type="${s.type.toUpperCase()}" leader="${s.leader === 'dot' ? 'DOT' : s.leader === 'hyphen' ? 'DASH' : s.leader === 'underscore' ? 'SOLID' : 'NONE'}"/>`).join('') + '</hh:tabPr>');
+              newTabs.push(`<hh:tabPr id="${tabId}" autoTabLeft="0" autoTabRight="0">` + change.stops.map(s => `<hh:tabItem pos="${Math.round(s.position * 150)}" type="${s.type.toUpperCase()}" leader="${s.leader === 'dot' ? 'DASH' : s.leader === 'hyphen' ? 'DOT' : s.leader === 'underscore' ? 'SOLID' : 'NONE'}"/>`).join('') + '</hh:tabPr>');
               shape = shape.replace(/\btabPrIDRef="[^"]*"/, `tabPrIDRef="${tabId}"`);
             }
             if (change.keepWord) {

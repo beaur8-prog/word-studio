@@ -12,7 +12,7 @@ const { hwpTabDefinitions } = loaded.exports;
 test('each normalized switch contributes one tab without mixing HWPUNIT cases', () => {
   const xml = '<hh:head><hh:tabPr id="7" autoTabRight="0">' +
     '<hp:switch><hp:case><hh:tabItem pos="7500" type="LEFT" unit="HWPUNIT"/></hp:case><hp:default><hh:tabItem pos="15000" type="LEFT"/></hp:default></hp:switch>' +
-    '<hp:switch><hp:case><hh:tabItem pos="13500" type="RIGHT" unit="HWPUNIT"/></hp:case><hp:default><hh:tabItem pos="27000" type="RIGHT" leader="DOT"/></hp:default></hp:switch>' +
+    '<hp:switch><hp:case><hh:tabItem pos="13500" type="RIGHT" unit="HWPUNIT"/></hp:case><hp:default><hh:tabItem pos="27000" type="RIGHT" leader="DASH"/></hp:default></hp:switch>' +
     '</hh:tabPr><hh:paraPr id="3" tabPrIDRef="7"/></hh:head>';
   const stops = hwpTabDefinitions({ 'Contents/header.xml': strToU8(xml) })('3', 8000, 400);
   assert.deepEqual(stops.slice(0, 2), [{ position: 100, type: 'left' }, { position: 180, type: 'right', leader: 'dot' }]);
@@ -21,7 +21,7 @@ test('each normalized switch contributes one tab without mixing HWPUNIT cases', 
 
 test('unswitched stops and each independent default branch stay in source order', () => {
   const xml = '<hh:head><hh:tabPr id="7"><hh:tabItem pos="9000" type="CENTER"/>' +
-    '<hp:switch><hp:default><hh:tabItem pos="18000" type="DECIMAL" leader="DASH"/></hp:default></hp:switch>' +
+    '<hp:switch><hp:default><hh:tabItem pos="18000" type="DECIMAL" leader="DOT"/></hp:default></hp:switch>' +
     '<hp:switch><hp:case><hh:tabItem pos="14000" type="RIGHT" unit="HWPUNIT"/></hp:case></hp:switch>' +
     '<hh:tabItem pos="36000" type="RIGHT" leader="SOLID"/></hh:tabPr><hh:paraPr id="3" tabPrIDRef="7"/></hh:head>';
   assert.deepEqual(hwpTabDefinitions({ 'Contents/header.xml': strToU8(xml) })('3', 8000, 400).slice(0, 3), [
@@ -32,7 +32,7 @@ test('unswitched stops and each independent default branch stay in source order'
 
 test('a default grid stop beyond the text width does not erase usable explicit stops', () => {
   const xml = '<hh:head><hh:tabPr id="7"><hh:tabItem pos="15000" type="LEFT"/>' +
-    '<hh:tabItem pos="27000" type="RIGHT" leader="DOT"/><hh:tabItem pos="64000" type="LEFT"/>' +
+    '<hh:tabItem pos="27000" type="RIGHT" leader="DASH"/><hh:tabItem pos="64000" type="LEFT"/>' +
     '</hh:tabPr><hh:paraPr id="3" tabPrIDRef="7"/></hh:head>';
   const stops = hwpTabDefinitions({ 'Contents/header.xml': strToU8(xml) })('3', 8000, 400);
   assert.deepEqual(stops.slice(0, 2), [{ position: 100, type: 'left' }, { position: 180, type: 'right', leader: 'dot' }]);
