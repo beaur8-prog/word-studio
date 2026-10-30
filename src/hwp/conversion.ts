@@ -18,6 +18,7 @@ import { hwpTableGrid } from './table-grid';
 import { nestedTableGeometry } from './nested-tables';
 import { hwpCellBorders } from './cell-borders';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss } from './paragraph-layout';
+import { restoreScriptFonts, type HwpFontRun } from './script-fonts';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { stageHwpTables } from './export-tables';
@@ -516,13 +517,24 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       }
       const positions: number[] = JSON.parse(doc.getControlTextPositions(section, para));
       const textLength = doc.getParagraphLength(section, para);
+      const fontRuns = new Map<number, readonly string[]>();
       const range = (start: number, end: number) => {
         const html = fragment(doc.exportSelectionHtml(section, para, start, para, end));
         // Control positions can extend past a control-only paragraph's text.
         // getTextRange takes a count, whereas selection HTML takes an end.
         if (start >= textLength || end <= start) return html;
         const text = doc.getTextRange(section, para, start, Math.min(end, textLength) - start);
-        return restoreHardLineBreaks(html, [...text.matchAll(/\n/g)].map(m => m.index!));
+        const withBreaks = restoreHardLineBreaks(html, [...text.matchAll(/\n/g)].map(m => m.index!));
+        const runs: HwpFontRun[] = JSON.parse(doc.getCharShapeRuns(section, para, start, Math.min(end, textLength))).map((run: any) => {
+          let fonts = fontRuns.get(run.charShapeId);
+          if (!fonts) {
+            const char = JSON.parse(doc.getCharPropertiesAt(section, para, run.startOffset));
+            fonts = Array.isArray(char.fontFamilies) ? char.fontFamilies.map((font: unknown) => typeof font === 'string' ? font : '') : [];
+            fontRuns.set(run.charShapeId, fonts!);
+          }
+          return { start: run.startOffset - start, end: run.endOffset - start, fonts };
+        });
+        return restoreScriptFonts(withBreaks, text, runs);
       };
       const whole = range(0, 0xffffffff);
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';
