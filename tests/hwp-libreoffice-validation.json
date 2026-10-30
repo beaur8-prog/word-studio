@@ -1,6 +1,6 @@
 {
   "date": "2026-10-30",
-  "status": "implementation_frozen_merged_final_reporting",
+  "status": "campaign_completed_with_remaining_layout_limits",
   "testedProductCommit": "3ba12e792ad1c44810d27b6aa611b38e230d6a6f",
   "baseCommit": "103788907eb13b9accb44fbce4771a2d2bd5f708",
   "pullRequest": "https://github.com/beaur8-prog/word-studio/pull/12",
@@ -715,5 +715,24 @@
     "currentMacWindowsReleaseRetained": "v1.4.9",
     "latestAvailableLinuxReleaseRetained": "v1.4.3",
     "releaseNotesAndGitTagsRetained": true
+  },
+  "completion": {
+    "recordedAtUTC": "2026-10-30T08:03:29Z",
+    "implementationAfterFreeze": false,
+    "newImplementationAfterScheduledEnd": false,
+    "automation": {
+      "id": "hwp-libreoffice-8",
+      "status": "PAUSED",
+      "confirmedInSavedConfiguration": true
+    },
+    "previousAutomations": {
+      "hwp-8": "PAUSED",
+      "hwp-12": "PAUSED"
+    },
+    "campaignQAProcessesStopped": true,
+    "userAppsAndOpenDocumentsPreserved": true,
+    "publicDeploymentPerformed": false,
+    "allLayoutDifferencesResolved": false,
+    "scope": "End the approved eight-hour campaign; keep the validated 3ba12e7 product and remaining layout limitations. Closing changes are documentation only."
   }
 }

@@ -2,7 +2,7 @@
 
 ## 2026-10-30 · LibreOffice 표준 DOCX 개선 검증
 
-**외부 LibreOffice Writer의 영어 시험지가 16쪽에서 9쪽으로 줄었다.** 원본은 8쪽이며, Word Studio는 기존 8쪽을 유지한다. 이번 목표인 Writer 10쪽 이하는 충족했고, 원본과 같은 8쪽은 아직 달성하지 못했다. 검증한 제품은 `3ba12e7`, 버전은 1.4.9다. [PR12](https://github.com/beaur8-prog/word-studio/pull/12)는 main `6786f12`에 병합됐으며 승인된 8시간 계획의 최종 보고 단계다. 공개 배포는 하지 않았다.
+**외부 LibreOffice Writer의 영어 시험지가 16쪽에서 9쪽으로 줄었다.** 원본은 8쪽이며, Word Studio는 기존 8쪽을 유지한다. 이번 목표인 Writer 10쪽 이하는 충족했고, 원본과 같은 8쪽은 아직 달성하지 못했다. 검증한 제품은 `3ba12e7`, 버전은 1.4.9다. [PR12](https://github.com/beaur8-prog/word-studio/pull/12)는 main `6786f12`에 병합됐으며 승인된 8시간 작업을 마무리했다. 종료 시각 이후 새 구현은 없고, 후속 호출에서 `hwp-libreoffice-8` 자동화의 PAUSED를 확인했다. 공개 배포는 하지 않았다.
 
 | 문서 | 원본 기준 | Studio / DOCX 두 번 저장 | Writer 시작 | Writer 현재 |
 | --- | ---: | ---: | ---: | ---: |
@@ -53,7 +53,7 @@ Native 원본/현재DOCX2 PDF20개는 모든 glyph 종류·중복수와 그림 �
 
 사용자 요청으로 이전 검증의 큰 PDF·모델·화면·trace와 오래된 릴리즈 파일을 정리했다. 원본10개·publisher PDF8개·동결 글꼴 설정·최신 baseline/table-indent/native-final/외부 편집 결과와 고정 기준은 보존했고, 보호 파일93개를 SHA로 확인했다. 과거 보고서의 모든 중간 파일이 계속 존재한다는 뜻은 아니다. 정리 목록과 최신 시험 런타임의 gzip 복원 목록을 별도로 보존했다. 사용자 가이드의 Windows·Mac 다운로드 링크도 남아 있는1.4.9로 맞췄고, 유일한 Linux1.4.3 설치본은 유지했다.
 
-재현 fixture와 검사 코드는 PR에, [기계 검증 기록](tests/hwp-libreoffice-validation.json)과 이 저장소의 `analysis/hwp-libreoffice-8h-2026-10-30/`에는 원본 해시·모델·실제 PDF·앱 결과·폐기 실험을 남긴다. 검증된 구현 이후에도 남은 시간은 회귀 확인·기록·Git 정리에 사용하며, 동결05:49:35UTC/종료07:49:35UTC는 변경하지 않는다.
+재현 fixture와 검사 코드는 PR에, [기계 검증 기록](tests/hwp-libreoffice-validation.json)과 이 저장소의 `analysis/hwp-libreoffice-8h-2026-10-30/`에는 원본 해시·모델·실제 PDF·앱 결과·폐기 실험을 남겼다. 동결05:49:35UTC/종료07:49:35UTC를 유지했고, 이후에는 완료 기록과 자동화 중지만 처리했다. 이번 작업의 QA 프로세스는 정리했으며 사용자 앱과 열린 문서는 보존했다. 남은 레이아웃 차이는 후속 과제로 두며, 계획 종료가 전체 변환 문제의 해결을 뜻하지 않는다.
 
 ---
 
