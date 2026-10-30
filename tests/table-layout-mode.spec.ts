@@ -43,7 +43,7 @@ for(const defaultMode of ['fixed','autofit','fixed-true'])test(`external Word ta
  const zip=await JSZip.loadAsync(await Packer.toBuffer(new Document({sections:[{children:[new Paragraph('seed')]}]})));
  zip.file('word/styles.xml',`<w:styles xmlns:w="${W}"><w:style w:type="table" w:default="${defaultMode.endsWith('-true')?'true':'1'}" w:styleId="DefaultTable"><w:name w:val="Default"/><w:tblPr><w:tblLayout w:type="${defaultMode.split('-')[0]}"/></w:tblPr></w:style><w:style w:type="table" w:styleId="Base"><w:name w:val="Base"/><w:tblPr><w:tblLayout w:type="fixed"/></w:tblPr></w:style><w:style w:type="table" w:styleId="Derived"><w:name w:val="Derived"/><w:basedOn w:val="Base"/></w:style></w:styles>`);
  const props=['','<w:tblStyle w:val="Derived"/>','<w:tblStyle w:val="Derived"/><w:tblLayout w:type="autofit"/>','<w:tblLayout w:type="fixed"/>'];
- zip.file('word/document.xml',`<w:document xmlns:w="${W}"><w:body>${props.map((pr,i)=>`<w:tbl><w:tblPr>${pr}<w:tblW w:w="6000" w:type="dxa"/></w:tblPr><w:tblGrid><w:gridCol w:w="4000"/><w:gridCol w:w="2000"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>TABLE-${i}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>RIGHT-${i}</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>`).join('')}<w:sectPr/></w:body></w:document>`);
+ zip.file('word/document.xml',`<w:document xmlns:w="${W}"><w:body>${props.map((pr,i)=>`<w:tbl><w:tblPr>${pr}<w:tblW w:w="6000" w:type="dxa"/></w:tblPr><w:tblGrid><w:gridCol w:w="4000"/><w:gridCol w:w="2000"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:noWrap/></w:tcPr><w:p><w:r><w:t>TABLE-${i}</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>RIGHT-${i}</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>`).join('')}<w:sectPr/></w:body></w:document>`);
  const states=await modes(page,[...await zip.generateAsync({type:'uint8array'})],'docx');
  for(const state of states){expect(state.map((t:any)=>t.mode)).toEqual([defaultMode.split('-')[0],'fixed','autofit','fixed']);expect(state.map((t:any)=>t.text)).toEqual(props.map((_,i)=>`TABLE-${i}RIGHT-${i}`));}
 });
@@ -51,4 +51,10 @@ test('omitted Word table layout keeps the standard autofit default',async({page}
  const zip=await JSZip.loadAsync(await Packer.toBuffer(new Document({sections:[{children:[new Paragraph('seed')]}]})));
  zip.file('word/document.xml',`<w:document xmlns:w="${W}"><w:body><w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="3000"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>AUTO DEFAULT</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:sectPr/></w:body></w:document>`);
  const states=await modes(page,[...await zip.generateAsync({type:'uint8array'})],'docx');for(const state of states)expect(state[0].mode).toBe('autofit');
+});
+
+test('authored nowrap cells use autofit without changing widths or leaking the policy to a parent table',async({page})=>{
+ const html='<table><tr><td colwidth="300"><p>OUTER</p><table><tr><td colwidth="34" style="white-space:nowrap;padding:6.8px"><p style="font-size:13pt">10.</p></td><td colwidth="180"><p>INNER CONTENT</p></td></tr></table></td></tr></table>';
+ const states=await modes(page,[...Buffer.from(html)],'html');
+ for(const state of states){expect(state.map((t:any)=>t.mode)).toEqual(['fixed','autofit']);expect(state[1].grid).toEqual([510,2700]);expect(state[1].text).toBe('10.INNER CONTENT');}
 });

@@ -1350,9 +1350,13 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           y: Math.round(((anchor.overlay === 'page-bottom' ? currentBodyBottom : currentPaperBottom) - anchor.y - overlayHeight!) * 15) / 15,
           width: columnWidths.reduce((a, b) => a + b, 0) / 15 } : undefined;
         const inlineIndent = paragraphAnchor ? paragraphAnchor.x - (paragraphAnchor.horizontal === 'margin' ? 0 : currentLeftMargin) : undefined;
+        // Word only honors noWrap under autofit. Keep the explicit policy of
+        // an imported Word table; otherwise preserve nowrap before grid locking.
+        const noWrap = (node.content ?? []).some(row => (row.content ?? []).some(cell => cell.attrs?.whiteSpace === 'nowrap'));
+        const autofit = node.attrs?.wordTableLayout === 'autofit' || node.attrs?.wordTableLayout !== 'fixed' && noWrap;
         const table = new PreservedTable({
             rows,
-            layout: node.attrs?.wordTableLayout === 'autofit' ? TableLayoutType.AUTOFIT : TableLayoutType.FIXED,
+            layout: autofit ? TableLayoutType.AUTOFIT : TableLayoutType.FIXED,
             width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
             ...(paragraphAnchor ? { alignment: AlignmentType.LEFT } : ['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
             ...(inlineIndent !== undefined || node.attrs?.tableIndent ? { indent: { size: Math.round((inlineIndent ?? Number.parseFloat(node.attrs!.tableIndent)) * 15) || 0, type: WidthType.DXA } } : {}),
