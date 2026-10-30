@@ -18,7 +18,7 @@ import { hwpTableGrid } from './table-grid';
 import { nestedTableGeometry } from './nested-tables';
 import { hwpCellBorders } from './cell-borders';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss } from './paragraph-layout';
-import { restoreScriptFonts, type HwpFontRun } from './script-fonts';
+import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { stageHwpTables } from './export-tables';
@@ -448,6 +448,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
   const firstPage = pageSettings(doc, 0, warnings);
   Object.assign(firstPage, storyChanges.get('0:0'));
   const total = Array.from({ length: doc.getSectionCount() }, (_, section) => doc.getParagraphCount(section)).reduce((sum, count) => sum + count, 0);
+  const fontRuns = new Map<number, readonly string[]>();
   onProgress?.({ label: '본문·표·그림을 변환하는 중…', completed: 0, total, unit: '문단' });
   for (let section = 0; section < doc.getSectionCount(); section++) {
     let currentPage = section ? { ...pageSettings(doc, section, warnings), ...storyChanges.get(`${section}:0`) } : firstPage;
@@ -517,7 +518,6 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       }
       const positions: number[] = JSON.parse(doc.getControlTextPositions(section, para));
       const textLength = doc.getParagraphLength(section, para);
-      const fontRuns = new Map<number, readonly string[]>();
       const range = (start: number, end: number) => {
         const html = fragment(doc.exportSelectionHtml(section, para, start, para, end));
         // Control positions can extend past a control-only paragraph's text.
@@ -525,15 +525,8 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         if (start >= textLength || end <= start) return html;
         const text = doc.getTextRange(section, para, start, Math.min(end, textLength) - start);
         const withBreaks = restoreHardLineBreaks(html, [...text.matchAll(/\n/g)].map(m => m.index!));
-        const runs: HwpFontRun[] = JSON.parse(doc.getCharShapeRuns(section, para, start, Math.min(end, textLength))).map((run: any) => {
-          let fonts = fontRuns.get(run.charShapeId);
-          if (!fonts) {
-            const char = JSON.parse(doc.getCharPropertiesAt(section, para, run.startOffset));
-            fonts = Array.isArray(char.fontFamilies) ? char.fontFamilies.map((font: unknown) => typeof font === 'string' ? font : '') : [];
-            fontRuns.set(run.charShapeId, fonts!);
-          }
-          return { start: run.startOffset - start, end: run.endOffset - start, fonts };
-        });
+        const runs = sourceFontRuns(doc.getCharShapeRuns(section, para, start, Math.min(end, textLength)), start, text,
+          offset => JSON.parse(doc.getCharPropertiesAt(section, para, offset)), fontRuns);
         return restoreScriptFonts(withBreaks, text, runs);
       };
       const whole = range(0, 0xffffffff);

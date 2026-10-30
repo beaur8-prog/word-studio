@@ -5,6 +5,24 @@
  * text, size, tracking, or line breaks. */
 export type HwpFontRun = { start: number; end: number; fonts: readonly string[] };
 
+/** Query only each distinct character shape, including shapes after the first
+ * run of a paragraph. Native offsets remain absolute until this boundary. */
+export function sourceFontRuns(serialized: string, start: number, source: string, read: (offset: number) => Record<string, unknown>, cache = new Map<number, readonly string[]>()): HwpFontRun[] {
+  // Native character offsets count Unicode scalars, while HTML/JS offsets
+  // count UTF-16 units. A supplementary character must not shift later faces.
+  const offsets = [0];
+  for (const char of source) offsets.push(offsets[offsets.length - 1] + char.length);
+  return JSON.parse(serialized).map((run: { startOffset: number; endOffset: number; charShapeId: number }) => {
+    let fonts = cache.get(run.charShapeId);
+    if (!fonts) {
+      const char = read(run.startOffset);
+      fonts = Array.isArray(char.fontFamilies) ? char.fontFamilies.map(font => typeof font === 'string' ? font : '') : [];
+      cache.set(run.charShapeId, fonts);
+    }
+    return { start: offsets[run.startOffset - start] ?? source.length, end: offsets[run.endOffset - start] ?? source.length, fonts };
+  });
+}
+
 function language(char: string): number | undefined {
   const cp = char.codePointAt(0)!;
   if (cp === 0x318d) return 6;
@@ -29,6 +47,9 @@ const decode = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|nbsp|#\d+
 
 export function restoreScriptFonts(html: string, source: string, runs: readonly HwpFontRun[]): string {
   if (!source || !runs.some(run => run.fonts.some(font => font && font !== run.fonts[0]))) return html;
+  // Such fragments contain non-text positions and possibly very large image
+  // payloads. Text-only ranges on either side are restored separately.
+  if (/<(?:img|table)\b|<!--\s*rhwp:/i.test(html)) return html;
   const tokens: { raw: string; text?: string }[] = [];
   let spanDepth = 0;
   for (const match of html.matchAll(/<!--[\s\S]*?-->|<[^>]+>|[^<]+|</g)) {

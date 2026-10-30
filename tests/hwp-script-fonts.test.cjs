@@ -7,7 +7,7 @@ const moduleSource = ts.transpileModule(fs.readFileSync(require('node:path').joi
 }).outputText;
 const loaded = { exports: {} };
 new Function('module', 'exports', moduleSource)(loaded, loaded.exports);
-const { restoreScriptFonts } = loaded.exports;
+const { restoreScriptFonts, sourceFontRuns } = loaded.exports;
 const fonts = ['Hangul Face', 'Latin Face', 'Hanja Face', 'Kana Face', 'Other Face', 'Symbol Face', 'User Face'];
 const run = text => [{ start: 0, end: text.length, fonts }];
 
@@ -50,4 +50,30 @@ test('a font name cannot escape its CSS string or HTML attribute', () => {
   assert.ok(!result.includes('<img'));
   assert.match(result, /&lt;img/);
   assert.match(result, /\\&quot;;color:red/);
+});
+
+test('text-only fragments after a control retain absolute source character-shape offsets', () => {
+  const ranges = sourceFontRuns(JSON.stringify([
+    { startOffset: 7, endOffset: 9, charShapeId: 4 }, { startOffset: 9, endOffset: 12, charShapeId: 5 },
+  ]), 7, 'ABcde', offset => ({ fontFamilies: ['Hangul Face', offset === 7 ? 'First Latin' : 'Second Latin'] }));
+  const result = restoreScriptFonts('<p><span>ABcde</span></p>', 'ABcde', ranges);
+  assert.match(result, /First Latin[^>]*>AB<\/span>/);
+  assert.match(result, /Second Latin[^>]*>cde<\/span>/);
+});
+
+test('native scalar offsets are converted to UTF-16 after supplementary Unicode', () => {
+  const source = '😀A𠀀BC';
+  const ranges = sourceFontRuns(JSON.stringify([
+    { startOffset: 4, endOffset: 7, charShapeId: 1 }, { startOffset: 7, endOffset: 9, charShapeId: 2 },
+  ]), 4, source, offset => ({ fontFamilies: ['Hangul Face', offset === 4 ? 'First Latin' : 'Second Latin', 'Hanja Face'] }));
+  const result = restoreScriptFonts(`<p><span>${source}</span></p>`, source, ranges);
+  assert.match(result, /First Latin[^>]*>A<\/span>/);
+  assert.match(result, /Hanja Face[^>]*>𠀀<\/span>/);
+  assert.match(result, /Second Latin[^>]*>BC<\/span>/);
+  assert.equal(result.replace(/<[^>]*>/g, ''), source);
+});
+
+test('inline objects keep their original fragment even if visible text alone matches', () => {
+  const html = '<p><span>abc</span><img src="data:image/png;base64,' + 'AAAA'.repeat(40000) + '"></p>';
+  assert.equal(restoreScriptFonts(html, 'abc', run('abc')), html);
 });
