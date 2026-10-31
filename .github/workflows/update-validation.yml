@@ -1,8 +1,13 @@
 name: Update controls validation
 on:
   workflow_dispatch:
+    inputs:
+      build_windows:
+        description: Build and verify the Windows Setup installer
+        type: boolean
+        default: false
   push:
-    branches: ['codex/update-controls']
+    branches: ['codex/update-controls', 'codex/windows-updater-handoff']
   pull_request:
     paths:
       - 'electron/studio-updat*'
@@ -18,6 +23,7 @@ on:
       - 'tests/updates*'
       - 'tests/updates/**'
       - 'scripts/update-desktop-smoke.cjs'
+      - 'scripts/test-windows-updater-handoff.cjs'
       - '.github/workflows/update-validation.yml'
 permissions:
   contents: read
@@ -28,7 +34,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,6 +49,7 @@ jobs:
         run: bash scripts/prepare-linux-ci.sh browser
       - run: npm run build
       - run: npm run test:updates
+      - run: npm run test:native
       - name: Browser update and document preservation scenarios (Linux)
         if: runner.os == 'Linux'
         run: npx playwright test tests/startup.spec.ts tests/editor.spec.ts tests/table-row-resize.spec.ts tests/word-use-cases.spec.ts tests/hwp-reader.spec.ts tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts --reporter=line
@@ -65,6 +72,25 @@ jobs:
           $parseErrors = $null
           [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'electron/studio-update-windows.ps1'), [ref]$parseTokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+      - name: Build Windows Setup
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || inputs.build_windows)
+        run: npm run package:win
+      - name: Native Windows helper acknowledgement, install, relaunch and cancellation
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || inputs.build_windows)
+        run: node scripts/test-windows-updater-handoff.cjs
+      - name: Verify Setup installation, document preservation, reinstall and uninstall
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || inputs.build_windows)
+        shell: pwsh
+        run: ./scripts/test-windows-installer.ps1
+      - name: Retain verified Windows installer
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || inputs.build_windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: word-studio-windows-release
+          path: |
+            release/installer/Word-Studio-*-windows-x64-setup.exe
+            release/windows/BUILD-win-x64.json
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -73,4 +99,8 @@ jobs:
           path: |
             .cache/update-desktop-*/result.json
             .cache/update-desktop-*/*.png
+            .cache/installer-test.json
+            .cache/desktop-smoke-*/result.json
+            .cache/hwp-native-*/result.json
+            .cache/hwp-editing-native-*/result.json
             test-results/

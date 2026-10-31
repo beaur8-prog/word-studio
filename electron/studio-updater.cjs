@@ -1,7 +1,7 @@
 'use strict';
 
-// Canonical updater source. sync-updater.cjs copies this module and its Windows
-// helper into each independent app before its existing ASAR packaging step.
+// Shared handoff: office-studio PR #1, e3cf073c86af1d8587e9e4a6049edc3d76e72d10.
+// Word keeps its explicit update controls, progress and normal document close guards.
 const fs = require('node:fs/promises');
 const fsSync = require('node:fs');
 const path = require('node:path');
@@ -117,7 +117,7 @@ function powershellCommand(script, jobFile) {
 }
 
 function createStudioUpdater({ app, dialog, shell, Notification, id, getWindow, platform = process.platform, arch = process.arch,
-  fetchImpl = globalThis.fetch, launch = spawn, executable = process.execPath, pid = process.pid, logger = console }) {
+  fetchImpl = globalThis.fetch, launch = spawn, executable = process.execPath, pid = process.pid, logger = console, helperReadyTimeout = 15_000 }) {
   if (!Object.hasOwn(PRODUCTS, id)) throw new Error('Unknown Studio app');
   const product = PRODUCTS[id];
   const releasePage = `https://github.com/beaur8-prog/${id}-studio/releases/latest`;
@@ -142,8 +142,9 @@ function createStudioUpdater({ app, dialog, shell, Notification, id, getWindow, 
     const job = pendingJob;
     pendingJob = null;
     if (job) {
-      app.removeListener('quit', onQuit);
       await fs.rm(job, { force: true }).catch(() => {});
+      await fs.rm(job + '.ready', { force: true }).catch(() => {});
+      await fs.rm(job + '.ps1', { force: true }).catch(() => {});
     }
     if (ready) update({ phase: 'ready' });
   }
@@ -152,7 +153,8 @@ function createStudioUpdater({ app, dialog, shell, Notification, id, getWindow, 
     if (!ready || pendingJob || disposed || presentingInstall) return;
     presentingInstall = true;
     try {
-      await verifyFile(ready.file, ready.asset);
+      try { await verifyFile(ready.file, ready.asset); }
+      catch (error) { ready = null; throw error; }
       if (platform === 'darwin') {
         const answer = await message({ type: 'info', title: product + ' 업데이트', message: ready.asset.version + ' 버전 다운로드가 완료되었습니다.',
           detail: '현재 Mac 배포본은 자동 교체용 배포 서명이 없어 직접 교체해야 합니다. 문서를 저장하고 앱을 종료한 뒤, ZIP 압축을 풀어 응용 프로그램 폴더의 기존 앱을 교체하세요.',
@@ -177,21 +179,25 @@ function createStudioUpdater({ app, dialog, shell, Notification, id, getWindow, 
         bytes: ready.asset.bytes, sha256: ready.asset.sha256, executable, version: ready.asset.version,
         log: path.join(cache, 'last-install.log') }), { flag: 'wx', mode: 0o600 });
       pendingJob = job;
-      app.once('quit', onQuit);
-      update({ phase: 'installing' });
+      update({ phase: 'installing', error: null });
+      // Acknowledge the waiting helper before normal save/close handling.
+      if (!await prepareWindowsHelper(job)) return;
+      if (pendingJob !== job || disposed) return;
       // Never use destroy(), exit(), or quitAndInstall(): normal app.quit()
       // lets the editor's existing recovery/save and beforeunload logic finish.
       app.quit();
     } catch (error) {
-      ready = null;
-      update({ phase: 'error', error: String(error.message).slice(0, 300) });
+      await cancelInstall();
+      update({ phase: ready ? 'ready' : 'error', error: String(error.message).slice(0, 300) });
       await showError(error);
     } finally { presentingInstall = false; }
   }
   async function showError(error) {
     logger.warn('Studio updater:', error.message);
-    await message({ type: 'warning', title: product + ' 업데이트', message: '업데이트를 완료하지 못했습니다.',
-      detail: '작업은 계속할 수 있습니다. 네트워크와 디스크 공간을 확인한 뒤 도움말에서 다시 시도하세요.\n\n' + String(error.message).slice(0, 300), buttons: ['확인'] });
+    const answer = await message({ type: 'warning', title: product + ' 업데이트', message: '업데이트를 완료하지 못했습니다.',
+      detail: '작업은 계속할 수 있습니다. ' + (ready && platform === 'win32' ? '문서를 저장하고 앱을 종료한 뒤 내려받은 설치 파일을 직접 실행할 수 있습니다.\n로그 폴더: ' + cache : '네트워크와 디스크 공간을 확인한 뒤 도움말에서 다시 시도하세요.') + '\n\n' + String(error.message).slice(0, 300),
+      buttons: ready && platform === 'win32' ? ['설치 파일 보기', '나중에'] : ['확인'], defaultId: ready && platform === 'win32' ? 1 : 0, cancelId: ready && platform === 'win32' ? 1 : 0, noLink: true });
+    if (ready && platform === 'win32' && answer.response === 0) shell.showItemInFolder(ready.file);
   }
   function notifyReady() {
     if (!Notification?.isSupported?.() || disposed) return;
@@ -308,17 +314,50 @@ function createStudioUpdater({ app, dialog, shell, Notification, id, getWindow, 
       { label: '다운로드 페이지 열기…', click: () => { void openReleasePage(); } },
     ];
   }
-  const onQuit = () => {
-    if (!pendingJob || platform !== 'win32') return;
+  async function prepareWindowsHelper(job) {
+    const log = path.join(cache, 'last-install.log');
+    const startupLog = path.join(cache, 'helper-startup.log');
+    await fs.writeFile(log, 'Preparing ' + id + ' update helper at ' + new Date().toISOString() + '\n', { mode: 0o600 });
+    let descriptor, helper, failure;
     try {
       const script = fsSync.readFileSync(path.join(__dirname, 'studio-update-windows.ps1'), 'utf8');
-      const encoded = powershellCommand(script, pendingJob);
-      const helper = launch(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe'),
-        ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { detached: true, stdio: 'ignore', windowsHide: true });
-      helper.on('error', error => logger.warn('Could not launch Studio update installer:', error.message));
+      await fs.writeFile(job + '.ps1', script, { flag: 'wx', mode: 0o600 });
+      const digest = createHash('sha256').update(script).digest('hex');
+      // Keep the cmd.exe command short and pass all user paths as encoded data.
+      // Authenticate the extracted helper before evaluating its script block.
+      const bootstrap = "param($JobFile)\n$bytes = [IO.File]::ReadAllBytes($JobFile + '.ps1')\n" +
+        "if ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($bytes)).Replace('-','').ToLowerInvariant() -ne '" + digest + "') { throw 'Update helper checksum mismatch.' }\n" +
+        "& ([ScriptBlock]::Create([Text.Encoding]::UTF8.GetString($bytes))) -JobFile $JobFile";
+      const encoded = powershellCommand(bootstrap, job);
+      descriptor = fsSync.openSync(startupLog, 'w', 0o600);
+      // A detached PowerShell console can exit before executing any script.
+      // Give cmd.exe a hidden console and let its PowerShell child inherit it;
+      // start /b allows that child to outlive both the wrapper and the editor.
+      const command = 'start "" /b "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoLogo -NoProfile -NonInteractive -EncodedCommand ' + encoded;
+      helper = launch(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/cmd.exe'),
+        ['/d', '/s', '/c', command], { detached: false, stdio: ['ignore', descriptor, descriptor], windowsHide: true, windowsVerbatimArguments: true });
+      helper.on('error', error => { failure = error; });
+      helper.on('exit', code => { if (code !== 0) failure ||= new Error('업데이트 설치 도우미를 실행하지 못했습니다. 종료 코드: ' + code); });
       helper.unref();
-    } catch (error) { logger.warn('Could not launch Studio update installer:', error.message); }
-  };
+    } catch (error) {
+      await fs.appendFile(log, 'Helper startup failed: ' + error.message + '\n');
+      throw error;
+    } finally { if (descriptor !== undefined) fsSync.closeSync(descriptor); }
+    const deadline = Date.now() + helperReadyTimeout;
+    while (Date.now() < deadline) {
+      if (pendingJob !== job || disposed) return false;
+      if (failure) break;
+      try {
+        const acknowledgement = JSON.parse((await fs.readFile(job + '.ready', 'utf8')).replace(/^\uFEFF/, ''));
+        if (acknowledgement.schema !== 1 || acknowledgement.parentPid !== pid || acknowledgement.id !== id) throw new Error('업데이트 설치 도우미 응답이 올바르지 않습니다.');
+        return true;
+      } catch (error) { if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error; }
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    const error = failure || new Error('업데이트 설치 도우미가 시작되지 않았습니다. helper-startup.log를 확인하세요.');
+    await fs.appendFile(log, 'Helper startup failed: ' + error.message + '\n');
+    throw error;
+  }
   async function start() {
     try { const saved = JSON.parse(await fs.readFile(settingsFile, 'utf8')); if (typeof saved.automatic === 'boolean') enabled = saved.automatic; }
     catch (error) { if (error.code !== 'ENOENT') logger.warn('Studio update preferences:', error.message); }
@@ -330,7 +369,7 @@ function createStudioUpdater({ app, dialog, shell, Notification, id, getWindow, 
   }
   function dispose() {
     disposed = true; clearTimeout(startTimer); clearInterval(interval); controller?.abort(); notification?.close();
-    app.removeListener('quit', onQuit); listeners.clear();
+    listeners.clear();
   }
   return { start, check, downloadUpdate, installNow, installPrepared, cancelInstall, cancel, openReleasePage, setAutomatic, menuTemplate, onChange: callback => { listeners.add(callback); return () => listeners.delete(callback); },
     getState: () => ({ ...state, automatic: enabled, currentVersion: app.getVersion(), platform, packaged: app.isPackaged, supported }), dispose };

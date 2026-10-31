@@ -105,3 +105,20 @@ test('Linux and development builds show manual installation without a false late
   await page.evaluate(() => (window as any).updateTest.push({ platform: 'darwin', supported: true, packaged: false }));
   await expect(dialog.getByText(/설치된 배포 앱에서 업데이트 확인/)).toBeVisible();
 });
+
+
+test('helper startup failure leaves the editor open with retry and manual instructions', async ({ page }) => {
+  await updater(page);
+  await page.locator('.tiptap').fill('KEEP AFTER UPDATE HELPER FAILURE');
+  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.locator('.backstage-nav').getByRole('button', { name: '수동 업데이트·설정', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Word Studio 업데이트', exact: true });
+  await page.evaluate(() => (window as any).updateTest.push({ phase: 'installing', version: '1.5.0' }));
+  await expect(dialog.getByRole('status')).toContainText('문서 저장·종료');
+  await page.evaluate(() => (window as any).updateTest.push({ phase: 'ready', error: '업데이트 설치 도우미가 시작되지 않았습니다. helper-startup.log를 확인하세요.' }));
+  await expect(dialog.getByRole('alert')).toContainText('helper-startup.log');
+  await expect(dialog.getByRole('button', { name: '종료하고 설치', exact: true })).toBeEnabled();
+  await expect(dialog.getByRole('button', { name: '다운로드 페이지 열기', exact: true })).toBeEnabled();
+  await dialog.getByRole('button', { name: '업데이트 창 닫기' }).click();
+  await expect(page.locator('.tiptap')).toHaveText('KEEP AFTER UPDATE HELPER FAILURE');
+});
