@@ -121,9 +121,11 @@ export async function docxFormat(zip: JSZip) {
       if (spacing) style.letterSpacing = `${Number(val(spacing)) / 20 *
         (script === 'eastAsia' && balanceWidths && on(balanceWidths) ? 2 : 1)}pt`;
       for (const [tag, property, enabled, disabled] of [
-        ['b', 'font-weight', 'bold', 'normal'], ['i', 'font-style', 'italic', 'normal'],
+        ['b', 'font-weight', 'bold', '400'], ['i', 'font-style', 'italic', 'normal'],
       ]) {
         const setting = child(props, tag);
+        // Tiptap's bold parser clears an inherited mark for numeric 400.
+        // CSS normal alone can leave a surrounding heading/strong mark active.
         if (setting) style.setProperty(property, on(setting) ? enabled : disabled);
       }
       const u = child(props, 'u');

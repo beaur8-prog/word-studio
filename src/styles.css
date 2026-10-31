@@ -864,6 +864,13 @@ button:hover:not(:disabled) {
   z-index: 1;
 }
 .tiptap [data-word-line-rule] { letter-spacing: normal; }
+/* Imported heading runs already carry the resolved Word formatting. Studio's
+   authored heading weight and extra top padding must not add another layer. */
+.tiptap :is(h1, h2, h3, h4, h5, h6)[data-word-line-rule] {
+  padding-top: 0;
+  font-weight: 400;
+  font-style: normal;
+}
 .word-overlap { display: inline-grid; vertical-align: baseline; text-indent: 0; }
 .word-overlap > span { grid-area: 1 / 1; align-self: center; justify-self: center; }
 .tiptap p:empty::after { content: '\200b'; }
