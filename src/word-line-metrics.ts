@@ -4,25 +4,41 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 const metrics = new Map<string, number>();
 const legacyKorean = /^(돋움체?|굴림체?|Dotum(?:Che)?|Gulim(?:Che)?)$/i;
-function singleLine(style: CSSStyleDeclaration) {
+function singleLine(style: CSSStyleDeclaration, text = 'Ag') {
   const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-  if (metrics.has(font)) return metrics.get(font)!;
+  // Measure only glyphs that this run actually uses. An unconditional Hangul
+  // sample selects a taller fallback even for entirely Latin Word paragraphs.
+  // Collapse explicit breaks: this is a single-line metric, not paragraph height.
+  const sample = text.replace(/[\t\r\n\u2028\u2029]/g, ' ');
+  const key = `${font}\n${sample}`;
+  const cached = metrics.get(key);
+  if (cached !== undefined) {
+    metrics.delete(key); metrics.set(key, cached); return cached;
+  }
   // Windows Word's single-line box for these legacy Korean faces is about
   // 1.30 em (10 pt / 280-auto produces a measured 20.16–20.32 px baseline
   // pitch). Chromium's bitmap/outline normal box is only about 1.15 em.
   // Apply this measured font profile only to imported OOXML auto/minimum
   // spacing; exact spacing and ordinary authored HTML remain unchanged.
   const family = style.fontFamily.split(',')[0].replace(/["']/g, '').trim();
+  let height: number;
   if (legacyKorean.test(family)) {
-    const height = parseFloat(style.fontSize) * 1.3;
-    metrics.set(font, height); return height;
+    // This actual character selects Word's taller Noto Sans KR fallback.
+    height = parseFloat(style.fontSize) * (sample.includes('\uff65') ? 1.55 : 1.3);
+  } else {
+    const probe = document.createElement('span');
+    Object.assign(probe.style, { position: 'fixed', left: '-10000px', visibility: 'hidden',
+      font, lineHeight: 'normal', whiteSpace: 'pre', padding: '0', border: '0' });
+    probe.textContent = sample; document.body.append(probe);
+    height = probe.getBoundingClientRect().height; probe.remove();
   }
-  const probe = document.createElement('span');
-  Object.assign(probe.style, { position: 'fixed', left: '-10000px', visibility: 'hidden',
-    font, lineHeight: 'normal', whiteSpace: 'pre', padding: '0', border: '0' });
-  probe.textContent = 'Ag한'; document.body.append(probe);
-  const height = probe.getBoundingClientRect().height; probe.remove();
-  metrics.set(font, height); return height;
+  // Text is part of the key so changing scripts cannot reuse another fallback's
+  // height. Bound both the number and size of retained samples in large files.
+  if (sample.length <= 4096) {
+    if (metrics.size >= 2048) metrics.delete(metrics.keys().next().value!);
+    metrics.set(key, height);
+  }
+  return height;
 }
 
 /** OOXML auto spacing multiplies a single font line, not the font's em size.
@@ -30,20 +46,18 @@ function singleLine(style: CSSStyleDeclaration) {
 export function wordLineHeight(paragraph: HTMLElement) {
   const rule = paragraph.dataset.wordLineRule, source = paragraph.dataset.wordLine;
   if (!rule || !source || rule === 'exact') return null;
-  let normal = singleLine(getComputedStyle(paragraph));
-  for (const run of paragraph.querySelectorAll<HTMLElement>('span,strong,em,b,i,sub,sup')) {
-    if (run.textContent?.trim()) {
-      const style = getComputedStyle(run);
-      normal = Math.max(normal, singleLine(style));
-      // The halfwidth middle dot is absent from the legacy Korean faces.
-      // Word's Noto Sans KR fallback expands the line even though the run
-      // still declares DotumChe (9 pt / 249-auto measures ~19.3 px).
-      if (run.textContent.includes('\uff65') && legacyKorean.test(style.fontFamily.split(',')[0].replace(/["']/g, '').trim()))
-        normal = Math.max(normal, parseFloat(style.fontSize) * 1.55);
-    }
-  }
   const value = parseFloat(source);
   if (!Number.isFinite(value) || value <= 0) return null;
+  // The paragraph contributes its font strut, including for empty paragraphs.
+  // Then measure text with its own resolved run font, never with an ancestor's
+  // font that may not support those glyphs (e.g. a smaller CJK run in Latin text).
+  let normal = singleLine(getComputedStyle(paragraph));
+  const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (node.data && node.parentElement)
+      normal = Math.max(normal, singleLine(getComputedStyle(node.parentElement), node.data));
+  }
   return rule === 'auto' ? normal * value : Math.max(normal, value * (source.endsWith('pt') ? 4 / 3 : 1));
 }
 export function layoutWordLines(root: HTMLElement) {
