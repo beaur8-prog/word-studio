@@ -119,3 +119,20 @@ test('external HWPX opens in its original viewer and keeps subsequent requests u
   await page.getByRole('button', { name: 'HWP 읽기 닫기', exact: true }).click();
   await expect(editor(page)).toHaveText('AFTER HWPX');
 });
+
+
+test('the update modal preserves the current document and queues OS file requests until closed', async ({ page }) => {
+  await desktop(page);
+  await editor(page).fill('KEEP WHILE UPDATING');
+  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.locator('.backstage-nav').getByRole('button', { name: '수동 업데이트·설정', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Word Studio 업데이트', exact: true });
+  await expect(dialog).toBeVisible();
+  await request(page, textFile('대기한 파일.txt', 'OPEN AFTER UPDATER CLOSE'));
+  expect(await page.evaluate(() => (window as any).osFiles.queue.length)).toBe(1);
+  await expect(editor(page)).toHaveText('KEEP WHILE UPDATING');
+  await dialog.getByRole('button', { name: '업데이트 창 닫기', exact: true }).click();
+  await expect(editor(page)).toHaveText('OPEN AFTER UPDATER CLOSE');
+  const writes = await page.evaluate(() => (window as any).osFiles.writes);
+  expect(writes.some((raw: string) => raw.includes('KEEP WHILE UPDATING'))).toBe(true);
+});

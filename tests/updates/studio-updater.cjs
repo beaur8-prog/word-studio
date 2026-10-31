@@ -29,7 +29,7 @@ async function fixture(t, { platform = 'win32', answer = 1, fetchImpl } = {}) {
   await fs.writeFile(path.join(directory, 'Uninstall Word Studio.exe'), 'test uninstaller');
   const updater = createStudioUpdater({ app, id: 'word', platform, arch: platform === 'darwin' ? 'arm64' : 'x64',
     executable,
-    dialog: { showMessageBox: async (...args) => { dialogs.push(args.at(-1)); return { response: answer }; } },
+    dialog: { showMessageBox: async (...args) => { dialogs.push(args.at(-1)); return { response: typeof answer === 'function' ? await answer() : answer }; } },
     shell: { showItemInFolder: file => opened.push(file), openExternal: async url => opened.push(url) },
     fetchImpl: fetchImpl || (async url => { requests.push(url); const item = release('word', platform, platform === 'darwin' ? 'arm64' : 'x64'); return url.includes('api.github.com') ? Response.json(platform === 'darwin' ? [item] : item) : new Response(bytes); }),
     launch: (...args) => { launched.push(args); return { on() {}, unref() {} }; },
@@ -175,4 +175,134 @@ test('PowerShell job paths are data, including apostrophes and command character
   const command = Buffer.from(powershellCommand('param($JobFile)\nWrite-Output $JobFile',"C:\\O'Brien;$x\\job.json"),'base64').toString('utf16le');
   assert.ok(command.endsWith("-JobFile 'C:\\O''Brien;$x\\job.json'"));
   assert.throws(() => powershellCommand('x','bad\npath'));
+});
+
+
+test('manual check reports availability without downloading, dialogs or quitting', async t => {
+  const f = await fixture(t);
+  await f.updater.setAutomatic(false);
+  await f.updater.check(true, { downloadUpdate: false, prompt: false });
+  const state = f.updater.getState();
+  assert.equal(state.phase, 'available'); assert.equal(state.version, '1.4.4');
+  assert.equal(state.currentVersion, '1.4.3'); assert.equal(state.total, bytes.length);
+  assert.ok(state.checkedAt > 0); assert.equal(state.automatic, false);
+  assert.equal(f.requests.length, 1); assert.equal(f.dialogs.length, 0); assert.equal(f.quitCalls(), 0);
+  assert.equal('file' in state, false); assert.equal('url' in state, false);
+});
+test('manual download and install are separate and keep working with automatic updates disabled', async t => {
+  const f = await fixture(t, { answer: 0 });
+  await f.updater.setAutomatic(false);
+  const phases = [];
+  f.updater.onChange(() => phases.push(f.updater.getState().phase));
+  await f.updater.downloadUpdate();
+  assert.equal(f.updater.getState().phase, 'ready');
+  assert.equal(f.updater.getState().transferred, bytes.length);
+  assert.ok(phases.includes('downloading') && phases.includes('verifying') && phases.includes('ready'));
+  assert.equal(f.dialogs.length, 0); assert.equal(f.quitCalls(), 0);
+  await f.updater.installPrepared();
+  assert.equal(f.quitCalls(), 1); assert.equal(f.launched.length, 0);
+  await f.updater.cancelInstall();
+  f.app.emit('quit'); assert.equal(f.launched.length, 0);
+});
+test('canceling a streamed manual download removes partials and allows a successful retry', async t => {
+  let streaming = true, partialSent;
+  const partial = new Promise(resolve => { partialSent = resolve; });
+  const f = await fixture(t, { fetchImpl: async (url, options) => {
+    if (url.includes('api.github.com')) return Response.json(release());
+    if (!streaming) return new Response(bytes);
+    return new Response(new ReadableStream({ start(stream) {
+      stream.enqueue(bytes.subarray(0, 8)); partialSent();
+      options.signal.addEventListener('abort', () => stream.error(options.signal.reason), { once: true });
+    } }));
+  } });
+  const downloading = f.updater.downloadUpdate();
+  await partial;
+  f.updater.cancel();
+  await downloading;
+  assert.equal(f.updater.getState().phase, 'available');
+  assert.deepEqual(await fs.readdir(path.join(f.directory, 'updates', sha256)), []);
+  streaming = false;
+  await f.updater.downloadUpdate();
+  assert.equal(f.updater.getState().phase, 'ready'); assert.equal(f.quitCalls(), 0);
+});
+test('canceling metadata prevents any subsequent download or false latest message', async t => {
+  let respond;
+  const f = await fixture(t, { fetchImpl: () => new Promise(resolve => { respond = resolve; }) });
+  const checking = f.updater.check(true, { downloadUpdate: false, prompt: false });
+  f.updater.cancel();
+  respond(Response.json(release())); await checking;
+  assert.equal(f.updater.getState().phase, 'idle');
+  assert.equal(f.updater.getState().result, null); assert.equal(f.dialogs.length, 0);
+});
+test('turning off automatic updates does not cancel an explicitly requested download', async t => {
+  let finish, started;
+  const gate = new Promise(resolve => { started = resolve; });
+  const f = await fixture(t, { fetchImpl: async url => {
+    if (url.includes('api.github.com')) return Response.json(release());
+    return new Response(new ReadableStream({ start(stream) {
+      stream.enqueue(bytes.subarray(0, 8));
+      finish = () => { stream.enqueue(bytes.subarray(8)); stream.close(); };
+      started();
+    } }));
+  } });
+  const downloading = f.updater.downloadUpdate(); await gate;
+  await f.updater.setAutomatic(false); finish(); await downloading;
+  assert.equal(f.updater.getState().phase, 'ready'); assert.equal(f.updater.getState().automatic, false);
+});
+test('revoked cached downloads are not installed by the explicit install action', async t => {
+  let item = release();
+  const f = await fixture(t, { answer: 0, fetchImpl: async url => url.includes('api.github.com') ? Response.json(item) : new Response(bytes) });
+  await f.updater.downloadUpdate();
+  item = release('word', 'win32', 'x64', '1.4.3');
+  await f.updater.installPrepared();
+  assert.equal(f.updater.getState().phase, 'idle'); assert.equal(f.updater.getState().result, 'latest');
+  assert.equal(f.quitCalls(), 0); assert.equal(f.launched.length, 0);
+});
+test('a different new release with the same bytes must be downloaded/revalidated before installing', async t => {
+  let item = release();
+  const f = await fixture(t, { answer: 0, fetchImpl: async url => url.includes('api.github.com') ? Response.json(item) : new Response(bytes) });
+  await f.updater.downloadUpdate(); item = release('word', 'win32', 'x64', '1.4.5');
+  await f.updater.installPrepared();
+  assert.equal(f.updater.getState().phase, 'available'); assert.equal(f.updater.getState().version, '1.4.5');
+  assert.equal(f.quitCalls(), 0);
+});
+test('network errors appear in state, and a retry clears the error', async t => {
+  let fail = true;
+  const f = await fixture(t, { fetchImpl: async () => fail ? new Response('', { status: 503 }) : Response.json(release()) });
+  await f.updater.check(true, { downloadUpdate: false, prompt: false });
+  assert.equal(f.updater.getState().phase, 'error'); assert.match(f.updater.getState().error, /503/);
+  assert.equal(f.dialogs.length, 0);
+  fail = false; await f.updater.check(true, { downloadUpdate: false, prompt: false });
+  assert.equal(f.updater.getState().phase, 'available'); assert.equal(f.updater.getState().error, null);
+});
+test('unsupported Linux and development builds never pretend to be up to date', async t => {
+  for (const platform of ['linux', 'win32']) {
+    const f = await fixture(t, { platform });
+    if (platform === 'win32') f.app.isPackaged = false;
+    await f.updater.check(true, { downloadUpdate: false, prompt: false });
+    await f.updater.downloadUpdate();
+    assert.equal(f.updater.getState().result, null); assert.equal(f.requests.length, 0); assert.equal(f.dialogs.length, 0);
+    await f.updater.openReleasePage(); assert.equal(f.opened.length, 1);
+  }
+});
+test('native menu opens the visible update center for checking and manual settings', async t => {
+  const f = await fixture(t);
+  const opened = [];
+  const menu = f.updater.menuTemplate({ showUpdates: check => opened.push(check) });
+  menu[0].click(); menu[1].click();
+  assert.deepEqual(opened, [true, false]); assert.equal(f.requests.length, 0);
+});
+
+test('an open installation confirmation serializes repeated install and check requests', async t => {
+  let respond, entered;
+  const shown = new Promise(resolve => { entered = resolve; });
+  const f = await fixture(t, { answer: () => { entered(); return new Promise(resolve => { respond = resolve; }); } });
+  await f.updater.downloadUpdate();
+  const installing = f.updater.installPrepared(); await shown;
+  await f.updater.installPrepared();
+  await f.updater.check(true, { downloadUpdate: false, prompt: false });
+  assert.equal(f.dialogs.length, 1);
+  assert.equal(f.requests.filter(url => url.includes('api.github.com')).length, 2);
+  respond(1); await installing;
+  assert.equal(f.quitCalls(), 0);
 });

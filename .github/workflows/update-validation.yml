@@ -1,0 +1,68 @@
+name: Update controls validation
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/update-controls']
+  pull_request:
+    paths:
+      - 'electron/studio-updat*'
+      - 'electron/preload.cjs'
+      - 'electron/main.cjs'
+      - 'src/UpdateCenter.tsx'
+      - 'tests/updates*'
+      - 'tests/updates/**'
+      - 'scripts/update-desktop-smoke.cjs'
+      - '.github/workflows/update-validation.yml'
+permissions:
+  contents: read
+jobs:
+  updates:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Prepare Linux desktop and browser
+        if: runner.os == 'Linux'
+        run: bash scripts/prepare-linux-ci.sh browser
+      - run: npm run build
+      - run: npm run test:updates
+      - name: Browser update and document preservation scenarios (Linux)
+        if: runner.os == 'Linux'
+        run: npx playwright test tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts --reporter=line
+        env:
+          PLAYWRIGHT_CHANNEL: chromium
+      - name: Browser update and document preservation scenarios (Windows)
+        if: runner.os == 'Windows'
+        run: npx playwright test tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts --reporter=line
+      - name: Real Electron update bridge (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:updates:desktop
+      - name: Real Electron update bridge (Windows)
+        if: runner.os == 'Windows'
+        run: npm run test:updates:desktop
+      - name: Parse Windows update helper
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $parseTokens = $null
+          $parseErrors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'electron/studio-update-windows.ps1'), [ref]$parseTokens, [ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: update-controls-${{ runner.os }}
+          include-hidden-files: true
+          path: |
+            .cache/update-desktop-*/result.json
+            .cache/update-desktop-*/*.png
+            test-results/

@@ -1,10 +1,23 @@
 'use strict';
 
 const { contextBridge, ipcRenderer } = require('electron');
-const MENU_ACTIONS = new Set(['new', 'open', 'save', 'save-as', 'export-docx', 'export-hwp', 'export-hwpx', 'export-pdf', 'print']);
+const MENU_ACTIONS = new Set(['new', 'open', 'save', 'save-as', 'export-docx', 'export-hwp', 'export-hwpx', 'export-pdf', 'print', 'updates', 'updates-check']);
 
 contextBridge.exposeInMainWorld('wordDesktop', Object.freeze({
   platform: process.platform,
+  getUpdateState: () => ipcRenderer.invoke('word-studio:get-update-state'),
+  updateAction: (action, value) => {
+    if (!['check', 'download', 'install', 'cancel', 'automatic', 'release-page'].includes(action) ||
+        (action === 'automatic' ? typeof value !== 'boolean' : value !== undefined))
+      throw new TypeError('Choose a supported update action.');
+    return ipcRenderer.invoke('word-studio:update-action', action, value);
+  },
+  onUpdateState: callback => {
+    if (typeof callback !== 'function') throw new TypeError('An update callback is required.');
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('word-studio:update-state', listener);
+    return () => ipcRenderer.removeListener('word-studio:update-state', listener);
+  },
   outlineFonts: () => ipcRenderer.invoke('word-studio:outline-fonts'),
   readRecovery: () => ipcRenderer.invoke('word-studio:read-recovery'),
   saveRecovery: serialized => ipcRenderer.invoke('word-studio:save-recovery', serialized),

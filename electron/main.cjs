@@ -42,7 +42,14 @@ app.setPath('userData', customUserData && path.isAbsolute(customUserData)
   ? path.resolve(customUserData) : path.join(app.getPath('appData'), PRODUCT_NAME));
 if (process.platform === 'win32') app.setAppUserModelId('local.wordstudio.app');
 const updates = createStudioUpdater({ app, dialog, shell, Notification, id: 'word', getWindow: () => mainWindow });
-updates.onChange(installMenu);
+updates.onChange(() => { installMenu(); publishUpdateState(); });
+function publishUpdateState() {
+  if (!mainWindow || mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return;
+  const state = updates.getState();
+  mainWindow.webContents.send('word-studio:update-state', state);
+  mainWindow.setProgressBar(state.phase === 'downloading' ? state.percent / 100
+    : ['checking', 'verifying', 'installing'].includes(state.phase) ? 2 : -1);
+}
 // Older portal file choosers ignore defaultPath; let Electron use GTK/KDE
 // when the portal cannot honor the document's working folder.
 if (process.platform === 'linux' && !app.commandLine.hasSwitch('xdg-portal-required-version')) {
@@ -174,7 +181,9 @@ function pdfOptions(payload) {
 function installMenu() {
   const template = [
     ...(process.platform === 'darwin' ? [{ label: PRODUCT_NAME, submenu: [
-      { role: 'about' }, { type: 'separator' }, { role: 'services' }, { type: 'separator' },
+      { role: 'about' },
+      { label: '업데이트 확인…', click: () => sendMenuAction('updates-check') },
+      { type: 'separator' }, { role: 'services' }, { type: 'separator' },
       { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' },
     ] }] : []),
     { label: 'File', submenu: [
@@ -200,7 +209,7 @@ function installMenu() {
     ] },
     { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'zoom' },
       ...(process.platform === 'darwin' ? [{ role: 'front' }] : [])] },
-    { label: '도움말', submenu: updates.menuTemplate() },
+    { label: '도움말', submenu: updates.menuTemplate({ showUpdates: check => sendMenuAction(check ? 'updates-check' : 'updates') }) },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
@@ -220,6 +229,26 @@ function installIPC() {
       return { name: path.basename(filename), data: new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) };
     } finally { await handle.close(); }
   }
+  ipcMain.handle('word-studio:get-update-state', (event, ...args) => {
+    requireTrustedSender(event);
+    if (args.length) throw new TypeError('업데이트 상태 조회에는 인수가 필요하지 않습니다.');
+    return updates.getState();
+  });
+  ipcMain.handle('word-studio:update-action', async (event, action, value, ...args) => {
+    requireTrustedSender(event);
+    if (args.length || (action === 'automatic' ? typeof value !== 'boolean' : value !== undefined))
+      throw new TypeError('업데이트 요청이 올바르지 않습니다.');
+    switch (action) {
+      case 'check': await updates.check(true, { downloadUpdate: false, prompt: false }); break;
+      case 'download': await updates.downloadUpdate(); break;
+      case 'install': await updates.installPrepared(); break;
+      case 'cancel': updates.cancel(); break;
+      case 'automatic': await updates.setAutomatic(value); break;
+      case 'release-page': await updates.openReleasePage(); break;
+      default: throw new TypeError('지원하지 않는 업데이트 요청입니다.');
+    }
+    return updates.getState();
+  });
   ipcMain.handle('word-studio:take-requested-file', (event, ...args) => {
     requireTrustedSender(event);
     if (args.length) throw new TypeError('파일 열기 요청에는 경로나 인수가 필요하지 않습니다.');

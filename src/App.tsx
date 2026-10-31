@@ -67,8 +67,10 @@ import {
   Trash2,
   Heading1,
   CalendarDays,
+  RefreshCw,
 } from "lucide-react";
 import { editorExtensions, parseDocumentHtml } from "./extensions";
+import { UpdateCenter, UpdateStatus, useStudioUpdates } from './UpdateCenter';
 import { TableContextMenu } from './TableContextMenu';
 import { HwpReader } from './hwp/HwpReader';
 import { importEditableHwp, exportEditableHwp } from './hwp/editing';
@@ -361,6 +363,9 @@ export default function App() {
     [busy, setBusy] = useState(false),
     [tableRows, setTableRows] = useState(3),
     [tableCols, setTableCols] = useState(3);
+  const updates = useStudioUpdates();
+  const showUpdates = useRef(updates.show);
+  showUpdates.current = updates.show;
   const [printPreview, setPrintPreview] = useState<PrintLayout | null>(null);
   const [hwpFile, setHwpFile] = useState<File | null>(null);
   const [hwpOriginal, setHwpOriginal] = useState<File | null>(null);
@@ -642,16 +647,16 @@ export default function App() {
     setOpenRequestVersion(version => version + 1);
   }), []);
   useEffect(() => {
-    if (!editor || editor.isDestroyed || busy || modal || command || failedTransition || hwpFile || hwpExport || hwpOperation ||
+    if (!editor || editor.isDestroyed || busy || modal || updates.open || command || failedTransition || hwpFile || hwpExport || hwpOperation ||
         requestedFile || takingRequestedFile.current || !window.wordDesktop?.takeRequestedFile) return;
     takingRequestedFile.current = true;
     void window.wordDesktop.takeRequestedFile().then(setRequestedFile).catch(error => {
       notify(`파일을 열지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
       setOpenRequestVersion(version => version + 1);
     }).finally(() => { takingRequestedFile.current = false; });
-  }, [editor, busy, modal, command, failedTransition, hwpFile, hwpExport, hwpOperation, requestedFile, openRequestVersion]);
+  }, [editor, busy, modal, updates.open, command, failedTransition, hwpFile, hwpExport, hwpOperation, requestedFile, openRequestVersion]);
   useEffect(() => {
-    if (!requestedFile || !editor || editor.isDestroyed || busy || modal || command || failedTransition || hwpFile || hwpExport ||
+    if (!requestedFile || !editor || editor.isDestroyed || busy || modal || updates.open || command || failedTransition || hwpFile || hwpExport ||
         hwpOperation || openingRequestedFile.current) return;
     openingRequestedFile.current = true;
     // Reuse import, HWP original view and recovery-failure protection. Check
@@ -661,7 +666,7 @@ export default function App() {
       setRequestedFile(null);
       setOpenRequestVersion(version => version + 1);
     });
-  }, [requestedFile, editor, busy, modal, command, failedTransition, hwpFile, hwpExport, hwpOperation]);
+  }, [requestedFile, editor, busy, modal, updates.open, command, failedTransition, hwpFile, hwpExport, hwpOperation]);
   const toggleFileMenu = () => {
     setFileMenu((open) => !open);
     if (fileMenu) editor?.commands.focus();
@@ -806,6 +811,7 @@ export default function App() {
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.isComposing || e.keyCode === 229) return;
+      if (document.querySelector('.update-dialog[open]')) return;
       if (document.querySelector('.hwp-reader[open]')) return;
       if (document.querySelector('.hwp-conversion-dialog[open]')) return;
       if (document.querySelector('.save-failure-dialog[open]')) return;
@@ -841,6 +847,8 @@ export default function App() {
     };
     window.addEventListener("keydown", key);
     const off = window.wordDesktop?.onMenu((a) => {
+      if (a === 'updates' || a === 'updates-check') { showUpdates.current(a === 'updates-check'); return; }
+      if (document.querySelector('.update-dialog[open]')) return;
       if (document.querySelector('.hwp-reader[open]')) return;
       if (document.querySelector('.hwp-conversion-dialog[open]')) return;
       if (document.querySelector('.save-failure-dialog[open]')) return;
@@ -1869,6 +1877,7 @@ export default function App() {
                 />
               </Group>
               <Group label="Studio">
+                <Tool label="업데이트 확인" icon={<RefreshCw size={26} />} onClick={() => updates.show(true)} />
                 <Tool
                   label="앱 정보"
                   icon={<FileText size={26} />}
@@ -2292,6 +2301,7 @@ export default function App() {
           <span />
           오프라인 · 로컬 문서
         </span>
+        <UpdateStatus updates={updates} />
         <div className="status-spacer" />
         <IconButton
           label="읽기 모드 전환"
@@ -2383,6 +2393,8 @@ export default function App() {
               {hwpOriginal && <button onClick={() => { setFileMenu(false); setHwpFile(hwpOriginal); }}>한글 원본 보기</button>}
               <button onClick={() => save("html")}>HTML로 내보내기</button>
               <button onClick={() => save("txt")}>텍스트로 내보내기</button>
+              <button onClick={() => { setFileMenu(false); updates.show(true); }}>업데이트 확인</button>
+              <button onClick={() => { setFileMenu(false); updates.show(); }}>수동 업데이트·설정</button>
               <button
                 onClick={() => {
                   setFileMenu(false);
@@ -2779,6 +2791,7 @@ export default function App() {
           </section>
         </div>
       )}
+      <UpdateCenter updates={updates} currentVersion={APP_VERSION} />
       {failedTransition && <SaveFailureDialog title={title}
         onCancel={() => { setFailedTransition(null); transitioning.current = false; }}
         onDiscard={() => activateDocument(failedTransition)}
