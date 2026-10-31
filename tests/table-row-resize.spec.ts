@@ -40,7 +40,11 @@ test('horizontal dragging preserves selection, records one undo and persists to 
   const download = page.waitForEvent('download'); await page.keyboard.press('ControlOrMeta+s');
   await page.locator('input[type=file]').first().setInputFiles((await (await download).path())!);
   await expect(rows.first()).toHaveAttribute('style', style!);
+  await expect(page.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
   await page.reload();
+  await expect(page.locator('.tiptap')).toHaveText('');
+  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.locator('.recent-document').filter({ hasText: 'row-height' }).click();
   await expect(rows.first()).toHaveAttribute('style', style!);
   await page.getByRole('button', { name: '보기', exact: true }).click();
   await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();

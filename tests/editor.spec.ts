@@ -7,10 +7,11 @@ async function blank(page: any) {
   await page
     .getByRole("button", { name: "빈 문서 자유롭게 시작하세요" })
     .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".tiptap")).toHaveText("");
 }
 
-test("editing, formatting, undo, search/replace, and automatic restore", async ({
+test("editing, formatting, undo, search/replace, and explicit recovery after blank startup", async ({
   page,
 }) => {
   const errors: string[] = [];
@@ -48,6 +49,10 @@ test("editing, formatting, undo, search/replace, and automatic restore", async (
   await page.getByRole("textbox", { name: "문서 제목" }).fill("테스트 문서");
   await expect(page.getByText("이 PC에 저장됨", { exact: true })).toBeVisible();
   await page.reload();
+  await expect(page.locator(".tiptap")).toHaveText("");
+  await expect(page.getByRole("textbox", { name: "문서 제목" })).toHaveValue("문서1");
+  await page.getByRole("button", { name: "파일", exact: true }).click();
+  await page.locator('.recent-document').filter({ hasText: '테스트 문서' }).click();
   await expect(page.getByRole("textbox", { name: "문서 제목" })).toHaveValue(
     "테스트 문서",
   );
@@ -150,6 +155,9 @@ test("all ribbons, light theme, navigation, read mode and image insertion render
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/");
   await page.locator(".tiptap").waitFor();
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'outline.html', mimeType: 'text/html',
+    buffer: Buffer.from('<h1>문서 제목</h1><h2>첫 번째</h2><h2>두 번째</h2><h2>세 번째</h2><p>탐색·보기 시험</p>') });
+  await expect(page.locator('.tiptap h1')).toHaveText('문서 제목');
   for (const tab of ["삽입", "디자인", "레이아웃", "검토", "보기", "홈"]) {
     await page.getByRole("button", { name: tab, exact: true }).click();
     await expect(

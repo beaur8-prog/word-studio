@@ -43,7 +43,7 @@ export async function initializeRecovery() {
     if (current) history.push(current);
     else if (previous) {
       history.push(previous);
-      recoveryNotice = '최근 복구본을 읽지 못해 이전 정상 버전을 복원했습니다.';
+      recoveryNotice = '최근 복구본을 읽지 못했습니다. 파일 메뉴의 최근 작업한 문서에서 이전 정상 버전을 열 수 있습니다.';
     }
   }
   // One-time migration keeps old local documents available without changing their content.

@@ -193,5 +193,8 @@ test('header dialog creates and edits independent first and even page content', 
   // Reload only after persistence completes, as in the lifecycle tests.
   await expect(page.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
   await page.reload();
+  await expect(page.locator('.tiptap')).toHaveText('');
+  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.locator('.recent-document').filter({ hasText: 'book' }).click();
   await expect(page.locator('.paper-header').first()).toHaveText('Cover');
 });

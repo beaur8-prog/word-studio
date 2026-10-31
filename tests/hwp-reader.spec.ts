@@ -142,6 +142,9 @@ for (const extension of ['hwp', 'hwpx']) {
     await expect(reader).not.toBeVisible();
     await expect(page.locator('.tiptap')).toHaveText('보존할 Word 문서 KEEP');
     await page.reload();
+    await expect(page.locator('.tiptap')).toHaveText('');
+    await page.getByRole('button', { name: '파일', exact: true }).click();
+    await page.locator('.recent-document').filter({ hasText: '문서1' }).click();
     await expect(page.locator('.tiptap')).toHaveText('보존할 Word 문서 KEEP');
     expect(external).toEqual([]); expect(errors).toEqual([]);
   });

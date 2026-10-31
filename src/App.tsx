@@ -92,7 +92,6 @@ import {
   documentFileLimit,
 } from "./document-io";
 
-const sample = `<p style="color:#526d92;font-size:10pt">STUDIO / WORKING DOCUMENT</p><h1>아이디어를 기록하고,<br>다음 단계를 만드세요.</h1><p>생각의 시작부터 완성된 문서까지. Word Studio에서 글을 쓰고, 내용을 정리하고, 나만의 문서를 만들어 보세요.</p><h2>01. 문서 작성 시작하기</h2><p>이 문장은 자유롭게 수정할 수 있습니다. 텍스트를 선택한 다음 <strong>홈</strong> 탭에서 글꼴과 크기, 색상을 바꿔 보세요. 제목 스타일을 적용하면 왼쪽 탐색 창에 문서의 구조가 표시됩니다.</p><h2>02. 한눈에 보는 작업 계획</h2><table><tr><th><p>단계</p></th><th><p>주요 작업</p></th><th><p>상태</p></th></tr><tr><td><p>기획</p></td><td><p>핵심 아이디어와 목표 정리</p></td><td><p>진행 중</p></td></tr><tr><td><p>작성</p></td><td><p>자료 수집과 초안 작성</p></td><td><p>예정</p></td></tr><tr><td><p>검토</p></td><td><p>내용 검토와 최종 문서 공유</p></td><td><p>예정</p></td></tr></table><h2>03. 작은 체크리스트</h2><ul><li><p>읽는 사람을 떠올리며 목적을 분명하게 씁니다.</p></li><li><p>표와 이미지를 추가해 내용을 더 쉽게 전달합니다.</p></li><li><p>완성된 문서는 DOCX 또는 PDF로 내보냅니다.</p></li></ul><p><em>좋은 문서는 작은 메모에서 시작됩니다.</em></p>`;
 const blank = (title = "문서1", html = "<p></p>"): StudioDocument => ({
   id: crypto.randomUUID(),
   format: "word-studio",
@@ -103,15 +102,6 @@ const blank = (title = "문서1", html = "<p></p>"): StudioDocument => ({
   comments: [],
   updatedAt: new Date().toISOString(),
 });
-function readInitial() {
-  if (readHistory().length) return readHistory()[0];
-  try {
-    const raw = localStorage.getItem("word-studio-current");
-    return raw ? validateDocument(JSON.parse(raw)) : blank("시작하기", sample);
-  } catch {
-    return blank("시작하기", sample);
-  }
-}
 // Timestamps change on render; compare only the editable document state.
 function documentContents(doc: StudioDocument) {
   const { updatedAt, ...contents } = doc;
@@ -324,7 +314,7 @@ function download(blob: Blob, name: string) {
 }
 
 export default function App() {
-  const [initial] = useState(readInitial),
+  const [initial] = useState(() => blank()),
     [documentId, setDocumentId] = useState(initial.id || crypto.randomUUID()),
     [title, setTitle] = useState(initial.title),
     [page, setPage] = useState<PageSettings>(initial.page),
@@ -349,7 +339,7 @@ export default function App() {
     [findIndex, setFindIndex] = useState(0),
     [readOnly, setReadOnly] = useState(false),
     [marks, setMarks] = useState(false),
-    [saved, setSaved] = useState("이 PC에 저장됨"),
+    [saved, setSaved] = useState("새 문서"),
     [toast, setToast] = useState(""),
     [modal, setModal] = useState<
       "new" | "link" | "header" | "comment" | "stats" | "about" | null
@@ -386,11 +376,15 @@ export default function App() {
     currentRef = useRef<StudioDocument>(initial),
     toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const pendingRecovery = useRef(false), recoveryEpoch = useRef(0);
+  const startupTouched = useRef(false);
   const commentRange = useRef<{ from: number; to: number } | null>(null);
   const editor = useEditor({
     extensions: [...editorExtensions, DocumentHistory],
     content: initial.content,
-    onUpdate() {
+    onUpdate({ editor }) {
+      // Editor initialization can emit an update without changing the blank
+      // body. Only a real edit makes the startup document recoverable.
+      if (!startupTouched.current && !editor.state.doc.eq(editor.schema.nodeFromJSON(initial.content))) startupTouched.current = true;
       pendingRecovery.current = true;
       setRevision((x) => x + 1);
       setSaved("저장 중…");
@@ -436,7 +430,20 @@ export default function App() {
     comments,
     updatedAt: new Date().toISOString(),
   };
+  const unusedStartupDocument = (doc: StudioDocument) => !startupTouched.current && doc.id === initial.id &&
+    doc.title === initial.title && JSON.stringify(doc.page) === JSON.stringify(initial.page) &&
+    JSON.stringify(doc.comments) === JSON.stringify(initial.comments) &&
+    !!editor?.schema.nodeFromJSON(doc.content).eq(editor.schema.nodeFromJSON(initial.content));
   useEffect(() => {
+    if (!editor) return;
+    // Opening the app alone must not create recovery entries or evict real work
+    // from the recent list. Once touched, even undoing back to blank is saved.
+    if (unusedStartupDocument(currentRef.current)) {
+      pendingRecovery.current = false;
+      setSaved('새 문서');
+      return;
+    }
+    startupTouched.current = true;
     pendingRecovery.current = true;
     setSaved('저장 중…');
     const epoch = ++recoveryEpoch.current;
@@ -452,7 +459,7 @@ export default function App() {
       });
     }, 600);
     return () => clearTimeout(id);
-  }, [documentId, title, page, comments, revision]);
+  }, [editor, documentId, title, page, comments, revision]);
   useEffect(() => {
     const persist = (event: BeforeUnloadEvent) => {
       if (pendingRecovery.current) {
@@ -551,6 +558,7 @@ export default function App() {
     }));
     editor.view.dispatch(editor.state.tr.setMeta(documentMetadata, { page: doc.page, comments: doc.comments }).setMeta('addToHistory', false));
     ++recoveryEpoch.current;
+    startupTouched.current = true;
     pendingRecovery.current = true;
     outputLayout.current?.dispose(); outputLayout.current = null;
     document.body.classList.remove('studio-printing'); setPrintPreview(null);
@@ -582,7 +590,7 @@ export default function App() {
       let snapshot: StudioDocument;
       do {
         snapshot = structuredClone(currentRef.current);
-        await saveRecovery(snapshot);
+        if (!unusedStartupDocument(snapshot)) await saveRecovery(snapshot);
       } while (documentContents(snapshot) !== documentContents(currentRef.current));
       activateDocument(next);
       return true;
@@ -720,6 +728,10 @@ export default function App() {
         )
           return false;
       } else download(blob, name);
+      if (unusedStartupDocument(doc)) {
+        startupTouched.current = true;
+        setRevision(value => value + 1);
+      }
       notify(
         (extension === 'wordstudio' ? '편집본 (.wordstudio)을 저장했습니다' : `${extension.toUpperCase()} 파일을 저장했습니다`) +
           (extension === "docx" && comments.length

@@ -9,6 +9,9 @@ on:
       - 'electron/preload.cjs'
       - 'electron/main.cjs'
       - 'src/UpdateCenter.tsx'
+      - 'src/App.tsx'
+      - 'src/recovery.ts'
+      - 'tests/startup.spec.ts'
       - 'tests/updates*'
       - 'tests/updates/**'
       - 'scripts/update-desktop-smoke.cjs'
@@ -39,12 +42,12 @@ jobs:
       - run: npm run test:updates
       - name: Browser update and document preservation scenarios (Linux)
         if: runner.os == 'Linux'
-        run: npx playwright test tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts --reporter=line
+        run: npx playwright test tests/startup.spec.ts tests/editor.spec.ts tests/table-row-resize.spec.ts tests/word-use-cases.spec.ts tests/hwp-reader.spec.ts tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - name: Browser update and document preservation scenarios (Windows)
         if: runner.os == 'Windows'
-        run: npx playwright test tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts --reporter=line
+        run: npx playwright test tests/startup.spec.ts tests/editor.spec.ts tests/table-row-resize.spec.ts tests/word-use-cases.spec.ts tests/hwp-reader.spec.ts tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts --reporter=line
       - name: Real Electron update bridge (Linux)
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:updates:desktop

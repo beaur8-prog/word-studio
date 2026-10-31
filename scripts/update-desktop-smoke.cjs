@@ -11,6 +11,11 @@ async function run() {
   await fs.mkdir(path.join(root, '.cache'), { recursive: true });
   const directory = await fs.mkdtemp(path.join(root, '.cache', 'update-desktop-'));
   const profile = path.join(directory, 'profile');
+  const previousDocument = { id: 'previous-startup-work', format: 'word-studio', version: 1, title: '이전 작업',
+    content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'PRESERVE PREVIOUS NATIVE WORK' }] }] },
+    page: { size: 'A4', orientation: 'portrait', margin: 25.4, header: '', footer: '', pageNumbers: true },
+    comments: [], updatedAt: '2026-10-30T00:00:00.000Z' };
+  await require('../electron/recovery.cjs').createRecoveryStore(path.join(profile, 'recovery')).save(JSON.stringify(previousDocument));
   const bootstrap = path.join(directory, 'bootstrap.cjs');
   await fs.writeFile(bootstrap, `
     const { app, BrowserWindow, dialog, shell, Notification } = require('electron');
@@ -71,6 +76,15 @@ async function run() {
     window.on('pageerror', error => errors.push(error.message));
     const editor = window.locator('.tiptap[role="textbox"]');
     await expect(editor).toBeVisible();
+    await expect(editor).toHaveText('');
+    await expect(window.getByRole('textbox', { name: '문서 제목' })).toHaveValue('문서1');
+    const startupRecords = await window.evaluate(() => window.wordDesktop.readRecovery());
+    assert.deepEqual(startupRecords.map(record => JSON.parse(record.current)), [previousDocument]);
+    await window.getByRole('button', { name: '파일', exact: true }).click();
+    await window.locator('.recent-document').filter({ hasText: '이전 작업' }).click();
+    await expect(editor).toHaveText('PRESERVE PREVIOUS NATIVE WORK');
+    await expect(window.getByText('이 PC에 저장됨', { exact: true })).toBeVisible();
+    assert.equal((await window.evaluate(() => window.wordDesktop.readRecovery())).length, 1, 'Unused startup must not add a recovery entry.');
     await editor.fill('업데이트 중에도 보존할 문서 · Preserve this document');
     const before = await editor.innerText();
     await window.getByRole('button', { name: '파일', exact: true }).click();
@@ -131,7 +145,7 @@ async function run() {
     assert.equal(await editor.innerText(), before);
     assert.deepEqual(errors, []);
     await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify({ passed: true, platform: process.platform, phases,
-      documentUnchanged: true, rendererErrors: errors, isolatedProfile: true, realNetwork: false, installerExecuted: false }, null, 2));
+      blankStartupWithExistingRecovery: true, unusedStartupNotSaved: true, documentUnchanged: true, rendererErrors: errors, isolatedProfile: true, realNetwork: false, installerExecuted: false }, null, 2));
     console.log('Update desktop smoke passed:', path.join(directory, 'result.json'));
   } finally {
     await close();
