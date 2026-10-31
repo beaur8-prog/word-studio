@@ -18,8 +18,12 @@ async function run() {
     const root = ${JSON.stringify(root)};
     Object.defineProperty(app, 'isPackaged', { get: () => true });
     app.getVersion = () => require(root + '/package.json').version;
-    BrowserWindow.prototype.show = () => {};
-    BrowserWindow.prototype.focus = () => {};
+    // Windows CI needs a visible compositor surface for subsequent screenshots.
+    // Local validation stays hidden and never takes focus from the user's app.
+    if (process.platform !== 'win32' || process.env.CI !== 'true') {
+      BrowserWindow.prototype.show = () => {};
+      BrowserWindow.prototype.focus = () => {};
+    }
     Notification.isSupported = () => false;
     const payload = Buffer.alloc(2 * 1024 * 1024, 90);
     const version = '99.0.0';
