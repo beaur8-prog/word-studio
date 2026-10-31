@@ -1,3 +1,4 @@
+import { version as APP_VERSION } from "../package.json";
 import { documentScale } from './document-scale';
 import { layoutFurnitureImages } from './furniture-layout';
 import { useEffect, useRef, useState } from "react";
@@ -2758,7 +2759,7 @@ export default function App() {
                   <FileText size={40} />
                 </span>
                 <h3>
-                  Word Studio <small>1.0</small>
+                  Word Studio <small>{APP_VERSION}</small>
                 </h3>
                 <p>생각을 담는 로컬 문서 편집기.</p>
                 <p className="muted">
