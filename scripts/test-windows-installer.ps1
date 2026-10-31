@@ -118,6 +118,19 @@ try {
   & (Join-Path $PSScriptRoot 'test-windows-installer-language.ps1') -Setup $setup -Stage 'fresh'
   Assert-Installed
   Assert-Preserved
+  # Fresh Setup owns its initial launch; verify it before isolated app tests.
+  $deadline = [DateTime]::UtcNow.AddSeconds(20)
+  do {
+    $started = @(Get-Process -Name 'Word Studio' -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
+    if ($started.Count -eq 1) { break }
+    Start-Sleep -Milliseconds 250
+  } while ([DateTime]::UtcNow -lt $deadline)
+  if ($started.Count -ne 1) { throw 'Fresh Setup did not open exactly one editor window.' }
+  $report.freshSetupRunAfterFinish = $true
+  # Disposable blank CI window, never a user installation or document.
+  $freshApps = @(Get-Process -Name 'Word Studio' -ErrorAction SilentlyContinue)
+  $freshApps | Stop-Process -Force -ErrorAction SilentlyContinue
+  Wait-Process -InputObject $freshApps -Timeout 15 -ErrorAction SilentlyContinue
   $report.freshInstall = $true
   $report.shortcuts = $true
   $report.installedAppsEntry = $true

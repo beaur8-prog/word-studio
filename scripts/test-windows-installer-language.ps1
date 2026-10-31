@@ -118,9 +118,8 @@ try {
         foreach ($control in $children) {
           if ([StudioSetupUI]::Class($control) -eq 'Button' -and
               [StudioSetupUI]::Text($control) -match '(Run|실행)' -and [StudioSetupUI]::Checked($control)) {
-            if ($ObserveProcessId) { throw 'Update Setup must not offer a checked Run option; the helper owns relaunch.' }
-            [StudioSetupUI]::Uncheck($control)
-            if ([StudioSetupUI]::Checked($control)) { throw 'Run checkbox stayed checked.' }
+            if ($ObserveProcessId -or $Stage -ne 'fresh') { throw 'Update Setup must not offer a checked Run option; the helper owns relaunch.' }
+            # Fresh Setup deliberately exercises its default Run behavior.
           }
         }
         [StudioSetupUI]::Click($next)
@@ -129,7 +128,7 @@ try {
     }
     if ($ExpectLanguageSelector -and $passed) { break }
     $process.Refresh()
-    if ($finished -and (($ObserveProcessId -and $process.HasExited) -or @($tree | Where-Object { $ids.Contains([int]$_.ProcessId) }).Count -eq 0)) {
+    if ($finished -and ((($ObserveProcessId -or $Stage -eq 'fresh') -and $process.HasExited) -or @($tree | Where-Object { $ids.Contains([int]$_.ProcessId) }).Count -eq 0)) {
       if ($process.ExitCode -ne 0) { throw "Setup exited with $($process.ExitCode)" }
       $passed = $true
       break
