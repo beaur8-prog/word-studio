@@ -153,6 +153,15 @@ export async function docxFormat(zip: JSZip) {
     return style.cssText;
   }
   return {
+    headingMarks(p: Element) {
+      // Typing defaults belong to the source paragraph style/mark, separately
+      // from the actual text runs and their explicit formatting overrides.
+      const style = document.createElement('span').style;
+      style.cssText = runCss([...runLayers(p), child(child(p, 'pPr'), 'rPr')]);
+      return JSON.stringify({ bold: style.fontWeight === 'bold' || Number(style.fontWeight) >= 600,
+        italic: style.fontStyle === 'italic' || style.fontStyle === 'oblique',
+        underline: style.textDecorationLine.includes('underline'), strike: style.textDecorationLine.includes('line-through') });
+    },
     numbering(p: Element) {
       if (numberCache.has(p)) return numberCache.get(p);
       const { id, level, definition, start } = numberingLevel(p);

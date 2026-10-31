@@ -259,6 +259,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
+        if (/^H[1-6]$/.test(p.tagName)) p.dataset.wordHeadingMarks = format.headingMarks(marker.paragraph);
         const autoSpacing = format.autoSpacing(marker.paragraph);
         p.dataset.wordAutoSpaceDe = String(autoSpacing.de);
         p.dataset.wordAutoSpaceDn = String(autoSpacing.dn);

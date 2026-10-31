@@ -1,3 +1,4 @@
+import { wordHeadingMarks } from './word-heading-defaults';
 import { sanitizeImportedHtml, validImage, safeLink, RASTER_DATA } from "./document-html";
 import { activeHwpCellLine, cssPixels, encodeHwpCellLine, hwpCellFont, parseHwpCellLine } from './hwp-cell-line';
 import { HwpCellParagraph } from './docx-hwp-cell-line';
@@ -896,6 +897,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
   // A minimum physical line height preserves that CSS baseline while allowing
   // large glyphs and inline pictures to grow; imported Word rules stay intact.
   const authoredDefault = node.type === 'paragraph' && !lineHeight;
+  const headingDefaults = wordHeadingMarks(node.attrs?.wordHeadingMarks);
   const defaultLine = Math.round(Math.max(fontPoints(node.attrs?.paragraphSize) ?? 11,
     ...(node.content ?? []).flatMap(n => (n.marks ?? []).filter(m => m.type === 'textStyle')
       .map(m => fontPoints(m.attrs?.fontSize) ?? 0))) * 1.65 * 20);
@@ -913,7 +915,8 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
     },
     run: { ...runOptions({ type: 'text', marks: [{ type: 'textStyle', attrs: {
       fontFamily: node.attrs?.paragraphFont, fontSize: node.attrs?.paragraphSize, color: node.attrs?.paragraphColor,
-    } }] }), text: undefined },
+    } }] }), ...(headingDefaults ? { bold: headingDefaults.bold, italics: headingDefaults.italic, strike: headingDefaults.strike,
+      underline: { type: headingDefaults.underline ? UnderlineType.SINGLE : UnderlineType.NONE } } : {}), text: undefined },
     spacing: {
       after: Number.isFinite(after) ? Math.round(after * 15) : node.type === 'paragraph' ? defaultAfter : 120,
       ...(Number.isFinite(before) ? { before: Math.round(before * 15) } : {}),
@@ -1142,7 +1145,12 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         output.push(
           new HwpCellParagraph({
             ...paragraph,
-            children: await inline(node.content ?? [], width, { ...context.cellRun, ...paragraph.run }),
+            children: await inline(node.content ?? [], width, { ...context.cellRun, ...paragraph.run,
+              // Paragraph typing defaults do not format the existing runs.
+              // An absent bold/italic mark in this model means normal text.
+              ...(wordHeadingMarks(node.attrs?.wordHeadingMarks) ? { bold: false, italics: false, strike: false,
+                underline: { type: UnderlineType.NONE } } : {}),
+            }),
             ...(context.cellRun ? { run: { ...context.cellRun, ...paragraph.run } } : {}),
             ...(node.type === "heading"
               ? { heading: headings[(node.attrs?.level ?? 1) - 1] }

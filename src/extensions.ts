@@ -16,6 +16,7 @@ import { Pagination } from './pagination';
 import { ImportedFormat, StudioTableView } from './imported-format';
 import { DocumentTab, DocumentTabs } from './document-tabs';
 import { WordLineMetrics } from './word-line-metrics';
+import { WordHeadingDefaults } from './word-heading-defaults';
 import { HwpCellLineMetrics } from './hwp-cell-line-metrics';
 import { HwpBodyLineMetrics } from './hwp-body-line-metrics';
 import { WordOverlap } from './word-overlap';
@@ -129,6 +130,7 @@ export const editorExtensions = [
   ParagraphFormat,
   ImportedFormat,
   WordLineMetrics,
+  WordHeadingDefaults,
   HwpCellLineMetrics,
   HwpBodyLineMetrics,
   ColumnLayout,
