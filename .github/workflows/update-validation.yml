@@ -30,6 +30,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Install pinned Electron runtime for desktop tests
+        run: node node_modules/electron/install.js
       - name: Prepare Linux desktop and browser
         if: runner.os == 'Linux'
         run: bash scripts/prepare-linux-ci.sh browser
