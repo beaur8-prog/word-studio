@@ -23,9 +23,9 @@ async function run() {
     const root = ${JSON.stringify(root)};
     Object.defineProperty(app, 'isPackaged', { get: () => true });
     app.getVersion = () => require(root + '/package.json').version;
-    // Windows CI needs a visible compositor surface for subsequent screenshots.
+    // CI needs a visible compositor surface, including Linux under Xvfb, for screenshots.
     // Local validation stays hidden and never takes focus from the user's app.
-    if (process.platform !== 'win32' || process.env.CI !== 'true') {
+    if (process.env.CI !== 'true') {
       BrowserWindow.prototype.show = () => {};
       BrowserWindow.prototype.focus = () => {};
     }
