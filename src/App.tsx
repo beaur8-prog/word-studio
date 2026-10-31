@@ -361,7 +361,13 @@ export default function App() {
   const [hwpOriginal, setHwpOriginal] = useState<File | null>(null);
   const [hwpExport, setHwpExport] = useState<HwpExportFile | null>(null);
   const [hwpOperation, setHwpOperation] = useState<HwpOperation>();
-  const fileSavePending = useRef(false);
+  const fileActionPending = useRef(false);
+  const [fileOperation, setFileOperation] = useState<import('./desktop').NativeFileOperation | null>(null);
+  const nativeFileOperation = useRef<import('./desktop').NativeFileOperation | null>(null);
+  const failedFileRequest = useRef(false);
+  useEffect(() => window.wordDesktop?.onFileOperation?.(operation => {
+    nativeFileOperation.current = operation; setFileOperation(operation);
+  }), []);
   const [openRequestVersion, setOpenRequestVersion] = useState(0);
   const [requestedFile, setRequestedFile] = useState<{ name: string; data: Uint8Array } | null>(null);
   const takingRequestedFile = useRef(false);
@@ -641,28 +647,31 @@ export default function App() {
     finally { setBusy(false); setHwpOperation(undefined); }
   };
   const open = async () => {
+    if (fileActionPending.current || nativeFileOperation.current) return;
     setFileMenu(false);
     if (window.wordDesktop) {
+      fileActionPending.current = true;
       try {
         const f = await window.wordDesktop.openFile();
         if (f) await readFile(new File([new Uint8Array(f.data)], f.name));
       } catch (e) {
         notify(String(e));
-      }
+      } finally { fileActionPending.current = false; }
     } else fileInput.current?.click();
   };
   useEffect(() => window.wordDesktop?.onOpenRequested?.(() => {
+    failedFileRequest.current = false;
     setOpenRequestVersion(version => version + 1);
   }), []);
   useEffect(() => {
     if (!editor || editor.isDestroyed || busy || modal || updates.open || command || failedTransition || hwpFile || hwpExport || hwpOperation ||
-        requestedFile || takingRequestedFile.current || !window.wordDesktop?.takeRequestedFile) return;
+        requestedFile || takingRequestedFile.current || failedFileRequest.current || nativeFileOperation.current || !window.wordDesktop?.takeRequestedFile) return;
     takingRequestedFile.current = true;
     void window.wordDesktop.takeRequestedFile().then(setRequestedFile).catch(error => {
-      notify(`파일을 열지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
-      setOpenRequestVersion(version => version + 1);
+      failedFileRequest.current = true;
+      notify(`파일을 열지 못했습니다: ${error instanceof Error ? error.message : String(error)}. 파일 메뉴에서 다시 열어 주세요.`);
     }).finally(() => { takingRequestedFile.current = false; });
-  }, [editor, busy, modal, updates.open, command, failedTransition, hwpFile, hwpExport, hwpOperation, requestedFile, openRequestVersion]);
+  }, [editor, busy, modal, updates.open, command, failedTransition, hwpFile, hwpExport, hwpOperation, requestedFile, openRequestVersion, fileOperation]);
   useEffect(() => {
     if (!requestedFile || !editor || editor.isDestroyed || busy || modal || updates.open || command || failedTransition || hwpFile || hwpExport ||
         hwpOperation || openingRequestedFile.current) return;
@@ -682,8 +691,8 @@ export default function App() {
   const save = async (
     extension: "wordstudio" | "docx" | "html" | "txt" | "hwp" | "hwpx" = "wordstudio",
   ): Promise<boolean> => {
-    if (!editor || fileSavePending.current) return false;
-    fileSavePending.current = true;
+    if (!editor || fileActionPending.current || nativeFileOperation.current) return false;
+    fileActionPending.current = true;
     const startedAt = Date.now();
     const report: HwpProgressReporter = progress => setHwpOperation({ progress, startedAt });
     setBusy(true);
@@ -743,7 +752,7 @@ export default function App() {
       notify(`저장 실패: ${e instanceof Error ? e.message : String(e)}`);
       return false;
     } finally {
-      fileSavePending.current = false;
+      fileActionPending.current = false;
       if (extension === 'hwp' || extension === 'hwpx') setHwpOperation(undefined);
       setBusy(false);
     }
@@ -763,6 +772,8 @@ export default function App() {
     document.body.classList.remove('studio-printing'); setPrintPreview(null);
   };
   const print = async (pdf = false) => {
+    if (fileActionPending.current || nativeFileOperation.current) return;
+    fileActionPending.current = true;
     setFileMenu(false);
     try {
       if (!outputLayout.current) await preview();
@@ -783,7 +794,7 @@ export default function App() {
       } else window.print();
     } catch (e) {
       notify(`출력 실패: ${String(e)}`);
-    }
+    } finally { fileActionPending.current = false; }
   };
   const addComment = () => {
     const s = editor?.state.selection;
@@ -2832,8 +2843,12 @@ export default function App() {
           </button>
         </div>
       )}
-      {(busy || hwpOperation) && <div className={`busy-indicator ${hwpOperation ? 'hwp-progress-floating' : ''}`}>
-        {hwpOperation ? <HwpProgressPanel operation={hwpOperation} /> : '문서를 처리하고 있습니다…'}
+      {(busy || hwpOperation || fileOperation) && <div role="status" className={`busy-indicator ${hwpOperation && !fileOperation ? 'hwp-progress-floating' : ''}`}>
+        {fileOperation ? <span className="file-operation-wait"><span className="file-operation-spinner" aria-hidden="true" />
+          {fileOperation === 'open' ? '파일 선택창을 기다리는 중… 파일을 선택하거나 취소해 주세요.'
+            : fileOperation === 'print' ? '인쇄창을 기다리는 중… 인쇄하거나 취소해 주세요.'
+            : '저장 위치 선택창을 기다리는 중… 저장하거나 취소해 주세요.'}</span>
+          : hwpOperation ? <HwpProgressPanel operation={hwpOperation} /> : '문서를 처리하고 있습니다…'}
       </div>}
     </div>
   );

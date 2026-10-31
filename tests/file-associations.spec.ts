@@ -8,7 +8,7 @@ const editor = (page: Page) => page.locator('.document-stack .tiptap');
 async function desktop(page: Page, startup: RequestedFile[] = [], delayStartup = false) {
   await page.addInitScript(({ startup, delayStartup }) => {
     const state = {
-      queue: startup, writes: [] as string[], fail: false, holdRead: false,
+      queue: startup, writes: [] as string[], fail: false, holdRead: false, takeError: false, takeCalls: 0,
       releaseRead: null as null | (() => void), releaseStartup: null as null | (() => void),
       notify: null as null | (() => void),
     };
@@ -25,6 +25,8 @@ async function desktop(page: Page, startup: RequestedFile[] = [], delayStartup =
       },
       onOpenRequested: (notify: () => void) => { state.notify = notify; return () => { state.notify = null; }; },
       takeRequestedFile: async () => {
+        state.takeCalls++;
+        if (state.takeError) throw new Error('file request unavailable');
         const file = state.queue.shift();
         if (file && state.holdRead) await new Promise<void>(resolve => { state.releaseRead = resolve; });
         return file ? { name: file.name, data: new Uint8Array(file.data) } : null;
@@ -135,4 +137,21 @@ test('the update modal preserves the current document and queues OS file request
   await expect(editor(page)).toHaveText('OPEN AFTER UPDATER CLOSE');
   const writes = await page.evaluate(() => (window as any).osFiles.writes);
   expect(writes.some((raw: string) => raw.includes('KEEP WHILE UPDATING'))).toBe(true);
+});
+
+
+test('failed OS file requests stop retrying until a new explicit request arrives', async ({ page }) => {
+  await desktop(page);
+  await editor(page).fill('KEEP AFTER FAILED REQUEST');
+  await page.evaluate(() => { (window as any).osFiles.takeError = true; });
+  await request(page, textFile('재시도.txt', 'AFTER EXPLICIT RETRY'));
+  await expect(page.getByRole('status').filter({ hasText: 'file request unavailable' })).toBeVisible();
+  const calls = await page.evaluate(() => (window as any).osFiles.takeCalls);
+  await page.waitForTimeout(500);
+  await page.keyboard.press('ControlOrMeta+n'); await page.keyboard.press('Escape');
+  await page.waitForTimeout(100);
+  expect(await page.evaluate(() => (window as any).osFiles.takeCalls)).toBe(calls);
+  await expect(editor(page)).toHaveText('KEEP AFTER FAILED REQUEST');
+  await page.evaluate(() => { const state = (window as any).osFiles; state.takeError = false; state.notify(); });
+  await expect(editor(page)).toHaveText('AFTER EXPLICIT RETRY');
 });

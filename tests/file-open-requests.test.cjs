@@ -31,7 +31,7 @@ async function desktop(t, platform, argv = []) {
     __dirname: path.dirname(filename), process: { ...process, platform, argv: ['Word Studio', ...argv] },
     Buffer, Uint8Array, URL, setTimeout, clearTimeout,
     require: id => id === 'electron' ? {
-      app,
+      app, systemPreferences: { setUserDefault() {} },
       BrowserWindow: class extends EventEmitter {
         webContents = contents;
         constructor() { super(); windows++; }

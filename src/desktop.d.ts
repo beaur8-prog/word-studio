@@ -1,3 +1,4 @@
+export type NativeFileOperation = 'open' | 'save' | 'pdf' | 'print';
 export type StudioUpdateAction = 'check' | 'download' | 'install' | 'cancel' | 'automatic' | 'release-page';
 export interface StudioUpdateState {
   phase: 'idle' | 'checking' | 'available' | 'downloading' | 'verifying' | 'ready' | 'installing' | 'error';
@@ -32,6 +33,7 @@ declare global {
         data: Uint8Array;
       }): Promise<boolean>;
       openFile(): Promise<{ name: string; data: Uint8Array } | null>;
+      onFileOperation?: (callback: (operation: NativeFileOperation | null) => void) => () => void;
       takeRequestedFile?: () => Promise<{ name: string; data: Uint8Array } | null>;
       onOpenRequested?: (callback: () => void) => () => void;
       exportPdf(payload: {

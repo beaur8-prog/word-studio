@@ -1,12 +1,13 @@
 'use strict';
 
-const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, session, shell, Notification } = require('electron');
+const { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, session, shell, Notification, systemPreferences } = require('electron');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { fileURLToPath } = require('node:url');
 const { createRecoveryStore } = require('./recovery.cjs');
 const { createFileDialogDirectory } = require('./file-dialog-directory.cjs');
+const { createNativeFileDialogs } = require('./native-file-dialogs.cjs');
 const { installedOutlineFonts } = require('./outline-fonts.cjs');
 const { createStudioUpdater } = require('./studio-updater.cjs');
 const { FileOpenRequests } = require('./file-open-requests.cjs');
@@ -215,6 +216,7 @@ function installMenu() {
 }
 
 function installIPC() {
+  const fileDialogs = createNativeFileDialogs({ app, dialog, systemPreferences, platform: process.platform });
   const recovery = createRecoveryStore(path.join(app.getPath('userData'), 'recovery'));
   const fileDirectory = createFileDialogDirectory(path.join(app.getPath('userData'), 'file-dialog-directory.json'), app.getPath('documents'));
   async function readDocumentFile(filename) {
@@ -282,7 +284,7 @@ function installIPC() {
   ipcMain.handle('word-studio:save-file', (event, payload) => withNativeDialog(event, async () => {
     const file = decodeFilePayload(payload);
     const directory = await fileDirectory.current();
-    const result = await dialog.showSaveDialog(mainWindow, {
+    const result = await fileDialogs.save(mainWindow, {
       title: `${FORMAT_NAMES[file.extension]} 저장`,
       defaultPath: directory ? path.join(directory, file.name) : file.name,
       filters: [{ name: FORMAT_NAMES[file.extension], extensions: [file.extension] }],
@@ -295,7 +297,7 @@ function installIPC() {
   }));
 
   ipcMain.handle('word-studio:open-file', event => withNativeDialog(event, async () => {
-    const result = await dialog.showOpenDialog(mainWindow, {
+    const result = await fileDialogs.open(mainWindow, {
       title: '문서 열기',
       defaultPath: await fileDirectory.current(),
       filters: [{ name: '지원하는 문서', extensions: [...OPEN_EXTENSIONS] },
@@ -314,7 +316,7 @@ function installIPC() {
     const options = pdfOptions(payload);
     const directory = await fileDirectory.current();
     const name = safeFilename(payload.name, 'pdf');
-    const result = await dialog.showSaveDialog(mainWindow, {
+    const result = await fileDialogs.save(mainWindow, {
       title: 'PDF 문서 (.pdf) 저장', defaultPath: directory ? path.join(directory, name) : name,
       filters: [{ name: 'PDF 문서 (.pdf)', extensions: ['pdf'] }],
       properties: ['createDirectory', 'showOverwriteConfirmation'],

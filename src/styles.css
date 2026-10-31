@@ -2074,3 +2074,7 @@ button:hover:not(:disabled) {
 .update-manual a { display: inline-block; text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .update-spinner { animation: none; } }
 @media print { .update-dialog { display: none !important; } }
+
+.file-operation-wait { display: flex; align-items: center; gap: 10px; }
+.file-operation-spinner { width: 15px; height: 15px; flex-shrink: 0; border: 2px solid var(--chrome-border); border-top-color: var(--accent); border-radius: 50%; animation: update-spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .file-operation-spinner { animation: none; } }
