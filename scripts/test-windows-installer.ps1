@@ -149,6 +149,11 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Installed Windows HWP editing test failed.' }
   $report.hwpEditing = $true
 
+  $deadline = [DateTime]::UtcNow.AddSeconds(15)
+  while (@(Get-Process -Name 'Word Studio' -ErrorAction SilentlyContinue).Count -ne 0) {
+    if ([DateTime]::UtcNow -gt $deadline) { throw 'Native app tests left an editor process running before reinstall.' }
+    Start-Sleep -Milliseconds 250
+  }
   & (Join-Path $PSScriptRoot 'test-windows-installer-language.ps1') -Setup $setup -Stage 'update'
   Assert-Installed
   Assert-Preserved

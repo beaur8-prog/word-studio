@@ -53,8 +53,10 @@ function Remove-TestInstall([string]$Directory,[string]$Scope) {
   $process = Start-Process -FilePath $uninstall -ArgumentList @('/S',$Scope) -PassThru
   if (-not $process.WaitForExit(120000)) { throw 'CI uninstall timed out.' }
   $deadline = [DateTime]::UtcNow.AddSeconds(30)
-  while (Test-Path (Join-Path $Directory 'Word Studio.exe')) {
-    if ([DateTime]::UtcNow -gt $deadline) { throw 'CI uninstall left its executable.' }
+  # The NSIS parent can exit before its temporary uninstaller child cleans
+  # registry entries and links. Wait for the complete observable result.
+  while ((Test-Path (Join-Path $Directory 'Word Studio.exe')) -or @(Entries).Count -ne 0 -or @(Desktop-Links).Count -ne 0) {
+    if ([DateTime]::UtcNow -gt $deadline) { throw 'CI uninstall did not finish removing files, registration and shortcuts.' }
     Start-Sleep -Milliseconds 250
   }
 }
