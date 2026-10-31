@@ -72,3 +72,74 @@ test('ordinary authored headings retain Studio heading defaults', async ({ page 
   await expect(heading).toHaveCSS('font-weight', '600');
   await expect(heading).toHaveCSS('padding-top', '12px');
 });
+
+// A saved imported heading must not pick up docx's authored Heading2 palette
+// as its default for newly typed text while existing black runs hide the drift.
+test('two DOCX saves keep imported heading defaults for retyping', async ({ page }) => {
+  await page.goto('/');
+  const inputs = await page.evaluate(async bytes => {
+    const { importFile, exportDocx } = await import('/src/document-io.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const files = []; let file = new File([new Uint8Array(bytes)], 'headings.docx');
+    for (let stage = 0; stage < 3; stage++) {
+      files.push([...new Uint8Array(await file.arrayBuffer())]);
+      const imported = await importFile(file), content = parseDocumentHtml(imported.html!);
+      if (stage < 2) file = new File([await exportDocx({ ...imported.document, content })], 'headings.docx');
+    }
+    return files;
+  }, [...await headingFixture()]);
+  for (const [stage, bytes] of inputs.entries()) {
+    await page.locator('input[type=file]').first().setInputFiles({ name: `heading-color-${stage}.docx`, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: Buffer.from(bytes) });
+    const editor = page.locator('.tiptap');
+    await expect(editor.locator('h2').filter({ hasText: 'Regular heading' })).toBeVisible();
+    const heading = editor.locator('h2').first();
+    const box = await heading.boundingBox();
+    await heading.click({ position: { x: 1, y: box!.height / 2 } });
+    await page.keyboard.down('Shift');
+    for (let i = 0; i < 'Regular heading'.length; i++) await page.keyboard.press('ArrowRight');
+    await page.keyboard.up('Shift');
+    await expect.poll(() => page.evaluate(() => getSelection()?.toString())).toBe('Regular heading');
+    await expect.poll(() => editor.evaluate((el: HTMLElement & { editor: any }) => {
+      const selection = getSelection()!;
+      const from = el.editor.view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+      const to = el.editor.view.posAtDOM(selection.focusNode, selection.focusOffset);
+      return el.editor.state.selection.from === Math.min(from, to) && el.editor.state.selection.to === Math.max(from, to);
+    })).toBe(true);
+    await page.keyboard.press('Backspace');
+    await expect(heading).toBeEmpty();
+    // Clear the previous run's stored marks by visiting another paragraph.
+    await editor.locator('p').first().click();
+    await heading.click();
+    await expect.poll(() => editor.evaluate((el: HTMLElement & { editor: any }) => {
+      const selection = getSelection()!;
+      return el.editor.state.selection.from === el.editor.view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+    })).toBe(true);
+    await page.keyboard.insertText('Retyped heading');
+    await expect(heading).toHaveText('Retyped heading');
+    const color = await heading.evaluate(el => {
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); walker.nextNode();
+      return getComputedStyle(walker.currentNode.parentElement!).color;
+    });
+    expect(color, `actual newly typed ink after DOCX save ${stage}`).toBe('rgb(0, 0, 0)');
+  }
+});
+
+test('paragraph-mark color does not replace real run colors or the nonempty font strut', async ({ page }) => {
+  const zip = await JSZip.loadAsync(await headingFixture());
+  let source = await zip.file('word/document.xml')!.async('string');
+  source = source.replace('<w:pStyle w:val="Heading2"/>', '<w:pStyle w:val="Heading2"/><w:rPr><w:rFonts w:ascii="Georgia"/><w:sz w:val="144"/><w:color w:val="008000"/></w:rPr>');
+  source = source.replace('<w:t>Regular heading</w:t>', '<w:rPr><w:color w:val="C00000"/></w:rPr><w:t>Regular heading</w:t>');
+  zip.file('word/document.xml', source);
+  await page.goto('/');
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'heading-mark-color.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: await zip.generateAsync({ type: 'nodebuffer' }) });
+  await expect(page.locator('.tiptap h2').filter({ hasText: 'Regular heading' })).toBeVisible();
+  const heading = page.locator('.tiptap h2').first();
+  await expect(heading).toHaveCSS('color', 'rgb(0, 128, 0)');
+  await expect(heading).toHaveCSS('font-size', '17.3333px');
+  await expect(heading).toHaveCSS('font-family', 'Arial');
+  const actualRunColor = await heading.evaluate(el => {
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); walker.nextNode();
+    return getComputedStyle(walker.currentNode.parentElement!).color;
+  });
+  expect(actualRunColor).toBe('rgb(192, 0, 0)');
+});

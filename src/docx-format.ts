@@ -219,7 +219,16 @@ export async function docxFormat(zip: JSZip) {
     paragraph(p: Element) {
       const style = document.createElement('p').style;
       const empty = !all(p, 't').some(t => t.textContent);
-      style.cssText = runCss([...runLayers(p), ...(empty ? [child(child(p, 'pPr'), 'rPr')] : [])]);
+      const paragraphMark = child(child(p, 'pPr'), 'rPr');
+      style.cssText = runCss([...runLayers(p), ...(empty ? [paragraphMark] : [])]);
+      // Keep the paragraph mark's color when a heading is emptied and retyped.
+      // Actual runs still resolve their own colors; an unused mark font/size
+      // must not enlarge the nonempty paragraph's line strut.
+      if (!empty && child(paragraphMark, 'color')) {
+        const markStyle = document.createElement('span').style;
+        markStyle.cssText = runCss([...runLayers(p), paragraphMark]);
+        style.color = markStyle.color;
+      }
       // A non-empty paragraph's line strut follows its text. An unused style
       // font (often a missing legacy font) must not enlarge every line box.
       if (!empty) {
