@@ -139,6 +139,7 @@ jobs:
           path: |
             .cache/desktop-smoke-*/result.json
             .cache/installer-test.json
+            .cache/installer-language-*
             .cache/hwp-native-*/result.json
             .cache/hwp-editing-native-*/result.json
             .cache/hwp-editing-native-*/*.png

@@ -7,9 +7,11 @@ on:
         type: boolean
         default: false
   push:
-    branches: ['codex/update-controls', 'codex/windows-updater-handoff', 'codex/macos-file-panels']
+    branches: ['codex/update-controls', 'codex/windows-updater-handoff', 'codex/macos-file-panels', 'codex/windows-installer-language']
   pull_request:
     paths:
+      - 'electron-builder.config.cjs'
+      - 'scripts/test-windows-installer*.ps1'
       - 'electron/studio-updat*'
       - 'electron/preload.cjs'
       - 'electron/main.cjs'
@@ -76,17 +78,26 @@ jobs:
           [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'electron/studio-update-windows.ps1'), [ref]$parseTokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
       - name: Build Windows Setup
-        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || inputs.build_windows)
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || inputs.build_windows)
         run: npm run package:win
+      - name: Build forced-language positive control
+        if: runner.os == 'Windows' && github.ref == 'refs/heads/codex/windows-installer-language'
+        run: npx electron-builder --config electron-builder.config.cjs --prepackaged "release/windows/Word Studio" --win nsis --x64 --publish never --config.nsis.displayLanguageSelector=true --config.directories.output=release/language-control
+      - name: Reproduce forced language selector in positive control
+        if: runner.os == 'Windows' && github.ref == 'refs/heads/codex/windows-installer-language'
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          ./scripts/test-windows-installer-language.ps1 -Setup "release/language-control/Word-Studio-$version-windows-x64-setup.exe" -Stage control -ExpectLanguageSelector
       - name: Native Windows helper acknowledgement, install, relaunch and cancellation
-        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || inputs.build_windows)
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || inputs.build_windows)
         run: node scripts/test-windows-updater-handoff.cjs
       - name: Verify Setup installation, document preservation, reinstall and uninstall
-        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || inputs.build_windows)
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || inputs.build_windows)
         shell: pwsh
         run: ./scripts/test-windows-installer.ps1
       - name: Retain verified Windows installer
-        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || inputs.build_windows)
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || inputs.build_windows)
         uses: actions/upload-artifact@v4
         with:
           name: word-studio-windows-release
@@ -103,6 +114,7 @@ jobs:
             .cache/update-desktop-*/result.json
             .cache/update-desktop-*/*.png
             .cache/installer-test.json
+            .cache/installer-language-*
             .cache/desktop-smoke-*/result.json
             .cache/hwp-native-*/result.json
             .cache/hwp-editing-native-*/result.json

@@ -115,7 +115,7 @@ try {
   New-Item -ItemType Directory -Path (Split-Path $recovery -Parent), (Split-Path $document -Parent) -Force | Out-Null
   Set-Content $recovery 'PRESERVE WORD STUDIO USER DATA'
   Set-Content $document 'PRESERVE WORD STUDIO USER DATA'
-  Run-Installer $setup @('/S', '/currentuser')
+  & (Join-Path $PSScriptRoot 'test-windows-installer-language.ps1') -Setup $setup -Stage 'fresh'
   Assert-Installed
   Assert-Preserved
   $report.freshInstall = $true
@@ -136,10 +136,11 @@ try {
   if ($LASTEXITCODE -ne 0) { throw 'Installed Windows HWP editing test failed.' }
   $report.hwpEditing = $true
 
-  Run-Installer $setup @('/S', '/currentuser')
+  & (Join-Path $PSScriptRoot 'test-windows-installer-language.ps1') -Setup $setup -Stage 'update'
   Assert-Installed
   Assert-Preserved
   $report.reinstall = $true
+  $report.nativeSetupWithoutLanguageSelector = $true
 
   $uninstaller = @(Get-ChildItem $installDir -Filter '*Uninstall*.exe')
   if ($uninstaller.Count -ne 1) { throw 'Expected exactly one uninstaller.' }

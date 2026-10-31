@@ -28,7 +28,9 @@ module.exports = {
     installerIcon: 'electron/WordStudio.ico',
     uninstallerIcon: 'electron/WordStudio.ico',
     installerLanguages: ['ko_KR', 'en_US'],
-    displayLanguageSelector: true,
+    // NSIS chooses the Windows UI language automatically. A forced picker runs
+    // again when Setup restarts for elevation, including during updates.
+    displayLanguageSelector: false,
     runAfterFinish: true,
     deleteAppDataOnUninstall: false,
   },
