@@ -1,7 +1,12 @@
 .hwp-reader { position: fixed; inset: 0; width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; overflow: hidden; color: var(--chrome-text); background: var(--chrome-canvas); }
 .hwp-reader[open] { display: flex; flex-direction: column; }
 .hwp-reader::backdrop { background: #0008; }
-.hwp-toolbar { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--chrome-title); border-bottom: 1px solid var(--chrome-border); }
+.hwp-windowbar { display: none; }
+/* The modal covers the editor titlebar, including its Windows caption clearance.
+   WCO reports the actual height at the current zoom/DPI and collapses in fullscreen. */
+.hwp-reader[data-desktop-platform="win32"] .hwp-windowbar { display: block; flex-shrink: 0; height: env(titlebar-area-height, 40px); background: var(--chrome-title); -webkit-app-region: drag; }
+.hwp-toolbar { display: flex; flex-wrap: wrap; flex-shrink: 0; align-items: center; gap: 8px; padding: 10px 18px; background: var(--chrome-title); border-bottom: 1px solid var(--chrome-border); }
+.hwp-toolbar > button { flex-shrink: 0; white-space: nowrap; -webkit-app-region: no-drag; }
 .hwp-toolbar > div { flex: 1; min-width: 160px; }
 .hwp-toolbar strong { display: block; max-width: 50vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hwp-toolbar span { display: block; margin-top: 4px; font-size: 11px; color: var(--chrome-secondary); }

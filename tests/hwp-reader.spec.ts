@@ -217,3 +217,56 @@ test('opening a regular document from HWP does not hide a recovery failure dialo
   await failure.getByRole('button', { name: '취소', exact: true }).click();
   await expect(page.locator('.tiptap')).toHaveText('KEEP AFTER RECOVERY FAILURE');
 });
+
+
+test('Windows HWP toolbar stays below native caption controls at normal and narrow widths', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    (window as any).wordDesktop = { platform: 'win32', readRecovery: async () => [], saveRecovery: async () => true,
+      setTheme: () => {}, onMenu: () => () => {} };
+  });
+  await page.goto('/');
+  await page.locator('.tiptap').fill('KEEP AFTER CAPTION CONTROLS');
+  await page.locator('input[type=file]').first().setInputFiles({
+    name: '아주 긴 파일 이름도 창 조절 버튼과 겹치지 않는 한글 문서.hwp', mimeType: 'application/x-hwp',
+    buffer: await fs.readFile(path.resolve('tests/fixtures/hwp/reader.hwp')),
+  });
+  const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true });
+  await expect(reader.getByTestId('hwp-page-count')).toHaveText('/ 1');
+  for (const width of [1440, 1080, 800]) {
+    await page.setViewportSize({ width, height: 720 });
+    const buttons = await reader.locator('.hwp-toolbar button').evaluateAll(elements => elements.map(element => {
+      const rect = element.getBoundingClientRect();
+      return { text: element.textContent, top: rect.top, right: rect.right, bottom: rect.bottom,
+        reachable: document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('button') === element };
+    }));
+    expect(buttons).toHaveLength(6);
+    for (const button of buttons) {
+      expect(button.top, button.text!).toBeGreaterThanOrEqual(40);
+      expect(button.right, button.text!).toBeLessThanOrEqual(width);
+      expect(button.bottom, button.text!).toBeLessThan(720);
+      expect(button.reachable, button.text!).toBe(true);
+    }
+    await reader.getByRole('button', { name: '인쇄', exact: true }).click({ trial: true });
+    await reader.getByRole('button', { name: 'HWP 읽기 닫기' }).click({ trial: true });
+  }
+  await page.screenshot({ path: testInfo.outputPath('hwp-caption-clearance.png') });
+  await reader.getByRole('button', { name: 'HWP 읽기 닫기' }).click();
+  await expect(reader).not.toBeVisible();
+  await expect(page.locator('.tiptap')).toHaveText('KEEP AFTER CAPTION CONTROLS');
+});
+
+for (const platform of ['browser', 'darwin', 'linux']) {
+  test(`${platform} HWP toolbar does not reserve a Windows titlebar`, async ({ page }) => {
+    if (platform !== 'browser') await page.addInitScript(platform => {
+      (window as any).wordDesktop = { platform, readRecovery: async () => [], saveRecovery: async () => true,
+        setTheme: () => {}, onMenu: () => () => {} };
+    }, platform);
+    await page.goto('/');
+    await page.locator('input[type=file]').first().setInputFiles(path.resolve('tests/fixtures/hwp/reader.hwpx'));
+    const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true });
+    await expect(reader.getByTestId('hwp-page-count')).toHaveText('/ 1');
+    expect((await reader.locator('.hwp-toolbar').boundingBox())!.y).toBe(0);
+    await reader.getByRole('button', { name: 'HWP 읽기 닫기' }).click();
+    await expect(reader).not.toBeVisible();
+  });
+}

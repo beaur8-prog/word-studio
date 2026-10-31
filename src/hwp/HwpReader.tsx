@@ -151,7 +151,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     else if (action === 'export-pdf') void print(true);
     else setStatus('HWP는 읽기 전용입니다. 편집 문서로 돌아가려면 읽기 화면을 닫으세요.');
   }), [info, file, converting]);
-  return <dialog ref={dialog} className="hwp-reader" aria-label="HWP 읽기" onCancel={event => { event.preventDefault(); if (!exporting) onClose(); }}
+  return <dialog ref={dialog} className="hwp-reader" data-desktop-platform={window.wordDesktop?.platform} aria-label="HWP 읽기" onCancel={event => { event.preventDefault(); if (!exporting) onClose(); }}
     onKeyDown={event => {
       if (!(event.ctrlKey || event.metaKey) || event.nativeEvent.isComposing) return;
       const key = event.key.toLowerCase();
@@ -164,6 +164,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
         else setStatus('HWP는 읽기 전용입니다. 원본 파일은 변경되지 않습니다.');
       }
     }}>
+    <div className="hwp-windowbar" aria-hidden="true" />
     <header className="hwp-toolbar"><div><strong>{file.name}</strong><span>HWP/HWPX 원본 보기 · Word Studio</span></div>
       <button onClick={() => void prepareEditing()} disabled={!info || converting || exporting}>Word 화면에서 편집</button>
       <button onClick={onOpen} disabled={exporting}>다른 파일 열기</button>

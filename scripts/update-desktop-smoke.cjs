@@ -143,8 +143,56 @@ async function run() {
     assert.deepEqual(await application.evaluate(() => globalThis.updateTest.opened), ['https://github.com/beaur8-prog/word-studio/releases/latest']);
     await dialog.getByRole('button', { name: '업데이트 창 닫기', exact: true }).click();
     assert.equal(await editor.innerText(), before);
+    // The real Windows caption buttons sit above DOM hit testing. Verify both
+    // their reserved vertical space and the toolbar hit targets in the native app.
+    await window.locator('input[type=file]').first().setInputFiles(path.join(root, 'tests/fixtures/hwp/reader.hwp'));
+    const reader = window.getByRole('dialog', { name: 'HWP 읽기', exact: true });
+    await expect(reader.getByTestId('hwp-page-count')).toHaveText('/ 1');
+    const hwpToolbar = [];
+    const nativeWindow = await application.browserWindow(window);
+    async function checkHwpToolbar(state, zoom = 1) {
+      const minimumTop = process.platform === 'win32' ? 40 / zoom : 0;
+      const geometry = await reader.evaluate(element => {
+        const toolbar = element.querySelector('.hwp-toolbar').getBoundingClientRect();
+        const overlay = navigator.windowControlsOverlay;
+        return { width: innerWidth, height: innerHeight, toolbarTop: toolbar.top,
+          overlay: overlay ? { visible: overlay.visible, rect: overlay.getTitlebarAreaRect().toJSON() } : null,
+          buttons: [...element.querySelectorAll('.hwp-toolbar button')].map(button => {
+            const rect = button.getBoundingClientRect();
+            return { text: button.textContent, top: rect.top, right: rect.right, bottom: rect.bottom,
+              reachable: document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)?.closest('button') === button };
+          }) };
+      });
+      if (process.platform !== 'win32') assert.equal(geometry.toolbarTop, 0);
+      assert.equal(geometry.buttons.length, 6);
+      for (const button of geometry.buttons) {
+        assert.ok(button.top >= minimumTop - 1, `${state}: ${button.text} overlaps the caption controls`);
+        assert.ok(button.right <= geometry.width && button.bottom < geometry.height, `${state}: clipped ${button.text}`);
+        assert.ok(button.reachable, `${state}: blocked ${button.text}`);
+      }
+      await reader.getByRole('button', { name: '인쇄', exact: true }).click({ trial: true });
+      await reader.getByRole('button', { name: 'HWP 읽기 닫기' }).click({ trial: true });
+      hwpToolbar.push({ state, zoom, ...geometry });
+    }
+    for (const width of [1440, 1080]) {
+      await window.setViewportSize({ width, height: 720 });
+      await checkHwpToolbar(`width-${width}`);
+    }
+    if (process.platform === 'win32') {
+      await nativeWindow.evaluate(win => win.maximize());
+      await expect.poll(() => nativeWindow.evaluate(win => win.isMaximized())).toBe(true);
+      await checkHwpToolbar('maximized');
+      await nativeWindow.evaluate(win => win.webContents.setZoomFactor(1.25));
+      await expect.poll(() => nativeWindow.evaluate(win => win.webContents.getZoomFactor())).toBe(1.25);
+      await checkHwpToolbar('maximized-zoom-125', 1.25);
+    }
+    await window.screenshot({ path: path.join(directory, 'hwp-window-controls.png') });
+    await nativeWindow.evaluate(win => win.webContents.setZoomFactor(1));
+    await reader.getByRole('button', { name: 'HWP 읽기 닫기' }).click();
+    await expect(reader).not.toBeVisible();
+    assert.equal(await editor.innerText(), before, 'Closing HWP must preserve the underlying Word document.');
     assert.deepEqual(errors, []);
-    await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify({ passed: true, platform: process.platform, phases,
+    await fs.writeFile(path.join(directory, 'result.json'), JSON.stringify({ passed: true, platform: process.platform, phases, hwpToolbar,
       blankStartupWithExistingRecovery: true, unusedStartupNotSaved: true, documentUnchanged: true, rendererErrors: errors, isolatedProfile: true, realNetwork: false, installerExecuted: false }, null, 2));
     console.log('Update desktop smoke passed:', path.join(directory, 'result.json'));
   } finally {
