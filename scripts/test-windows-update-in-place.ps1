@@ -80,7 +80,10 @@ try {
        sha256=(Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant(); executable=$target; version=$version; log=$log } |
       ConvertTo-Json | Set-Content -LiteralPath $jobFile -Encoding UTF8
     $helper = if ($scenario -eq 'legacy-helper-with-duplicates') { Join-Path $root '.cache/legacy-update/helper-1.4.12.ps1' } else { Join-Path $root 'electron/studio-update-windows.ps1' }
-    $command = "& '" + $helper.Replace("'","''") + "' -JobFile '" + $jobFile.Replace("'","''") + "'"
+    # Match the product loader's explicit UTF-8 decoding in PowerShell 5.1.
+    $workerScript = Join-Path $jobDirectory 'helper.ps1'
+    [IO.File]::WriteAllText($workerScript, (Get-Content -LiteralPath $helper -Raw -Encoding UTF8), [Text.UTF8Encoding]::new($true))
+    $command = "& '" + $workerScript.Replace("'","''") + "' -JobFile '" + $jobFile.Replace("'","''") + "'"
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
     $worker = Start-Process -FilePath $ps51 -ArgumentList @('-NoProfile','-NonInteractive','-EncodedCommand',$encoded) -WindowStyle Hidden -PassThru
     $null = $worker.Handle

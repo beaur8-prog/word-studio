@@ -32,6 +32,11 @@ Var WordStudioMachineInstall
 !macroend
 
 !macro customFinishPage
+  !define MUI_FINISHPAGE_RUN
+  !define MUI_FINISHPAGE_RUN_FUNCTION WordStudioFinishRun
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW WordStudioFinishShow
+  !insertmacro MUI_PAGE_FINISH
+
   Function WordStudioFinishRun
     ; A fresh installation may launch from its finish page. On reinstall or
     ; update, only the waiting helper may launch after it verifies the version.
@@ -47,8 +52,4 @@ Var WordStudioMachineInstall
     ${EndIf}
   FunctionEnd
 
-  !define MUI_FINISHPAGE_RUN
-  !define MUI_FINISHPAGE_RUN_FUNCTION WordStudioFinishRun
-  !define MUI_PAGE_CUSTOMFUNCTION_SHOW WordStudioFinishShow
-  !insertmacro MUI_PAGE_FINISH
 !macroend
