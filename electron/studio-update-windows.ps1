@@ -23,7 +23,14 @@ function Get-WordInstallTarget([string]$Executable) {
             try {
               if ($entry.GetValue('DisplayName') -ne 'Word Studio') { continue }
               $location = [string]$entry.GetValue('InstallLocation')
-              if ([string]::IsNullOrWhiteSpace($location)) { continue }
+              # electron-builder stores InstallLocation under its app GUID key;
+              # the standard uninstall entry instead supplies a quoted command.
+              if ([string]::IsNullOrWhiteSpace($location)) {
+                $command = [string]$entry.GetValue('UninstallString')
+                $match = [regex]::Match($command, '^"([^"\r\n]+)"(?:\s|$)')
+                if (-not $match.Success -or [IO.Path]::GetFileName($match.Groups[1].Value) -ne 'Uninstall Word Studio.exe') { continue }
+                $location = [IO.Path]::GetDirectoryName($match.Groups[1].Value)
+              }
               if ([IO.Path]::GetFullPath($location).TrimEnd('\') -ieq $folder) {
                 $scopes += if ($hive -eq [Microsoft.Win32.RegistryHive]::LocalMachine) { '/allusers' } else { '/currentuser' }
               }

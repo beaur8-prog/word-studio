@@ -102,7 +102,7 @@ try {
     if ($main.Count -ne 1) { throw "Expected one relaunched editor, found $($main.Count)." }
     if ((Get-Item -LiteralPath $target).VersionInfo.ProductVersion -ne $version) { throw 'The original installation was not updated.' }
     $entries = @(Entries)
-    if ($entries.Count -ne 1 -or $entries[0].InstallLocation.TrimEnd('\') -ine $directory.TrimEnd('\')) { throw 'Update created another installation or moved the existing one.' }
+    if ($entries.Count -ne 1 -or $entries[0].UninstallString -ine ('"' + (Join-Path $directory 'Uninstall Word Studio.exe') + '" ' + $scope)) { throw 'Update created another installation or moved the existing one.' }
     $links = @(Desktop-Links)
     if ($links.Count -ne 1) { throw "Expected one desktop shortcut, found $($links.Count)." }
     if ((New-Object -ComObject WScript.Shell).CreateShortcut($links[0]).TargetPath -ine $target) { throw 'Desktop shortcut points to the wrong editor.' }

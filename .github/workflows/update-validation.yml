@@ -6,6 +6,10 @@ on:
         description: Build and verify the Windows Setup installer
         type: boolean
         default: false
+      installer_only:
+        description: Run Windows packaging and native upgrade scenarios after unchanged UI tests pass
+        type: boolean
+        default: false
   push:
     branches: ['codex/update-controls', 'codex/windows-updater-handoff', 'codex/macos-file-panels', 'codex/windows-installer-language', 'codex/windows-update-in-place']
   pull_request:
@@ -39,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest]
+        os: ${{ inputs.installer_only && fromJSON('["windows-latest"]') || fromJSON('["ubuntu-22.04", "windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     steps:
@@ -58,12 +62,12 @@ jobs:
       - run: npm run test:updates
       - run: npm run test:native
       - name: Browser update and document preservation scenarios (Linux)
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && !inputs.installer_only
         run: npx playwright test tests/startup.spec.ts tests/editor.spec.ts tests/table-row-resize.spec.ts tests/word-use-cases.spec.ts tests/hwp-reader.spec.ts tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts tests/native-file-panels.spec.ts --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - name: Browser update and document preservation scenarios (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && !inputs.installer_only
         run: npx playwright test tests/startup.spec.ts tests/editor.spec.ts tests/table-row-resize.spec.ts tests/word-use-cases.spec.ts tests/hwp-reader.spec.ts tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts tests/native-file-panels.spec.ts --reporter=line
       - name: Real Electron update bridge (Linux)
         if: runner.os == 'Linux'

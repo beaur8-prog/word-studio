@@ -84,7 +84,7 @@ async function exists(file) { return fs.access(file).then(() => true, () => fals
       if (id === 'word') {
         const registration = mode === 'unregistered'
           ? `param($JobFile)\nRemove-Item -LiteralPath '${registryKey}' -Recurse -Force -ErrorAction SilentlyContinue`
-          : `param($JobFile)\nNew-Item -Path '${registryKey}' -Force | Out-Null\nNew-ItemProperty -LiteralPath '${registryKey}' -Name DisplayName -Value 'Word Studio' -Force | Out-Null\nNew-ItemProperty -LiteralPath '${registryKey}' -Name InstallLocation -Value $JobFile -Force | Out-Null`;
+          : `param($JobFile)\nNew-Item -Path '${registryKey}' -Force | Out-Null\nNew-ItemProperty -LiteralPath '${registryKey}' -Name DisplayName -Value 'Word Studio' -Force | Out-Null\nNew-ItemProperty -LiteralPath '${registryKey}' -Name UninstallString -Value ('"' + (Join-Path $JobFile 'Uninstall Word Studio.exe') + '" /currentuser') -Force | Out-Null`;
         execFileSync(ps, ['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',powershellCommand(registration,folder)], {stdio:'inherit'});
       }
       const binary = path.join(runtime, product + '.exe'); await fs.copyFile(path.join(runtime, 'electron.exe'), binary);

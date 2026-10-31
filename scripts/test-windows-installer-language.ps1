@@ -39,6 +39,7 @@ public static class StudioSetupUI {
     return result.ToArray();
   }
   [DllImport("user32.dll", CharSet=CharSet.Unicode)] static extern IntPtr SendMessageTimeout(IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam, uint flags, uint timeout, out IntPtr result);
+  public static void Uncheck(IntPtr hwnd) { IntPtr result; if(SendMessageTimeout(hwnd, 0x00F1, IntPtr.Zero, IntPtr.Zero, 2, 2000, out result) == IntPtr.Zero) throw new Exception("Cannot uncheck installer Run option"); }
   public static bool Checked(IntPtr hwnd) { IntPtr result; if(SendMessageTimeout(hwnd, 0x00F0, IntPtr.Zero, IntPtr.Zero, 2, 2000, out result) == IntPtr.Zero) throw new Exception("Cannot read installer checkbox"); return result.ToInt64() == 1; }
   public static void Click(IntPtr hwnd) { if(hwnd == IntPtr.Zero || !PostMessage(hwnd, 0x00F5, IntPtr.Zero, IntPtr.Zero)) throw new Exception("Cannot click installer control"); }
 }
@@ -105,7 +106,8 @@ try {
           if ([StudioSetupUI]::Class($control) -eq 'Button' -and
               [StudioSetupUI]::Text($control) -match '(Run|실행)' -and [StudioSetupUI]::Checked($control)) {
             if ($ObserveProcessId) { throw 'Update Setup must not offer a checked Run option; the helper owns relaunch.' }
-            [StudioSetupUI]::Click($control)
+            [StudioSetupUI]::Uncheck($control)
+            if ([StudioSetupUI]::Checked($control)) { throw 'Run checkbox stayed checked.' }
           }
         }
         [StudioSetupUI]::Click($next)
@@ -122,7 +124,15 @@ try {
     if (-not $finished -and @($tree | Where-Object { $ids.Contains([int]$_.ProcessId) }).Count -eq 0) { throw 'Setup exited before completing its wizard.' }
     Start-Sleep -Milliseconds 250
   }
-  if (-not $passed) { throw 'Timed out waiting for native Setup UI.' }
+  if (-not $passed) {
+    $windows = @([StudioSetupUI]::Windows($ids))
+    @($windows | ForEach-Object { [StudioSetupUI]::Text($_); [StudioSetupUI]::Children($_) | ForEach-Object { [StudioSetupUI]::Text($_) } }) |
+      Set-Content (Join-Path $evidence "installer-language-$Stage-timeout.txt")
+    $image = [Drawing.Bitmap]::new(1200, 900); $graphics = [Drawing.Graphics]::FromImage($image)
+    try { $graphics.CopyFromScreen(0, 0, 0, 0, $image.Size); $image.Save((Join-Path $evidence "installer-language-$Stage-timeout.png")) }
+    finally { $graphics.Dispose(); $image.Dispose() }
+    throw 'Timed out waiting for native Setup UI.'
+  }
   if ($ExpectLanguageSelector -and -not $selector) { throw 'Positive control did not reproduce the language selector.' }
 } finally {
   foreach ($id in $ids) {
