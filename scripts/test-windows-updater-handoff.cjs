@@ -11,6 +11,7 @@ const { powershellCommand } = require('../electron/studio-updater.cjs');
 if (process.platform !== 'win32' || process.env.GITHUB_ACTIONS !== 'true') throw Error('Requires a disposable Windows CI runner');
 const root = path.resolve(__dirname, '..');
 const report = path.join(root, 'test-results', 'updater-handoff');
+const registryKey = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\StudioHandoff-' + process.pid;
 const ps = path.join(process.env.SystemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function poll(check, timeout = 30000) { const end = Date.now() + timeout; while (Date.now() < end) { if (await check()) return; await delay(100); } throw Error('Timed out waiting for fixture'); }
@@ -67,19 +68,25 @@ async function exists(file) { return fs.access(file).then(() => true, () => fals
       });
       if(mode==='cancel') win.on('close', event=>{if(!canceled){event.preventDefault();canceled=true;void updater.cancelInstall().then(()=>{write('cancelled.json',{editorStillOpen:!win.isDestroyed()});setTimeout(()=>{win.destroy();app.quit();},1000);});}});
       await updater.check(true);
-      if(mode==='blocked'||mode==='tampered'){write('blocked-complete.json',{phase:updater.getState().phase});win.destroy();app.quit();}
+      if(mode==='blocked'||mode==='tampered'||mode==='unregistered'){write('blocked-complete.json',{phase:updater.getState().phase});win.destroy();app.quit();}
     }).catch(error=>{write('fixture-error.json',{error:String(error.stack)});app.exit(1);});
   `;
   await fs.writeFile(path.join(appDirectory, 'main.cjs'), nativeMain);
   const results = [];
   try {
-    for (const [id, mode] of [['sheet', 'install'], ['slide', 'install'], ['word', 'install'], ['word', 'cancel'], ['word', 'blocked'], ['word', 'tampered']]) {
+    for (const [id, mode] of [['sheet', 'install'], ['slide', 'install'], ['word', 'install'], ['word', 'cancel'], ['word', 'blocked'], ['word', 'tampered'], ['word', 'unregistered']]) {
       const name = id + '-' + mode, folder = path.join(directory, name), product = { sheet: 'Sheet Studio', slide: 'Slide Studio', word: 'Word Studio' }[id];
       await fs.mkdir(folder);
       for (const file of ['old.exe', 'payload.exe', 'installer.exe']) await fs.copyFile(path.join(directory, file), path.join(folder, file));
       const target = path.join(folder, product + '.exe');
       await fs.copyFile(path.join(folder, 'old.exe'), target);
       await fs.writeFile(path.join(folder, 'Uninstall ' + product + '.exe'), 'disposable uninstaller marker');
+      if (id === 'word') {
+        const registration = mode === 'unregistered'
+          ? `param($JobFile)\nRemove-Item -LiteralPath '${registryKey}' -Recurse -Force -ErrorAction SilentlyContinue`
+          : `param($JobFile)\nNew-Item -Path '${registryKey}' -Force | Out-Null\nNew-ItemProperty -LiteralPath '${registryKey}' -Name DisplayName -Value 'Word Studio' -Force | Out-Null\nNew-ItemProperty -LiteralPath '${registryKey}' -Name InstallLocation -Value $JobFile -Force | Out-Null`;
+        execFileSync(ps, ['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',powershellCommand(registration,folder)], {stdio:'inherit'});
+      }
       const binary = path.join(runtime, product + '.exe'); await fs.copyFile(path.join(runtime, 'electron.exe'), binary);
       const env = { ...process.env, STUDIO_HANDOFF_FIXTURE_ROOT: folder, STUDIO_HANDOFF_TARGET_EXE: target, STUDIO_HANDOFF_ID: id, STUDIO_HANDOFF_MODE: mode }; delete env.ELECTRON_RUN_AS_NODE;
       const child = spawn(binary, [], { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -113,5 +120,8 @@ async function exists(file) { return fs.access(file).then(() => true, () => fals
       console.log('Verified native updater handoff:', name);
     }
     await fs.writeFile(path.join(report, 'results.json'), JSON.stringify({ platform: process.platform, passed: true, results }, null, 2) + '\n');
-  } finally { await fs.rm(directory, { recursive: true, force: true }); }
+  } finally {
+    execFileSync(ps, ['-NoLogo','-NoProfile','-NonInteractive','-EncodedCommand',powershellCommand(`param($JobFile)\nRemove-Item -LiteralPath '${registryKey}' -Recurse -Force -ErrorAction SilentlyContinue`,directory)], {stdio:'inherit'});
+    await fs.rm(directory, { recursive: true, force: true });
+  }
 })().catch(error => { console.error(error); process.exitCode = 1; });

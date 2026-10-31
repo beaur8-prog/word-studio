@@ -7,11 +7,13 @@ on:
         type: boolean
         default: false
   push:
-    branches: ['codex/update-controls', 'codex/windows-updater-handoff', 'codex/macos-file-panels', 'codex/windows-installer-language']
+    branches: ['codex/update-controls', 'codex/windows-updater-handoff', 'codex/macos-file-panels', 'codex/windows-installer-language', 'codex/windows-update-in-place']
   pull_request:
     paths:
       - 'electron-builder.config.cjs'
       - 'scripts/test-windows-installer*.ps1'
+      - 'scripts/test-windows-update-in-place.ps1'
+      - 'electron/windows-installer.nsh'
       - 'electron/studio-updat*'
       - 'electron/preload.cjs'
       - 'electron/main.cjs'
@@ -78,7 +80,7 @@ jobs:
           [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path 'electron/studio-update-windows.ps1'), [ref]$parseTokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count) { throw ($parseErrors | Out-String) }
       - name: Build Windows Setup
-        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || inputs.build_windows)
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || github.ref == 'refs/heads/codex/windows-update-in-place' || inputs.build_windows)
         run: npm run package:win
       - name: Build forced-language positive control
         if: runner.os == 'Windows' && github.ref == 'refs/heads/codex/windows-installer-language'
@@ -90,14 +92,28 @@ jobs:
           $version = (Get-Content package.json | ConvertFrom-Json).version
           ./scripts/test-windows-installer-language.ps1 -Setup "release/language-control/Word-Studio-$version-windows-x64-setup.exe" -Stage control -ExpectLanguageSelector
       - name: Native Windows helper acknowledgement, install, relaunch and cancellation
-        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || inputs.build_windows)
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || github.ref == 'refs/heads/codex/windows-update-in-place' || inputs.build_windows)
         run: node scripts/test-windows-updater-handoff.cjs
       - name: Verify Setup installation, document preservation, reinstall and uninstall
-        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || inputs.build_windows)
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || github.ref == 'refs/heads/codex/windows-update-in-place' || inputs.build_windows)
         shell: pwsh
         run: ./scripts/test-windows-installer.ps1
+      - name: Fetch published Setup and helper for real upgrade scenarios
+        if: runner.os == 'Windows' && github.ref == 'refs/heads/codex/windows-update-in-place'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.4.12 --pattern 'Word-Studio-1.4.12-windows-x64-setup.exe' --dir .cache/legacy-update
+          if ($LASTEXITCODE) { throw 'Legacy installer download failed.' }
+          git fetch origin refs/tags/v1.4.12:refs/tags/v1.4.12 --depth=1
+          git show v1.4.12:electron/studio-update-windows.ps1 | Set-Content .cache/legacy-update/helper-1.4.12.ps1 -Encoding utf8BOM
+      - name: Actual Setup and helper keep user scope, custom directory and one app
+        if: runner.os == 'Windows' && github.ref == 'refs/heads/codex/windows-update-in-place'
+        shell: pwsh
+        run: ./scripts/test-windows-update-in-place.ps1
       - name: Retain verified Windows installer
-        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || inputs.build_windows)
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/codex/windows-updater-handoff' || github.ref == 'refs/heads/codex/windows-installer-language' || github.ref == 'refs/heads/codex/windows-update-in-place' || inputs.build_windows)
         uses: actions/upload-artifact@v4
         with:
           name: word-studio-windows-release
@@ -115,6 +131,7 @@ jobs:
             .cache/update-desktop-*/*.png
             .cache/installer-test.json
             .cache/installer-language-*
+            .cache/update-in-place*
             .cache/desktop-smoke-*/result.json
             .cache/hwp-native-*/result.json
             .cache/hwp-editing-native-*/result.json

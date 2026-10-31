@@ -1,7 +1,8 @@
 param(
   [Parameter(Mandatory=$true)][string]$Setup,
   [Parameter(Mandatory=$true)][string]$Stage,
-  [switch]$ExpectLanguageSelector
+  [switch]$ExpectLanguageSelector,
+  [int]$ObserveProcessId = 0
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -46,7 +47,8 @@ $root = Split-Path $PSScriptRoot -Parent
 $evidence = Join-Path $root '.cache'
 New-Item -ItemType Directory -Path $evidence -Force | Out-Null
 # This is also the updater's real /currentuser invocation, with visible progress.
-$process = Start-Process -FilePath (Resolve-Path $Setup) -ArgumentList '/currentuser' -PassThru
+$process = if ($ObserveProcessId) { Get-Process -Id $ObserveProcessId } else { Start-Process -FilePath (Resolve-Path $Setup) -ArgumentList '/currentuser' -PassThru }
+$null = $process.Handle
 $ids = [Collections.Generic.HashSet[int]]::new()
 [void]$ids.Add($process.Id)
 $deadline = [DateTime]::UtcNow.AddSeconds(180)
@@ -90,11 +92,19 @@ try {
       if (-not $installed -and $label -match '^(Install|설치)') {
         [StudioSetupUI]::Click($next)
         $installed = $true
-      } elseif ($installed -and -not $finished -and $label -match '^(Finish|마침)') {
+      } elseif (($installed -or $ObserveProcessId) -and -not $finished -and $label -match '^(Finish|마침)') {
+        $installed = $true
         # Keep this installer test independent of normal editor smoke tests.
+        if ($ObserveProcessId) {
+          $image = [Drawing.Bitmap]::new(1200, 900)
+          $graphics = [Drawing.Graphics]::FromImage($image)
+          try { $graphics.CopyFromScreen(0, 0, 0, 0, $image.Size); $image.Save((Join-Path $evidence "installer-language-$Stage-finish.png")) }
+          finally { $graphics.Dispose(); $image.Dispose() }
+        }
         foreach ($control in $children) {
           if ([StudioSetupUI]::Class($control) -eq 'Button' -and
               [StudioSetupUI]::Text($control) -match '(Run|실행)' -and [StudioSetupUI]::Checked($control)) {
+            if ($ObserveProcessId) { throw 'Update Setup must not offer a checked Run option; the helper owns relaunch.' }
             [StudioSetupUI]::Click($control)
           }
         }
@@ -103,7 +113,8 @@ try {
       }
     }
     if ($ExpectLanguageSelector -and $passed) { break }
-    if ($finished -and @($tree | Where-Object { $ids.Contains([int]$_.ProcessId) }).Count -eq 0) {
+    $process.Refresh()
+    if ($finished -and (($ObserveProcessId -and $process.HasExited) -or @($tree | Where-Object { $ids.Contains([int]$_.ProcessId) }).Count -eq 0)) {
       if ($process.ExitCode -ne 0) { throw "Setup exited with $($process.ExitCode)" }
       $passed = $true
       break
@@ -116,7 +127,7 @@ try {
 } finally {
   foreach ($id in $ids) {
     $remaining = Get-Process -Id $id -ErrorAction SilentlyContinue
-    if ($null -ne $remaining) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
+    if ($null -ne $remaining -and (-not $passed -or -not $ObserveProcessId)) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
   }
   [ordered]@{ stage=$Stage; passed=$passed; languageSelector=$selector; installed=$installed; finished=$finished } |
     ConvertTo-Json | Set-Content (Join-Path $evidence "installer-language-$Stage.json")
