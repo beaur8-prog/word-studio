@@ -105,7 +105,12 @@ try {
     if ($entries.Count -ne 1 -or $entries[0].UninstallString -ine ('"' + (Join-Path $directory 'Uninstall Word Studio.exe') + '" ' + $scope)) { throw 'Update created another installation or moved the existing one.' }
     $links = @(Desktop-Links)
     if ($links.Count -ne 1) { throw "Expected one desktop shortcut, found $($links.Count)." }
-    if ((New-Object -ComObject WScript.Shell).CreateShortcut($links[0]).TargetPath -ine $target) { throw 'Desktop shortcut points to the wrong editor.' }
+    $shortcutTarget = (New-Object -ComObject WScript.Shell).CreateShortcut($links[0]).TargetPath
+    $report.current = @{ scenario=$scenario; expectedTarget=$target; shortcutTarget=$shortcutTarget; entries=$entries.Count; mainProcesses=$main.Count }
+    # Shell links can return an 8.3 path. Compare NTFS file identities, not path spelling.
+    $identity = & node -e 'const fs=require("node:fs"); const a=fs.statSync(process.argv[1],{bigint:true}),b=fs.statSync(process.argv[2],{bigint:true}); const same=a.dev===b.dev&&a.ino===b.ino; console.log(JSON.stringify({same,shortcut:fs.realpathSync.native(process.argv[1]),expected:fs.realpathSync.native(process.argv[2])})); process.exit(same?0:1);' $shortcutTarget $target
+    if ($LASTEXITCODE -ne 0) { throw "Desktop shortcut points elsewhere: $shortcutTarget (expected $target)" }
+    $report.current.identity = $identity | ConvertFrom-Json
     Assert-Preserved
     $report.scenarios += [ordered]@{ scenario=$scenario; passed=$true; originalDirectoryPreserved=$true; originalScopePreserved=$true;
       installedVersion=$version; desktopShortcuts=$links.Count; mainProcesses=$main.Count; noFailurePopup=$true; documentAndRecoveryPreserved=$true }
