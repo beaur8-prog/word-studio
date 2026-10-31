@@ -3,9 +3,15 @@ import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 
 const metrics = new Map<string, number>();
+// The shared LRU bounds retained samples, but documents can contain more unique
+// runs than it holds. Keep one measurement per live DOM node too, so unchanged
+// selection updates cannot evict and remeasure the entire long document.
+let nodeMetrics = new WeakMap<Node, { font: string; text: string; height: number }>();
 const legacyKorean = /^(돋움체?|굴림체?|Dotum(?:Che)?|Gulim(?:Che)?)$/i;
-function singleLine(style: CSSStyleDeclaration, text = 'Ag') {
+function singleLine(style: CSSStyleDeclaration, text = 'Ag', owner?: Node) {
   const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  const previous = owner && nodeMetrics.get(owner);
+  if (previous && previous.font === font && previous.text === text) return previous.height;
   // Measure only glyphs that this run actually uses. An unconditional Hangul
   // sample selects a taller fallback even for entirely Latin Word paragraphs.
   // Collapse explicit breaks: this is a single-line metric, not paragraph height.
@@ -13,7 +19,9 @@ function singleLine(style: CSSStyleDeclaration, text = 'Ag') {
   const key = `${font}\n${sample}`;
   const cached = metrics.get(key);
   if (cached !== undefined) {
-    metrics.delete(key); metrics.set(key, cached); return cached;
+    metrics.delete(key); metrics.set(key, cached);
+    if (owner) nodeMetrics.set(owner, { font, text, height: cached });
+    return cached;
   }
   // Windows Word's single-line box for these legacy Korean faces is about
   // 1.30 em (10 pt / 280-auto produces a measured 20.16–20.32 px baseline
@@ -38,6 +46,7 @@ function singleLine(style: CSSStyleDeclaration, text = 'Ag') {
     if (metrics.size >= 2048) metrics.delete(metrics.keys().next().value!);
     metrics.set(key, height);
   }
+  if (owner) nodeMetrics.set(owner, { font, text, height });
   return height;
 }
 
@@ -51,12 +60,12 @@ export function wordLineHeight(paragraph: HTMLElement) {
   // The paragraph contributes its font strut, including for empty paragraphs.
   // Then measure text with its own resolved run font, never with an ancestor's
   // font that may not support those glyphs (e.g. a smaller CJK run in Latin text).
-  let normal = singleLine(getComputedStyle(paragraph));
+  let normal = singleLine(getComputedStyle(paragraph), 'Ag', paragraph);
   const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
   while (walker.nextNode()) {
     const node = walker.currentNode as Text;
     if (node.data && node.parentElement)
-      normal = Math.max(normal, singleLine(getComputedStyle(node.parentElement), node.data));
+      normal = Math.max(normal, singleLine(getComputedStyle(node.parentElement), node.data, node));
   }
   return rule === 'auto' ? normal * value : Math.max(normal, value * (source.endsWith('pt') ? 4 / 3 : 1));
 }
@@ -99,7 +108,7 @@ export const WordLineMetrics = Extension.create({
           view.dispatch(view.state.tr.setMeta(key, DecorationSet.create(view.state.doc, decorations)).setMeta('addToHistory', false));
         }
       }); };
-      const fontsChanged = () => { metrics.clear(); schedule(); };
+      const fontsChanged = () => { metrics.clear(); nodeMetrics = new WeakMap(); schedule(); };
       document.fonts.addEventListener('loadingdone', fontsChanged); schedule();
       return { update: schedule, destroy() { cancelAnimationFrame(frame); document.fonts.removeEventListener('loadingdone', fontsChanged); } };
     },
