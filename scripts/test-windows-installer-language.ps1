@@ -16,6 +16,19 @@ using System.Text;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 public static class StudioSetupUI {
+  [ComImport, Guid("000214F9-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+  interface IShellLinkW {
+    void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int count, IntPtr findData, uint flags);
+  }
+  public static string ShortcutTarget(string file) {
+    var shellLink = Activator.CreateInstance(Type.GetTypeFromCLSID(new Guid("00021401-0000-0000-C000-000000000046")));
+    try {
+      ((System.Runtime.InteropServices.ComTypes.IPersistFile)shellLink).Load(file, 0);
+      var path = new StringBuilder(32768);
+      ((IShellLinkW)shellLink).GetPath(path, path.Capacity, IntPtr.Zero, 4);
+      return path.ToString();
+    } finally { Marshal.FinalReleaseComObject(shellLink); }
+  }
   public delegate bool EnumProc(IntPtr hwnd, IntPtr data);
   [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc proc, IntPtr data);
   [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr hwnd, EnumProc proc, IntPtr data);

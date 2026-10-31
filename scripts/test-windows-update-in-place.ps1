@@ -41,7 +41,11 @@ function Assert-Preserved {
 }
 function Stop-TestApp {
   # These are disposable CI installations, never a user's desktop.
-  Get-Process -Name 'Word Studio' -ErrorAction SilentlyContinue | Stop-Process -Force
+  $apps = @(Get-Process -Name 'Word Studio' -ErrorAction SilentlyContinue)
+  if ($apps.Count) {
+    $apps | Stop-Process -Force -ErrorAction SilentlyContinue
+    Wait-Process -InputObject $apps -Timeout 15 -ErrorAction SilentlyContinue
+  }
 }
 function Remove-TestInstall([string]$Directory,[string]$Scope) {
   Stop-TestApp
@@ -105,15 +109,26 @@ try {
     if ($entries.Count -ne 1 -or $entries[0].UninstallString -ine ('"' + (Join-Path $directory 'Uninstall Word Studio.exe') + '" ' + $scope)) { throw 'Update created another installation or moved the existing one.' }
     $links = @(Desktop-Links)
     if ($links.Count -ne 1) { throw "Expected one desktop shortcut, found $($links.Count)." }
-    $shortcutTarget = (New-Object -ComObject WScript.Shell).CreateShortcut($links[0]).TargetPath
+    $shortcutTarget = [StudioSetupUI]::ShortcutTarget($links[0])
+    Copy-Item -LiteralPath $links[0] -Destination (Join-Path $root ".cache/update-in-place-$scenario-desktop.lnk")
     $report.current = @{ scenario=$scenario; expectedTarget=$target; shortcutTarget=$shortcutTarget; entries=$entries.Count; mainProcesses=$main.Count }
     # Shell links can return an 8.3 path. Compare NTFS file identities, not path spelling.
     $identity = & node -e 'const fs=require("node:fs"); const a=fs.statSync(process.argv[1],{bigint:true}),b=fs.statSync(process.argv[2],{bigint:true}); const same=a.dev===b.dev&&a.ino===b.ino; console.log(JSON.stringify({same,shortcut:fs.realpathSync.native(process.argv[1]),expected:fs.realpathSync.native(process.argv[2])})); process.exit(same?0:1);' $shortcutTarget $target
     if ($LASTEXITCODE -ne 0) { throw "Desktop shortcut points elsewhere: $shortcutTarget (expected $target)" }
     $report.current.identity = $identity | ConvertFrom-Json
+    # Exercise the desktop shortcut itself, including its shell metadata.
+    Stop-TestApp
+    Start-Process -FilePath $links[0]
+    $deadline = [DateTime]::UtcNow.AddSeconds(20)
+    do {
+      $opened = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'Word Studio.exe' -and $_.ExecutablePath -ieq $target -and $_.CommandLine -notmatch '--type=' })
+      if ($opened.Count -eq 1 -and (Get-Process -Id $opened[0].ProcessId).MainWindowHandle -ne 0) { break }
+      Start-Sleep -Milliseconds 250
+    } while ([DateTime]::UtcNow -lt $deadline)
+    if ($opened.Count -ne 1 -or (Get-Process -Id $opened[0].ProcessId).MainWindowHandle -eq 0) { throw 'Desktop shortcut did not open the updated editor.' }
     Assert-Preserved
     $report.scenarios += [ordered]@{ scenario=$scenario; passed=$true; originalDirectoryPreserved=$true; originalScopePreserved=$true;
-      installedVersion=$version; desktopShortcuts=$links.Count; mainProcesses=$main.Count; noFailurePopup=$true; documentAndRecoveryPreserved=$true }
+      installedVersion=$version; desktopShortcuts=$links.Count; mainProcesses=$main.Count; desktopShortcutLaunchedEditor=$true; noFailurePopup=$true; documentAndRecoveryPreserved=$true }
     Copy-Item -LiteralPath $log -Destination (Join-Path $root ".cache/update-in-place-$scenario.log")
     Remove-TestInstall $directory $scope
     Assert-Preserved
