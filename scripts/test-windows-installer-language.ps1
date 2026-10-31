@@ -65,6 +65,10 @@ $process = if ($ObserveProcessId) { Get-Process -Id $ObserveProcessId } else { S
 $null = $process.Handle
 $ids = [Collections.Generic.HashSet[int]]::new()
 [void]$ids.Add($process.Id)
+# Keep handles for every tracked descendant: Windows can otherwise reuse a
+# short-lived NSIS/uninstaller PID for an unrelated CI process during the wizard.
+$tracked = [Collections.Generic.Dictionary[int,Diagnostics.Process]]::new()
+$tracked.Add($process.Id, $process)
 $deadline = [DateTime]::UtcNow.AddSeconds(180)
 $installed = $false
 $finished = $false
@@ -74,11 +78,20 @@ $passed = $false
 try {
   while ([DateTime]::UtcNow -lt $deadline) {
     # NSIS can run from a temporary child process; include descendants, not other apps.
-    $tree = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId)
+    $tree = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, CreationDate)
     do {
       $added = $false
       foreach ($item in $tree) {
-        if ($ids.Contains([int]$item.ParentProcessId) -and $ids.Add([int]$item.ProcessId)) { $added = $true }
+        if ($ids.Contains([int]$item.ParentProcessId) -and -not $ids.Contains([int]$item.ProcessId)) {
+          try {
+            $child = Get-Process -Id ([int]$item.ProcessId) -ErrorAction Stop
+            $null = $child.Handle
+            if ([Math]::Abs(($child.StartTime.ToUniversalTime() - $item.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1) { $child.Dispose(); continue }
+            $tracked.Add($child.Id, $child)
+            [void]$ids.Add($child.Id)
+            $added = $true
+          } catch { continue } # The disposable child may already have exited.
+        }
       }
     } while ($added)
     foreach ($window in [StudioSetupUI]::Windows($ids)) {
@@ -143,6 +156,7 @@ try {
     $image = [Drawing.Bitmap]::new(1200, 900); $graphics = [Drawing.Graphics]::FromImage($image)
     try { $graphics.CopyFromScreen(0, 0, 0, 0, $image.Size); $image.Save((Join-Path $evidence "installer-language-$Stage-timeout.png")) }
     finally { $graphics.Dispose(); $image.Dispose() }
+    Write-Output ([ordered]@{ stage=$Stage; installed=$installed; finished=$finished; tracked=@($tracked.Values | ForEach-Object { try { @{ id=$_.Id; name=$_.ProcessName; exited=$_.HasExited } } catch { @{ unavailable=$true } } }) } | ConvertTo-Json -Depth 5)
     throw 'Timed out waiting for native Setup UI.'
   }
   if ($ExpectLanguageSelector -and -not $selector) { throw 'Positive control did not reproduce the language selector.' }
@@ -153,4 +167,5 @@ try {
   }
   [ordered]@{ stage=$Stage; passed=$passed; languageSelector=$selector; installed=$installed; finished=$finished } |
     ConvertTo-Json | Set-Content (Join-Path $evidence "installer-language-$Stage.json")
+  foreach ($owned in $tracked.Values) { $owned.Dispose() }
 }
