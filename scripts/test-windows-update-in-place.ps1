@@ -83,10 +83,12 @@ try {
     # Match the product loader's explicit UTF-8 decoding in PowerShell 5.1.
     $workerScript = Join-Path $jobDirectory 'helper.ps1'
     [IO.File]::WriteAllText($workerScript, (Get-Content -LiteralPath $helper -Raw -Encoding UTF8), [Text.UTF8Encoding]::new($true))
-    $command = "& '" + $workerScript.Replace("'","''") + "' -JobFile '" + $jobFile.Replace("'","''") + "'"
+    $command = "& ([ScriptBlock]::Create([IO.File]::ReadAllText('" + $workerScript.Replace("'","''") + "', [Text.Encoding]::UTF8))) -JobFile '" + $jobFile.Replace("'","''") + "'"
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($command))
-    $worker = Start-Process -FilePath $ps51 -ArgumentList @('-NoProfile','-NonInteractive','-EncodedCommand',$encoded) -WindowStyle Hidden -PassThru
+    $worker = Start-Process -FilePath $ps51 -ArgumentList @('-NoProfile','-NonInteractive','-EncodedCommand',$encoded) -WindowStyle Hidden -RedirectStandardOutput (Join-Path $jobDirectory 'stdout.log') -RedirectStandardError (Join-Path $jobDirectory 'stderr.log') -PassThru
     $null = $worker.Handle
+    $worker.Refresh()
+    if ($worker.HasExited) { throw ("Helper exited before Setup: " + (Get-Content (Join-Path $jobDirectory 'stderr.log') -Raw)) }
     & (Join-Path $PSScriptRoot 'test-windows-installer-language.ps1') -Setup $setup -Stage $scenario -ObserveProcessId $worker.Id
     if (-not $worker.WaitForExit(120000) -or $worker.ExitCode -ne 0) { throw "Actual helper failed: $(Get-Content $log -Raw)" }
     $text = Get-Content $log -Raw
@@ -114,6 +116,10 @@ try {
   }
   $report.passed = $true
 } finally {
+  foreach ($file in @(Get-ChildItem -LiteralPath $work -Filter '*.log' -Recurse -File)) {
+    $name = $file.FullName.Substring($work.Length + 1).Replace('\','-')
+    Copy-Item -LiteralPath $file.FullName -Destination (Join-Path $root ('.cache/update-in-place-' + $name))
+  }
   Stop-TestApp
   $report | ConvertTo-Json -Depth 8 | Set-Content (Join-Path $root '.cache/update-in-place.json')
   $report | ConvertTo-Json -Depth 8 | Write-Output
