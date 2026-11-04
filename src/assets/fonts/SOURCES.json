@@ -40,5 +40,45 @@
     "sha256": "de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551",
     "license": "SIL Open Font License 1.1",
     "licenseFile": "electron/licenses/NotoEmoji-OFL.txt"
+  },
+  {
+    "file": "texgyreadventor-bold.otf",
+    "source": "https://www.gust.org.pl/projects/e-foundry/tex-gyre/adventor/qag2_501otf.zip",
+    "sha256": "e373ae29c808c6d9149e3add46564f9acdb6ebfcd0ee311f6a55560226994720",
+    "license": "GUST Font License 1.0 / LPPL 1.3c or later",
+    "licenseFile": "electron/licenses/TeXGyreAdventor-GFL.txt",
+    "licenseCompanion": "electron/licenses/LPPL-1.3c.txt",
+    "version": "2.501",
+    "use": "Unmodified fallback for missing Century Gothic; original installed face and original DOCX font names take priority"
+  },
+  {
+    "file": "texgyreadventor-bolditalic.otf",
+    "source": "https://www.gust.org.pl/projects/e-foundry/tex-gyre/adventor/qag2_501otf.zip",
+    "sha256": "d524c5596812aeee8fed5c81739056ada7a305b84591ea30e30c025b860b311d",
+    "license": "GUST Font License 1.0 / LPPL 1.3c or later",
+    "licenseFile": "electron/licenses/TeXGyreAdventor-GFL.txt",
+    "licenseCompanion": "electron/licenses/LPPL-1.3c.txt",
+    "version": "2.501",
+    "use": "Unmodified fallback for missing Century Gothic; original installed face and original DOCX font names take priority"
+  },
+  {
+    "file": "texgyreadventor-italic.otf",
+    "source": "https://www.gust.org.pl/projects/e-foundry/tex-gyre/adventor/qag2_501otf.zip",
+    "sha256": "1f21a5a07c207f70785dd6cbe4fcb2e0a3f60823b219efb01790a72d8a61b3cb",
+    "license": "GUST Font License 1.0 / LPPL 1.3c or later",
+    "licenseFile": "electron/licenses/TeXGyreAdventor-GFL.txt",
+    "licenseCompanion": "electron/licenses/LPPL-1.3c.txt",
+    "version": "2.501",
+    "use": "Unmodified fallback for missing Century Gothic; original installed face and original DOCX font names take priority"
+  },
+  {
+    "file": "texgyreadventor-regular.otf",
+    "source": "https://www.gust.org.pl/projects/e-foundry/tex-gyre/adventor/qag2_501otf.zip",
+    "sha256": "ee265c1c9728be9491c7f0d7fcdcb2f97bc35040a6dc1f9815265cee333e155b",
+    "license": "GUST Font License 1.0 / LPPL 1.3c or later",
+    "licenseFile": "electron/licenses/TeXGyreAdventor-GFL.txt",
+    "licenseCompanion": "electron/licenses/LPPL-1.3c.txt",
+    "version": "2.501",
+    "use": "Unmodified fallback for missing Century Gothic; original installed face and original DOCX font names take priority"
   }
 ]

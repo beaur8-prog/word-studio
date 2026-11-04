@@ -7,7 +7,7 @@ on:
         type: string
         default: ''
   push:
-    branches: ['codex/word-web-critical-four-hours', 'codex/word-contextual-spacing', 'codex/word-list-pagination']
+    branches: ['codex/word-web-critical-four-hours', 'codex/word-contextual-spacing', 'codex/word-list-pagination', 'codex/word-long-body-metrics']
     paths:
       - '.github/workflows/word-textboxes.yml'
       - 'src/**'
@@ -15,6 +15,9 @@ on:
       - 'tests/docx-heading-default-marks.spec.ts'
       - 'tests/paragraph-contextual-spacing.spec.ts'
       - 'tests/list-pagination.spec.ts'
+      - 'tests/word-font-fallbacks.spec.ts'
+      - 'tests/word-line-metrics.spec.ts'
+      - 'tests/word-line-metrics-capacity.spec.ts'
       - 'scripts/word-openxml-validator/**'
       - 'scripts/prepare-word-schema-inputs.cjs'
   pull_request:
@@ -23,6 +26,10 @@ on:
       - 'src/word-contextual-spacing.ts'
       - 'src/word-list-labels.ts'
       - 'src/word-numbering.ts'
+      - 'src/word-font-fallbacks.ts'
+      - 'src/word-line-metrics.ts'
+      - 'src/main.tsx'
+      - 'src/assets/fonts/**'
       - 'src/list-fragments.ts'
       - 'src/pagination.ts'
       - 'src/editor-lines.ts'
@@ -43,6 +50,9 @@ on:
       - 'tests/docx-heading-default-marks.spec.ts'
       - 'tests/paragraph-contextual-spacing.spec.ts'
       - 'tests/list-pagination.spec.ts'
+      - 'tests/word-font-fallbacks.spec.ts'
+      - 'tests/word-line-metrics.spec.ts'
+      - 'tests/word-line-metrics-capacity.spec.ts'
       - 'scripts/word-openxml-validator/**'
       - 'scripts/prepare-word-schema-inputs.cjs'
 permissions:
@@ -67,7 +77,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Exercise stories, colors, geometry, editor commands and two real DOCX exports
-        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts --trace=off --reporter=line
+        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-font-fallbacks.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts --trace=off --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - name: Add optional public reproduction copies for schema validation
