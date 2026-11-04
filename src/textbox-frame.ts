@@ -7,6 +7,7 @@ export type TextBoxFrame = {
   width: number; height: number; x: number; y: number;
   position: 'floating' | 'inline'; wrap?: 'none' | 'square'; noWrap?: boolean; autoFit?: boolean; horizontalAlign?: 'left'|'center'|'right'; horizontalReference?: 'page'|'margin'|'column'; horizontalOffset?: number; vertical: 'page' | 'paragraph';
   padding: [number, number, number, number];
+  wrapMargins?: [number, number, number, number];
   align: 'top' | 'center' | 'bottom'; shape: 'rect' | 'homePlate' | 'roundRect';
   fill?: string; gradient?: { position: number; color: string }[];
   border?: string; borderWidth?: number; behind?: boolean;
@@ -24,6 +25,7 @@ export function textBoxFrame(value: unknown): TextBoxFrame | undefined {
       !['page','paragraph'].includes(v.vertical) || !Array.isArray(v.padding) || v.padding.length !== 4 ||
       !v.padding.every((n: unknown) => number(n, 0, 10000)) || !['top','center','bottom'].includes(v.align) ||
       !['rect','homePlate','roundRect'].includes(v.shape)) return;
+    if(v.wrapMargins!==undefined && (!Array.isArray(v.wrapMargins) || v.wrapMargins.length!==4 || !v.wrapMargins.every((n:unknown)=>number(n,0,10000))))return;
     if(v.horizontalReference!==undefined && !['page','margin','column'].includes(v.horizontalReference) || v.horizontalOffset!==undefined && !number(v.horizontalOffset,-100000,100000))return;
     if(v.autoFit!==undefined && typeof v.autoFit!=='boolean' || v.horizontalAlign!==undefined && !['left','center','right'].includes(v.horizontalAlign))return;
     if (v.wrap !== undefined && !['none','square'].includes(v.wrap) || v.noWrap !== undefined && typeof v.noWrap !== 'boolean') return;
@@ -32,14 +34,14 @@ export function textBoxFrame(value: unknown): TextBoxFrame | undefined {
     if (v.gradient !== undefined && (!Array.isArray(v.gradient) || !v.gradient.length || v.gradient.length > 16 ||
       !v.gradient.every((s: any) => s && number(s.position, 0, 1) && color(s.color)))) return;
     return { ...(v.group?{group:v.group}:{}), width:v.width, height:v.height, x:v.x, y:v.y, position:v.position, vertical:v.vertical,
-      padding:v.padding, align:v.align, shape:v.shape, ...(v.horizontalReference ? {horizontalReference:v.horizontalReference} : {}), ...(v.horizontalOffset!==undefined ? {horizontalOffset:v.horizontalOffset} : {}), ...(v.autoFit!==undefined ? {autoFit:v.autoFit} : {}), ...(v.horizontalAlign ? {horizontalAlign:v.horizontalAlign} : {}), ...(v.wrap ? {wrap:v.wrap} : {}), ...(v.noWrap!==undefined ? {noWrap:v.noWrap} : {}), ...(v.fill ? { fill:v.fill } : {}),
+      padding:v.padding, ...(v.wrapMargins?{wrapMargins:v.wrapMargins}:{}), align:v.align, shape:v.shape, ...(v.horizontalReference ? {horizontalReference:v.horizontalReference} : {}), ...(v.horizontalOffset!==undefined ? {horizontalOffset:v.horizontalOffset} : {}), ...(v.autoFit!==undefined ? {autoFit:v.autoFit} : {}), ...(v.horizontalAlign ? {horizontalAlign:v.horizontalAlign} : {}), ...(v.wrap ? {wrap:v.wrap} : {}), ...(v.noWrap!==undefined ? {noWrap:v.noWrap} : {}), ...(v.fill ? { fill:v.fill } : {}),
       ...(v.gradient ? { gradient:v.gradient.map((s: any) => ({ position:s.position, color:s.color })) } : {}),
       ...(v.border ? { border:v.border, borderWidth:v.borderWidth ?? 0 } : {}), ...(v.behind !== undefined ? { behind:v.behind } : {}) };
   } catch { return; }
 }
 function contentStyle(f: TextBoxFrame) {
   const background = f.gradient ? `linear-gradient(180deg,${f.gradient.map(s => `${s.color} ${s.position*100}%`).join(',')})` : f.fill || 'transparent';
-  return `box-sizing:border-box;width:${f.autoFit && f.noWrap ? 'max-content' : f.width+'px'};min-height:${f.autoFit?0:f.height}px;padding:${f.padding.map(n => `${n}px`).join(' ')};background:${background};color:#000000;${f.noWrap?'white-space:nowrap;':''}${f.align!=='top'?`display:flex;flex-direction:column;justify-content:${f.align==='center'?'center':'flex-end'};`:''}${f.border ? `border:${f.borderWidth || 0}px solid ${f.border};` : ''}${f.shape==='roundRect' ? 'border-radius:12px;' : ''}`;
+  return `box-sizing:border-box;width:${f.autoFit && f.noWrap ? 'max-content' : f.width+'px'};min-height:${f.autoFit?0:f.height}px;padding:${f.padding.map(n => `${n}px`).join(' ')};background:${f.shape==='homePlate'?'transparent':background};${f.shape==='homePlate'?`--textbox-shape-fill:${background};--textbox-arrow-inset:${Math.min(f.height/2,f.width/2)}px;isolation:isolate;`:''}color:#000000;${f.noWrap?'white-space:nowrap;':''}${f.align!=='top'?`display:flex;flex-direction:column;justify-content:${f.align==='center'?'center':'flex-end'};`:''}${f.border ? `border:${f.borderWidth || 0}px solid ${f.border};` : ''}${f.shape==='roundRect' ? 'border-radius:12px;' : ''}`;
 }
 function applyFrame(dom: HTMLElement, content: HTMLElement, frame: TextBoxFrame) {
   dom.className = 'document-textbox'; dom.dataset.documentTextbox = JSON.stringify(frame);
@@ -70,7 +72,7 @@ export const DocumentTextBox = Node.create({
       let position=-1,hasBoxes=false;
       state.doc.descendants((node,pos)=>{if(node.type.name==='documentTextBox'){hasBoxes=true;return false;}if(node.isTextblock)position=pos+node.nodeSize-1;});
       if(!hasBoxes || position<0)return false;
-      view.dispatch(state.tr.setSelection(TextSelection.near(state.doc.resolve(position),-1)).setStoredMarks([]).scrollIntoView());return true;
+      view.dispatch(state.tr.setSelection(TextSelection.near(state.doc.resolve(position),-1)).scrollIntoView());return true;
     }, 'Mod-Enter': () => {
       const { state,view }=this.editor; const { $from }=state.selection;
       for(let depth=$from.depth;depth>0;depth--) if($from.node(depth).type.name==='documentTextBox') {

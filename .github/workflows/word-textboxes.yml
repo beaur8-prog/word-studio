@@ -1,6 +1,11 @@
 name: Word textbox compatibility
 on:
   workflow_dispatch:
+    inputs:
+      public_docx_validation_payload:
+        description: 'Optional one/two public reproduction copies as JSON [{base64,sha256}]; never submit private documents'
+        type: string
+        default: ''
   push:
     branches: ['codex/word-web-critical-four-hours']
     paths:
@@ -8,6 +13,7 @@ on:
       - 'src/**'
       - 'tests/docx-textboxes.spec.ts'
       - 'scripts/word-openxml-validator/**'
+      - 'scripts/prepare-word-schema-inputs.cjs'
   pull_request:
     paths:
       - '.github/workflows/word-textboxes.yml'
@@ -22,6 +28,7 @@ on:
       - 'src/styles.css'
       - 'tests/docx-textboxes.spec.ts'
       - 'scripts/word-openxml-validator/**'
+      - 'scripts/prepare-word-schema-inputs.cjs'
 permissions:
   contents: read
 jobs:
@@ -47,8 +54,13 @@ jobs:
         run: npx playwright test tests/docx-textboxes.spec.ts --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
-      - name: Validate all ten exported DOCX files with the official OpenXML SDK
-        run: dotnet run --project scripts/word-openxml-validator/Validator.csproj --configuration Release -- test-results 10
+      - name: Add optional public reproduction copies for schema validation
+        id: public-copies
+        run: node scripts/prepare-word-schema-inputs.cjs
+        env:
+          PUBLIC_DOCX_VALIDATION_PAYLOAD: ${{ inputs.public_docx_validation_payload || '' }}
+      - name: Validate exported DOCX files with the official OpenXML SDK
+        run: dotnet run --project scripts/word-openxml-validator/Validator.csproj --configuration Release -- test-results ${{ steps.public-copies.outputs.expected }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

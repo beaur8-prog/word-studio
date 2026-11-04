@@ -54,6 +54,17 @@ async function colors(zip:JSZip) {
  }
  return {fill,color};
 }
+// Word can put a percentage anchor in Choice and a pixel fallback beside it.
+// Resolve only direct compatibility wrappers; do not pick a child's anchor.
+function anchorPosition(anchor:Element|null,name:string):Element|undefined {
+ const direct=first(anchor,name);if(direct)return direct;
+ for(const wrapper of anchor?.children||[])if(wrapper.localName==='AlternateContent') {
+  for(const branch of wrapper.children) {
+   const candidate=first(branch,name);if(!candidate)continue;
+   if(first(candidate,'posOffset') || first(candidate,'align') || first(candidate,'pctPosHOffset') || first(candidate,'pctPosVOffset'))return candidate;
+  }
+ }
+}
 function modernFrame(box:Element,page:PageSettings,palette:Awaited<ReturnType<typeof colors>>):TextBoxFrame {
  const shape=ancestor(box,'wsp')!,anchor=ancestor(shape,'anchor')||ancestor(shape,'inline');
  const transform=first(first(shape,'spPr'),'xfrm'),offset=first(transform,'off'),size=first(transform,'ext');
@@ -69,18 +80,19 @@ function modernFrame(box:Element,page:PageSettings,palette:Awaited<ReturnType<ty
  }
  const margins=pageMargins(page),dimensions=paperDimensions(page).map(n=>n*96/25.4);
  const position=(name:string,vertical:boolean)=>{
-  const p=anchor && first(anchor,name),relative=p?.getAttribute('relativeFrom')||'page',axis=vertical?1:0;
+  const p=anchorPosition(anchor,name),relative=p?.getAttribute('relativeFrom')||'page',axis=vertical?1:0;
   const start=(vertical?margins.top:margins.left)*96/25.4,end=(vertical?margins.bottom:margins.right)*96/25.4;
   const isMargin=['margin','column'].includes(relative),base=isMargin?start:0,available=dimensions[axis]-(isMargin?start+end:0);
   const own=anchor ? number(first(anchor,'extent'),vertical?'cy':'cx')/EMU : (vertical?height:width)/EMU;
-  const align=first(p,'align')?.textContent;
-  return {offset:first(p,'posOffset') ? base+Number(first(p,'posOffset')!.textContent)/EMU : align==='center'?base+(available-own)/2 : ['right','bottom','outside'].includes(align||'')?base+available-own:base,relative};
+  const align=first(p,'align')?.textContent,pct=first(p,vertical?'pctPosVOffset':'pctPosHOffset');
+  return {offset:pct ? base+available*Number(pct.textContent)/100000 : first(p,'posOffset') ? base+Number(first(p,'posOffset')!.textContent)/EMU : align==='center'?base+(available-own)/2 : ['right','bottom','outside'].includes(align||'')?base+available-own:base,relative};
  };
  const hp=position('positionH',false),vp=position('positionV',true),properties=first(shape,'bodyPr');
  const line=first(first(shape,'spPr'),'ln'),lineColor=first(line,'solidFill'),border=palette.color(lineColor?.firstElementChild||undefined);
- const hAlign=first(anchor ? first(anchor,'positionH'):undefined,'align')?.textContent||'';
+ const hAlign=first(anchorPosition(anchor,'positionH'),'align')?.textContent||'';
  const hReference=grouped?'page':['margin','column'].includes(hp.relative)?hp.relative as 'margin'|'column':'page';
  const frame:TextBoxFrame={width:width/EMU,height:height/EMU,x:hp.offset+x/EMU,y:vp.offset+y/EMU,position:anchor?.localName==='inline'?'inline':'floating',vertical:['paragraph','line'].includes(vp.relative)?'paragraph':'page',
+  wrapMargins:[number(anchor,'distT')/EMU,number(anchor,'distR')/EMU,number(anchor,'distB')/EMU,number(anchor,'distL')/EMU],
   padding:[number(properties,'tIns',45720)/EMU,number(properties,'rIns',91440)/EMU,number(properties,'bIns',45720)/EMU,number(properties,'lIns',91440)/EMU],
   align:properties?.getAttribute('anchor')==='ctr'?'center':properties?.getAttribute('anchor')==='b'?'bottom':'top',
   shape:['homePlate','roundRect'].includes(first(first(shape,'spPr'),'prstGeom')?.getAttribute('prst')||'') ? first(first(shape,'spPr'),'prstGeom')!.getAttribute('prst') as 'homePlate'|'roundRect':'rect',
@@ -90,7 +102,9 @@ function modernFrame(box:Element,page:PageSettings,palette:Awaited<ReturnType<ty
  return textBoxFrame(JSON.stringify(frame)) || {...frame,x:0,y:0,width:400,height:100,position:'inline',padding:[5,10,5,10]};
 }
 function legacyFrame(box:Element,page:PageSettings):TextBoxFrame {
- const shape=ancestor(box,'shape')!,styles=new Map((shape.getAttribute('style')||'').split(';').map(p=>p.split(':',2).map(s=>s.trim()) as [string,string]));
+ const shape=ancestor(box,'shape')||ancestor(box,'rect')||ancestor(box,'roundrect')||ancestor(box,'textbox')?.parentElement;
+ if(!shape)throw Error('텍스트상자 도형을 찾을 수 없습니다.');
+ const styles=new Map((shape.getAttribute('style')||'').split(';').map(p=>p.split(':',2).map(s=>s.trim()) as [string,string]));
  const pixels=(v:string|undefined,fallback=0)=>{const m=v?.match(/^(-?[\d.]+)(pt|px|in|cm|mm)?$/);return m ? Number(m[1])*({pt:96/72,in:96,cm:96/2.54,mm:96/25.4,px:1}[m[2]||'px']||1):fallback;};
  const insets=(ancestor(box,'textbox')?.getAttribute('inset')||'7.2pt,3.6pt,7.2pt,3.6pt').split(',').map(s=>pixels(s.trim()));
  const margin=pageMargins(page),fill=hex(shape.getAttribute('fillcolor')?.split(' ')[0]);
@@ -160,7 +174,7 @@ export async function writeTextBoxes(zip:JSZip,records:TextBoxExport[]) {
    if(next!==finish)throw Error('텍스트상자 구조가 올바르지 않습니다.');
    const f=record.frame,emu=(v:number)=>String(Math.round(v*EMU));
    const gradient=f.gradient ? `<a:gradFill><a:gsLst>${f.gradient.map(s=>`<a:gs pos="${Math.round(s.position*100000)}"><a:srgbClr val="${s.color.slice(1)}"/></a:gs>`).join('')}</a:gsLst><a:lin ang="5400000" scaled="1"/></a:gradFill>`:f.fill?`<a:solidFill><a:srgbClr val="${f.fill.slice(1)}"/></a:solidFill>`:'<a:noFill/>';
-   const xml=`<w:p xmlns:w="${W}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}"><w:pPr><w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/></w:pPr><w:r><w:drawing><wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="${100000+index}" behindDoc="${f.behind?1:0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="${f.horizontalReference||'page'}">${f.horizontalReference && f.horizontalAlign && f.horizontalAlign!=='left'?`<wp:align>${f.horizontalAlign}</wp:align>`:`<wp:posOffset>${emu(f.horizontalOffset??f.x)}</wp:posOffset>`}</wp:positionH><wp:positionV relativeFrom="${f.vertical}"><wp:posOffset>${emu(f.y)}</wp:posOffset></wp:positionV><wp:extent cx="${emu(f.width)}" cy="${emu(f.height)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${f.wrap==='square'?'<wp:wrapSquare wrapText="bothSides"/>':'<wp:wrapNone/>'}<wp:docPr id="${100000+index}" name="Text Box ${index+1}"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri="${WPS}"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(f.width)}" cy="${emu(f.height)}"/></a:xfrm><a:prstGeom prst="${f.shape}"><a:avLst/></a:prstGeom>${gradient}<a:ln w="${emu(f.borderWidth||0)}">${f.border?`<a:solidFill><a:srgbClr val="${f.border.slice(1)}"/></a:solidFill>`:'<a:noFill/>'}</a:ln></wps:spPr><wps:txbx><w:txbxContent/></wps:txbx><wps:bodyPr rot="0" vert="horz" wrap="${f.noWrap?'none':'square'}" lIns="${emu(f.padding[3])}" tIns="${emu(f.padding[0])}" rIns="${emu(f.padding[1])}" bIns="${emu(f.padding[2])}" anchor="${f.align==='center'?'ctr':f.align==='bottom'?'b':'t'}">${f.autoFit?'<a:spAutoFit/>':'<a:noAutofit/>'}</wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
+   const xml=`<w:p xmlns:w="${W}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}"><w:pPr><w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/></w:pPr><w:r><w:drawing><wp:anchor distT="${emu(f.wrapMargins?.[0]||0)}" distB="${emu(f.wrapMargins?.[2]||0)}" distL="${emu(f.wrapMargins?.[3]||0)}" distR="${emu(f.wrapMargins?.[1]||0)}" simplePos="0" relativeHeight="${100000+index}" behindDoc="${f.behind?1:0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="${f.horizontalReference||'page'}">${f.horizontalReference && f.horizontalAlign && f.horizontalAlign!=='left'?`<wp:align>${f.horizontalAlign}</wp:align>`:`<wp:posOffset>${emu(f.horizontalOffset??f.x)}</wp:posOffset>`}</wp:positionH><wp:positionV relativeFrom="${f.vertical}"><wp:posOffset>${emu(f.y)}</wp:posOffset></wp:positionV><wp:extent cx="${emu(f.width)}" cy="${emu(f.height)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${f.wrap==='square'?'<wp:wrapSquare wrapText="bothSides"/>':'<wp:wrapNone/>'}<wp:docPr id="${100000+index}" name="Text Box ${index+1}"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri="${WPS}"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(f.width)}" cy="${emu(f.height)}"/></a:xfrm><a:prstGeom prst="${f.shape}"><a:avLst/></a:prstGeom>${gradient}<a:ln w="${emu(f.borderWidth||0)}">${f.border?`<a:solidFill><a:srgbClr val="${f.border.slice(1)}"/></a:solidFill>`:'<a:noFill/>'}</a:ln></wps:spPr><wps:txbx><w:txbxContent/></wps:txbx><wps:bodyPr rot="0" vert="horz" wrap="${f.noWrap?'none':'square'}" lIns="${emu(f.padding[3])}" tIns="${emu(f.padding[0])}" rIns="${emu(f.padding[1])}" bIns="${emu(f.padding[2])}" anchor="${f.align==='center'?'ctr':f.align==='bottom'?'b':'t'}">${f.autoFit?'<a:spAutoFit/>':'<a:noAutofit/>'}</wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
    const parsed=new DOMParser().parseFromString(xml,'application/xml');if(parsed.getElementsByTagName('parsererror').length)throw Error('텍스트상자 XML을 만들 수 없습니다.');
    const p=doc.importNode(parsed.documentElement,true),target=all(p,'txbxContent')[0];target.append(...children);
    if(f.position==='inline'){const anchor=p.getElementsByTagNameNS(WP,'anchor')[0],inline=doc.createElementNS(WP,'wp:inline');for(const c of [...anchor.children])if(['extent','effectExtent','docPr','cNvGraphicFramePr','graphic'].includes(c.localName))inline.append(c);anchor.replaceWith(inline);}

@@ -9,3 +9,5 @@ output/
 *.log
 .env
 .env.*
+scripts/word-openxml-validator/bin/
+scripts/word-openxml-validator/obj/

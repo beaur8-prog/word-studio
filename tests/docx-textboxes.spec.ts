@@ -74,3 +74,25 @@ test('nested modern textboxes retain every story without importing duplicate fal
  },[...await zip.generateAsync({type:'nodebuffer'})]);
  for(const s of states){expect(s.boxes).toBe(2);expect(s.text.match(/OUTER BOX TEXT/g)).toHaveLength(1);expect(s.text.match(/INNER BOX TEXT/g)).toHaveLength(1);expect(s.text).toContain('BODY AFTER');}
 });
+
+test('moving to the body end inherits its real bold and color instead of the textbox or a forced default',async({page})=>{
+ const zip=await JSZip.loadAsync(await fixture('mixed'));const xml=await zip.file('word/document.xml')!.async('string');zip.file('word/document.xml',xml.replace('<w:r><w:t>BODY AFTER','<w:r><w:rPr><w:b/><w:color w:val="0055AA"/></w:rPr><w:t>BODY AFTER'));
+ await page.goto('/');await page.locator('input[type=file]').first().setInputFiles({name:'body-marks.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:await zip.generateAsync({type:'nodebuffer'})});
+ const editor=page.getByRole('textbox',{name:'문서 편집 영역',exact:true});await expect(editor.locator('.document-textbox')).toHaveCount(1);await editor.locator('p').first().click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.insertText(' CONTINUED');
+ const text=editor.locator('span').filter({hasText:'CONTINUED'});await expect(text).toHaveCSS('color','rgb(0, 85, 170)');await expect(text.locator('strong')).toHaveCSS('font-weight','700');expect(await text.evaluate(e=>!!e.closest('.document-textbox'))).toBe(false);
+});
+
+test('percentage anchors in compatibility Choice and wrap clearances retain their actual page coordinates through two saves',async({page})=>{
+ const zip=await JSZip.loadAsync(await fixture('unwrapped'));let xml=await zip.file('word/document.xml')!.async('string');
+ xml=xml.replace('xmlns:wp=', 'xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp=')
+  .replace('<wp:positionH relativeFrom="margin"><wp:posOffset>190500</wp:posOffset></wp:positionH>','<mc:AlternateContent><mc:Choice Requires="wp14"><wp:positionH relativeFrom="page"><wp14:pctPosHOffset>4000</wp14:pctPosHOffset></wp:positionH></mc:Choice><mc:Fallback><wp:positionH relativeFrom="page"><wp:posOffset>310515</wp:posOffset></wp:positionH></mc:Fallback></mc:AlternateContent>')
+  .replace('distL="0" distR="0"','distL="228600" distR="228600"');zip.file('word/document.xml',xml);await page.goto('/');
+ const frames=await page.evaluate(async bytes=>{const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml}=await import('/src/extensions.ts');let f=new File([new Uint8Array(bytes)],'percentage.docx');const frames=[];for(let i=0;i<3;i++){const d=await importFile(f),content=parseDocumentHtml(d.html!);let frame:any;const walk=(n:any)=>{if(n.type==='documentTextBox')frame=JSON.parse(n.attrs.frame);for(const c of n.content||[])walk(c);};walk(content);frames.push(frame);if(i<2)f=new File([await exportDocx({...d.document,content})],'again.docx');}return frames;},[...await zip.generateAsync({type:'nodebuffer'})]);
+ for(const f of frames){expect(f.x).toBeCloseTo(32.64,2);expect(f.wrapMargins).toEqual([0,24,0,24]);}
+});
+
+test('legacy v:rect textbox stays readable instead of failing the whole document',async({page})=>{
+ const zip=await JSZip.loadAsync(await fixture('legacy'));const xml=await zip.file('word/document.xml')!.async('string');zip.file('word/document.xml',xml.replace('<v:shape ','<v:rect ').replace('</v:shape>','</v:rect>'));await page.goto('/');
+ const states=await page.evaluate(async bytes=>{const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml}=await import('/src/extensions.ts');let f=new File([new Uint8Array(bytes)],'rect.docx');const states=[];for(let i=0;i<3;i++){const d=await importFile(f),content=parseDocumentHtml(d.html!),boxes:any[]=[];const walk=(n:any)=>{if(n.type==='documentTextBox')boxes.push(n);for(const c of n.content||[])walk(c);};walk(content);states.push({boxes,html:d.html});if(i<2)f=new File([await exportDocx({...d.document,content})],'again.docx');}return states;},[...await zip.generateAsync({type:'nodebuffer'})]);
+ for(const s of states){expect(s.boxes).toHaveLength(1);expect(JSON.parse(s.boxes[0].attrs.frame).fill).toBe('#205080');expect(s.html!.match(/VISIBLE BOX TEXT/g)).toHaveLength(1);expect(s.html).toContain('BODY AFTER');}
+});

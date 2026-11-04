@@ -2085,3 +2085,5 @@ button:hover:not(:disabled) {
 .document-textbox[data-textbox-position="floating"] > .document-textbox-content { position:absolute; left:0; top:0; transform:translate(var(--textbox-left,0px),var(--textbox-top,0px)); z-index:1; }
 .document-textbox-content { position:relative; overflow:visible; }
 .document-textbox-content:focus-within { outline:1px dotted #8795aa; outline-offset:2px; }
+
+.document-textbox-content[style*="--textbox-shape-fill"]::before { content:""; position:absolute; inset:0; background:var(--textbox-shape-fill); clip-path:polygon(0 0,calc(100% - var(--textbox-arrow-inset)) 0,100% 50%,calc(100% - var(--textbox-arrow-inset)) 100%,0 100%); z-index:-1; pointer-events:none; }

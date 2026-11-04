@@ -327,7 +327,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       const data=textBoxFrame(frame.dataset.documentTextbox),box=frame.firstElementChild?.getBoundingClientRect();
       if(!data || data.position!=='floating' || data.wrap!=='square' || !box)continue;
       pictures.push({ index:-1-index,left:box.left,top:box.top,width:box.width,height:box.height,cssLeft:0,cssTop:0,
-        geometry:{ horizontalPosition:{relative:'page',offset:0},verticalPosition:{relative:'page',offset:0},wrap:{type:1} } });
+        geometry:{ horizontalPosition:{relative:'page',offset:0},verticalPosition:{relative:'page',offset:0},wrap:{type:1},margins:{top:(data.wrapMargins?.[0]||0)*9525,right:(data.wrapMargins?.[1]||0)*9525,bottom:(data.wrapMargins?.[2]||0)*9525,left:(data.wrapMargins?.[3]||0)*9525} } });
     }
     const result: ParagraphPlan[] = [];
     for (let pi = 0; pi < ps.length; pi++) {
