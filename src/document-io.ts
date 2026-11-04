@@ -1023,7 +1023,6 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const notes = new Map<string, JSONContent>();
   // Materialize formatting as before, but retain the equivalence classes needed
   // by standard w:contextualSpacing. Never collide with built-in/spacer styles.
-  const contextualStyleIds = new Set<string>();
   const paragraphStyleNames = new Map<string, string>();
   const scannedFurniture = new Set<string>();
   const scanFurniture = (page: PageSettings) => {
@@ -1036,7 +1035,6 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     const style = node.attrs?.wordParagraphStyle;
     if (typeof style === 'string' && ['paragraph', 'heading'].includes(node.type || '')) {
       if (!paragraphStyleNames.has(style)) paragraphStyleNames.set(style, node.attrs?.wordParagraphStyleName || style.replace(/^Heading([1-6])$/, 'Heading $1'));
-      if (typeof node.attrs?.wordContextualSpacing === 'boolean') contextualStyleIds.add(style);
     }
     if ((node.type === 'sectionBreak' || node.type === 'sectionContent') && node.attrs?.page) scanFurniture(JSON.parse(node.attrs.page));
     if (node.type === 'documentNote') notes.set(String(node.attrs?.id), node);
@@ -1046,9 +1044,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     }
     node.content?.forEach(scan);
   }; scan(document.content); scanFurniture(page);
-  const builtInStyles = new Set(['Normal', 'Title', 'Subtitle', 'ListParagraph', ...Array.from({ length: 6 }, (_, i) => `Heading${i + 1}`)]);
-  const paragraphStyles = new Map([...contextualStyleIds].map((source, index) => {
-    const name = paragraphStyleNames.get(source) || source;
+  // Only reuse definitions actually emitted by docx. Subtitle is not one.
+  const builtInStyles = new Set(['Normal', 'Title', 'ListParagraph', ...Array.from({ length: 6 }, (_, i) => `Heading${i + 1}`)]);
+  // Unflagged classes must remain distinct too: falling back to Normal next
+  // to a contextual Normal paragraph would suppress a different style's gap.
+  const paragraphStyles = new Map([...paragraphStyleNames].map(([source, name], index) => {
     const builtIn = builtInStyles.has(source) && name.replace(/\s/g, '').toLowerCase() === source.toLowerCase();
     // Reuse matching standard IDs rather than introducing duplicate built-in
     // names. Custom style equivalence classes still receive collision-free IDs.

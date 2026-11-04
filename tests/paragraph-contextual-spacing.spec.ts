@@ -14,12 +14,15 @@ async function fixture() {
       {id:'Context',name:'Context',paragraph:{contextualSpacing:true,spacing:{before:240,after:200}}},
       {id:'Derived',name:'Derived',basedOn:'Context'},
       {id:'Other',name:'Other',paragraph:{spacing:{before:240,after:200}}},
+      {id:'Unflagged',name:'Unflagged',paragraph:{spacing:{before:240,after:200}}},
     ]},
     sections:[{children:[
       new Paragraph({text:'INHERITED',style:'Derived'}),
       new Paragraph({text:'DIRECT-FALSE',style:'Derived',contextualSpacing:false}),
       new Paragraph({text:'DIRECT-TRUE',style:'Other',contextualSpacing:true}),
       new Paragraph({text:'UNSPECIFIED',style:'Other'}),
+      new Paragraph({text:'NORMAL-DIRECT',style:'Normal',contextualSpacing:true,spacing:{before:240,after:200}}),
+      new Paragraph({text:'DIFFERENT-NO-POLICY',style:'Unflagged'}),
       new Table({rows:[new TableRow({children:[new TableCell({children:[
         new Paragraph({text:'CELL-ONE',style:'Context'}),new Paragraph({text:'CELL-TWO',style:'Context'}),
       ]})]})]}),
@@ -44,10 +47,12 @@ test('source style identity and inherited/direct contextual spacing survive two 
   },[...await fixture()]);
   for(const rows of result.stages){
     expect(rows.filter(r=>r.text).map(r=>[r.text,r.enabled])).toEqual([
-      ['INHERITED',true],['DIRECT-FALSE',false],['DIRECT-TRUE',true],['UNSPECIFIED',null],['CELL-ONE',true],['CELL-TWO',true],
+      ['INHERITED',true],['DIRECT-FALSE',false],['DIRECT-TRUE',true],['UNSPECIFIED',null],['NORMAL-DIRECT',true],['DIFFERENT-NO-POLICY',null],['CELL-ONE',true],['CELL-TWO',true],
     ]);
     expect(rows[0].style).toBeTruthy();expect(rows[0].style).toBe(rows[1].style);
     expect(rows[2].style).toBe(rows[3].style);expect(rows[0].style).not.toBe(rows[2].style);
+    // An unflagged custom style must not merge into a flagged Normal style.
+    expect(rows[4].style).not.toBe(rows[5].style);
     for(const r of rows.filter(r=>r.text)) {expect(r.before).toBe('16px');expect(r.after).toBe('13.3333px')}
   }
   for(let i=0;i<result.saves.length;i++)await writeDocx(testInfo,`contextual-save${i+1}.docx`,result.saves[i]);
@@ -141,9 +146,10 @@ test('changing the neighboring style, splitting and joining update view-only gap
 });
 
 test('standard heading semantics and a single pStyle survive conditional spacing exports',async({page},testInfo)=>{
-  const input=await Packer.toBuffer(new Document({sections:[{children:[
+  const input=await Packer.toBuffer(new Document({styles:{paragraphStyles:[{id:'Subtitle',name:'Subtitle'}]},sections:[{children:[
     new Paragraph({text:'HEADING-ONE',heading:HeadingLevel.HEADING_1,contextualSpacing:true}),
     new Paragraph({text:'HEADING-TWO',heading:HeadingLevel.HEADING_1,contextualSpacing:false}),
+    new Paragraph({text:'SUBTITLE-NO-POLICY',style:'Subtitle'}),
     new Paragraph({text:'BODY-UNCHANGED'}),
   ]}]}));
   await page.goto('/');
@@ -152,10 +158,11 @@ test('standard heading semantics and a single pStyle survive conditional spacing
     const states=[],saves=[];let file=new File([new Uint8Array(input)],'headings.docx');
     for(let i=0;i<3;i++){const opened=await importFile(file),doc={...opened.document,content:parseDocumentHtml(opened.html!)};states.push(doc.content);
       if(i<2){const b=[...new Uint8Array(await(await exportDocx(doc)).arrayBuffer())];saves.push(b);const zip=await JSZip.loadAsync(new Uint8Array(b));const xml=new DOMParser().parseFromString(await zip.file('word/document.xml')!.async('string'),'application/xml');
-        for(const p of [...xml.getElementsByTagNameNS('*','p')])if(p.getElementsByTagNameNS('*','pStyle').length>1)throw Error('duplicate pStyle');file=new File([new Uint8Array(b)],'again.docx')}}
+        const styles=new DOMParser().parseFromString(await zip.file('word/styles.xml')!.async('string'),'application/xml'),defined=new Set([...styles.getElementsByTagNameNS('*','style')].map(s=>s.getAttributeNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main','styleId')));
+        for(const p of [...xml.getElementsByTagNameNS('*','p')]){const refs=[...p.getElementsByTagNameNS('*','pStyle')];if(refs.length>1)throw Error('duplicate pStyle');for(const ref of refs)if(!defined.has(ref.getAttributeNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main','val')))throw Error('missing paragraph style definition')}file=new File([new Uint8Array(b)],'again.docx')}}
     return{states,saves};
   },[...input]);
-  for(const doc of result.states){expect(doc.content!.map((p:any)=>[p.type,p.attrs.level||null,p.attrs.wordContextualSpacing])).toEqual([['heading',1,true],['heading',1,false],['paragraph',null,null]])}
+  for(const doc of result.states){expect(doc.content!.map((p:any)=>[p.type,p.attrs.level||null,p.attrs.wordContextualSpacing])).toEqual([['heading',1,true],['heading',1,false],['heading',2,null],['paragraph',null,null]])}
   for(let i=0;i<result.saves.length;i++)await writeDocx(testInfo,`contextual-heading-save${i+1}.docx`,result.saves[i]);
 });
 
