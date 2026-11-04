@@ -69,11 +69,28 @@ export function wordLineHeight(paragraph: HTMLElement) {
   }
   return rule === 'auto' ? normal * value : Math.max(normal, value * (source.endsWith('pt') ? 4 / 3 : 1));
 }
+/** A Word list item is a numbered paragraph, not another font/line strut.
+ * Chromium otherwise adds the editor's larger default marker box above a
+ * smaller first paragraph. Keep these inherited marker metrics view-only. */
+function listLineProperties(paragraph: HTMLElement, height?: number | null) {
+  const css = getComputedStyle(paragraph);
+  return { 'font-family': css.fontFamily, 'font-size': css.fontSize, 'font-weight': css.fontWeight,
+    'font-style': css.fontStyle, 'line-height': height == null ? css.lineHeight : `${height}px` };
+}
+export function layoutWordListLines(root: HTMLElement) {
+  for (const item of root.querySelectorAll<HTMLElement>('li[data-list-id]')) {
+    const paragraph = item.firstElementChild;
+    if (paragraph instanceof HTMLElement && paragraph.matches('p,h1,h2,h3,h4,h5,h6') && paragraph.dataset.wordLineRule)
+      for (const [property, value] of Object.entries(listLineProperties(paragraph)))
+        if (item.style.getPropertyValue(property) !== value) item.style.setProperty(property, value);
+  }
+}
 export function layoutWordLines(root: HTMLElement) {
   for (const p of root.querySelectorAll<HTMLElement>('[data-word-line-rule]')) {
     const height = wordLineHeight(p);
     if (height !== null) p.style.lineHeight = `${height}px`;
   }
+  layoutWordListLines(root);
 }
 
 const key = new PluginKey('wordLineMetrics');
@@ -94,6 +111,14 @@ export const WordLineMetrics = Extension.create({
         if (!view.dom.isConnected || view.composing) return;
         const decorations: Decoration[] = [], values: string[] = [];
         view.state.doc.descendants((node, pos) => {
+          if (node.type.name === 'listItem' && node.attrs.wordListId && node.firstChild?.attrs.wordLineRule) {
+            const paragraph = view.nodeDOM(pos + 1);
+            if (paragraph instanceof HTMLElement) {
+              const style = Object.entries(listLineProperties(paragraph, wordLineHeight(paragraph))).map(([p, v]) => `${p}:${v}`).join(';');
+              decorations.push(Decoration.node(pos, pos + node.nodeSize, { style }));
+              values.push(`${pos}:${style}`);
+            }
+          }
           if (!node.attrs.wordLineRule) return;
           const dom = view.nodeDOM(pos);
           if (!(dom instanceof HTMLElement)) return;

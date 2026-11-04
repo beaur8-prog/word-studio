@@ -1031,7 +1031,19 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       if (html && !scannedFurniture.has(html)) { scannedFurniture.add(html); scan(parseDocumentHtml(sanitizeImportedHtml(html).html)); }
     }
   };
+  const listStarts = new Map<string, Map<number, number>>();
   const scan = (node: JSONContent) => {
+    if (node.type === 'orderedList') {
+      const item = node.content?.[0]?.attrs;
+      if (item?.wordListId) {
+        const id = String(item.wordListId), level = Number(item.wordListLevel) || 0;
+        const starts = listStarts.get(id) || new Map<number, number>();
+        // numId is shared by nested levels and separate continuation shells.
+        // Each level keeps its own first start, not the outer list's start.
+        if (!starts.has(level)) starts.set(level, Math.max(1, Number(node.attrs?.start) || 1));
+        listStarts.set(id, starts);
+      }
+    }
     const style = node.attrs?.wordParagraphStyle;
     if (typeof style === 'string' && ['paragraph', 'heading'].includes(node.type || '')) {
       if (!paragraphStyleNames.has(style)) paragraphStyleNames.set(style, node.attrs?.wordParagraphStyleName || style.replace(/^Heading([1-6])$/, 'Heading $1'));
@@ -1264,10 +1276,9 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               node.type === "orderedList"
                 ? `%${i + 1}.`
                 : ["•", "◦", "▪"][i % 3])),
-            start:
-              node.type === "orderedList"
-                ? Math.max(1, Number(node.attrs?.start) || 1)
-                : 1,
+            start: imported?.wordListId
+              ? listStarts.get(String(imported.wordListId))?.get(i) ?? 1
+              : node.type === "orderedList" ? Math.max(1, Number(node.attrs?.start) || 1) : 1,
             alignment: AlignmentType.LEFT,
             style: {
               paragraph: { indent: { left: 720 * (i + 1), hanging: 360 } },

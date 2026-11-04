@@ -796,6 +796,12 @@ button:hover:not(:disabled) {
 .tiptap li > ol {
   margin-bottom: 4px;
 }
+/* Word spacing belongs to its paragraphs. Imported structural list shells
+   must not add Studio's authored-list margins, including at nested levels. */
+:is(.tiptap, .document-furniture) :is(ol, ul):has(> li[data-list-id]) {
+  margin-top: 0;
+  margin-bottom: 0;
+}
 .tiptap table {
   width: 100%;
   border-collapse: collapse;

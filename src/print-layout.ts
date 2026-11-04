@@ -3,7 +3,7 @@ import { paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitT
 import { tableFragmenter } from './table-fragments';
 import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
-import { layoutWordLines } from './word-line-metrics';
+import { layoutWordLines, layoutWordListLines } from './word-line-metrics';
 import { layoutWordContextualSpacing } from './word-contextual-spacing';
 import { layoutWordListLabels } from './word-list-labels';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
@@ -113,6 +113,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutWordContextualSpacing(header); layoutWordContextualSpacing(footer);
     layoutWordListLabels(header); layoutWordListLabels(footer);
     paper.append(header, content, footer); host.append(paper);
+    layoutWordListLines(header); layoutWordListLines(footer);
     layoutFurnitureImages(paper);
     const meaningful = (element: HTMLElement) => element.textContent?.trim() || element.querySelector('img,table');
     const top = Math.max(margins.top * PX, meaningful(header) ? header.offsetTop + header.getBoundingClientRect().height + 2 : 0);
