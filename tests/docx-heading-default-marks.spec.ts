@@ -53,6 +53,9 @@ test('empty imported headings restore their defaults for new typing and respect 
       for (let i=0;i<text.length;i++) await page.keyboard.press('ArrowRight'); await page.keyboard.up('Shift');
       await expect.poll(() => page.evaluate(() => getSelection()?.toString())).toBe(text);
       await sync(); await page.keyboard.press('Backspace'); await expect(heading).toBeEmpty();
+      // The history delay is 500ms. A deliberate reading pause keeps deletion
+      // and retyping as separate groups on both fast and slow CI machines.
+      if (styled) await page.waitForTimeout(650);
       await editor.locator('p').first().click(); await sync(); await heading.click(); await sync();
       if (styled) await expect(page.getByRole('button', {name:'굵게 (Ctrl+B)',exact:true})).toHaveAttribute('aria-pressed','true');
       await page.keyboard.insertText('Retyped');
@@ -63,9 +66,11 @@ test('empty imported headings restore their defaults for new typing and respect 
       // verify source defaults and bold/italic resets. Existing negative underline
       // and strike inheritance is a separate recorded import limitation.
       if (styled) {
-        // A quick replacement is one undo group: undo restores the original
-        // title, and redo restores the replacement rather than an empty node.
+        // Verify both real history groups, including their empty intermediate
+        // state. UI focus/selection checks can exceed 500ms on a slower runner.
+        await page.keyboard.press('ControlOrMeta+z'); await expect(heading).toBeEmpty();
         await page.keyboard.press('ControlOrMeta+z'); await expect(heading).toHaveText(text);
+        await page.keyboard.press('ControlOrMeta+Shift+z'); await expect(heading).toBeEmpty();
         await page.keyboard.press('ControlOrMeta+Shift+z'); await expect(heading).toHaveText('Retyped');
         const rect=await heading.boundingBox(); await heading.click({position:{x:1,y:rect!.height/2}});
         await page.keyboard.down('Shift'); for(let i=0;i<'Retyped'.length;i++)await page.keyboard.press('ArrowRight'); await page.keyboard.up('Shift');
