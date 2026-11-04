@@ -1,6 +1,7 @@
 import type { EditorView } from '@tiptap/pm/view';
 import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
+import { paragraphPrefixHeight, paragraphTextOffset } from './paragraph-fragments';
 
 /** Continue ordinary body text at the same line boundaries used by print.
  * Widgets affect the view only; the paragraph and undo history stay intact. */
@@ -20,13 +21,21 @@ export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
   const stride = g.height + 24, decorations: Decoration[] = [], signatures: string[] = [];
   let extra = 0;
   const references: { id: string; page: number }[] = [];
-  for (const line of lines) {
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
     if (line.bottom - line.top > g.height - g.top - g.bottom) return null;
     const y = line.top + g.extra + extra;
     let page = Math.max(0, Math.floor((y - g.top + .5) / stride));
     const here = (g.references ?? []).filter(ref => ref.top >= line.top - .5 && ref.top < line.bottom - .5 && !references.some(placed => placed.id === ref.id));
     const reserve = () => g.reserveAt?.(page, [...references, ...here.map(ref => ({ id: ref.id, page }))]) ?? 0;
-    if (line.bottom + (line.after || 0) + g.extra + extra <= page * stride + g.height - g.bottom - reserve() + .5) {
+    const boundary = page * stride + g.height - g.bottom - reserve();
+    let bottom = line.bottom + (line.after || 0) + g.extra + extra;
+    if (paragraph.closest('li') && index + 1 < lines.length && Math.abs(bottom - boundary) <= line.bottom - line.top + (line.before || 0) + (line.after || 0)) {
+      const point = view.domAtPos(lines[index + 1].pos());
+      const offset = paragraphTextOffset(paragraph, point.node, point.offset);
+      bottom = naturalY(paragraph.getBoundingClientRect().top) + paragraphPrefixHeight(paragraph, offset, g.scale) + g.extra + extra;
+    }
+    if (bottom <= boundary + .5) {
       references.push(...here.map(ref => ({ id: ref.id, page }))); continue;
     }
     const gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top + (line.before || 0) - y) * 64) / 64);

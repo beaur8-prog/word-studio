@@ -14,7 +14,7 @@ import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
 
 const key = new PluginKey('studioPagination');
 type RepeatingHeader = { table: HTMLTableElement; rows: HTMLTableRowElement[]; height: number };
-type Piece = { pos: number; end: number; top: number; height: number; columns?: number; columnFlow?: boolean; cellRow?: HTMLTableRowElement; mergedRows?: HTMLTableRowElement[]; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[]; header?: RepeatingHeader; tableTop?: number };
+type Piece = { pos: number; end: number; top: number; height: number; columns?: number; columnFlow?: boolean; cellRow?: HTMLTableRowElement; listItem?: PMNode; mergedRows?: HTMLTableRowElement[]; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[]; header?: RepeatingHeader; tableTop?: number };
 
 /** Printed continuations have a new table edge. Measuring only the original
  * header rows omits its collapsed half border and can admit an extra line. */
@@ -84,7 +84,7 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       if (node.type.name === 'sectionBreak') { try { breakType = JSON.parse(node.attrs.page).breakType || ''; } catch { /* Validated on file input. */ } }
       result.push({ pos, end: pos + node.nodeSize, ...box, height: 0, explicit: node.type.name === 'columnBreak' ? 'pageBreak' : node.type.name, breakType }); return;
     }
-    if (node.type.name !== 'table') { result.push({ pos, end: pos + node.nodeSize, ...box, columnFlow: node.type.name === 'columnGroup',
+    if (node.type.name !== 'table') { result.push({ pos, end: pos + node.nodeSize, ...box, listItem: node.type.name === 'listItem' ? node : undefined, columnFlow: node.type.name === 'columnGroup',
       empty: !node.textContent.trim() && !dom.matches('img,hr') && !dom.querySelector('img,table,hr,[data-note-reference]') }); return; }
     const rows: { node: PMNode; pos: number; dom: HTMLElement }[] = [];
     node.forEach((row, offset) => {
@@ -242,7 +242,9 @@ export const Pagination = Extension.create({
               // Explicit breaks still keep intentionally blank final sheets.
               let lastContent = flow.length - 1;
               while (lastContent >= 0 && flow[lastContent].empty && !flow[lastContent].explicit) lastContent--;
-              for (const piece of flow.slice(0, lastContent + 1)) {
+              const queue = flow.slice(0, lastContent + 1);
+              for (let index = 0; index < queue.length; index++) {
+                const piece = queue[index];
                 if (piece.explicit === 'sectionBreak' && piece.breakType === 'continuous') {
                   dec.push(Decoration.node(piece.pos, piece.end, { style: 'height:0;margin:0' })); signatures.push(`continuous:${piece.pos}`); continue;
                 }
@@ -263,6 +265,14 @@ export const Pagination = Extension.create({
                   .map(ref => ({ id: ref.id, page: Math.max(0, Math.floor((piece.top + extra + ref.offset - top + .5) / stride)) }));
                 let refs = candidate();
                 const end = page * stride + h - bottom - reserve(page, refs);
+                // An item shorter than the full paper can still be too tall
+                // once its notes (including references near its end) follow
+                // it. Expand only that item into the existing paragraph flow.
+                if (piece.listItem && !wholeListItem(piece.height, usable - reserve(page, refs.map(ref => ({ ...ref, page }))))) {
+                  const children = pieces(view, usable, scale, removed, piece.listItem, piece.pos + 1, context.dom);
+                  queue.splice(index, 1, ...children); index--; continue;
+                }
+
                 if (hideEmptyLines && piece.empty && !piece.explicit && !piece.columnFlow && piece.height > 0 && piece.height <= usable &&
                   y > page * stride + top + .5 && y + piece.height > end + .5 && (hiddenEmptyLines.get(page) || 0) < 2) {
                   const paragraph = view.nodeDOM(piece.pos);

@@ -23,7 +23,7 @@ async function editorPages(page:Page,zoom=100) {
     const h=Number(sheet.dataset.pageHeight),top=Number(sheet.dataset.margin),bottom=Number(sheet.dataset.bottomMargin),pages:string[]=[];
     const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
     while(walker.nextNode()){
-      const n=walker.currentNode as Text;if(n.parentElement?.closest('.pagination-gap,.pagination-cell-gap,[data-flow-widget]'))continue;
+      const n=walker.currentNode as Text;if(n.parentElement?.closest('.pagination-gap,.pagination-cell-gap,[data-flow-widget],[data-document-note]'))continue;
       for(const s of new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(n.data)){
         if(/^\s+$/.test(s.segment))continue;const r=document.createRange();r.setStart(n,s.index);r.setEnd(n,s.index+s.segment.length);const b=r.getBoundingClientRect(),y=(b.top-origin)/(zoom/100);
         const p=Math.max(0,Math.floor((y+.5)/(h+24))),local=y-p*(h+24);
@@ -123,9 +123,32 @@ test('list continuation keeps input visible during composition and preserves spl
   await page.keyboard.press('ControlOrMeta+z');await expect(editor).not.toContainText('한글🙂');await page.keyboard.press('ControlOrMeta+z');await expect(editor.locator('li')).toHaveCount(18);
   await expect.poll(()=>editorPages(page)).toEqual(state.pages);
   await page.keyboard.press('ControlOrMeta+Shift+z');await expect(editor.locator('li')).toHaveCount(19);await page.keyboard.press('ControlOrMeta+Shift+z');await expect(editor).toContainText('한글🙂');
-  await page.waitForTimeout(650);await page.keyboard.press(process.platform==='darwin'?'Meta+ArrowLeft':'Home');await page.keyboard.press('Backspace');await expect(editor.locator('li')).toHaveCount(18);await expect(editor.locator('li p').last()).toHaveText('ITEM17한글🙂');
+  // Backspace lifts a first list paragraph; forward Delete joins items.
+  // Establish the real app selection before testing either key on each OS.
+  const find=async(text:string,end:boolean)=>{
+    await page.keyboard.press('ControlOrMeta+f');const search=page.getByRole('textbox',{name:'문서에서 찾기',exact:true});await search.fill(text);await search.press('Enter');
+    await expect.poll(()=>page.evaluate(()=>window.getSelection()?.toString())).toBe(text);await page.keyboard.press(end?'ArrowRight':'ArrowLeft');
+    await expect.poll(()=>page.evaluate(()=>window.getSelection()?.isCollapsed)).toBe(true);await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+  };
+  await page.waitForTimeout(650);await find('한글🙂',false);await page.keyboard.press('Backspace');await expect(editor.locator('li')).toHaveCount(18);await expect(editor.locator(':scope > p').filter({hasText:'한글🙂'})).toHaveText('한글🙂');
+  await page.keyboard.press('ControlOrMeta+z');await expect(editor.locator('li')).toHaveCount(19);
+  await page.waitForTimeout(650);await find('ITEM17',true);await page.keyboard.press('Delete');await expect(editor.locator('li')).toHaveCount(18);await expect(editor.locator('li p').last()).toHaveText('ITEM17한글🙂');
   await page.keyboard.press('ControlOrMeta+z');await expect(editor.locator('li')).toHaveCount(19);await expect(editor).toContainText('한글🙂');
   await page.keyboard.press('ControlOrMeta+z');await expect(editor).not.toContainText('한글🙂');await page.keyboard.press('ControlOrMeta+z');await expect(editor.locator('li')).toHaveCount(18);
   await expect.poll(()=>editorPages(page)).toEqual(state.pages);
   const download=page.waitForEvent('download');await page.keyboard.press('ControlOrMeta+s');const saved=JSON.parse(await fs.readFile((await(await download).path())!,'utf8'));expect(saved.content).toEqual(state.doc.content);
+});
+
+
+for(const where of ['inside-start','inside-end','preceding'] as const)test(`${where}: a list uses the body height remaining above footnotes`,async({page})=>{
+  const reference='<span data-note-reference="foot" data-note-kind="footnote" data-note-label="1">1</span>';
+  const lines=Array.from({length:22},(_,i)=>`LINE${String(i).padStart(2,'0')}${(where==='inside-start'&&i===0||where==='inside-end'&&i===21)?reference:''}`).join('<br>');
+  const state=await loadList(page,(where==='preceding'?p('REFERENCE'+reference):'')+'<p style="line-height:100px;margin:0">LEAD</p><ol><li>'+p(lines)+'</li><li>'+p('AFTER')+'</li></ol>'+p('END')+'<div data-document-note="foot" data-note-kind="footnote" data-note-label="1">'+Array.from({length:6},(_,i)=>p('NOTE'+i)).join('')+'</div>');
+  if(process.env.LIST_DIAGNOSTICS)console.log('LIST NOTES',where,state.pages,await page.evaluate(async()=>{
+    const {measureParagraphLines}=await import('/src/editor-lines.ts');const root=document.querySelector('.tiptap[contenteditable=true]') as HTMLElement;root.classList.add('pagination-measuring-cells');
+    try{const p=root.querySelector('li p') as HTMLElement,origin=root.getBoundingClientRect().top,lines=measureParagraphLines({posAtDOM:()=>0},p,y=>y-origin);return{paragraph:p.style.cssText,box:p.getBoundingClientRect().toJSON(),origin,lines:lines.map(l=>({top:l.top,bottom:l.bottom,before:l.before,after:l.after})),sheet:root.closest('.document-stack')?.outerHTML.slice(0,750)}}finally{root.classList.remove('pagination-measuring-cells')}
+  }));
+  await expect.poll(()=>editorPages(page)).toEqual(state.pages);
+  const editor=page.getByRole('textbox',{name:'문서 편집 영역',exact:true});
+  expect(await editor.evaluate(root=>{const note=root.querySelector('[data-document-note]')!,ref=root.querySelector('[data-note-reference]')!,sheet=root.closest<HTMLElement>('.document-stack')!,origin=root.getBoundingClientRect().top,stride=Number(sheet.dataset.pageHeight)+24;return Math.floor((note.getBoundingClientRect().top-origin)/stride)===Math.floor((ref.getBoundingClientRect().top-origin)/stride)})).toBe(true);
 });

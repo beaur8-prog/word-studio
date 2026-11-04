@@ -152,6 +152,20 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   function hasDeferredNote(element: HTMLElement) {
     return [...element.querySelectorAll<HTMLElement>('[data-note-reference]')].some(ref => deferredNotes.has(ref.dataset.noteReference!));
   }
+  function listBodyHeight(item: HTMLElement) {
+    const ids = [...new Set([...item.querySelectorAll<HTMLElement>('[data-note-reference]')].map(ref => ref.dataset.noteReference!))]
+      .filter(id => noteBodies.has(id) && ![...host.querySelectorAll<HTMLElement>('.print-footnotes [data-document-note]')]
+        .some(note => note.dataset.documentNote === id && note.closest('.print-page') !== content.closest('.print-page')));
+    let own = 0;
+    for (const id of ids) {
+      const existing = [...footnotes.children].find(note => (note as HTMLElement).dataset.documentNote === id);
+      const note = existing || noteBodies.get(id)!.cloneNode(true) as HTMLElement;
+      if (!existing) footnotes.append(note);
+      own += 4 + note.getBoundingClientRect().height;
+      if (!existing) note.remove();
+    }
+    return Math.min(content.getBoundingClientRect().height, Number(content.dataset.bodyHeight) - (ids.length ? 19 + own : 0));
+  }
   function scaleOversized(element: HTMLElement) {
     const available = content.getBoundingClientRect().bottom - element.getBoundingClientRect().top;
     const height = element.getBoundingClientRect().height;
@@ -322,8 +336,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         // A short item is indivisible. A larger one continues at the same
         // measured lines / nested-item boundaries used by editor pagination.
         while (!fits()) {
-          if (!wholeListItem(child.getBoundingClientRect().height, content.getBoundingClientRect().height)) {
-            const tail = splitListItem(child, content.getBoundingClientRect().bottom, content.getBoundingClientRect().height);
+          if (!wholeListItem(child.getBoundingClientRect().height, listBodyHeight(child))) {
+            const tail = splitListItem(child, { fits, bodyHeight: listBodyHeight });
             if (tail) { continueList(); child = tail; shell.append(child); continue; }
           }
           if (shell.children.length > 1 || content.children.length > 1) {

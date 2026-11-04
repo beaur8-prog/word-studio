@@ -90,3 +90,28 @@ export function splitText(element: HTMLElement, offset: number): [HTMLElement, H
   return [a, b];
 }
 
+
+/** Text/BR offset of a DOM boundary, used by both detached print fragments and
+ * live editor line positions. Inline view widgets do not contribute text. */
+export function paragraphTextOffset(paragraph: HTMLElement, node: Node, offset: number) {
+  const range = document.createRange(); range.selectNodeContents(paragraph); range.setEnd(node, offset);
+  const fragment = document.createElement('div'); fragment.append(range.cloneContents());
+  fragment.querySelectorAll('.pagination-gap,.pagination-cell-gap,[data-flow-widget]').forEach(widget => widget.remove());
+  const walker = paragraphTextWalker(fragment); let length = 0;
+  while (walker.nextNode()) length += textUnitLength(walker.currentNode);
+  return length;
+}
+
+/** A superscript on a later line can distort half-leading inferred from the
+ * gap between glyph boxes. Measure the actual retained prefix near a page
+ * edge, just as print does, without touching ProseMirror's live DOM. */
+export function paragraphPrefixHeight(paragraph: HTMLElement, offset: number, scale: number) {
+  const [head] = splitText(paragraph, offset), host = document.createElement('div');
+  host.className = 'tiptap'; host.setAttribute('aria-hidden', 'true');
+  const css = getComputedStyle(paragraph.parentElement!);
+  host.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;left:-100000px;top:0;padding:0;min-height:0;width:${paragraph.getBoundingClientRect().width / scale}px`;
+  for (const key of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight', 'letterSpacing'] as const) host.style[key] = css[key];
+  head.querySelectorAll('.pagination-gap,.pagination-cell-gap,[data-flow-widget],.ProseMirror-separator').forEach(widget => widget.remove());
+  Object.assign(head.style, { margin: '0', width: '100%', boxSizing: 'border-box' }); host.append(head); document.body.append(host);
+  try { return head.getBoundingClientRect().height; } finally { host.remove(); }
+}
