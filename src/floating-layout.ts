@@ -664,11 +664,17 @@ export const FloatingLayout = Extension.create({
               if (next !== signature || lastDocument !== view.state.doc) {
                 signature = next;
                 lastDocument = view.state.doc;
+                const hadFocus=view.hasFocus();
                 view.dispatch(
                   view.state.tr
                     .setMeta(key, DecorationSet.create(view.state.doc, decorations))
                     .setMeta("addToHistory", false),
                 );
+                // Rebuilding inline flow widgets can leave Chromium's native
+                // range in a removed/split text node while the model caret is
+                // already at the document end. Reapply the current selection
+                // without stealing focus from a toolbar, dialog or IME.
+                if(hadFocus && !view.composing)view.focus();
               }
             });
           };

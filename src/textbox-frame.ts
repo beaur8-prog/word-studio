@@ -100,11 +100,12 @@ export function layoutTextBoxes(root: HTMLElement) {
     frame.style.setProperty('--textbox-top',`${f.vertical==='paragraph' ? f.y : page*(height+24)+f.y-natural}px`);
   }
 }
-function syncTextBoxSelection(view: import('@tiptap/pm/view').EditorView) {
+function syncPaintedSelection(view: import('@tiptap/pm/view').EditorView) {
   if(view.composing)return;
   const sel=view.dom.ownerDocument.getSelection();if(!sel?.anchorNode || !sel.focusNode || !view.dom.contains(sel.anchorNode) || !view.dom.contains(sel.focusNode))return;
   const parent=(n:globalThis.Node)=>n instanceof HTMLElement?n:n.parentElement;
-  if(!parent(sel.anchorNode)?.closest('.document-textbox-content') && !parent(sel.focusNode)?.closest('.document-textbox-content'))return;
+  const affected=(n:globalThis.Node)=>{const p=parent(n);return p?.closest('.document-textbox-content') || p?.closest('p,h1,h2,h3,h4,h5,h6')?.querySelector('[data-flow-widget]');};
+  if(!affected(sel.anchorNode) && !affected(sel.focusNode))return;
   try{
     const anchor=view.posAtDOM(sel.anchorNode,sel.anchorOffset),head=view.posAtDOM(sel.focusNode,sel.focusOffset);
     if(anchor!==view.state.selection.anchor || head!==view.state.selection.head)view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc,anchor,head)));
@@ -114,9 +115,10 @@ export const TextBoxLayout = Extension.create({ name:'textBoxLayout', addProseMi
   props:{handleDOMEvents:{
     // Native hit testing sees the painted textbox, while a zero-height anchor
     // can make ProseMirror's block hit test pick the underlying body paragraph.
+    // Flow widgets can similarly shift native hit tests in wrapped body text.
     // Adopt the actual DOM selection before commands; leave dragging/IME native.
-    mouseup(view){syncTextBoxSelection(view);return false;},
-    keydown(view){syncTextBoxSelection(view);return false;},
+    mouseup(view){syncPaintedSelection(view);return false;},
+    keydown(view){syncPaintedSelection(view);return false;},
   }},
   view(view) {
   let frame=0;const update=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!view.composing)layoutTextBoxes(view.dom);});};
