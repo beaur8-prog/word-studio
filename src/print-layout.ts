@@ -5,6 +5,7 @@ import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from '
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
 import { layoutWordContextualSpacing } from './word-contextual-spacing';
+import { layoutWordListLabels } from './word-list-labels';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { layoutHwpBodyLines } from './hwp-body-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
@@ -14,6 +15,7 @@ import { imageFloating } from './image-floating';
 import { layoutFurnitureImages } from './furniture-layout';
 import { layoutTableAnchors, tableAnchor } from './table-anchor';
 import { paragraphFitBottom } from './paragraph-fit';
+import { splitListItem, wholeListItem } from './list-fragments';
 import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
 
 export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
@@ -33,6 +35,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   const source = document.createElement('div'); source.innerHTML = html;
   prepareParagraphEnds(source);
   layoutWordContextualSpacing(source);
+  layoutWordListLabels(source);
   // The editable table NodeView fixes the width from colgroup; static HTML
   // must do the same or nested tables stretch to the whole printable width.
   for (const table of source.querySelectorAll('table')) {
@@ -108,6 +111,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     header.style.top = `${(settings.headerDistance ?? Math.max(0, margins.top / 2 - 3)) * PX}px`;
     footer.style.bottom = `${(settings.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)) * PX}px`;
     layoutWordContextualSpacing(header); layoutWordContextualSpacing(footer);
+    layoutWordListLabels(header); layoutWordListLabels(footer);
     paper.append(header, content, footer); host.append(paper);
     layoutFurnitureImages(paper);
     const meaningful = (element: HTMLElement) => element.textContent?.trim() || element.querySelector('img,table');
@@ -303,21 +307,45 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (element.textContent?.trim() || element.querySelector('img,table')) sectionJustStarted = false;
     const table = element.matches('table') ? element : element.querySelector(':scope > table');
     if (table) { appendTable(table as HTMLTableElement); return; }
-    if (element.matches('ul,ol,blockquote')) {
-      // Keep list numbering when a list continues on another page.
+    if (element.matches('ul,ol')) {
       const children = [...element.children] as HTMLElement[];
       let shell = element.cloneNode(false) as HTMLElement; content.append(shell);
       let index = Number(element.getAttribute('start')) || 1;
+      const continueList = () => {
+        if (!shell.children.length) shell.remove();
+        newPage(); shell = element.cloneNode(false) as HTMLElement;
+        if (shell.tagName === 'OL') shell.setAttribute('start', String(index));
+        content.append(shell);
+      };
+      for (const original of children) {
+        let child = original; shell.append(child);
+        // A short item is indivisible. A larger one continues at the same
+        // measured lines / nested-item boundaries used by editor pagination.
+        while (!fits()) {
+          if (!wholeListItem(child.getBoundingClientRect().height, content.getBoundingClientRect().height)) {
+            const tail = splitListItem(child, content.getBoundingClientRect().bottom, content.getBoundingClientRect().height);
+            if (tail) { continueList(); child = tail; shell.append(child); continue; }
+          }
+          if (shell.children.length > 1 || content.children.length > 1) {
+            child.remove(); continueList(); shell.append(child); continue;
+          }
+          scaleOversized(shell); break;
+        }
+        index++;
+      }
+      return;
+    }
+    if (element.matches('blockquote')) {
+      const children = [...element.children] as HTMLElement[];
+      let shell = element.cloneNode(false) as HTMLElement; content.append(shell);
       for (const child of children) {
         shell.append(child);
         if (!fits() && (shell.children.length > 1 || content.children.length > 1)) {
           child.remove(); if (!shell.children.length) shell.remove();
           newPage(); shell = element.cloneNode(false) as HTMLElement;
-          if (shell.tagName === 'OL') shell.setAttribute('start', String(index));
           content.append(shell); shell.append(child);
         }
         if (!fits()) scaleOversized(shell);
-        index++;
       }
       return;
     }

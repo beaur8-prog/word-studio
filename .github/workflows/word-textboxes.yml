@@ -7,19 +7,25 @@ on:
         type: string
         default: ''
   push:
-    branches: ['codex/word-web-critical-four-hours', 'codex/word-contextual-spacing']
+    branches: ['codex/word-web-critical-four-hours', 'codex/word-contextual-spacing', 'codex/word-list-pagination']
     paths:
       - '.github/workflows/word-textboxes.yml'
       - 'src/**'
       - 'tests/docx-textboxes.spec.ts'
       - 'tests/docx-heading-default-marks.spec.ts'
       - 'tests/paragraph-contextual-spacing.spec.ts'
+      - 'tests/list-pagination.spec.ts'
       - 'scripts/word-openxml-validator/**'
       - 'scripts/prepare-word-schema-inputs.cjs'
   pull_request:
     paths:
       - '.github/workflows/word-textboxes.yml'
       - 'src/word-contextual-spacing.ts'
+      - 'src/word-list-labels.ts'
+      - 'src/word-numbering.ts'
+      - 'src/list-fragments.ts'
+      - 'src/pagination.ts'
+      - 'src/editor-lines.ts'
       - 'src/word-heading-defaults.ts'
       - 'src/docx-format.ts'
       - 'src/docx-metadata.ts'
@@ -36,6 +42,7 @@ on:
       - 'tests/docx-textboxes.spec.ts'
       - 'tests/docx-heading-default-marks.spec.ts'
       - 'tests/paragraph-contextual-spacing.spec.ts'
+      - 'tests/list-pagination.spec.ts'
       - 'scripts/word-openxml-validator/**'
       - 'scripts/prepare-word-schema-inputs.cjs'
 permissions:
@@ -60,7 +67,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Exercise stories, colors, geometry, editor commands and two real DOCX exports
-        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts --trace=off --reporter=line
+        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts --trace=off --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - name: Add optional public reproduction copies for schema validation

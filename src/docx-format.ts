@@ -1,4 +1,5 @@
 import type JSZip from 'jszip';
+import { wordNumberText } from './word-numbering';
 
 export const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 export const all = (root: Element | Document, tag: string) => Array.from(root.getElementsByTagNameNS(W, tag));
@@ -64,19 +65,6 @@ export async function docxFormat(zip: JSZip) {
     const override = num && Array.from(num.children).find(n => n.localName === 'lvlOverride' && Number(val(n, 'ilvl')) === level);
     const definition = child(override, 'lvl') || abstract && Array.from(abstract.children).find(n => n.localName === 'lvl' && Number(val(n, 'ilvl')) === level);
     return { id, level, definition, start: Number(val(child(override, 'startOverride')) || val(child(definition, 'start'))) || 1 };
-  }
-  function numberText(value: number, format: string) {
-    if (/^(lower|upper)Letter$/.test(format)) {
-      let text = ''; for (let n = value; n > 0; n = Math.floor((n - 1) / 26)) text = String.fromCharCode(65 + (n - 1) % 26) + text;
-      return format.startsWith('lower') ? text.toLowerCase() : text;
-    }
-    if (/^(lower|upper)Roman$/.test(format)) {
-      let text = '', remaining = value;
-      for (const [n, label] of [[1000,'M'],[900,'CM'],[500,'D'],[400,'CD'],[100,'C'],[90,'XC'],[50,'L'],[40,'XL'],[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']] as const)
-        while (remaining >= n && text.length < 1000) { text += label; remaining -= n; }
-      return format.startsWith('lower') ? text.toLowerCase() : text;
-    }
-    return format === 'decimalZero' ? String(value).padStart(2, '0') : String(value);
   }
   function runLayers(p: Element, run?: Element) {
     return [child(child(defaults, 'rPrDefault'), 'rPr'), ...paragraphStyles(p).map(s => child(s, 'rPr')),
@@ -189,7 +177,7 @@ export async function docxFormat(zip: JSZip) {
       const info = { id, level, value: values[level], format, pattern,
         label: pattern.replace(/%([1-9])/g, (_, n) => {
           const ancestor = numberingLevel(p, Number(n) - 1);
-          return numberText(values[Number(n) - 1] ?? ancestor.start, val(child(ancestor.definition, 'numFmt')) || format);
+          return wordNumberText(values[Number(n) - 1] ?? ancestor.start, val(child(ancestor.definition, 'numFmt')) || format);
         }) };
       numberCache.set(p, info); return info;
     },

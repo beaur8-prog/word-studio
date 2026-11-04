@@ -8,7 +8,7 @@ if (args.Length != 2 || !int.TryParse(args[1], out int expected)) {
     return 2;
 }
 var files = Directory.EnumerateFiles(args[0], "*.docx", SearchOption.AllDirectories)
-    .Where(file => Path.GetFileName(file).StartsWith("textbox-save") || Path.GetFileName(file).StartsWith("contextual-"))
+    .Where(file => Path.GetFileName(file).StartsWith("textbox-save") || Path.GetFileName(file).StartsWith("contextual-") || Path.GetFileName(file).StartsWith("list-save"))
     .Order().ToArray();
 if (files.Length != expected) {
     Console.Error.WriteLine($"Expected {expected} actual exported DOCX files; found {files.Length}.");

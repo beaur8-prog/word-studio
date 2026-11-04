@@ -2,7 +2,7 @@ import type { EditorView } from '@tiptap/pm/view';
 
 type Line = { top: number; bottom: number; pos: () => number; before?: number; after?: number; blank?: boolean };
 
-export function measureParagraphLines(view: EditorView, block: HTMLElement, naturalY: (value: number) => number) {
+export function measureParagraphLines(view: Pick<EditorView, 'posAtDOM'>, block: HTMLElement, naturalY: (value: number) => number) {
   const firstPos = view.posAtDOM(block, 0) - 1;
   const blockLines: Line[] = [];
   const realBreaks = [...block.querySelectorAll<HTMLBRElement>('br:not(.ProseMirror-trailingBreak)')];

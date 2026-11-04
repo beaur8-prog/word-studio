@@ -2002,6 +2002,7 @@ button:hover:not(:disabled) {
 }
 
 .tiptap li[data-list-label]::marker { content: attr(data-list-label) " "; }
+.tiptap li[data-print-list-continuation]::marker { content: ""; }
 .document-bookmark { display: inline; font-size: 0; }
 
 .document-furniture, .print-footnotes { padding: 0; min-height: 0; font-size: 9pt; line-height: 1.4; }

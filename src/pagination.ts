@@ -9,6 +9,7 @@ import { layoutColumns } from './column-layout';
 import { layoutTableAnchors } from './table-anchor';
 import { paginateParagraph } from './editor-paragraph-pagination';
 import { paragraphFitBottom } from './paragraph-fit';
+import { wholeListItem } from './list-fragments';
 import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
 
 const key = new PluginKey('studioPagination');
@@ -55,6 +56,15 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
     if (!dom?.getBoundingClientRect) return;
     if (node.type.name === 'table' && (dom.classList.contains('table-overlay-active') || dom.querySelector(':scope > .table-overlay-active'))) return;
     const box = rect(dom);
+    // Print continues a list at item boundaries. Measuring the outer list
+    // as one block pushes fitting items off the current sheet. Keep each
+    // item atomic here so its marker and paragraph move together.
+    if (node.type.name === 'orderedList' || node.type.name === 'bulletList') {
+      node.forEach((child, offset) => walk(child, pos + 1 + offset)); return;
+    }
+    if (node.type.name === 'listItem' && !wholeListItem(box.height, usableHeight)) {
+      node.forEach((child, offset) => walk(child, pos + 1 + offset)); return;
+    }
     if (node.type.name === 'columnGroup' && node.attrs.count === 1) { node.forEach((child, offset) => walk(child, pos + 1 + offset)); return; }
     if (node.type.name === 'columnGroup') {
       const prefix = parseFloat(dom.style.getPropertyValue('--column-prefix')) || 0;
