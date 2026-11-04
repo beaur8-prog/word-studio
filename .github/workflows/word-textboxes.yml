@@ -57,8 +57,6 @@ jobs:
       - name: Add optional public reproduction copies for schema validation
         id: public-copies
         run: node scripts/prepare-word-schema-inputs.cjs
-        env:
-          PUBLIC_DOCX_VALIDATION_PAYLOAD: ${{ inputs.public_docx_validation_payload || '' }}
       - name: Validate exported DOCX files with the official OpenXML SDK
         run: dotnet run --project scripts/word-openxml-validator/Validator.csproj --configuration Release -- test-results ${{ steps.public-copies.outputs.expected }}
       - uses: actions/upload-artifact@v4
