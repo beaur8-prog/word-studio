@@ -1,3 +1,4 @@
+import { layoutTextBoxes, textBoxFrame } from './textbox-frame';
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
@@ -282,7 +283,7 @@ function imagePosition(
 /** Plan in a detached copy of the live geometry. The editable document receives
  * only ProseMirror decorations: no split paragraphs, copied text or DOM moves. */
 export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
-  if (!root.querySelector("img[data-image-floating]")) return [];
+  if (!root.querySelector("img[data-image-floating],.document-textbox")) return [];
   const owner = root.closest<HTMLElement>(".document-stack,.print-page");
   const host = (owner?.cloneNode(false) || document.createElement("div")) as HTMLElement;
   Object.assign(host.style, {
@@ -318,9 +319,16 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
   try {
     const ps = paragraphs(copy),
       images = floatingImages(copy);
+    layoutTextBoxes(copy);
     const pictures = images
       .map((img, index) => imagePosition(img, index, copy))
       .filter((p): p is Picture => !!p);
+    for (const [index, frame] of [...copy.querySelectorAll<HTMLElement>('.document-textbox[data-document-textbox]')].entries()) {
+      const data=textBoxFrame(frame.dataset.documentTextbox),box=frame.firstElementChild?.getBoundingClientRect();
+      if(!data || data.position!=='floating' || data.wrap!=='square' || !box)continue;
+      pictures.push({ index:-1-index,left:box.left,top:box.top,width:box.width,height:box.height,cssLeft:0,cssTop:0,
+        geometry:{ horizontalPosition:{relative:'page',offset:0},verticalPosition:{relative:'page',offset:0},wrap:{type:1} } });
+    }
     const result: ParagraphPlan[] = [];
     for (let pi = 0; pi < ps.length; pi++) {
       const p = ps[pi],
@@ -337,7 +345,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       // Its often page-sized bounds must not trigger a manual re-layout of
       // unrelated paragraphs, which changes justification and mixed-font
       // line endings even though every line still has its full width.
-      const flowing = pictures.filter(pic => pic.geometry.wrap?.type !== 0);
+      const flowing = pictures.filter(pic => pic.geometry.wrap?.type !== 0 && !(pic.index<0 && p.closest('.document-textbox')));
       const style = getComputedStyle(p),
         box = p.getClientRects()[0] || p.getBoundingClientRect();
       const lh = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3,
@@ -464,6 +472,12 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
               right - left < Math.min(width, size(nextStart, Math.min(nextStart + 1, end)))
             )
               continue;
+            // A tiny strip beside a float must not split an ordinary Latin
+            // word into one-letter columns when that word fits the body width.
+            if(next<end && next>nextStart && /[\p{Script=Latin}\p{N}]/u.test(tokens[next-1].text) && /[\p{Script=Latin}\p{N}]/u.test(tokens[next].text)) {
+              let wordEnd=next;while(wordEnd<end && /[\p{Script=Latin}\p{N}]/u.test(tokens[wordEnd].text))wordEnd++;
+              if(size(nextStart,wordEnd)<=width-indent+.15 && size(nextStart,wordEnd)>right-left+.15)continue;
+            }
             const last = next === nextStart && nextStart < end ? nextStart + 1 : next;
             const textWidth = size(nextStart, last);
             const alignment =

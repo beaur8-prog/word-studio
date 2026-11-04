@@ -1,3 +1,4 @@
+import { layoutTextBoxes } from './textbox-frame';
 import { paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
 import { tableFragmenter } from './table-fragments';
 import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
@@ -126,7 +127,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // Removing overlay flow can move its zero-height frame to another
     // column. Resolve its coordinates against the final column geometry.
     layoutTableAnchors(content);
+    layoutTextBoxes(content);
     applyFloatingLayout(content);
+    layoutTextBoxes(content);
     const last = content.lastElementChild as HTMLElement | null;
     return !hasDeferredNote(content) && (!last || paragraphFitBottom(last) <= content.getBoundingClientRect().bottom + 0.5)
       // Behind/in-front objects do not consume text flow. A page decoration

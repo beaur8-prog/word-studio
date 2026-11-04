@@ -27,6 +27,7 @@ import { ColumnLayout } from './column-layout';
 import { FloatingLayout } from './floating-layout';
 import { TableAnchorLayout } from './table-anchor';
 import { TableNavigation } from './table-navigation';
+import { DocumentTextBox, TextBoxLayout } from './textbox-frame';
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { getSchema } from '@tiptap/core';
 
@@ -110,6 +111,7 @@ export const editorExtensions = [
   CellAppearance,
   TableRowResize,
   TableNavigation,
+  DocumentTextBox, TextBoxLayout,
   TableAnchorLayout,
   BlockImage.configure({ allowBase64: true }),
   InlineImage,

@@ -1,3 +1,5 @@
+import { prepareTextBoxes, writeTextBoxes, type TextBoxExport } from './docx-textboxes';
+import { textBoxFrame } from './textbox-frame';
 import { wordHeadingMarks } from './word-heading-defaults';
 import { sanitizeImportedHtml, validImage, safeLink, RASTER_DATA } from "./document-html";
 import { activeHwpCellLine, cssPixels, encodeHwpCellLine, hwpCellFont, parseHwpCellLine } from './hwp-cell-line';
@@ -91,7 +93,7 @@ const BLOCKS = new Set([
   "sectionBreak",
   "image",
   "table",
-  "documentNote", "columnGroup", "sectionContent",
+  "documentNote", "columnGroup", "sectionContent", "documentTextBox",
 ]);
 const MARKS = new Set([
   "bold",
@@ -247,6 +249,7 @@ export function validateDocument(input: unknown): StudioDocument {
         fail("표 셀 구조가 올바르지 않습니다.");
     } else if (parent !== null && !BLOCKS.has(type))
       fail("잘못된 본문 요소 위치입니다.");
+    if (type === 'documentTextBox' && (!object(value.attrs) || !textBoxFrame(value.attrs.frame))) fail('텍스트상자 설정이 올바르지 않습니다.');
     if (value.attrs !== undefined) {
       if (!object(value.attrs)) fail("본문 속성이 올바르지 않습니다.");
       for (const [key, attr] of Object.entries(value.attrs)) {
@@ -375,7 +378,7 @@ export function validateDocument(input: unknown): StudioDocument {
         "tableCell",
         "tableHeader",
         "blockquote",
-        "documentNote", "columnGroup", "sectionContent",
+        "documentNote", "columnGroup", "sectionContent", "documentTextBox",
       ].includes(type) &&
       children.length === 0
     )
@@ -699,6 +702,8 @@ export async function importFile(file: File): Promise<ImportResult> {
     }
   }
   doc.page = pages[0] ?? { ...defaultPage };
+  const textboxes = await prepareTextBoxes(zip, body, pages);
+  if (textboxes.count) warnings.push(`텍스트상자 ${textboxes.count}개의 내용을 배경·크기와 함께 편집 가능한 별도 영역으로 가져왔습니다.`);
   const metadata = await prepareDocxMetadata(zip, body, pages);
   doc.comments = metadata.comments;
   const commentsPart = zip.file('word/comments.xml');
@@ -722,7 +727,7 @@ export async function importFile(file: File): Promise<ImportResult> {
     },
   );
   const notes = await documentNotes(zip, doc.page);
-  const sanitized = sanitizeImportedHtml(structureDocxSections(attachDocumentNotes(metadata.decorate(result.value), notes), pages));
+  const sanitized = sanitizeImportedHtml(structureDocxSections(attachDocumentNotes(textboxes.decorate(metadata.decorate(result.value)), notes), pages));
   return {
     document: doc,
     html: sanitized.html,
@@ -1112,6 +1117,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       line: pageSpacing ? 1 : twips, lineRule: LineRuleType.EXACT,
     }, run: { size: 2 } });
   };
+  const textBoxes: TextBoxExport[] = [];
   const tableSpacing = new WeakMap<Table, number>();
   const blocks = async (
     nodes: JSONContent[],
@@ -1120,7 +1126,15 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     const width = context.width ?? contentWidth;
     const output: (Paragraph | Table)[] = [];
     for (const node of nodes) {
-      if (
+      if (node.type === 'documentTextBox') {
+        const frame = textBoxFrame(node.attrs?.frame);
+        if (!frame) throw Error('텍스트상자 설정이 올바르지 않습니다.');
+        const id = 'ws_tbox_' + crypto.randomUUID().replaceAll('-','').slice(0,16);
+        textBoxes.push({ id, frame });
+        output.push(new Paragraph({ children: [new Bookmark({ id:id+'_start', children:[] })] }),
+          ...await blocks(node.content || [], { ...context, width:Math.max(1,(frame.width-frame.padding[1]-frame.padding[3])*15) }),
+          new Paragraph({ children: [new Bookmark({ id:id+'_end', children:[] })] }));
+      } else if (
         node.type === "paragraph" ||
         node.type === "heading" ||
         node.type === "codeBlock"
@@ -1504,7 +1518,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     sections,
   });
   const blob = await Packer.toBlob(docx);
-  if (!document.comments.length && !geometries.size && groups.length === 1) return blob;
+  if (!document.comments.length && !geometries.size && !textBoxes.length && groups.length === 1) return blob;
   // docx 9.12 emits resolution metadata only for replies. Standalone comments
   // need the same standard OOXML part; use its generated paragraph IDs.
   const zip = await JSZip.loadAsync(await blob.arrayBuffer());
@@ -1524,6 +1538,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     }
     zip.file('word/document.xml', new XMLSerializer().serializeToString(body));
   }
+  await writeTextBoxes(zip, textBoxes);
   await restoreImageGeometry(zip, geometries);
   if (document.comments.length) {
     const commentsXml = xml(await zip.file('word/comments.xml')!.async('string'));

@@ -1,0 +1,57 @@
+name: Word textbox compatibility
+on:
+  workflow_dispatch:
+  push:
+    branches: ['codex/word-web-critical-four-hours']
+    paths:
+      - '.github/workflows/word-textboxes.yml'
+      - 'src/**'
+      - 'tests/docx-textboxes.spec.ts'
+      - 'scripts/word-openxml-validator/**'
+  pull_request:
+    paths:
+      - '.github/workflows/word-textboxes.yml'
+      - 'src/docx-textboxes.ts'
+      - 'src/textbox-frame.ts'
+      - 'src/docx-stories.ts'
+      - 'src/document-io.ts'
+      - 'src/document-html.ts'
+      - 'src/extensions.ts'
+      - 'src/floating-layout.ts'
+      - 'src/print-layout.ts'
+      - 'src/styles.css'
+      - 'tests/docx-textboxes.spec.ts'
+      - 'scripts/word-openxml-validator/**'
+permissions:
+  contents: read
+jobs:
+  textbox-layout-and-schema:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Exercise stories, colors, geometry, editor commands and two real DOCX exports
+        run: npx playwright test tests/docx-textboxes.spec.ts --reporter=line
+        env:
+          PLAYWRIGHT_CHANNEL: chromium
+      - name: Validate all ten exported DOCX files with the official OpenXML SDK
+        run: dotnet run --project scripts/word-openxml-validator/Validator.csproj --configuration Release -- test-results 10
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: word-textbox-${{ matrix.os }}
+          path: test-results/
+          retention-days: 3
