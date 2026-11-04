@@ -126,9 +126,9 @@ test('list continuation keeps input visible during composition and preserves spl
   // Backspace lifts a first list paragraph; forward Delete joins items.
   // Establish the real app selection before testing either key on each OS.
   const find=async(text:string,end:boolean)=>{
-    await page.keyboard.press('ControlOrMeta+f');const search=page.getByRole('textbox',{name:'문서에서 찾기',exact:true});await search.fill(text);await search.press('Enter');
+    await page.keyboard.press('ControlOrMeta+f');const search=page.getByRole('textbox',{name:'문서에서 찾기',exact:true});await search.fill(text);await search.press('Enter');await expect(editor).toBeFocused();
     await expect.poll(()=>page.evaluate(()=>window.getSelection()?.toString())).toBe(text);await page.keyboard.press(end?'ArrowRight':'ArrowLeft');
-    await expect.poll(()=>page.evaluate(()=>window.getSelection()?.isCollapsed)).toBe(true);await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));await expect.poll(()=>page.evaluate(()=>window.getSelection()?.isCollapsed)).toBe(true);
   };
   await page.waitForTimeout(650);await find('한글🙂',false);await page.keyboard.press('Backspace');await expect(editor.locator('li')).toHaveCount(18);await expect(editor.locator(':scope > p').filter({hasText:'한글🙂'})).toHaveText('한글🙂');
   await page.keyboard.press('ControlOrMeta+z');await expect(editor.locator('li')).toHaveCount(19);

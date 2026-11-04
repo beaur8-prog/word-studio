@@ -20,6 +20,7 @@ export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
   if (lines.length < 2) return null;
   const stride = g.height + 24, decorations: Decoration[] = [], signatures: string[] = [];
   let extra = 0;
+  const listParagraph = !!paragraph.closest('li');
   const references: { id: string; page: number }[] = [];
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
@@ -30,7 +31,12 @@ export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
     const reserve = () => g.reserveAt?.(page, [...references, ...here.map(ref => ({ id: ref.id, page }))]) ?? 0;
     const boundary = page * stride + g.height - g.bottom - reserve();
     let bottom = line.bottom + (line.after || 0) + g.extra + extra;
-    if (paragraph.closest('li') && index + 1 < lines.length && Math.abs(bottom - boundary) <= line.bottom - line.top + (line.before || 0) + (line.after || 0)) {
+    // Uniform lines already have an exact measured grid. Avoid repeatedly
+    // cloning a growing prefix on every page of a very long list paragraph.
+    const irregular = listParagraph && [lines[index - 1], lines[index + 1]].some(other => other &&
+      (Math.abs((other.bottom - other.top) - (line.bottom - line.top)) > .5 ||
+        Math.abs((other.before || 0) - (line.before || 0)) > .5 || Math.abs((other.after || 0) - (line.after || 0)) > .5));
+    if (listParagraph && irregular && index + 1 < lines.length && Math.abs(bottom - boundary) <= line.bottom - line.top + (line.before || 0) + (line.after || 0)) {
       const point = view.domAtPos(lines[index + 1].pos());
       const offset = paragraphTextOffset(paragraph, point.node, point.offset);
       bottom = naturalY(paragraph.getBoundingClientRect().top) + paragraphPrefixHeight(paragraph, offset, g.scale) + g.extra + extra;
