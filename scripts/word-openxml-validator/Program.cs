@@ -7,7 +7,9 @@ if (args.Length != 2 || !int.TryParse(args[1], out int expected)) {
     Console.Error.WriteLine("Usage: Validator <test-output-folder> <expected-DOCX-count>");
     return 2;
 }
-var files = Directory.EnumerateFiles(args[0], "textbox-save*.docx", SearchOption.AllDirectories).Order().ToArray();
+var files = Directory.EnumerateFiles(args[0], "*.docx", SearchOption.AllDirectories)
+    .Where(file => Path.GetFileName(file).StartsWith("textbox-save") || Path.GetFileName(file).StartsWith("contextual-"))
+    .Order().ToArray();
 if (files.Length != expected) {
     Console.Error.WriteLine($"Expected {expected} actual exported DOCX files; found {files.Length}.");
     return 2;

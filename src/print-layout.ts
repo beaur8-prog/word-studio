@@ -4,6 +4,7 @@ import { tableFragmenter } from './table-fragments';
 import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
+import { layoutWordContextualSpacing } from './word-contextual-spacing';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { layoutHwpBodyLines } from './hwp-body-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
@@ -31,6 +32,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   const style = document.createElement('style'); host.append(style);
   const source = document.createElement('div'); source.innerHTML = html;
   prepareParagraphEnds(source);
+  layoutWordContextualSpacing(source);
   // The editable table NodeView fixes the width from colgroup; static HTML
   // must do the same or nested tables stretch to the whole printable width.
   for (const table of source.querySelectorAll('table')) {
@@ -105,6 +107,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     for (const el of [header, footer]) { el.style.left = `${margins.left * PX}px`; el.style.right = `${margins.right * PX}px`; }
     header.style.top = `${(settings.headerDistance ?? Math.max(0, margins.top / 2 - 3)) * PX}px`;
     footer.style.bottom = `${(settings.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)) * PX}px`;
+    layoutWordContextualSpacing(header); layoutWordContextualSpacing(footer);
     paper.append(header, content, footer); host.append(paper);
     layoutFurnitureImages(paper);
     const meaningful = (element: HTMLElement) => element.textContent?.trim() || element.querySelector('img,table');

@@ -19,7 +19,7 @@ export async function docxFormat(zip: JSZip) {
   const file = zip.file('word/styles.xml');
   const styles = new DOMParser().parseFromString(file ? await file.async('string') : '<styles/>', 'application/xml');
   const byId = new Map(all(styles, 'style').map(s => [val(s, 'styleId'), s]));
-  const normal = all(styles, 'style').find(s => val(s, 'type') === 'paragraph' && val(s, 'default') === '1');
+  const normal = all(styles, 'style').find(s => val(s, 'type') === 'paragraph' && ['1', 'true', 'on'].includes(val(s, 'default')));
   const normalTable = all(styles, 'style').find(s => val(s, 'type') === 'table' && val(s, 'default') === '1');
   const defaults = all(styles, 'docDefaults')[0];
   const numberingFile = zip.file('word/numbering.xml');
@@ -153,6 +153,17 @@ export async function docxFormat(zip: JSZip) {
     return style.cssText;
   }
   return {
+    paragraphStyle(p: Element) {
+      return val(child(child(p, 'pPr'), 'pStyle')) || val(normal, 'styleId') || 'Normal';
+    },
+    contextualSpacing(p: Element): boolean | null {
+      let enabled: boolean | null = null;
+      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
+        const setting = child(props, 'contextualSpacing');
+        if (setting) enabled = on(setting);
+      }
+      return enabled;
+    },
     headingMarks(p: Element) {
       // Typing defaults belong to the source paragraph style/mark, separately
       // from the actual text runs and their explicit formatting overrides.

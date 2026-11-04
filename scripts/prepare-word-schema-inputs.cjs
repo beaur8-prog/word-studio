@@ -10,7 +10,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
   if (value !== undefined && typeof value !== 'string') throw Error('Invalid public DOCX validation input');
   raw = value || '';
 }
-let count = 10;
+// 10 textbox copies and 8 conditional-spacing copies, each a real DOCX export.
+let count = 18;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);

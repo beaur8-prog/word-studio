@@ -278,6 +278,8 @@ export function validateDocument(input: unknown): StudioDocument {
       }
     }
     const attrs = value.attrs as Record<string, unknown> | undefined;
+    if (attrs?.wordParagraphStyle != null && (!boundedString(attrs.wordParagraphStyle, 1000) || !attrs.wordParagraphStyle || /[\u0000-\u001f]/.test(attrs.wordParagraphStyle))) fail('문단 스타일 정보가 올바르지 않습니다.');
+    if (attrs?.wordContextualSpacing != null && typeof attrs.wordContextualSpacing !== 'boolean') fail('문단 간격 정책이 올바르지 않습니다.');
     if (attrs?.hwpCellLine != null && !parseHwpCellLine(attrs.hwpCellLine)) fail('한글 셀의 줄 간격 정보가 올바르지 않습니다.');
     if (type === 'documentSymbol' && (!boundedString(attrs?.font, 100) || !attrs?.font || !/^\d{1,5}$/.test(String(attrs?.code)) || !finite(Number(attrs?.code), 0, 65535) || !boundedString(attrs?.glyph, 100))) fail('기호 글자가 올바르지 않습니다.');
     if (type === 'documentBookmark' && (!boundedString(attrs?.name, 1000) || !attrs?.name)) fail('책갈피 이름이 올바르지 않습니다.');
@@ -931,6 +933,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
         ? { line: Math.round(line * 240), lineRule: LineRuleType.AUTO }
         : {}),
     },
+    ...(typeof node.attrs?.wordContextualSpacing === 'boolean' ? { contextualSpacing: node.attrs.wordContextualSpacing } : {}),
     widowControl: node.attrs?.wordWidowControl !== false,
   };
 }
@@ -1016,14 +1019,35 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const configuredLists = new Set<string>();
   const listLevels = new Map<string, Map<number, Record<string, unknown>>>();
   const notes = new Map<string, JSONContent>();
+  // Materialize formatting as before, but retain the equivalence classes needed
+  // by standard w:contextualSpacing. Never collide with built-in/spacer styles.
+  const contextualStyleIds = new Set<string>();
+  const paragraphStyleKinds = new Map<string, number>();
+  const scannedFurniture = new Set<string>();
+  const scanFurniture = (page: PageSettings) => {
+    for (const key of ['headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'] as const) {
+      const html = page[key];
+      if (html && !scannedFurniture.has(html)) { scannedFurniture.add(html); scan(parseDocumentHtml(sanitizeImportedHtml(html).html)); }
+    }
+  };
   const scan = (node: JSONContent) => {
+    const style = node.attrs?.wordParagraphStyle;
+    if (typeof style === 'string' && ['paragraph', 'heading'].includes(node.type || '')) {
+      if (!paragraphStyleKinds.has(style)) paragraphStyleKinds.set(style, node.type === 'heading' ? node.attrs?.level || 1 : 0);
+      if (typeof node.attrs?.wordContextualSpacing === 'boolean') contextualStyleIds.add(style);
+    }
+    if ((node.type === 'sectionBreak' || node.type === 'sectionContent') && node.attrs?.page) scanFurniture(JSON.parse(node.attrs.page));
     if (node.type === 'documentNote') notes.set(String(node.attrs?.id), node);
     if (node.type === 'listItem' && node.attrs?.wordListId) {
       const id = String(node.attrs.wordListId), levels = listLevels.get(id) || new Map();
       levels.set(Number(node.attrs.wordListLevel) || 0, node.attrs); listLevels.set(id, levels);
     }
     node.content?.forEach(scan);
-  }; scan(document.content);
+  }; scan(document.content); scanFurniture(page);
+  const paragraphStyles = new Map([...contextualStyleIds].map((source, index) => [source, {
+    id: `StudioContext${index + 1}`, name: paragraphStyleKinds.get(source) ? `Heading ${paragraphStyleKinds.get(source)}` : source,
+    basedOn: paragraphStyleKinds.get(source) ? `Heading${paragraphStyleKinds.get(source)}` : 'Normal',
+  }]));
   const noteIds = new Map([...notes.keys()].map((id, index) => [id, index + 1]));
   let listId = 0;
   const commentIds = new Map(document.comments.map((comment, i) => [comment.id, i]));
@@ -1149,6 +1173,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         ];
         const bodyLine = context.cellRun ? null : hwpBodyTextLine(node);
         let paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150, cellLineHeights.get(node), bodyLine);
+        const sourceStyle = paragraphStyles.get(node.attrs?.wordParagraphStyle);
+        if (sourceStyle) paragraph = { ...paragraph, style: sourceStyle.id };
         const cellLine = activeHwpCellLine(node.attrs);
         const previous = output.at(-1);
         const gap = previous instanceof Table ? tableSpacing.get(previous) || 0 : 0;
@@ -1167,7 +1193,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             }),
             ...(context.cellRun ? { run: { ...context.cellRun, ...paragraph.run } } : {}),
             ...(node.type === "heading"
-              ? { heading: headings[(node.attrs?.level ?? 1) - 1] }
+              ? sourceStyle ? { outlineLevel: (node.attrs?.level ?? 1) - 1 } : { heading: headings[(node.attrs?.level ?? 1) - 1] }
               : {}),
             ...(node.type === "codeBlock"
               ? {
@@ -1511,6 +1537,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     comments: { children: comments },
     styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } },
       paragraphStyles: [
+        ...paragraphStyles.values(),
         ...[TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : id === SECTION_BOUNDARY_STYLE ? 'Section boundary' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })),
         ...(hasTableEnd ? [{ id: TABLE_END_STYLE, name: 'Table end', next: 'Normal', semiHidden: true, run: { size: 2 },
           paragraph: { spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT } } }] : []),
