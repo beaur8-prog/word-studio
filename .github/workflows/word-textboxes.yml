@@ -16,6 +16,7 @@ on:
       - 'tests/paragraph-contextual-spacing.spec.ts'
       - 'tests/list-pagination.spec.ts'
       - 'tests/word-font-fallbacks.spec.ts'
+      - 'tests/symbol-fonts.test.cjs'
       - 'tests/word-line-metrics.spec.ts'
       - 'tests/word-line-metrics-capacity.spec.ts'
       - 'scripts/word-openxml-validator/**'
@@ -51,6 +52,7 @@ on:
       - 'tests/paragraph-contextual-spacing.spec.ts'
       - 'tests/list-pagination.spec.ts'
       - 'tests/word-font-fallbacks.spec.ts'
+      - 'tests/symbol-fonts.test.cjs'
       - 'tests/word-line-metrics.spec.ts'
       - 'tests/word-line-metrics-capacity.spec.ts'
       - 'scripts/word-openxml-validator/**'
@@ -76,6 +78,8 @@ jobs:
           dotnet-version: '8.0.x'
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      - name: Verify bundled font bytes, licenses and legacy symbol coverage
+        run: node --test tests/symbol-fonts.test.cjs
       - name: Exercise stories, colors, geometry, editor commands and two real DOCX exports
         run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-font-fallbacks.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts --trace=off --reporter=line
         env:

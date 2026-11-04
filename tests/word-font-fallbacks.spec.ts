@@ -35,15 +35,16 @@ test('missing Century Gothic keeps four real faces and the measured Word line bo
 
 test('an installed face keeps its original metrics and never requests the fallback asset',async({page})=>{
   await page.goto('/');
+  await page.getByRole('textbox',{name:'문서 편집 영역',exact:true}).waitFor();
   const value=await page.evaluate(async()=>{
     const {initializeWordFontFallbacks}=await import('/src/word-font-fallbacks.ts');
     let local='';for(const name of ['Arial','Liberation Sans','DejaVu Sans']){try{await new FontFace('Native check',`local("${name}")`).load();local=name;break}catch{}}
     if(!local)throw new Error('A known native sans font is required for this font priority check');
     const p=document.createElement('span');p.style.cssText=`font:11pt "${local}";position:fixed;white-space:pre`;p.textContent='Native AV To metrics';document.body.append(p);
     const before=p.getBoundingClientRect().toJSON();
-    const registeredBefore=[...document.fonts].filter(f=>f.family===local).length;
+    const registeredBefore=[...document.fonts].filter(f=>f.family.replace(/^["']|["']$/g,'')===local).length;
     await initializeWordFontFallbacks([{family:local,faces:[{names:[local],weight:'400',style:'normal',url:'/must-not-download-installed-font.otf',ascent:'200%',descent:'80%'}]}]);
-    const after=p.getBoundingClientRect().toJSON(),registeredAfter=[...document.fonts].filter(f=>f.family===local).length;
+    const after=p.getBoundingClientRect().toJSON(),registeredAfter=[...document.fonts].filter(f=>f.family.replace(/^["']|["']$/g,'')===local).length;
     p.remove();return{before,after,registeredBefore,registeredAfter,resources:performance.getEntriesByType('resource').filter(r=>r.name.includes('must-not-download')).length};
   });
   expect(value.after).toEqual(value.before);expect(value.registeredAfter).toBe(value.registeredBefore+1);expect(value.resources).toBe(0);
@@ -78,6 +79,7 @@ test('fallback loading preserves native editing history and the two standard DOC
 
 test('a partial native font family keeps its installed regular face beside a missing bold face',async({page})=>{
   await page.goto('/');
+  await page.getByRole('textbox',{name:'문서 편집 영역',exact:true}).waitFor();
   const result=await page.evaluate(async()=>{
     const{initializeWordFontFallbacks}=await import('/src/word-font-fallbacks.ts');
     let local='';for(const name of ['Arial','Liberation Sans','DejaVu Sans']){try{await new FontFace('Native check',`local("${name}")`).load();local=name;break}catch{}}

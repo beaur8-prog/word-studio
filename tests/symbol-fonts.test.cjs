@@ -35,7 +35,16 @@ test('bundled licensed fonts contain every Unicode glyph used by the five legacy
   for (const source of JSON.parse(fs.readFileSync(path.join(fonts,'SOURCES.json')))) {
     const buffer = fs.readFileSync(path.join(fonts,source.file));
     assert.equal(createHash('sha256').update(buffer).digest('hex'),source.sha256);
-    assert.ok(fs.readFileSync(path.join(root,source.licenseFile),'utf8').includes('SIL OPEN FONT LICENSE'));
+    const license = fs.readFileSync(path.join(root,source.licenseFile),'utf8');
+    if (source.license === 'SIL Open Font License 1.1') {
+      assert.ok(license.includes('SIL OPEN FONT LICENSE'));
+    } else {
+      assert.equal(source.license, 'GUST Font License 1.0 / LPPL 1.3c or later');
+      assert.ok(license.includes('GUST Font License') && license.includes('LaTeX Project Public License'));
+      assert.equal(source.licenseCompanion, 'electron/licenses/LPPL-1.3c.txt');
+      const companion = fs.readFileSync(path.join(root,source.licenseCompanion),'utf8');
+      assert.ok(companion.includes('The LaTeX Project Public License') && companion.includes('1.3c'));
+    }
     for (const cp of codepoints(buffer)) covered.add(cp);
   }
   const mappings = require('../src/symbol-font-maps.json');
