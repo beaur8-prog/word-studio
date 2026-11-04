@@ -1,6 +1,12 @@
-import {test,expect} from '@playwright/test';
+import {test,expect,type TestInfo} from '@playwright/test';
+import fs from 'node:fs/promises';
 import {Document,Packer,Paragraph,Table,TableRow,TableCell,LevelFormat,HeadingLevel,Header,Footer} from 'docx';
 import JSZip from 'jszip';
+async function writeDocx(testInfo: TestInfo, name: string, bytes: number[]) {
+  const file = testInfo.outputPath(name);
+  await fs.writeFile(file, Buffer.from(bytes));
+}
+
 
 async function fixture() {
   return Packer.toBuffer(new Document({
@@ -44,7 +50,7 @@ test('source style identity and inherited/direct contextual spacing survive two 
     expect(rows[2].style).toBe(rows[3].style);expect(rows[0].style).not.toBe(rows[2].style);
     for(const r of rows.filter(r=>r.text)) {expect(r.before).toBe('16px');expect(r.after).toBe('13.3333px')}
   }
-  for(let i=0;i<result.saves.length;i++)await testInfo.attach(`contextual-save${i+1}.docx`,{body:Buffer.from(result.saves[i]),contentType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  for(let i=0;i<result.saves.length;i++)await writeDocx(testInfo,`contextual-save${i+1}.docx`,result.saves[i]);
 });
 
 test('same-style one-sided spacing subtracts from the collapsed gap and does not zero the other paragraph',async({page})=>{
@@ -150,7 +156,7 @@ test('standard heading semantics and a single pStyle survive conditional spacing
     return{states,saves};
   },[...input]);
   for(const doc of result.states){expect(doc.content!.map((p:any)=>[p.type,p.attrs.level||null,p.attrs.wordContextualSpacing])).toEqual([['heading',1,true],['heading',1,false],['paragraph',null,null]])}
-  for(let i=0;i<result.saves.length;i++)await testInfo.attach(`contextual-heading-save${i+1}.docx`,{body:Buffer.from(result.saves[i]),contentType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  for(let i=0;i<result.saves.length;i++)await writeDocx(testInfo,`contextual-heading-save${i+1}.docx`,result.saves[i]);
 });
 
 test('header and footer paragraph policies survive standard DOCX and use their own print flows',async({page},testInfo)=>{
@@ -169,7 +175,7 @@ test('header and footer paragraph policies survive standard DOCX and use their o
     return{states,saves};
   },[...source]);
   for(const stage of result.states){for(const story of stage){expect(story).toHaveLength(2);expect(story[0].after).toBe(0);expect(story[1].before).toBe(0);for(const p of story)expect(p.enabled).toBe('true')}}
-  for(let i=0;i<result.saves.length;i++)await testInfo.attach(`contextual-story-save${i+1}.docx`,{body:Buffer.from(result.saves[i]),contentType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  for(let i=0;i<result.saves.length;i++)await writeDocx(testInfo,`contextual-story-save${i+1}.docx`,result.saves[i]);
 });
 
 
@@ -196,7 +202,7 @@ test('document defaults, default style true, numbering and explicit false resolv
   },[...bytes]);
   expect(result.stages[0][0].style).toBe('ActualDefault');
   for(const rows of result.stages)expect(rows.map(p=>[p.text,p.enabled])).toEqual([['DEFAULT-TRUE',true],['STYLE-FALSE',false],['NUMBERING-FALSE',false],['DIRECT-ON',true]]);
-  for(let i=0;i<result.saves.length;i++)await testInfo.attach(`contextual-numbering-save${i+1}.docx`,{body:Buffer.from(result.saves[i]),contentType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  for(let i=0;i<result.saves.length;i++)await writeDocx(testInfo,`contextual-numbering-save${i+1}.docx`,result.saves[i]);
 });
 
 test('invalid contextual metadata is rejected and large valid paragraph spaces remain conditional',async({page})=>{
