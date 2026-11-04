@@ -50,17 +50,22 @@ test('textbox stories and ordinary body have the same colors and coordinates in 
  for(const key of ['x','y','width','height'] as const)expect(after[key]).toBeCloseTo(before[key],0);expect(after.fill).toBe(before.fill);
 });
 
-test('a grouped Word drawing remains one anchor with two independently editable stories through two saves',async({page})=>{
+async function groupedFixture(){
  const zip=await JSZip.loadAsync(await fixture('unwrapped'));let xml=await zip.file('word/document.xml')!.async('string');
  const shape=xml.match(/<wps:wsp>[\s\S]*?<\/wps:wsp>/)![0];
  const a=shape.replace('VISIBLE BOX TEXT','FIRST GROUP STORY'),b=shape.replace('VISIBLE BOX TEXT','SECOND GROUP STORY').replace('<a:off x="0" y="0"/>','<a:off x="2381250" y="0"/>');
  const group=`<wpg:wgp xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="4667250" cy="762000"/><a:chOff x="0" y="0"/><a:chExt cx="4667250" cy="762000"/></a:xfrm></wpg:grpSpPr>${a}${b}</wpg:wgp>`;
  xml=xml.replace(shape,group).replace('uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"','uri="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"');zip.file('word/document.xml',xml);
+ return zip.generateAsync({type:'nodebuffer'});
+}
+
+test('a grouped Word drawing remains one anchor with two independently editable stories through two saves',async({page})=>{
+ const groupBytes=await groupedFixture();
  await page.goto('/');const result=await page.evaluate(async bytes=>{
   const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml}=await import('/src/extensions.ts');let file=new File([new Uint8Array(bytes)],'group.docx');const states=[],saves:number[][]=[];
   const text=(n:any):string=>(n.text||'')+(n.content||[]).map(text).join('');
   for(let i=0;i<3;i++){const opened=await importFile(file),content=parseDocumentHtml(opened.html!),frames=content.content!.filter(n=>n.type==='documentTextBox').map(n=>({frame:JSON.parse(n.attrs!.frame),text:text(n)}));states.push(frames);if(i<2){const b=[...new Uint8Array(await(await exportDocx({...opened.document,content})).arrayBuffer())];saves.push(b);file=new File([new Uint8Array(b)],'again.docx');}}return{states,saves};
- },[...await zip.generateAsync({type:'nodebuffer'})]);
+ },[...groupBytes]);
  for(const frames of result.states){expect(frames.map(f=>f.text)).toEqual(['FIRST GROUP STORY','SECOND GROUP STORY']);expect(frames[0].frame.group).toBe(frames[1].frame.group);expect(frames[0].frame.group).toBeTruthy();expect(frames[1].frame.x-frames[0].frame.x).toBeCloseTo(250,2);}
  for(let i=0;i<result.saves.length;i++){const bytes=Buffer.from(result.saves[i]),z=await JSZip.loadAsync(bytes),xml=await z.file('word/document.xml')!.async('string');expect(xml.match(/<wp:anchor\b/g)).toHaveLength(1);expect(xml.match(/<wps:txbx\b/g)).toHaveLength(2);await writeFile(test.info().outputPath(`textbox-save${i+1}.docx`),bytes);}
 });
@@ -103,4 +108,11 @@ test('clicks in text wrapped beside a textbox and immediate document-end typing 
  await para.click({position:{x:410,y:12}});
  const selection=await editor.evaluate((el:any)=>{const n=getSelection()!,v=el.editor.view;return{model:[v.state.selection.anchor,v.state.selection.head],native:[v.posAtDOM(n.anchorNode,n.anchorOffset),v.posAtDOM(n.focusNode,n.focusOffset)]};});expect(selection.model).toEqual(selection.native);
  for(let i=0;i<8;i++){await para.click({position:{x:410,y:12}});await page.keyboard.press('ControlOrMeta+End');await page.keyboard.insertText(' END-TYPING');await expect(para).toHaveText(words+' END-TYPING');await page.keyboard.press('ControlOrMeta+z');await expect(para).toHaveText(words);}
+});
+
+test('leaving the first textbox in a drawing group keeps the group intact and returns to the body',async({page})=>{
+ const edited=await JSZip.loadAsync(await groupedFixture());edited.file('word/document.xml',(await edited.file('word/document.xml')!.async('string')).replace('<w:r><w:t>BODY AFTER','<w:r><w:rPr><w:b/><w:color w:val="0055AA"/></w:rPr><w:t>BODY AFTER'));const bytes=await edited.generateAsync({type:'nodebuffer'});await page.goto('/');await page.locator('input[type=file]').first().setInputFiles({name:'group-exit.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:bytes});const editor=page.getByRole('textbox',{name:'문서 편집 영역',exact:true});await expect(editor.locator('.document-textbox')).toHaveCount(2);
+ await editor.locator('.document-textbox-content p').first().click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.press('ControlOrMeta+Enter');await page.keyboard.insertText('BODY EXIT ');await expect(editor.locator('p').filter({hasText:'BODY EXIT BODY AFTER'})).toHaveCount(1);const run=editor.locator('span').filter({hasText:'BODY EXIT BODY AFTER'});await expect(run).toHaveCSS('color','rgb(0, 85, 170)');await expect(run.locator('strong')).toHaveCSS('font-weight','700');await expect(editor.locator('.document-textbox').first()).toHaveAttribute('title',/Enter/);
+ const model=await editor.evaluate((el:any)=>el.editor.getJSON());const first=model.content.findIndex((n:any)=>n.type==='documentTextBox');expect(model.content[first+1].type).toBe('documentTextBox');
+ const output=await page.evaluate(async({bytes,content})=>{const{importFile,exportDocx}=await import('/src/document-io.ts');const original=await importFile(new File([new Uint8Array(bytes)],'source.docx'));return [...new Uint8Array(await(await exportDocx({...original.document,content})).arrayBuffer())];},{bytes:[...bytes],content:model});const zip=await JSZip.loadAsync(Buffer.from(output)),xml=await zip.file('word/document.xml')!.async('string');expect(xml.match(/<wp:anchor\b/g)).toHaveLength(1);expect(xml.match(/<wps:txbx\b/g)).toHaveLength(2);
 });

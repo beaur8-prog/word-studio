@@ -46,6 +46,7 @@ function contentStyle(f: TextBoxFrame) {
 function applyFrame(dom: HTMLElement, content: HTMLElement, frame: TextBoxFrame) {
   dom.className = 'document-textbox'; dom.dataset.documentTextbox = JSON.stringify(frame);
   dom.dataset.textboxPosition = frame.position;
+  dom.title=`텍스트 상자 · ${/Mac|iPhone|iPad/.test(navigator.platform)?'⌘':'Ctrl+'}Enter로 상자 밖에 입력`;
   content.dataset.textboxContent = 'true'; content.className = 'document-textbox-content';
   content.style.cssText = contentStyle(frame);
 }
@@ -76,9 +77,15 @@ export const DocumentTextBox = Node.create({
     }, 'Mod-Enter': () => {
       const { state,view }=this.editor; const { $from }=state.selection;
       for(let depth=$from.depth;depth>0;depth--) if($from.node(depth).type.name==='documentTextBox') {
-        const after=$from.after(depth),next=state.doc.nodeAt(after),tr=state.tr;
+        let after=$from.after(depth),next=state.doc.nodeAt(after);
+        const group=textBoxFrame($from.node(depth).attrs.frame)?.group,tr=state.tr;
+        // All adjacent stories in a Word group belong to one drawing anchor.
+        // Exiting its first story must not insert body text between members.
+        while(group && next?.type.name==='documentTextBox' && textBoxFrame(next.attrs.frame)?.group===group) {
+          after+=next.nodeSize;next=state.doc.nodeAt(after);
+        }
         if(!next?.isTextblock)tr.insert(after,state.schema.nodes.paragraph.create());
-        tr.setSelection(TextSelection.near(tr.doc.resolve(after+1))).setStoredMarks([]);view.dispatch(tr.scrollIntoView());return true;
+        tr.setSelection(TextSelection.near(tr.doc.resolve(after+1)));view.dispatch(tr.scrollIntoView());return true;
       }
       return false;
     } };
