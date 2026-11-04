@@ -41,6 +41,11 @@ export const ImportedFormat = Extension.create({
           renderHTML: (a: Record<string, unknown>) => typeof a.wordParagraphStyle === 'string' && a.wordParagraphStyle
             ? { 'data-word-paragraph-style': a.wordParagraphStyle } : {},
         },
+        wordParagraphStyleName: {
+          default: null, parseHTML: (el: HTMLElement) => el.getAttribute('data-word-paragraph-style-name'),
+          renderHTML: (a: Record<string, unknown>) => typeof a.wordParagraphStyleName === 'string' && a.wordParagraphStyleName
+            ? { 'data-word-paragraph-style-name': a.wordParagraphStyleName } : {},
+        },
         wordWidowControl: {
           default: null,
           parseHTML: (el: HTMLElement) => {

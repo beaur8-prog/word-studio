@@ -156,6 +156,10 @@ export async function docxFormat(zip: JSZip) {
     paragraphStyle(p: Element) {
       return val(child(child(p, 'pPr'), 'pStyle')) || val(normal, 'styleId') || 'Normal';
     },
+    paragraphStyleName(p: Element) {
+      const id = val(child(child(p, 'pPr'), 'pStyle')) || val(normal, 'styleId') || 'Normal';
+      return val(child(byId.get(id), 'name')) || id;
+    },
     contextualSpacing(p: Element): boolean | null {
       let enabled: boolean | null = null;
       for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {

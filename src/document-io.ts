@@ -278,7 +278,8 @@ export function validateDocument(input: unknown): StudioDocument {
       }
     }
     const attrs = value.attrs as Record<string, unknown> | undefined;
-    if (attrs?.wordParagraphStyle != null && (!boundedString(attrs.wordParagraphStyle, 1000) || !attrs.wordParagraphStyle || /[\u0000-\u001f]/.test(attrs.wordParagraphStyle))) fail('문단 스타일 정보가 올바르지 않습니다.');
+    for (const key of ['wordParagraphStyle', 'wordParagraphStyleName'])
+      if (attrs?.[key] != null && (!boundedString(attrs[key], 1000) || !attrs[key] || /[\u0000-\u001f]/.test(String(attrs[key])))) fail('문단 스타일 정보가 올바르지 않습니다.');
     if (attrs?.wordContextualSpacing != null && typeof attrs.wordContextualSpacing !== 'boolean') fail('문단 간격 정책이 올바르지 않습니다.');
     if (attrs?.hwpCellLine != null && !parseHwpCellLine(attrs.hwpCellLine)) fail('한글 셀의 줄 간격 정보가 올바르지 않습니다.');
     if (type === 'documentSymbol' && (!boundedString(attrs?.font, 100) || !attrs?.font || !/^\d{1,5}$/.test(String(attrs?.code)) || !finite(Number(attrs?.code), 0, 65535) || !boundedString(attrs?.glyph, 100))) fail('기호 글자가 올바르지 않습니다.');
@@ -1022,7 +1023,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   // Materialize formatting as before, but retain the equivalence classes needed
   // by standard w:contextualSpacing. Never collide with built-in/spacer styles.
   const contextualStyleIds = new Set<string>();
-  const paragraphStyleKinds = new Map<string, number>();
+  const paragraphStyleNames = new Map<string, string>();
   const scannedFurniture = new Set<string>();
   const scanFurniture = (page: PageSettings) => {
     for (const key of ['headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'] as const) {
@@ -1033,7 +1034,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const scan = (node: JSONContent) => {
     const style = node.attrs?.wordParagraphStyle;
     if (typeof style === 'string' && ['paragraph', 'heading'].includes(node.type || '')) {
-      if (!paragraphStyleKinds.has(style)) paragraphStyleKinds.set(style, node.type === 'heading' ? node.attrs?.level || 1 : 0);
+      if (!paragraphStyleNames.has(style)) paragraphStyleNames.set(style, node.attrs?.wordParagraphStyleName || style.replace(/^Heading([1-6])$/, 'Heading $1'));
       if (typeof node.attrs?.wordContextualSpacing === 'boolean') contextualStyleIds.add(style);
     }
     if ((node.type === 'sectionBreak' || node.type === 'sectionContent') && node.attrs?.page) scanFurniture(JSON.parse(node.attrs.page));
@@ -1044,10 +1045,14 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     }
     node.content?.forEach(scan);
   }; scan(document.content); scanFurniture(page);
-  const paragraphStyles = new Map([...contextualStyleIds].map((source, index) => [source, {
-    id: `StudioContext${index + 1}`, name: paragraphStyleKinds.get(source) ? `Heading ${paragraphStyleKinds.get(source)}` : source,
-    basedOn: paragraphStyleKinds.get(source) ? `Heading${paragraphStyleKinds.get(source)}` : 'Normal',
-  }]));
+  const builtInStyles = new Set(['Normal', 'Title', 'Subtitle', 'ListParagraph', ...Array.from({ length: 6 }, (_, i) => `Heading${i + 1}`)]);
+  const paragraphStyles = new Map([...contextualStyleIds].map((source, index) => {
+    const name = paragraphStyleNames.get(source) || source;
+    const builtIn = builtInStyles.has(source) && name.replace(/\s/g, '').toLowerCase() === source.toLowerCase();
+    // Reuse matching standard IDs rather than introducing duplicate built-in
+    // names. Custom style equivalence classes still receive collision-free IDs.
+    return [source, { id: builtIn ? source : `StudioContext${index + 1}`, name, basedOn: 'Normal', builtIn }];
+  }));
   const noteIds = new Map([...notes.keys()].map((id, index) => [id, index + 1]));
   let listId = 0;
   const commentIds = new Map(document.comments.map((comment, i) => [comment.id, i]));
@@ -1537,7 +1542,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     comments: { children: comments },
     styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } },
       paragraphStyles: [
-        ...paragraphStyles.values(),
+        ...[...paragraphStyles.values()].filter(style => !style.builtIn),
         ...[TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : id === SECTION_BOUNDARY_STYLE ? 'Section boundary' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })),
         ...(hasTableEnd ? [{ id: TABLE_END_STYLE, name: 'Table end', next: 'Normal', semiHidden: true, run: { size: 2 },
           paragraph: { spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT } } }] : []),

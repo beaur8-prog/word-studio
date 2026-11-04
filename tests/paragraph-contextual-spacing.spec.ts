@@ -256,3 +256,19 @@ test('heading-to-body edits retire the source policy, while undo and whole-docum
   expect(result.reopened.content![0].attrs?.wordParagraphStyle).toBe('SourceHeading');
   expect(result.changed.content![0].attrs?.wordParagraphStyle).toBeNull();expect(result.changed.content![0].attrs?.wordContextualSpacing).toBeNull();
 });
+
+
+test('the same Title style remains a body heading and an ordinary textbox paragraph through two saves',async({page},testInfo)=>{
+  const source=await Packer.toBuffer(new Document({sections:[{children:[new Paragraph({text:'BODY TITLE',heading:HeadingLevel.TITLE,contextualSpacing:true}),new Paragraph({text:'BODY END'})]}]}));
+  const zip=await JSZip.loadAsync(source);let xml=await zip.file('word/document.xml')!.async('string');
+  const box=`<w:p><w:r><w:pict xmlns:v="urn:schemas-microsoft-com:vml"><v:shape id="TitleBox" style="position:absolute;margin-left:20px;margin-top:100px;width:240px;height:80px;mso-position-horizontal-relative:margin;mso-position-vertical-relative:margin" fillcolor="#EEEEEE" stroked="f"><v:textbox inset="0,0,0,0"><w:txbxContent><w:p><w:pPr><w:pStyle w:val="Title"/><w:contextualSpacing/></w:pPr><w:r><w:t>BOX TITLE</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>`;
+  xml=xml.replace('<w:sectPr>',box+'<w:sectPr>');zip.file('word/document.xml',xml);const bytes=await zip.generateAsync({type:'uint8array'});
+  await page.goto('/');
+  const result=await page.evaluate(async bytes=>{
+    const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml}=await import('/src/extensions.ts');const states=[],saves=[];let file=new File([new Uint8Array(bytes)],'mixed-title.docx');
+    const text=(n:any):string=>(n.text||'')+(n.content||[]).map(text).join('');
+    for(let i=0;i<3;i++){const opened=await importFile(file),doc={...opened.document,content:parseDocumentHtml(opened.html!)};const box=doc.content.content!.find(n=>n.type==='documentTextBox')!;states.push({body:doc.content.content!.find(n=>text(n)==='BODY TITLE'),box:box.content![0]});if(i<2){const b=[...new Uint8Array(await(await exportDocx(doc)).arrayBuffer())];saves.push(b);file=new File([new Uint8Array(b)],'again.docx')}}return{states,saves};
+  },[...bytes]);
+  for(const stage of result.states){expect(stage.body!.type).toBe('heading');expect(stage.body!.attrs?.level).toBe(1);expect(stage.box.type).toBe('paragraph');expect(stage.body!.attrs?.wordParagraphStyle).toBe(stage.box.attrs?.wordParagraphStyle);expect(stage.body!.attrs?.wordParagraphStyleName).toBe('Title');expect(stage.box.attrs?.wordParagraphStyleName).toBe('Title')}
+  for(let i=0;i<result.saves.length;i++)await writeDocx(testInfo,`contextual-title-save${i+1}.docx`,result.saves[i]);
+});

@@ -103,7 +103,7 @@ export const WordContextualSpacing = Extension.create({
         // A heading changed to body text (including Enter at its end) is a
         // new paragraph style. Retire only the source identity/policy; keep
         // explicit formatting and let the existing undo transaction restore it.
-        tr.setNodeMarkup(pos, undefined, { ...node.attrs, wordParagraphStyle: null, wordContextualSpacing: null });
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, wordParagraphStyle: null, wordParagraphStyleName: null, wordContextualSpacing: null });
       });
       return tr.docChanged ? tr : null;
     },
