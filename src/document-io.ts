@@ -280,6 +280,7 @@ export function validateDocument(input: unknown): StudioDocument {
     const attrs = value.attrs as Record<string, unknown> | undefined;
     for (const key of ['wordParagraphStyle', 'wordParagraphStyleName'])
       if (attrs?.[key] != null && (!boundedString(attrs[key], 1000) || !attrs[key] || /[\u0000-\u001f]/.test(String(attrs[key])))) fail('문단 스타일 정보가 올바르지 않습니다.');
+    if (attrs?.wordParagraphStyleKind != null && !/^(?:paragraph|heading[1-6])$/.test(String(attrs.wordParagraphStyleKind))) fail('문단 스타일 종류가 올바르지 않습니다.');
     if (attrs?.wordContextualSpacing != null && typeof attrs.wordContextualSpacing !== 'boolean') fail('문단 간격 정책이 올바르지 않습니다.');
     if (attrs?.hwpCellLine != null && !parseHwpCellLine(attrs.hwpCellLine)) fail('한글 셀의 줄 간격 정보가 올바르지 않습니다.');
     if (type === 'documentSymbol' && (!boundedString(attrs?.font, 100) || !attrs?.font || !/^\d{1,5}$/.test(String(attrs?.code)) || !finite(Number(attrs?.code), 0, 65535) || !boundedString(attrs?.glyph, 100))) fail('기호 글자가 올바르지 않습니다.');

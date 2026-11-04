@@ -244,10 +244,10 @@ test('heading-to-body edits retire the source policy, while undo and whole-docum
   const result=await page.evaluate(async()=>{
     const{Editor}=await import('/node_modules/.vite/deps/@tiptap_react.js'),{editorExtensions}=await import('/src/extensions.ts');
     const mount=document.createElement('div');document.body.append(mount);
-    const heading={type:'heading',attrs:{level:1,wordParagraphStyle:'SourceHeading',wordContextualSpacing:true,spaceAfter:'10px'},content:[{type:'text',text:'TITLE'}]};
+    const heading={type:'heading',attrs:{level:1,wordParagraphStyle:'SourceHeading',wordParagraphStyleKind:'heading1',wordContextualSpacing:true,spaceAfter:'10px'},content:[{type:'text',text:'TITLE'}]};
     const editor=new Editor({element:mount,extensions:editorExtensions,content:{type:'doc',content:[heading,{type:'paragraph',content:[{type:'text',text:'BODY'}]}]}});
     const initial=editor.getJSON();editor.commands.setTextSelection(6);editor.commands.splitBlock();const split=editor.getJSON();editor.commands.undo();const undone=editor.getJSON();editor.commands.redo();const redone=editor.getJSON();
-    editor.commands.setContent({type:'doc',content:[{...heading,type:'paragraph'}]});const reopened=editor.getJSON();
+    editor.commands.setContent({type:'doc',content:[{...heading,type:'paragraph',attrs:{...heading.attrs,wordParagraphStyleKind:'paragraph'}}]});const reopened=editor.getJSON();
     editor.commands.setTextSelection(2);editor.commands.setHeading({level:2});const changed=editor.getJSON();
     editor.destroy();mount.remove();return{initial,split,undone,redone,reopened,changed};
   });
@@ -262,13 +262,14 @@ test('the same Title style remains a body heading and an ordinary textbox paragr
   const source=await Packer.toBuffer(new Document({sections:[{children:[new Paragraph({text:'BODY TITLE',heading:HeadingLevel.TITLE,contextualSpacing:true}),new Paragraph({text:'BODY END'})]}]}));
   const zip=await JSZip.loadAsync(source);let xml=await zip.file('word/document.xml')!.async('string');
   const box=`<w:p><w:r><w:pict xmlns:v="urn:schemas-microsoft-com:vml"><v:shape id="TitleBox" style="position:absolute;margin-left:20px;margin-top:100px;width:240px;height:80px;mso-position-horizontal-relative:margin;mso-position-vertical-relative:margin" fillcolor="#EEEEEE" stroked="f"><v:textbox inset="0,0,0,0"><w:txbxContent><w:p><w:pPr><w:pStyle w:val="Title"/><w:contextualSpacing/></w:pPr><w:r><w:t>BOX TITLE</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>`;
-  xml=xml.replace('<w:sectPr>',box+'<w:sectPr>');zip.file('word/document.xml',xml);const bytes=await zip.generateAsync({type:'uint8array'});
+  xml=xml.replace('<w:sectPr>',box+'<w:p><w:r><w:t>AFTER BOX</w:t></w:r></w:p><w:sectPr>');zip.file('word/document.xml',xml);const bytes=await zip.generateAsync({type:'uint8array'});
   await page.goto('/');
   const result=await page.evaluate(async bytes=>{
-    const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml}=await import('/src/extensions.ts');const states=[],saves=[];let file=new File([new Uint8Array(bytes)],'mixed-title.docx');
+    const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml}=await import('/src/extensions.ts');const{Editor}=await import('/node_modules/.vite/deps/@tiptap_react.js');const{editorExtensions}=await import('/src/extensions.ts');const states=[],saves=[];let editing:any=null;let file=new File([new Uint8Array(bytes)],'mixed-title.docx');
     const text=(n:any):string=>(n.text||'')+(n.content||[]).map(text).join('');
-    for(let i=0;i<3;i++){const opened=await importFile(file),doc={...opened.document,content:parseDocumentHtml(opened.html!)};const box=doc.content.content!.find(n=>n.type==='documentTextBox')!;states.push({body:doc.content.content!.find(n=>text(n)==='BODY TITLE'),box:box.content![0]});if(i<2){const b=[...new Uint8Array(await(await exportDocx(doc)).arrayBuffer())];saves.push(b);file=new File([new Uint8Array(b)],'again.docx')}}return{states,saves};
+    for(let i=0;i<3;i++){const opened=await importFile(file),doc={...opened.document,content:parseDocumentHtml(opened.html!)};const box=doc.content.content!.find(n=>n.type==='documentTextBox')!;states.push({body:doc.content.content!.find(n=>text(n)==='BODY TITLE'),box:box.content![0]});if(i===0){const mount=document.createElement('div');document.body.append(mount);const editor=new Editor({element:mount,extensions:editorExtensions,content:doc.content});editor.commands.setTextSelection(2);editor.commands.setParagraph();const changed=editor.getJSON();editor.commands.undo();editing={changedBody:changed.content!.find(n=>text(n)==='BODY TITLE'),unchangedBox:changed.content!.find(n=>n.type==='documentTextBox')!.content![0],undoExact:JSON.stringify(editor.getJSON())===JSON.stringify(doc.content)};editor.destroy();mount.remove()}if(i<2){const b=[...new Uint8Array(await(await exportDocx(doc)).arrayBuffer())];saves.push(b);file=new File([new Uint8Array(b)],'again.docx')}}return{states,saves,editing};
   },[...bytes]);
   for(const stage of result.states){expect(stage.body!.type).toBe('heading');expect(stage.body!.attrs?.level).toBe(1);expect(stage.box.type).toBe('paragraph');expect(stage.body!.attrs?.wordParagraphStyle).toBe(stage.box.attrs?.wordParagraphStyle);expect(stage.body!.attrs?.wordParagraphStyleName).toBe('Title');expect(stage.box.attrs?.wordParagraphStyleName).toBe('Title')}
+  expect(result.editing.changedBody.type).toBe('paragraph');expect(result.editing.changedBody.attrs.wordParagraphStyle).toBeNull();expect(result.editing.changedBody.attrs.wordContextualSpacing).toBeNull();expect(result.editing.unchangedBox.attrs.wordParagraphStyle).toBe('Title');expect(result.editing.undoExact).toBe(true);
   for(let i=0;i<result.saves.length;i++)await writeDocx(testInfo,`contextual-title-save${i+1}.docx`,result.saves[i]);
 });

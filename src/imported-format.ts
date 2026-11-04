@@ -46,6 +46,13 @@ export const ImportedFormat = Extension.create({
           renderHTML: (a: Record<string, unknown>) => typeof a.wordParagraphStyleName === 'string' && a.wordParagraphStyleName
             ? { 'data-word-paragraph-style-name': a.wordParagraphStyleName } : {},
         },
+        // Internal typing context, derived from the actual story tag. One
+        // Word style (Title) can be a body heading and an ordinary box paragraph.
+        wordParagraphStyleKind: {
+          default: null, rendered: false,
+          parseHTML: (el: HTMLElement) => el.hasAttribute('data-word-paragraph-style')
+            ? /^H[1-6]$/.test(el.tagName) ? `heading${el.tagName.slice(1)}` : 'paragraph' : null,
+        },
         wordWidowControl: {
           default: null,
           parseHTML: (el: HTMLElement) => {

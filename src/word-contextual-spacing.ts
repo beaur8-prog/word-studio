@@ -80,30 +80,20 @@ export const WordContextualSpacing = Extension.create({
   addProseMirrorPlugins: () => [new Plugin<DecorationSet>({
     state: { init: (_, state) => decorations(state.doc), apply: (tr, old) => tr.docChanged ? decorations(tr.doc) : old },
     props: { decorations(state) { return this.getState(state); } },
-    appendTransaction(transactions, oldState, state) {
+    appendTransaction(transactions, _oldState, state) {
       if (!transactions.some(tr => tr.docChanged)) return null;
-      // Opening/replacing a whole document has its own style namespace. It
-      // must not inherit the former document's paragraph-kind expectations.
-      if (transactions.some(tr => tr.steps.some((step, index) => {
-        const value = step.toJSON();
-        return value.stepType === 'replace' && value.from === 0 && value.to >= tr.docs[index].content.size;
-      }))) return null;
-      const kinds = new Map<string, Set<string>>();
-      const kind = (node: PMNode) => node.type.name + (node.type.name === 'heading' ? node.attrs.level : '');
-      oldState.doc.descendants(node => {
-        if (!['paragraph', 'heading'].includes(node.type.name) || !node.attrs.wordParagraphStyle) return;
-        const values = kinds.get(node.attrs.wordParagraphStyle) || new Set<string>();
-        values.add(kind(node)); kinds.set(node.attrs.wordParagraphStyle, values);
-      });
-      if (!kinds.size) return null;
       const tr = state.tr;
       state.doc.descendants((node, pos) => {
-        const source = kinds.get(node.attrs.wordParagraphStyle);
-        if (!['paragraph', 'heading'].includes(node.type.name) || !source || source.has(kind(node))) return;
-        // A heading changed to body text (including Enter at its end) is a
-        // new paragraph style. Retire only the source identity/policy; keep
-        // explicit formatting and let the existing undo transaction restore it.
-        tr.setNodeMarkup(pos, undefined, { ...node.attrs, wordParagraphStyle: null, wordParagraphStyleName: null, wordContextualSpacing: null });
+        if (!['paragraph', 'heading'].includes(node.type.name)) return;
+        const original = node.attrs.wordParagraphStyleKind;
+        const current = node.type.name + (node.type.name === 'heading' ? node.attrs.level : '');
+        if (node.attrs.wordParagraphStyle && original && original !== current) {
+          // Retire this node's typing context, independently of other stories
+          // using the same style ID. The user's undo restores all metadata.
+          tr.setNodeMarkup(pos, undefined, { ...node.attrs, wordParagraphStyle: null,
+            wordParagraphStyleName: null, wordParagraphStyleKind: null, wordContextualSpacing: null });
+        }
+        return false;
       });
       return tr.docChanged ? tr : null;
     },
