@@ -1,7 +1,7 @@
 import { documentScale } from './document-scale';
 
-// Legacy private-use labels need their numbering font, which the current
-// model does not retain. Keep the native marker until that font is resolved.
+// Legacy glyph metrics remain separate from paragraph font metrics. Keep
+// their native strut/geometry while rendering the resolved Unicode label.
 export const unresolvedWordListMarker = (label: unknown) => typeof label === 'string' && /[\uE000-\uF8FF]/.test(label);
 
 let markerContext: CanvasRenderingContext2D | null | undefined;
@@ -17,9 +17,9 @@ export function wordListGeometry(item: HTMLElement, paragraph: HTMLElement, orig
   const css = getComputedStyle(paragraph);
   markerContext ??= document.createElement('canvas').getContext('2d');
   if (!markerContext) return null;
-  markerContext.font = `${css.fontStyle} ${css.fontWeight} ${css.fontSize} ${css.fontFamily}`;
+  markerContext.font = `${css.fontStyle} ${css.fontWeight} ${css.fontSize} ${getComputedStyle(item, '::marker').fontFamily}`;
   markerContext.fontKerning = 'none';
-  if (markerContext.measureText(item.dataset.listLabel || '').width > -hanging - .5) return null;
+  if (markerContext.measureText(item.dataset.listGlyph || item.dataset.listLabel || '').width > -hanging - .5) return null;
   let top = 0;
   // Ordinary first paragraph margins collapse through the unpadded LI. Page
   // gap widgets can precede it, so measure only that exceptional first line.

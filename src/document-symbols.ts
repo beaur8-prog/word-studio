@@ -7,6 +7,21 @@ export function symbolFont(style: string) {
   const family = css.fontFamily.split(',')[0].replace(/["']/g, '').trim();
   return mappings[family.toLowerCase()] ? family : '';
 }
+/** Translate a legacy font's encoded label only when every encoded code is
+ * known. Raw text/font stay in the document model and standard DOCX. */
+export function legacySymbolText(font: string, text: string): string | null {
+  const map = mappings[font.trim().toLowerCase()]; if (!map) return null;
+  let output = '';
+  for (const char of text) {
+    const code = char.codePointAt(0)!;
+    if (code > 255 && (code < 0xf000 || code > 0xf0ff)) output += char;
+    else {
+      const mapped = map[String(code & 255)]; if (!mapped) return null;
+      output += mapped;
+    }
+  }
+  return output !== text ? output : null;
+}
 export function symbolElement(font: string, code: number) {
   const span = document.createElement('span');
   span.dataset.symbolFont = font; span.dataset.symbolCode = String(code);

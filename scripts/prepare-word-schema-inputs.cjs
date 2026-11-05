@@ -10,8 +10,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
   if (value !== undefined && typeof value !== 'string') throw Error('Invalid public DOCX validation input');
   raw = value || '';
 }
-// 10 textbox, 10 conditional-spacing, 2 edited-list and 6 list-line/level/suffix copies.
-let count = 28;
+// 10 textbox, 10 conditional-spacing, 2 edited-list, 6 list-line/level/suffix and 6 list-marker copies.
+let count = 34;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);

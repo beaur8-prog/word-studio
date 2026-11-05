@@ -2008,7 +2008,11 @@ button:hover:not(:disabled) {
 }
 
 .tiptap li[data-list-label]::marker { content: attr(data-list-label) " "; }
-.tiptap li[data-print-list-continuation]::marker { content: ""; }
+/* rFonts belongs to the marker; it must not change the paragraph face. */
+:is(.tiptap, .document-furniture) li[data-list-font]::marker,
+:is(.tiptap, .document-furniture) li[data-list-font]::before { font-family: var(--word-list-marker-font, inherit); }
+:is(.tiptap, .document-furniture) li[data-list-glyph]::marker { content: attr(data-list-glyph) " "; }
+:is(.tiptap, .document-furniture) li[data-print-list-continuation]::marker { content: ""; }
 /* An imported Word hanging indent locates the marker. Its first body line
    starts at the same source indent as continuation lines. */
 :is(.tiptap, .document-furniture) li[data-word-list-layout] { position: relative; }
@@ -2017,6 +2021,7 @@ button:hover:not(:disabled) {
   content: attr(data-list-label); position: absolute;
   left: var(--word-list-marker-left); top: var(--word-list-marker-top); white-space: pre;
 }
+:is(.tiptap, .document-furniture) li[data-word-list-layout][data-list-glyph]::before { content: attr(data-list-glyph); }
 :is(.tiptap, .document-furniture) li[data-word-list-layout][data-print-list-continuation]::before { content: none; }
 :is(.tiptap, .document-furniture) [data-word-list-paragraph] { text-indent: 0 !important; }
 

@@ -1,3 +1,4 @@
+import { wordListFontName } from './word-list-marker';
 import { prepareTextBoxes, writeTextBoxes, type TextBoxExport } from './docx-textboxes';
 import { textBoxFrame } from './textbox-frame';
 import { wordHeadingMarks } from './word-heading-defaults';
@@ -1262,47 +1263,40 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         );
       else if (node.type === 'columnGroup' || node.type === 'sectionContent') output.push(...await blocks(node.content || [], context));
       else if (node.type === "bulletList" || node.type === "orderedList") {
-        const imported = node.content?.[0]?.attrs;
-        const reference = imported?.wordListId ? `studio-imported-${imported.wordListId}` : `studio-list-${++listId}`;
-        const level = Math.min(Number(imported?.wordListLevel ?? context.depth ?? 0), 8);
-        if (!configuredLists.has(reference)) numbering.push({
-          reference,
-          levels: Array.from({ length: 9 }, (_, i) => ({
-            level: i,
-            format: (listLevels.get(String(imported?.wordListId))?.get(i)?.wordListFormat as typeof LevelFormat.DECIMAL) || (
-              node.type === "orderedList"
-                ? LevelFormat.DECIMAL
-                : LevelFormat.BULLET),
-            text: String(listLevels.get(String(imported?.wordListId))?.get(i)?.wordListPattern || (
-              node.type === "orderedList"
-                ? `%${i + 1}.`
-                : ["•", "◦", "▪"][i % 3])),
-            start: imported?.wordListId
-              ? listStarts.get(String(imported.wordListId))?.get(i) ?? 1
-              : node.type === "orderedList" ? Math.max(1, Number(node.attrs?.start) || 1) : 1,
-            alignment: AlignmentType.LEFT,
-            suffix: listLevels.get(String(imported?.wordListId))?.get(i)?.wordListSuffix === 'space' ? LevelSuffix.SPACE
-              : listLevels.get(String(imported?.wordListId))?.get(i)?.wordListSuffix === 'nothing' ? LevelSuffix.NOTHING : LevelSuffix.TAB,
-            style: {
-              paragraph: { indent: { left: 720 * (i + 1), hanging: 360 } },
-            },
-          })),
-        });
-        configuredLists.add(reference);
+        // An HTML shell may contain several Word numIds. Configure and use
+        // each item's own definition, keeping one shared id for authored items.
+        let authoredReference: string | undefined;
         for (const item of node.content ?? []) {
+          const imported = item.attrs;
+          const reference = imported?.wordListId ? `studio-imported-${imported.wordListId}` : (authoredReference ??= `studio-list-${++listId}`);
+          const level = Math.min(Number(imported?.wordListLevel ?? context.depth ?? 0), 8);
+          const definitions = listLevels.get(String(imported?.wordListId));
+          if (!configuredLists.has(reference)) numbering.push({
+            reference,
+            levels: Array.from({ length: 9 }, (_, i) => {
+              const source = definitions?.get(i), font = wordListFontName(source?.wordListFont);
+              return {
+                level: i,
+                format: (source?.wordListFormat as typeof LevelFormat.DECIMAL) || (node.type === "orderedList" ? LevelFormat.DECIMAL : LevelFormat.BULLET),
+                text: String(source?.wordListPattern || (node.type === "orderedList" ? `%${i + 1}.` : ["•", "◦", "▪"][i % 3])),
+                start: imported?.wordListId ? listStarts.get(String(imported.wordListId))?.get(i) ?? Math.max(1, Number(source?.wordListStart) || 1)
+                  : node.type === "orderedList" ? Math.max(1, Number(node.attrs?.start) || 1) : 1,
+                alignment: AlignmentType.LEFT,
+                suffix: source?.wordListSuffix === 'space' ? LevelSuffix.SPACE : source?.wordListSuffix === 'nothing' ? LevelSuffix.NOTHING : LevelSuffix.TAB,
+                style: { ...(font ? { run: { font } } : {}), paragraph: { indent: { left: 720 * (i + 1), hanging: 360 } } },
+              };
+            }),
+          });
+          configuredLists.add(reference);
           let first = true;
           for (const child of item.content ?? []) {
-            const isParagraph = ["paragraph", "heading"].includes(
-              child.type ?? "",
-            );
-            output.push(
-              ...(await blocks([child], {
-                cellRun: context.cellRun, width: context.width, tableGap: context.tableGap,
-                depth: level + 1,
-                ...(first && isParagraph ? { list: { reference, level } } : {}),
-                ...(!first && isParagraph ? { indent: 720 * (level + 1) } : {}),
-              })),
-            );
+            const isParagraph = ["paragraph", "heading"].includes(child.type ?? "");
+            output.push(...await blocks([child], {
+              cellRun: context.cellRun, width: context.width, tableGap: context.tableGap,
+              depth: level + 1,
+              ...(first && isParagraph ? { list: { reference, level } } : {}),
+              ...(!first && isParagraph ? { indent: 720 * (level + 1) } : {}),
+            }));
             if (isParagraph) first = false;
           }
         }

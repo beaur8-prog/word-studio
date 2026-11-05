@@ -25,7 +25,7 @@ export const ImportedFormat = Extension.create({
   name: 'importedFormat',
   addGlobalAttributes() {
     return [
-      { types: ['listItem'], attributes: Object.fromEntries(['id','level','format','pattern','label','suffix'].map(key => [`wordList${key[0].toUpperCase()}${key.slice(1)}`, {
+      { types: ['listItem'], attributes: Object.fromEntries(['id','level','format','pattern','label','suffix','font','start'].map(key => [`wordList${key[0].toUpperCase()}${key.slice(1)}`, {
         default: null, parseHTML: (el: HTMLElement) => el.getAttribute(`data-list-${key}`),
         renderHTML: (a: Record<string, unknown>) => a[`wordList${key[0].toUpperCase()}${key.slice(1)}`] != null ? { [`data-list-${key}`]: a[`wordList${key[0].toUpperCase()}${key.slice(1)}`] } : {},
       }])) },

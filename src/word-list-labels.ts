@@ -5,8 +5,9 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import type { Node as PMNode } from '@tiptap/pm/model';
 
 import { wordNumberText } from './word-numbering';
+import { wordListMarker } from './word-list-marker';
 
-type Attributes = { id?: unknown; level?: unknown; format?: unknown; pattern?: unknown; start?: unknown };
+type Attributes = { id?: unknown; level?: unknown; format?: unknown; pattern?: unknown; start?: unknown; sourceStart?: unknown; startId?: unknown; startLevel?: unknown };
 
 /** Imported labels are snapshots, not counters: Enter copies the old LI's
  * attributes. Derive current display labels without adding edits to history.
@@ -29,7 +30,12 @@ function listLabels<T>(root: T, kind: (node: T) => string, children: (node: T) =
     if (kind(node) === 'listItem' && a.id && typeof a.pattern === 'string') {
       const id = String(a.id), level = Math.max(0, Math.min(8, Number(a.level) || 0));
       const counter = counters.get(id) || { values: [], starts: [] };
-      counter.starts[level] ??= Math.max(1, Number(parent && attrs(parent).start) || 1);
+      const shell = parent && attrs(parent);
+      // Mammoth and editing can combine different numIds in one list shell.
+      // Its start belongs only to its first imported id/level, not every item.
+      const ownsStart = shell?.startId === id && (Number(shell.startLevel) || 0) === level;
+      const start = ownsStart || a.sourceStart == null ? shell?.start : a.sourceStart;
+      counter.starts[level] ??= Math.max(1, Number(start) || 1);
       counter.values[level] = counter.values[level] === undefined ? counter.starts[level] : counter.values[level] + 1;
       counter.values.length = level + 1; counters.set(id, counter);
       result.set(node, a.pattern.replace(/%([1-9])/g, (_, n) => {
@@ -46,8 +52,14 @@ export function layoutWordListLabels(root: HTMLElement) {
   const labels = listLabels(root,
     node => node.matches('[data-document-textbox],[data-document-note]') ? 'story' : node.tagName === 'LI' ? 'listItem' : node.tagName,
     node => [...node.children].filter((c): c is HTMLElement => c instanceof HTMLElement),
-    node => ({ id: node.dataset.listId, level: node.dataset.listLevel, format: node.dataset.listFormat, pattern: node.dataset.listPattern, start: node.getAttribute('start') }));
-  for (const [item, label] of labels) item.dataset.listLabel = label;
+    node => ({ id: node.dataset.listId, level: node.dataset.listLevel, format: node.dataset.listFormat, pattern: node.dataset.listPattern, start: node.getAttribute('start'), sourceStart: node.dataset.listStart, startId: (node.firstElementChild as HTMLElement | null)?.dataset.listId, startLevel: (node.firstElementChild as HTMLElement | null)?.dataset.listLevel }));
+  for (const [item, label] of labels) {
+    item.dataset.listLabel = label;
+    const marker = wordListMarker(label, item.dataset.listFont);
+    if (marker.glyph) item.dataset.listGlyph = marker.glyph; else delete item.dataset.listGlyph;
+    if (marker.fontFamily) item.style.setProperty('--word-list-marker-font', marker.fontFamily);
+    else item.style.removeProperty('--word-list-marker-font');
+  }
 }
 function decorations(doc: PMNode) {
   let active = false;
@@ -60,11 +72,15 @@ function decorations(doc: PMNode) {
   const labels = listLabels<Entry>({ node: doc, pos: -1 },
     entry => ['documentTextBox', 'documentNote'].includes(entry.node.type.name) ? 'story' : entry.node.type.name,
     entry => { const nodes: Entry[] = []; entry.node.forEach((node, offset) => nodes.push({ node, pos: entry.pos + 1 + offset })); return nodes; },
-    entry => ({ id: entry.node.attrs.wordListId, level: entry.node.attrs.wordListLevel, format: entry.node.attrs.wordListFormat, pattern: entry.node.attrs.wordListPattern, start: entry.node.attrs.start }));
+    entry => ({ id: entry.node.attrs.wordListId, level: entry.node.attrs.wordListLevel, format: entry.node.attrs.wordListFormat, pattern: entry.node.attrs.wordListPattern, start: entry.node.attrs.start, sourceStart: entry.node.attrs.wordListStart, startId: entry.node.firstChild?.attrs.wordListId, startLevel: entry.node.firstChild?.attrs.wordListLevel }));
   // Always own the live label. Removing a decoration when it equals the
   // saved snapshot would remove the base DOM attribute after undo.
-  return DecorationSet.create(doc, [...labels].map(([entry, label]) =>
-    Decoration.node(entry.pos, entry.pos + entry.node.nodeSize, { 'data-list-label': label })));
+  return DecorationSet.create(doc, [...labels].map(([entry, label]) => {
+    const marker = wordListMarker(label, entry.node.attrs.wordListFont);
+    return Decoration.node(entry.pos, entry.pos + entry.node.nodeSize, { 'data-list-label': label,
+      ...(marker.glyph ? { 'data-list-glyph': marker.glyph } : {}),
+      ...(marker.fontFamily ? { style: `--word-list-marker-font:${marker.fontFamily}` } : {}) });
+  }));
 }
 const listDepth = (doc: PMNode, pos: number) => {
   const resolved = doc.resolve(pos); let depth = 0;
@@ -124,7 +140,7 @@ function movedItems(transactions: readonly Transaction[], old: EditorState, stat
         : variables.length === 1 ? oldPattern.replace(/%[1-9]/, `%${level + 1}`) : oldPattern;
     }
     tr.setNodeMarkup(pos, undefined, { ...node.attrs, wordListLevel: typeof node.attrs.wordListLevel === 'string' ? String(level) : level,
-      wordListFormat: format, wordListPattern: pattern, wordListSuffix: target ? target.attrs.wordListSuffix : node.attrs.wordListSuffix });
+      wordListFormat: format, wordListPattern: pattern, wordListFont: target ? target.attrs.wordListFont : node.attrs.wordListFont, wordListStart: target ? target.attrs.wordListStart : node.attrs.wordListStart, wordListSuffix: target ? target.attrs.wordListSuffix : node.attrs.wordListSuffix });
     const paragraph = node.firstChild, attrs: Record<string, unknown> = { ...paragraph.attrs, indent: (Number(paragraph.attrs.indent) || 0) + offset };
     const from = indentPixels(source?.firstChild?.attrs.firstLineIndent), to = indentPixels(target?.firstChild?.attrs.firstLineIndent), current = indentPixels(paragraph.attrs.firstLineIndent);
     if (Number.isFinite(from) && Number.isFinite(to) && Number.isFinite(current) && from !== to) attrs.firstLineIndent = `${current + to - from}px`;

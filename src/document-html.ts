@@ -103,11 +103,14 @@ export function sanitizeImportedHtml(source: string): {
       "data-row-split", "data-cell-split",
       "data-word-overlap",
       "data-docx-bookmark", "id",
-      "data-list-id", "data-list-level", "data-list-format", "data-list-pattern", "data-list-label", "data-list-suffix",
+      "data-list-id", "data-list-level", "data-list-format", "data-list-pattern", "data-list-label", "data-list-suffix", "data-list-font", "data-list-start",
       "data-document-note", "data-note-reference", "data-note-kind", "data-note-label", "data-page-number",
       "data-column-count", "data-column-space", "data-column-balance", "data-section-content",
       "data-symbol-font", "data-symbol-code", "data-symbol-glyph",
     ],
+    // These values are literal label/font text, not URIs. URI whitespace
+    // stripping includes U+2022 and otherwise drops a perfectly valid bullet.
+    ADD_URI_SAFE_ATTR: ['data-list-pattern', 'data-list-label', 'data-list-font'],
     ALLOW_DATA_ATTR: false,
   });
   const template = document.createElement("template");

@@ -26,7 +26,7 @@ export async function docxFormat(zip: JSZip) {
   const numberingFile = zip.file('word/numbering.xml');
   const numberingXml = numberingFile ? new DOMParser().parseFromString(await numberingFile.async('string'), 'application/xml') : undefined;
   const counters = new Map<string, number[]>();
-  const numberCache = new WeakMap<Element, { id: string; level: number; value: number; format: string; pattern: string; label: string; suffix: string } | null>();
+  const numberCache = new WeakMap<Element, { id: string; level: number; value: number; format: string; pattern: string; label: string; suffix: string; font: string; start: number } | null>();
   const themeFile = zip.file('word/theme/theme1.xml');
   const theme = themeFile ? new DOMParser().parseFromString(await themeFile.async('string'), 'application/xml') : undefined;
   const settingsFile = zip.file('word/settings.xml');
@@ -175,7 +175,10 @@ export async function docxFormat(zip: JSZip) {
       const format = val(child(definition, 'numFmt')) || 'decimal';
       const pattern = val(child(definition, 'lvlText')) || `%${level + 1}.`;
       const suffix = val(child(definition, 'suff'));
-      const info = { id, level, value: values[level], format, pattern, suffix: ['space', 'nothing'].includes(suffix) ? suffix : 'tab',
+      const fonts = child(child(definition, 'rPr'), 'rFonts');
+      const font = themeFont(val(fonts, 'asciiTheme'), themeLanguage || '') || val(fonts, 'ascii') ||
+        themeFont(val(fonts, 'hAnsiTheme'), themeLanguage || '') || val(fonts, 'hAnsi') || val(fonts, 'eastAsia');
+      const info = { id, level, value: values[level], start, format, pattern, font, suffix: ['space', 'nothing'].includes(suffix) ? suffix : 'tab',
         label: pattern.replace(/%([1-9])/g, (_, n) => {
           const ancestor = numberingLevel(p, Number(n) - 1);
           return wordNumberText(values[Number(n) - 1] ?? ancestor.start, val(child(ancestor.definition, 'numFmt')) || format);
