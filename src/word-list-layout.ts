@@ -1,10 +1,15 @@
 import { documentScale } from './document-scale';
 
+// Legacy private-use labels need their numbering font, which the current
+// model does not retain. Keep the native marker until that font is resolved.
+export const unresolvedWordListMarker = (label: unknown) => typeof label === 'string' && /[\uE000-\uF8FF]/.test(label);
+
 let markerContext: CanvasRenderingContext2D | null | undefined;
 /** Word's hanging indent positions the label, not the first body text.
  * Keep the stored paragraph indent and cancel only the HTML list gutter.
  * Wide labels retain the native marker until numbering tabs are represented. */
 export function wordListGeometry(item: HTMLElement, paragraph: HTMLElement, originalIndent: unknown) {
+  if (!item.dataset.listLabel || unresolvedWordListMarker(item.dataset.listLabel)) return null;
   if (item.dataset.listSuffix && item.dataset.listSuffix !== 'tab') return null;
   if (typeof originalIndent !== 'string' || !/^-\d+(?:\.\d+)?(?:px|pt)$/.test(originalIndent)) return null;
   const hanging = parseFloat(originalIndent) * (originalIndent.endsWith('pt') ? 4 / 3 : 1);

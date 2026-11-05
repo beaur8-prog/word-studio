@@ -157,14 +157,14 @@ test('Word hanging indents place markers separately from body and nested continu
  expect(result.serialized).toContain('text-indent: -24px');expect(result.serialized).not.toContain('data-word-list-layout');expect(result.serialized).not.toContain('data-word-list-paragraph');expect(result.serialized).not.toContain('--word-list-marker');
 });
 
-test('a label wider than its hanging slot keeps a native marker instead of overlapping body text',async({page})=>{
+test('wide or unavailable labels retain their native markers without hiding bullets',async({page})=>{
  await page.goto('/');
  const result=await page.evaluate(async()=>{
   const{parseDocumentHtml,editorExtensions}=await import('/src/extensions.ts'),{generateHTML}=await import('/node_modules/.vite/deps/@tiptap_react.js'),{createPrintLayout}=await import('/src/print-layout.ts'),{defaultPage}=await import('/src/types.ts');
-  const html='<ol><li data-list-id="Wide" data-list-level="0" data-list-format="decimal" data-list-pattern="LongMarkerThatCannotFit"><p data-word-line-rule="auto" style="font-family:Arial;font-size:10pt;line-height:1.15;margin:0 0 0 48px;text-indent:-24px">BODY</p></li></ol>';
-  const layout=await createPrintLayout(generateHTML(parseDocumentHtml(html),editorExtensions),defaultPage);try{const li=layout.element.querySelector('li')!,p=li.querySelector('p')!;return{custom:li.hasAttribute('data-word-list-layout'),indent:getComputedStyle(p).textIndent,native:getComputedStyle(li,'::marker').content}}finally{layout.dispose()}
+  const html='<ol><li data-list-id="Unlabeled"><p data-word-line-rule="auto" style="font-family:Arial;font-size:10pt;line-height:1.15;margin:0 0 0 48px;text-indent:-24px">UNLABELED</p></li><li data-list-id="Wide" data-list-level="0" data-list-format="decimal" data-list-pattern="LongMarkerThatCannotFit"><p data-word-line-rule="auto" style="font-family:Arial;font-size:10pt;line-height:1.15;margin:0 0 0 48px;text-indent:-24px">BODY</p></li></ol>';
+  const layout=await createPrintLayout(generateHTML(parseDocumentHtml(html),editorExtensions),defaultPage);try{return [...layout.element.querySelectorAll('li')].map(li=>({custom:li.hasAttribute('data-word-list-layout'),indent:getComputedStyle(li.querySelector('p')!).textIndent,native:getComputedStyle(li,'::marker').content}))}finally{layout.dispose()}
  });
- expect(result.custom).toBe(false);expect(result.indent).toBe('-24px');expect(result.native).toContain('LongMarkerThatCannotFit');
+ for(const li of result){expect(li.custom).toBe(false);expect(li.indent).toBe('-24px')}expect(result[0].native).toBe('normal');expect(result[1].native).toContain('LongMarkerThatCannotFit');
 });
 
 test('numbering space and nothing suffixes survive two standard saves and keep the safe native layout',async({page},testInfo)=>{
@@ -182,4 +182,17 @@ test('numbering space and nothing suffixes survive two standard saves and keep t
  },[...input]);
  for(const stage of result.stages){expect(stage.map(li=>li.suffix)).toEqual(['space','nothing']);for(const li of stage){expect(li.custom).toBe(false);expect(li.indent).toBe('-24px')}}
  for(let i=0;i<2;i++)await fs.writeFile(testInfo.outputPath(`list-save-suffix-${i+1}.docx`),Buffer.from(result.saves[i]));
+});
+
+
+test('private-use markers retain their native font strut until the numbering font is resolved',async({page})=>{
+ await page.goto('/');
+ const actual=await page.evaluate(async()=>{
+  const{Editor}=await import('/node_modules/.vite/deps/@tiptap_react.js'),{editorExtensions,parseDocumentHtml}=await import('/src/extensions.ts'),{createPrintLayout}=await import('/src/print-layout.ts'),{defaultPage}=await import('/src/types.ts');
+  const mount=document.createElement('div');document.body.append(mount);const html='<ul><li data-list-id="Symbol" data-list-level="0" data-list-format="bullet" data-list-pattern="\uf0b7"><p data-word-line-rule="auto" style="font-family:Arial;font-size:10pt;line-height:1.15;margin-left:48px;text-indent:-24px">BODY</p></li></ul>';
+  const editor=new Editor({element:mount,extensions:editorExtensions,content:parseDocumentHtml(html)});
+  const snap=(root:HTMLElement)=>{const li=root.querySelector('li')!,p=li.querySelector('p')!,host=li.closest('.tiptap')!;return{marker:(li as HTMLElement).dataset.listLabel,custom:li.hasAttribute('data-word-list-layout'),font:getComputedStyle(li).fontSize,rootFont:getComputedStyle(host).fontSize,indent:getComputedStyle(p).textIndent}};
+  try{await new Promise(r=>setTimeout(r,100));const layout=await createPrintLayout(editor.getHTML(),defaultPage);try{return[snap(editor.view.dom),snap(layout.element)]}finally{layout.dispose()}}finally{editor.destroy();mount.remove()}
+ });
+ for(const stage of actual){expect(stage.marker).toBe('\uf0b7');expect(stage.custom).toBe(false);expect(stage.font).toBe(stage.rootFont);expect(stage.indent).toBe('-24px')}
 });
