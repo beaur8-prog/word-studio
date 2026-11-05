@@ -52,6 +52,28 @@ export async function docxFormat(zip: JSZip) {
   function paragraphStyles(p: Element) {
     return chain(val(child(child(p, 'pPr'), 'pStyle')) || val(normal, 'styleId'));
   }
+  const tableParagraphCache = new WeakMap<Element, (Element | undefined)[]>();
+  function tableParagraphProperties(p: Element): (Element | undefined)[] {
+    let cell = p.parentElement;
+    // A textbox is a separate story. A nested table uses its own style rather
+    // than inheriting the surrounding cell's table paragraph defaults.
+    while (cell && cell.localName !== 'tc') {
+      if (cell.localName === 'txbxContent') return [];
+      cell = cell.parentElement;
+    }
+    const table = cell && ancestor(cell, 'tbl');
+    if (!table) return [];
+    const cached = tableParagraphCache.get(table);
+    if (cached) return cached;
+    const id = val(child(child(table, 'tblPr'), 'tblStyle')) || val(normalTable, 'styleId');
+    const properties = chain(id).map(style => child(style, 'pPr'));
+    tableParagraphCache.set(table, properties);
+    return properties;
+  }
+  function paragraphProperties(p: Element) {
+    return [child(child(defaults, 'pPrDefault'), 'pPr'), ...tableParagraphProperties(p),
+      ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')];
+  }
   function numberingLevel(p: Element, selectedLevel?: number) {
     let id = '', level = 0;
     for (const props of [...paragraphStyles(p).map(s => child(s, 'pPr')), child(p, 'pPr')]) {
@@ -150,7 +172,7 @@ export async function docxFormat(zip: JSZip) {
     },
     contextualSpacing(p: Element): boolean | null {
       let enabled: boolean | null = null;
-      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
+      for (const props of paragraphProperties(p)) {
         const setting = child(props, 'contextualSpacing');
         if (setting) enabled = on(setting);
       }
@@ -204,7 +226,7 @@ export async function docxFormat(zip: JSZip) {
     autoSpacing(p: Element) {
       // Resolve each standard property independently, including explicit false.
       const result = { de: true, dn: true };
-      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
+      for (const props of paragraphProperties(p)) {
         const de = child(props, 'autoSpaceDE'), dn = child(props, 'autoSpaceDN');
         if (de) result.de = on(de);
         if (dn) result.dn = on(dn);
@@ -213,7 +235,7 @@ export async function docxFormat(zip: JSZip) {
     },
     lineRule(p: Element) {
       let rule = 'auto';
-      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
+      for (const props of paragraphProperties(p)) {
         const spacing = child(props, 'spacing');
         if (val(spacing, 'line')) rule = val(spacing, 'lineRule') || 'auto';
       }
@@ -222,7 +244,7 @@ export async function docxFormat(zip: JSZip) {
     run(run: Element, script: 'ascii' | 'eastAsia' = 'ascii') { return runCss(runLayers(ancestor(run, 'p')!, run), script); },
     tabs(p: Element) {
       const stops = new Map<number, { position: number; type: string; leader: string }>();
-      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
+      for (const props of paragraphProperties(p)) {
         for (const tab of Array.from(child(props, 'tabs')?.children ?? [])) {
           const position = Number(val(tab, 'pos')) / 15, type = val(tab);
           if (type === 'clear') stops.delete(position);
@@ -260,7 +282,7 @@ export async function docxFormat(zip: JSZip) {
       // OOXML defaults to enabled; an inherited false and a direct override
       // must both survive the same property-by-property style resolution.
       style.widows = '2'; style.orphans = '2';
-      for (const props of [child(child(defaults, 'pPrDefault'), 'pPr'), ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')]) {
+      for (const props of paragraphProperties(p)) {
         if (!props) continue;
         const wrap = child(props, 'wordWrap');
         if (wrap) style.wordBreak = on(wrap) ? 'normal' : 'keep-all';

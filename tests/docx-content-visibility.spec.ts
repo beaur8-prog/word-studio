@@ -38,7 +38,7 @@ for (const story of ['header', 'footer'] as const) test(`${story} right tab keep
     return { input, states, saves };
   }, story);
   await writeFile(test.info().outputPath(`${story}-visibility-states.json`), JSON.stringify(result.states, null, 2));
-  for (const [i, bytes] of result.saves.entries()) await writeFile(test.info().outputPath(`${story}-visibility-save${i + 1}.docx`), Buffer.from(bytes));
+  for (const [i, bytes] of result.saves.entries()) await writeFile(test.info().outputPath(`textbox-save-${story}-visibility-${i + 1}.docx`), Buffer.from(bytes));
   for (const state of result.states) {
     expect(state.pages).toBe(2);
     for (const row of state.stories) {

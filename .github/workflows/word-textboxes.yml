@@ -7,7 +7,7 @@ on:
         type: string
         default: ''
   push:
-    branches: ['codex/word-web-critical-four-hours', 'codex/word-contextual-spacing', 'codex/word-list-pagination', 'codex/word-long-body-metrics', 'codex/word-list-line-boxes', 'codex/word-numbering-fonts']
+    branches: ['codex/word-web-critical-four-hours', 'codex/word-contextual-spacing', 'codex/word-list-pagination', 'codex/word-long-body-metrics', 'codex/word-list-line-boxes', 'codex/word-numbering-fonts', 'codex/word-content-pagination-six-hours']
     paths:
       - '.github/workflows/word-textboxes.yml'
       - 'src/**'
@@ -17,6 +17,10 @@ on:
       - 'tests/list-pagination.spec.ts'
       - 'tests/word-list-lines.spec.ts'
       - 'tests/word-list-symbols.spec.ts'
+      - 'tests/docx-content-visibility.spec.ts'
+      - 'tests/docx-table-style-paragraphs.spec.ts'
+      - 'tests/docx-floating-size.spec.ts'
+      - 'tests/layout-flow.spec.ts'
       - 'tests/word-font-fallbacks.spec.ts'
       - 'tests/symbol-fonts.test.cjs'
       - 'tests/word-line-metrics.spec.ts'
@@ -58,6 +62,10 @@ on:
       - 'tests/list-pagination.spec.ts'
       - 'tests/word-list-lines.spec.ts'
       - 'tests/word-list-symbols.spec.ts'
+      - 'tests/docx-content-visibility.spec.ts'
+      - 'tests/docx-table-style-paragraphs.spec.ts'
+      - 'tests/docx-floating-size.spec.ts'
+      - 'tests/layout-flow.spec.ts'
       - 'tests/word-font-fallbacks.spec.ts'
       - 'tests/symbol-fonts.test.cjs'
       - 'tests/word-line-metrics.spec.ts'
@@ -88,7 +96,7 @@ jobs:
       - name: Verify bundled font bytes, licenses and legacy symbol coverage
         run: node --test tests/symbol-fonts.test.cjs
       - name: Exercise stories, colors, geometry, editor commands and two real DOCX exports
-        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-list-lines.spec.ts tests/word-list-symbols.spec.ts tests/word-font-fallbacks.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts --trace=off --reporter=line
+        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-list-lines.spec.ts tests/word-list-symbols.spec.ts tests/docx-content-visibility.spec.ts tests/docx-table-style-paragraphs.spec.ts tests/docx-floating-size.spec.ts tests/layout-flow.spec.ts tests/word-font-fallbacks.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts --trace=off --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - name: Add optional public reproduction copies for schema validation
