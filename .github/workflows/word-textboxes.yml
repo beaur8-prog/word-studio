@@ -113,6 +113,10 @@ jobs:
         run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-list-lines.spec.ts tests/word-list-symbols.spec.ts tests/docx-content-visibility.spec.ts tests/docx-grouped-pictures.spec.ts tests/docx-table-style-paragraphs.spec.ts tests/docx-floating-size.spec.ts tests/layout-flow.spec.ts tests/word-font-fallbacks.spec.ts tests/selection-navigation.spec.ts tests/word-short-paragraphs.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts --trace=off --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
+      - name: Repeat asynchronous list typography after edits and late font loading
+        run: npx playwright test tests/word-list-lines.spec.ts --grep "imported marker height follows edits" --repeat-each=3 --trace=off --output=test-results/list-metric-repeats --reporter=line
+        env:
+          PLAYWRIGHT_CHANNEL: chromium
       - name: Add optional public reproduction copies for schema validation
         id: public-copies
         run: node scripts/prepare-word-schema-inputs.cjs

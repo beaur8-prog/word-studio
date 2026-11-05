@@ -62,7 +62,10 @@ test('imported marker height follows edits, undo and redo without persisting vie
   const p=(text:string)=>({type:'paragraph',attrs:{paragraphFont:'LateListFont,Arial',paragraphSize:'10pt',lineSpacing:'1.15',wordLineRule:'auto',spaceBefore:'0px',spaceAfter:'0px'},content:[{type:'text',text}]});
   const li=(text:string)=>({type:'listItem',attrs:{wordListId:'Edit',wordListLevel:0,wordListPattern:'%1.',wordListFormat:'decimal'},content:[p(text)]});
   const editor=new Editor({element:mount,extensions:editorExtensions,content:{type:'doc',content:[{type:'orderedList',content:[li('FIRST'),li('SECOND')]}]}});
-  const settle=()=>new Promise(r=>setTimeout(r,100)),snap=()=>{const li=editor.view.dom.querySelector('li')!,p=li.querySelector('p')!;return{height:li.getBoundingClientRect().height,pHeight:p.getBoundingClientRect().height,font:getComputedStyle(li).fontSize,pFont:getComputedStyle(p).fontSize,leading:getComputedStyle(li).lineHeight,pLeading:getComputedStyle(p).lineHeight}};
+  const snap=()=>{const li=editor.view.dom.querySelector('li')!,p=li.querySelector('p')!;return{height:li.getBoundingClientRect().height,pHeight:p.getBoundingClientRect().height,font:getComputedStyle(li).fontSize,pFont:getComputedStyle(p).fontSize,leading:getComputedStyle(li).lineHeight,pLeading:getComputedStyle(p).lineHeight}};
+  // The plugin updates in animation frames; a fixed 100ms can sample the
+  // preceding decoration on a busy runner. Wait for the actual typography.
+  const settle=async()=>{const end=performance.now()+5000;let stable=0;while(performance.now()<end){await new Promise<void>(r=>requestAnimationFrame(()=>r()));const s=snap();if(s.font===s.pFont&&s.leading===s.pLeading&&Math.abs(s.height-s.pHeight)<.05){if(++stable===2)return;}else stable=0;}throw Error('List typography did not settle: '+JSON.stringify(snap()));};
   try{
    await settle();const before=snap(),original=editor.getJSON();editor.view.dispatch(closeHistory(editor.state.tr));
    editor.commands.setTextSelection(3);editor.commands.updateAttributes('paragraph',{paragraphSize:'24pt'});await settle();const enlarged=snap();
