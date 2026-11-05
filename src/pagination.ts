@@ -1,3 +1,4 @@
+import { wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
 import { rowSplitPolicy } from './row-split-policy';
 import { documentScale } from './document-scale';
 import { Extension } from '@tiptap/core';
@@ -244,6 +245,7 @@ export const Pagination = Extension.create({
               let lastContent = flow.length - 1;
               while (lastContent >= 0 && flow[lastContent].empty && !flow[lastContent].explicit) lastContent--;
               const queue = flow.slice(0, lastContent + 1);
+              const protectedKeeps = new Set<number>();
               for (let index = 0; index < queue.length; index++) {
                 const piece = queue[index];
                 if (piece.explicit === 'sectionBreak' && piece.breakType === 'continuous') {
@@ -251,6 +253,39 @@ export const Pagination = Extension.create({
                 }
                 if (piece.explicit === 'pageBreak' && sectionJustStarted) {
                   dec.push(Decoration.node(piece.pos, piece.end, { style: 'height:0;margin:0' })); signatures.push(`coalesced:${piece.pos}`); sectionJustStarted = false; continue;
+                }
+                // Measure a whole keep chain before any member moves. The
+                // last paragraph contributes only its first legal prefix.
+                const paragraph = view.nodeDOM(piece.pos);
+                if (!piece.explicit && !piece.columns && paragraph instanceof HTMLElement && wordKeepParagraph(paragraph)) {
+                  let budget = 0;
+                  if (paragraph.dataset.wordKeepNext === 'true' && !protectedKeeps.has(piece.pos)) {
+                    const group = [{ piece, paragraph }]; let cursor = index;
+                    while (group[group.length - 1].paragraph.dataset.wordKeepNext === 'true' && cursor + 1 < queue.length) {
+                      const next = queue[cursor + 1], dom = view.nodeDOM(next.pos);
+                      if (next.explicit || next.columns || !(dom instanceof HTMLElement) || !wordKeepParagraph(dom) || dom.parentElement !== paragraph.parentElement) break;
+                      group.push({ piece: next, paragraph: dom }); cursor++;
+                    }
+                    if (group.length > 1) {
+                      for (const item of group.slice(0, -1)) protectedKeeps.add(item.piece.pos);
+                      const last = group[group.length - 1];
+                      budget = last.piece.top - piece.top + wordKeepPrefixHeight(last.paragraph, usable, scale);
+                    }
+                  }
+                  // Oversized keep-lines paragraphs start on fresh paper and
+                  // then continue at real lines instead of shrinking or looping.
+                  if (!budget && paragraph.dataset.wordKeepLines === 'true' && piece.height > usable + .5) budget = piece.height;
+                  if (budget) {
+                    const y = piece.top + extra, page = Math.max(0, Math.floor((y - top + .5) / stride));
+                    if (y > page * stride + top + .5 && y + budget > page * stride + h - bottom - reserve(page, []) + .5) {
+                      const gap = Math.max(0, Math.ceil(((page + 1) * stride + top - y) * 64) / 64);
+                      dec.push(Decoration.widget(piece.pos, () => {
+                        const spacer = document.createElement('div'); spacer.className = 'pagination-gap'; spacer.style.height = `${gap}px`;
+                        spacer.contentEditable = 'false'; spacer.setAttribute('aria-hidden', 'true'); return spacer;
+                      }, { side: -1, key: `keep-${piece.pos}-${gap}` }));
+                      extra += gap; signatures.push(`keep:${piece.pos}:${gap}`);
+                    }
+                  }
                 }
                 const y = piece.top + extra, page = Math.max(0, Math.floor((y - top + .5) / stride));
                 if (piece.header && !tablePages.has(piece.header.table)) tablePages.set(piece.header.table,
@@ -302,7 +337,7 @@ export const Pagination = Extension.create({
                 }
                 if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
-                  if (paragraph instanceof HTMLElement && paragraph.tagName === 'P') {
+                  if (paragraph instanceof HTMLElement && /^(P|H[1-6])$/.test(paragraph.tagName)) {
                     const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed,
                       references: (piece.references ?? []).filter(ref => refs.some(r => r.id === ref.id)).map(ref => ({ id: ref.id, top: piece.top + ref.offset })),
                       reserveAt: (page, own) => reserve(page, own) });

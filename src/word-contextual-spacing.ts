@@ -91,7 +91,7 @@ export const WordContextualSpacing = Extension.create({
           // Retire this node's typing context, independently of other stories
           // using the same style ID. The user's undo restores all metadata.
           tr.setNodeMarkup(pos, undefined, { ...node.attrs, wordParagraphStyle: null,
-            wordParagraphStyleName: null, wordParagraphStyleKind: null, wordContextualSpacing: null });
+            wordParagraphStyleName: null, wordParagraphStyleKind: null, wordContextualSpacing: null, wordKeepNext: null, wordKeepLines: null });
         }
         return false;
       });

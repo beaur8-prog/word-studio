@@ -247,6 +247,15 @@ export async function docxFormat(zip: JSZip) {
       }
       return result;
     },
+    paragraphKeeps(p: Element) {
+      const result: { next: boolean | null; lines: boolean | null } = { next: null, lines: null };
+      for (const props of paragraphProperties(p)) {
+        const next = child(props, 'keepNext'), lines = child(props, 'keepLines');
+        if (next) result.next = on(next);
+        if (lines) result.lines = on(lines);
+      }
+      return result;
+    },
     lineRule(p: Element) {
       let rule = 'auto';
       for (const props of paragraphProperties(p)) {

@@ -1,3 +1,4 @@
+import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
 import { rowSplitPolicy } from './row-split-policy';
 import { layoutTextBoxes } from './textbox-frame';
 import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
@@ -50,6 +51,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   for (const note of source.querySelectorAll<HTMLElement>('[data-document-note][data-note-kind="footnote"]')) {
     noteBodies.set(note.dataset.documentNote!, note); note.remove();
   }
+  const keepChains = wordKeepChains(source), protectedKeeps = new WeakSet<HTMLElement>();
   let settings = initialPage, pageNumber = 0, content: HTMLElement, footnotes: HTMLElement;
   let deferredNotes = new Set<string>();
   let sectionNumber = 0;
@@ -366,6 +368,26 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       return;
     }
     content.append(element);
+    if (wordKeepParagraph(element) && (element.dataset.wordKeepNext === 'true' || element.dataset.wordKeepLines === 'true')) {
+      fits();
+      const bodyHeight = content.getBoundingClientRect().height;
+      let budget = 0;
+      const chain = !protectedKeeps.has(element) && keepChains.get(element);
+      if (chain) {
+        for (const heading of chain.slice(0, -1)) protectedKeeps.add(heading);
+        // Measure the future siblings in the same page width and line rules.
+        // Clones are view-only and never enter the editor or saved document.
+        const probes = chain.slice(1).map(p => p.cloneNode(true) as HTMLElement);
+        content.append(...probes); fits();
+        const last = probes[probes.length - 1];
+        budget = last.getBoundingClientRect().top - element.getBoundingClientRect().top + wordKeepPrefixHeight(last, bodyHeight);
+        probes.forEach(p => p.remove()); fits();
+      }
+      if (!budget && element.dataset.wordKeepLines === 'true' && !element.dataset.printParagraphFragment && element.getBoundingClientRect().height > bodyHeight + .5) budget = element.getBoundingClientRect().height;
+      if (budget && content.children.length > 1 && element.getBoundingClientRect().top + budget > content.getBoundingClientRect().bottom + .5) {
+        element.remove(); newPage(); append(element); return;
+      }
+    }
     const fitsPage = fits();
     if (!fitsPage && settings.hideEmptyLines && content.children.length > 1 && hiddenEmptyLines < 2 &&
       element.getBoundingClientRect().height <= content.getBoundingClientRect().height && canHideEmptyPageLine(element)) {
