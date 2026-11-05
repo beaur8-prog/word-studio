@@ -495,3 +495,12 @@ Word의 내어쓰기는 번호를 놓는 위치다. 이를 본문 첫 줄의 음
 다음최우선은 **그룹그림누락**이다.보충생성DOCX의mixed-group(그림1/상자1)·picture-group(그림1)은그림0으로가져오고독립그림대조군은1로정상인반례를확인했다.그룹/anchor기하는맞췄으며공식SDK원입력확인과제품수정은아직남는다.[Microsoft그룹명세](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-odrawxml/c89701a2-99ac-4948-b84f-1eaecc69dfa0)에서pic:pic는표준자식이다.이보충집합을실제Word원본10에섞지않는다.이누락을먼저막고남은페이지차이를이어간다.
 
 최신저장본의실제웹Word재열기/인쇄와데스크톱Word는미검증이다.표의찾기전체선택후ArrowRight가다음셀로가는기존행동도별도남은문제로기록했다.현재증거/실패/다음행동은`analysis/word-content-pagination-6h-2026-11-05/`의progress/checkpoint-first/preservation-and-visibility-table/frozen-paragraph-summary-table/native-content-edit/ci-summary-first/group-image-probe에있다.6시간이어가기word-6는ACTIVE이며배포·리토스는요청하지않아수행하지않았다.
+
+
+## 6시간 내용 보존 단계의 추가 체크포인트 — 2026-11-05 06:29UTC경
+
+그룹 속 그림을 놓치던 읽기 경로를 고쳐 인라인/떠있는 그룹의 그림과 편집 가능한 상자를 각각 보존하고 표준DOCX의 한 그룹 앵커로 다시 저장한다. 머리말 상자의 배경 누락으로 흰 글자가 안 보이던 문제와 빈 그룹 앵커의 인쇄 줄 누락도 수정했다. 보충 생성10종은 Word원본10과 분리했다. 실제앱의3종에서 입력·undo/redo·재열기·두번DOCX저장을 확인했다. 회전·플립·차트/WordArt효과 전체가 지원된다는 뜻은 아니다.
+
+그룹 제품`72805c0`은 전체664개, 양OS각101개, 공식SDK70개씩 오류0이다. 유효원입력10개와 실제저장60개를 함께 검사한 [CI41976824150](https://github.com/beaur8-prog/word-studio/actions/runs/41976824150)의 검사커밋은`3b836ab`이다. Word원본10개는55906자/표6/셀118/본문그림2+머리말그림2와 두저장/실제인쇄를 유지했고, 그룹변경 전후 모델과PDF그리기명령은같다. 따라서 시작쪽차이25를 추가로 줄인 성과로 세지 않는다.
+
+현재는 가장 많은 쪽차이가 남은02의 대체서체를 일반/기울임face만 정확히 선택하는 후보를 검증한다. 별도CSS진단에서 같은127개 시작쪽차이는15→5, 줄경계F1 .480→.884였으나 제품 달성치가 아니다. 원래 설치face는 우선하며, 미일치 굵은체와 다른weight의기존fallback은 보존한다. 원래 font명/pointsize/본문/빈줄/여백은 바꾸지 않는다. 현재 후보는집중104개와빌드가통과했고 실제 원본10/두저장/전체/양OS/HWP를 이어간다. 최신 일정과 실패/현재프로세스는[6시간 계획](WORD_CONTENT_PAGINATION_6H_PLAN.md)과진행기록에있다.6시간작업은여전히진행중이다.
