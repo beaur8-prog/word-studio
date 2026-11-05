@@ -75,11 +75,18 @@ test('imported marker height follows edits, undo and redo without persisting vie
 });
 
 test('standard DOCX list spacing and counters survive editing and two saves',async({page},testInfo)=>{
- const input=await Packer.toBuffer(new Document({styles:{default:{document:{run:{font:'Arial',size:20}}},paragraphStyles:[{id:'ListBody',name:'ListBody',paragraph:{contextualSpacing:true,spacing:{before:120,after:160,line:276}}}]},numbering:{config:[{reference:'List',levels:[0,1].map(level=>({level,start:level?1:4,format:LevelFormat.DECIMAL,text:level?'%1.%2.':'%1.'}))}]},sections:[{children:[new Paragraph({text:'FIRST',style:'ListBody',numbering:{reference:'List',level:0}}),new Paragraph({children:[new TextRun('SECOND')],style:'ListBody',numbering:{reference:'List',level:0}}),new Paragraph({text:'NESTED',style:'ListBody',numbering:{reference:'List',level:1}}),new Paragraph({text:'AFTER',style:'ListBody',numbering:{reference:'List',level:0}})]}]}));
+ const input=await Packer.toBuffer(new Document({styles:{default:{document:{run:{font:'Arial',size:20}}},paragraphStyles:[{id:'ListBody',name:'ListBody',paragraph:{contextualSpacing:true,spacing:{before:120,after:160,line:276}}}]},numbering:{config:[{reference:'List',levels:[0,1].map(level=>({level,start:level?1:4,format:LevelFormat.DECIMAL,text:level?'%1.%2.':'%1.',style:{paragraph:{indent:{left:720+level*360,hanging:360}}}}))}]},sections:[{children:[new Paragraph({text:'FIRST',style:'ListBody',numbering:{reference:'List',level:0}}),new Paragraph({children:[new TextRun('SECOND')],style:'ListBody',numbering:{reference:'List',level:0}}),new Paragraph({text:'NESTED',style:'ListBody',numbering:{reference:'List',level:1}}),new Paragraph({text:'AFTER',style:'ListBody',numbering:{reference:'List',level:0}})]}]}));
  await page.goto('/');
  await page.locator('input[type=file]').first().setInputFiles({name:'list-lines.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:input});
  const editor=page.getByRole('textbox',{name:'문서 편집 영역',exact:true});await expect(editor).toContainText('FIRST');
  await editor.locator('li > p').filter({hasText:'SECOND'}).click();await page.keyboard.press(process.platform==='darwin'?'Meta+ArrowRight':'End');await page.keyboard.type('-EDIT');await expect(editor).toContainText('SECOND-EDIT');
+ await page.waitForTimeout(550);await page.keyboard.press('Tab');
+ await expect.poll(()=>editor.locator('li').evaluateAll(items=>items.map(li=>li.getAttribute('data-list-label')))).toEqual(['4.','4.1.','4.1.1.','5.']);
+ await expect.poll(()=>editor.locator('p').filter({hasText:'SECOND-EDIT'}).evaluate(p=>getComputedStyle(p).marginLeft)).toBe('72px');
+ await page.keyboard.press('ControlOrMeta+z');await expect.poll(()=>editor.locator('li').evaluateAll(items=>items.map(li=>li.getAttribute('data-list-label')))).toEqual(['4.','5.','5.1.','6.']);
+ await page.keyboard.press('ControlOrMeta+Shift+z');await expect.poll(()=>editor.locator('li').evaluateAll(items=>items.map(li=>li.getAttribute('data-list-label')))).toEqual(['4.','4.1.','4.1.1.','5.']);
+ await page.waitForTimeout(550);await page.keyboard.press('Shift+Tab');await expect.poll(()=>editor.locator('li').evaluateAll(items=>items.map(li=>li.getAttribute('data-list-label')))).toEqual(['4.','5.','5.1.','6.']);
+ await expect.poll(()=>editor.locator('p').filter({hasText:'SECOND-EDIT'}).evaluate(p=>getComputedStyle(p).marginLeft)).toBe('48px');
  const download=page.waitForEvent('download');await page.keyboard.press('ControlOrMeta+s');const importedModel=JSON.parse(await fs.readFile((await(await download).path())!,'utf8'));
  const result=await page.evaluate(async model=>{
   const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml,editorExtensions}=await import('/src/extensions.ts'),{generateHTML}=await import('/node_modules/.vite/deps/@tiptap_react.js'),{createPrintLayout}=await import('/src/print-layout.ts');
@@ -126,4 +133,53 @@ test('each imported numbering level retains its own start across continuation sh
  },[...source]);
  for(const stage of result.stages){expect(stage.labels).toEqual(['4.','4.2.','4.2.7.','5.','5.2.','5.3.','6.']);expect(stage.text).toBe('ROOT-ACHILD-ADEEPINTERRUPTIONROOT-BCHILD-BCHILD-CROOT-C')}
  for(let i=0;i<2;i++)await fs.writeFile(testInfo.outputPath(`list-save-levels-${i+1}.docx`),Buffer.from(result.saves[i]));
+});
+
+test('Word hanging indents place markers separately from body and nested continuation lines',async({page})=>{
+ await page.goto('/');await page.getByRole('textbox',{name:'문서 편집 영역',exact:true}).waitFor();
+ const result=await page.evaluate(async()=>{
+  const{Editor}=await import('/node_modules/.vite/deps/@tiptap_react.js'),{editorExtensions,parseDocumentHtml}=await import('/src/extensions.ts'),{createPrintLayout}=await import('/src/print-layout.ts'),{defaultPage}=await import('/src/types.ts');
+  const p=(text:string,left:number)=>`<p data-word-line-rule="auto" style="font-family:Arial;font-size:10pt;line-height:1.15;margin:0 0 0 ${left}px;text-indent:-24px">${text}</p>`;
+  const li=(text:string,level:number,left:number)=>`<li data-list-id="Geometry" data-list-level="${level}" data-list-format="decimal" data-list-pattern="%${level+1}.">${p(text,left)}</li>`;
+  const html='<ol>'+li('First paragraph keeps its continuation at the source text indent. '.repeat(10),0,48)+li('PARENT',0,48).replace('</li>','<ol>'+li('Nested paragraph keeps the absolute source indent. '.repeat(8),1,72)+'</ol></li>')+'</ol>'+p('UNNUMBERED',48);
+  const mount=document.createElement('div');mount.style.width='600px';document.body.append(mount);const editor=new Editor({element:mount,extensions:editorExtensions,content:parseDocumentHtml(html)});
+  const snapshot=(root:HTMLElement)=>[...root.querySelectorAll('p')].filter(p=>p.textContent).map(p=>{
+   const host=p.closest('.print-content,.tiptap')!,origin=host.getBoundingClientRect().left,lines=[];
+   const walker=document.createTreeWalker(p,NodeFilter.SHOW_TEXT);while(walker.nextNode()){const text=walker.currentNode as Text;for(let i=0;i<text.length;i++){if(/\s/.test(text.data[i]))continue;const range=document.createRange();range.setStart(text,i);range.setEnd(text,i+1);const r=range.getBoundingClientRect();if(!lines.length||Math.abs(lines[lines.length-1].y-r.y)>2)lines.push({x:r.x-origin,y:r.y})}}
+   const item=p.parentElement!.tagName==='LI'?p.parentElement:null;return{text:p.textContent,lines,indent:getComputedStyle(p).textIndent,marker:item?.hasAttribute('data-word-list-layout')?getComputedStyle(item,'::before').left:null};
+  });
+  try{await new Promise(r=>setTimeout(r,150));const editing=snapshot(editor.view.dom),model=editor.getJSON(),serialized=editor.getHTML();const layout=await createPrintLayout(serialized,defaultPage);try{return{editing,printing:snapshot(layout.element),model,serialized}}finally{layout.dispose()}}finally{editor.destroy();mount.remove()}
+ });
+ for(const stage of [result.editing,result.printing]){
+  for(let i=0;i<3;i++){const expected=i===2?72:48;expect(stage[i].indent).toBe('0px');for(const line of stage[i].lines)expect(line.x).toBeCloseTo(expected,1);expect(parseFloat(stage[i].marker!)).toBe(expected-24)}
+  expect(stage[0].lines.length).toBeGreaterThan(1);expect(stage[2].lines.length).toBeGreaterThan(1);expect(stage[3].indent).toBe('-24px');
+ }
+ expect(result.serialized).toContain('text-indent: -24px');expect(result.serialized).not.toContain('data-word-list-layout');expect(result.serialized).not.toContain('data-word-list-paragraph');expect(result.serialized).not.toContain('--word-list-marker');
+});
+
+test('a label wider than its hanging slot keeps a native marker instead of overlapping body text',async({page})=>{
+ await page.goto('/');
+ const result=await page.evaluate(async()=>{
+  const{parseDocumentHtml,editorExtensions}=await import('/src/extensions.ts'),{generateHTML}=await import('/node_modules/.vite/deps/@tiptap_react.js'),{createPrintLayout}=await import('/src/print-layout.ts'),{defaultPage}=await import('/src/types.ts');
+  const html='<ol><li data-list-id="Wide" data-list-level="0" data-list-format="decimal" data-list-pattern="LongMarkerThatCannotFit"><p data-word-line-rule="auto" style="font-family:Arial;font-size:10pt;line-height:1.15;margin:0 0 0 48px;text-indent:-24px">BODY</p></li></ol>';
+  const layout=await createPrintLayout(generateHTML(parseDocumentHtml(html),editorExtensions),defaultPage);try{const li=layout.element.querySelector('li')!,p=li.querySelector('p')!;return{custom:li.hasAttribute('data-word-list-layout'),indent:getComputedStyle(p).textIndent,native:getComputedStyle(li,'::marker').content}}finally{layout.dispose()}
+ });
+ expect(result.custom).toBe(false);expect(result.indent).toBe('-24px');expect(result.native).toContain('LongMarkerThatCannotFit');
+});
+
+test('numbering space and nothing suffixes survive two standard saves and keep the safe native layout',async({page},testInfo)=>{
+ const{LevelSuffix}=await import('docx');
+ const input=await Packer.toBuffer(new Document({styles:{default:{document:{run:{font:'Arial',size:20}}}},numbering:{config:[{reference:'Suffix',levels:[LevelSuffix.SPACE,LevelSuffix.NOTHING].map((suffix,level)=>({level,format:LevelFormat.DECIMAL,text:level?'%1.%2.':'%1.',suffix,style:{paragraph:{indent:{left:720+level*360,hanging:360}}}}))}]},sections:[{children:[new Paragraph({text:'SPACE',numbering:{reference:'Suffix',level:0}}),new Paragraph({text:'NOTHING',numbering:{reference:'Suffix',level:1}})]}]}));
+ await page.goto('/');
+ const result=await page.evaluate(async bytes=>{
+  const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml,editorExtensions}=await import('/src/extensions.ts'),{generateHTML}=await import('/node_modules/.vite/deps/@tiptap_react.js'),{createPrintLayout}=await import('/src/print-layout.ts');let file=new File([new Uint8Array(bytes)],'suffix.docx');const stages=[],saves=[];
+  for(let i=0;i<3;i++){
+   const opened=await importFile(file),model={...opened.document,content:parseDocumentHtml(opened.html!)};const layout=await createPrintLayout(generateHTML(model.content,editorExtensions),model.page);
+   try{stages.push([...layout.element.querySelectorAll('li')].map(li=>({suffix:(li as HTMLElement).dataset.listSuffix,custom:li.hasAttribute('data-word-list-layout'),indent:getComputedStyle(li.querySelector('p')!).textIndent})))}finally{layout.dispose()}
+   if(i<2){const bytes=[...new Uint8Array(await(await exportDocx(model)).arrayBuffer())];saves.push(bytes);file=new File([new Uint8Array(bytes)],'suffix.docx')}
+  }
+  return{stages,saves};
+ },[...input]);
+ for(const stage of result.stages){expect(stage.map(li=>li.suffix)).toEqual(['space','nothing']);for(const li of stage){expect(li.custom).toBe(false);expect(li.indent).toBe('-24px')}}
+ for(let i=0;i<2;i++)await fs.writeFile(testInfo.outputPath(`list-save-suffix-${i+1}.docx`),Buffer.from(result.saves[i]));
 });

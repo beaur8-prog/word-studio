@@ -27,6 +27,7 @@ on:
       - '.github/workflows/word-textboxes.yml'
       - 'src/word-contextual-spacing.ts'
       - 'src/word-list-labels.ts'
+      - 'src/word-list-layout.ts'
       - 'src/word-numbering.ts'
       - 'src/word-font-fallbacks.ts'
       - 'src/word-line-metrics.ts'

@@ -103,7 +103,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-row-split", "data-cell-split",
       "data-word-overlap",
       "data-docx-bookmark", "id",
-      "data-list-id", "data-list-level", "data-list-format", "data-list-pattern", "data-list-label",
+      "data-list-id", "data-list-level", "data-list-format", "data-list-pattern", "data-list-label", "data-list-suffix",
       "data-document-note", "data-note-reference", "data-note-kind", "data-note-label", "data-page-number",
       "data-column-count", "data-column-space", "data-column-balance", "data-section-content",
       "data-symbol-font", "data-symbol-code", "data-symbol-glyph",

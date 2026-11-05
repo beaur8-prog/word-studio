@@ -1,6 +1,8 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import { wordFallbackLineHeight, wordFontMetricsChanged } from './word-font-fallbacks';
+import { wordListGeometry } from './word-list-layout';
 
 const metrics = new Map<string, number>();
 // The shared LRU bounds retained samples, but documents can contain more unique
@@ -30,7 +32,9 @@ function singleLine(style: CSSStyleDeclaration, text = 'Ag', owner?: Node) {
   // spacing; exact spacing and ordinary authored HTML remain unchanged.
   const family = style.fontFamily.split(',')[0].replace(/["']/g, '').trim();
   let height: number;
-  if (legacyKorean.test(family)) {
+  const fractional = wordFallbackLineHeight(style, sample);
+  if (fractional !== null) height = fractional;
+  else if (legacyKorean.test(family)) {
     // This actual character selects Word's taller Noto Sans KR fallback.
     height = parseFloat(style.fontSize) * (sample.includes('\uff65') ? 1.55 : 1.3);
   } else {
@@ -80,9 +84,21 @@ function listLineProperties(paragraph: HTMLElement, height?: number | null) {
 export function layoutWordListLines(root: HTMLElement) {
   for (const item of root.querySelectorAll<HTMLElement>('li[data-list-id]')) {
     const paragraph = item.firstElementChild;
-    if (paragraph instanceof HTMLElement && paragraph.matches('p,h1,h2,h3,h4,h5,h6') && paragraph.dataset.wordLineRule)
-      for (const [property, value] of Object.entries(listLineProperties(paragraph)))
-        if (item.style.getPropertyValue(property) !== value) item.style.setProperty(property, value);
+    if (!(paragraph instanceof HTMLElement) || !paragraph.matches('p,h1,h2,h3,h4,h5,h6') || !paragraph.dataset.wordLineRule) continue;
+    for (const [property, value] of Object.entries(listLineProperties(paragraph)))
+      if (item.style.getPropertyValue(property) !== value) item.style.setProperty(property, value);
+    const original = paragraph.dataset.wordListHanging ?? paragraph.style.textIndent;
+    const geometry = wordListGeometry(item, paragraph, original);
+    if (geometry) {
+      paragraph.dataset.wordListHanging = original;
+      item.dataset.wordListLayout = 'true'; paragraph.dataset.wordListParagraph = 'true';
+      const properties = document.createElement('span').style; properties.cssText = geometry;
+      for (const property of [...properties]) if (item.style.getPropertyValue(property) !== properties.getPropertyValue(property))
+        item.style.setProperty(property, properties.getPropertyValue(property));
+    } else {
+      delete item.dataset.wordListLayout; delete paragraph.dataset.wordListParagraph;
+      for (const property of ['margin-left', '--word-list-marker-left', '--word-list-marker-top']) item.style.removeProperty(property);
+    }
   }
 }
 export function layoutWordLines(root: HTMLElement) {
@@ -114,8 +130,13 @@ export const WordLineMetrics = Extension.create({
           if (node.type.name === 'listItem' && node.attrs.wordListId && node.firstChild?.attrs.wordLineRule) {
             const paragraph = view.nodeDOM(pos + 1);
             if (paragraph instanceof HTMLElement) {
-              const style = Object.entries(listLineProperties(paragraph, wordLineHeight(paragraph))).map(([p, v]) => `${p}:${v}`).join(';');
-              decorations.push(Decoration.node(pos, pos + node.nodeSize, { style }));
+              let style = Object.entries(listLineProperties(paragraph, wordLineHeight(paragraph))).map(([p, v]) => `${p}:${v}`).join(';');
+              const geometry = wordListGeometry(paragraph.parentElement!, paragraph, node.firstChild.attrs.firstLineIndent);
+              if (geometry) {
+                style += ';' + geometry;
+                decorations.push(Decoration.node(pos + 1, pos + 1 + node.firstChild.nodeSize, { 'data-word-list-paragraph': 'true' }));
+              }
+              decorations.push(Decoration.node(pos, pos + node.nodeSize, { style, ...(geometry ? { 'data-word-list-layout': 'true' } : {}) }));
               values.push(`${pos}:${style}`);
             }
           }
@@ -133,9 +154,10 @@ export const WordLineMetrics = Extension.create({
           view.dispatch(view.state.tr.setMeta(key, DecorationSet.create(view.state.doc, decorations)).setMeta('addToHistory', false));
         }
       }); };
-      const fontsChanged = () => { metrics.clear(); nodeMetrics = new WeakMap(); schedule(); };
-      document.fonts.addEventListener('loadingdone', fontsChanged); schedule();
-      return { update: schedule, destroy() { cancelAnimationFrame(frame); document.fonts.removeEventListener('loadingdone', fontsChanged); } };
+      const fontsChanged = () => { metrics.clear(); nodeMetrics = new WeakMap(); signature = '\0'; schedule(); };
+      document.fonts.addEventListener('loadingdone', fontsChanged);
+      document.addEventListener(wordFontMetricsChanged, fontsChanged); schedule();
+      return { update: schedule, destroy() { cancelAnimationFrame(frame); document.fonts.removeEventListener('loadingdone', fontsChanged); document.removeEventListener(wordFontMetricsChanged, fontsChanged); } };
     },
   })],
 });

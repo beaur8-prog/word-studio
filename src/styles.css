@@ -2009,6 +2009,17 @@ button:hover:not(:disabled) {
 
 .tiptap li[data-list-label]::marker { content: attr(data-list-label) " "; }
 .tiptap li[data-print-list-continuation]::marker { content: ""; }
+/* An imported Word hanging indent locates the marker. Its first body line
+   starts at the same source indent as continuation lines. */
+:is(.tiptap, .document-furniture) li[data-word-list-layout] { position: relative; }
+:is(.tiptap, .document-furniture) li[data-word-list-layout]::marker { content: ""; }
+:is(.tiptap, .document-furniture) li[data-word-list-layout]::before {
+  content: attr(data-list-label); position: absolute;
+  left: var(--word-list-marker-left); top: var(--word-list-marker-top); white-space: pre;
+}
+:is(.tiptap, .document-furniture) li[data-word-list-layout][data-print-list-continuation]::before { content: none; }
+:is(.tiptap, .document-furniture) [data-word-list-paragraph] { text-indent: 0 !important; }
+
 .document-bookmark { display: inline; font-size: 0; }
 
 .document-furniture, .print-footnotes { padding: 0; min-height: 0; font-size: 9pt; line-height: 1.4; }

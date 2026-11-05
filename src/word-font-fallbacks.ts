@@ -31,8 +31,24 @@ const families: readonly FontFallbackFamily[] = [{
   ],
 }];
 
+// Only our measured fallback faces opt into fractional Word line metrics.
+// Native faces and unrelated web fonts keep their existing normal line boxes.
+const metricFaces = new Map<FontFace, { family: string; weight: string; style: string; ratio: number }>();
+export const wordFontMetricsChanged = 'studio-word-font-metrics-changed';
+export function wordFallbackLineHeight(css: CSSStyleDeclaration, text: string) {
+  if (!/^[\u0020-\u024f\u2000-\u206f]*$/.test(text)) return null;
+  const family = css.fontFamily.split(',')[0].replace(/["']/g, '').trim().toLowerCase();
+  for (const [face, metric] of metricFaces) {
+    if (metric.family === family && metric.weight === css.fontWeight && metric.style === css.fontStyle &&
+      face.status === 'loaded' && document.fonts.has(face)) return parseFloat(css.fontSize) * metric.ratio;
+  }
+  return null;
+}
+
 export async function initializeWordFontFallbacks(profiles: readonly FontFallbackFamily[] = families) {
-  await Promise.all(profiles.flatMap(profile => profile.faces.map(async face => {
+  let released = false;
+  const changed = () => { if (released) document.dispatchEvent(new Event(wordFontMetricsChanged)); };
+  const initialized = Promise.all(profiles.flatMap(profile => profile.faces.map(async face => {
     const descriptor = { weight: face.weight, style: face.style };
     try {
       // FontFaceSet.check() also succeeds for a missing system family. Loading
@@ -42,7 +58,7 @@ export async function initializeWordFontFallbacks(profiles: readonly FontFallbac
       await native.load();
       // A CSS family with only a missing bold face would otherwise shadow its
       // installed regular sibling. Register the unchanged native face too.
-      document.fonts.add(native);
+      document.fonts.add(native); changed();
     } catch {
       try {
         const fallback = new FontFace(profile.family, `url(${JSON.stringify(face.url)})`, {
@@ -51,8 +67,15 @@ export async function initializeWordFontFallbacks(profiles: readonly FontFallbac
         });
         // Register before the editor mounts, but download only if used. The
         // existing loadingdone handlers remeasure lines and page furniture.
-        document.fonts.add(fallback);
+        metricFaces.set(fallback, { family: profile.family.toLowerCase(), weight: face.weight, style: face.style,
+          ratio: (parseFloat(face.ascent) + parseFloat(face.descent)) / 100 });
+        document.fonts.add(fallback); changed();
       } catch { /* An optional font cannot prevent opening or recovering documents. */ }
     }
   })));
+  // A stalled optional local-font probe must not leave the startup window
+  // blank. Late results still register and notify the measurement owners.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try { await Promise.race([initialized, new Promise<void>(resolve => { timer = setTimeout(resolve, 1500); })]); }
+  finally { clearTimeout(timer); released = true; }
 }

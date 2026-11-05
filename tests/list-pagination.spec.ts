@@ -4,6 +4,7 @@ import {Document,Packer,Paragraph,LevelFormat} from 'docx';
 
 async function loadList(page:Page, html:string) {
   await page.goto('/');
+  await page.getByRole('textbox',{name:'문서 편집 영역',exact:true}).waitFor();
   const state=await page.evaluate(async html=>{
     const {defaultPage}=await import('/src/types.ts'),{importFile}=await import('/src/document-io.ts');
     const {parseDocumentHtml,editorExtensions}=await import('/src/extensions.ts'),{generateHTML}=await import('/node_modules/.vite/deps/@tiptap_react.js');

@@ -21,6 +21,7 @@ import {
   HeadingLevel,
   ImageRun,
   LevelFormat,
+  LevelSuffix,
   LineRuleType,
   Packer,
   PageBreak,
@@ -1280,6 +1281,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
               ? listStarts.get(String(imported.wordListId))?.get(i) ?? 1
               : node.type === "orderedList" ? Math.max(1, Number(node.attrs?.start) || 1) : 1,
             alignment: AlignmentType.LEFT,
+            suffix: listLevels.get(String(imported?.wordListId))?.get(i)?.wordListSuffix === 'space' ? LevelSuffix.SPACE
+              : listLevels.get(String(imported?.wordListId))?.get(i)?.wordListSuffix === 'nothing' ? LevelSuffix.NOTHING : LevelSuffix.TAB,
             style: {
               paragraph: { indent: { left: 720 * (i + 1), hanging: 360 } },
             },

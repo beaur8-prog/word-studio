@@ -197,6 +197,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const list = numbering.get(marker.paragraph), item = p.closest('li');
         if (list && item) {
           for (const key of ['id', 'level', 'format', 'pattern', 'label'] as const) item.setAttribute(`data-list-${key}`, String(list[key]));
+          if (list.suffix !== 'tab') item.setAttribute('data-list-suffix', list.suffix);
           const parentList = item.parentElement;
           if (parentList?.tagName === 'OL' && parentList.firstElementChild === item) parentList.setAttribute('start', String(list.value));
         }

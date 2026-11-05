@@ -94,3 +94,40 @@ test('a partial native font family keeps its installed regular face beside a mis
   });
   expect(result[1]).toEqual(result[0]);
 });
+
+test('measured fallback faces retain fractional Word leading without changing native or unrelated faces',async({page})=>{
+ await page.goto('/');await page.getByRole('textbox',{name:'문서 편집 영역',exact:true}).waitFor();
+ const rows=await page.evaluate(async()=>{
+  const{initializeWordFontFallbacks,wordFallbackLineHeight}=await import('/src/word-font-fallbacks.ts'),{wordLineHeight,layoutWordLines}=await import('/src/word-line-metrics.ts');
+  const host=document.createElement('div');host.style.cssText='position:fixed;left:-10000px';document.body.append(host);const rows=[];
+  try{
+   for(const[name,weight,style,ascent]of[['regular','400','normal',1989],['bold','700','normal',2032],['italic','400','italic',1989],['bolditalic','700','italic',2060]]as const){
+    const family='WSFractional_'+name;
+    await initializeWordFontFallbacks([{family,faces:[{names:['NoInstalledWSFractionalFace20261105'],weight,style,url:`/src/assets/fonts/texgyreadventor-${name}.otf`,ascent:`${ascent/2048*100}%`,descent:`${451/2048*100}%`}]}]);
+    const p=document.createElement('p');p.style.cssText=`font-family:${family};font-size:11.3pt;font-weight:${weight};font-style:${style};line-height:1.15;margin:0`;p.dataset.wordLineRule='auto';p.dataset.wordLine='1.15';p.textContent='Fractional line metrics';host.append(p);await document.fonts.load(`${style} ${weight} 11.3pt ${family}`);await document.fonts.ready;
+    const css=getComputedStyle(p),expected=parseFloat(css.fontSize)*(ascent+451)/2048;
+    rows.push({name,metric:wordFallbackLineHeight(css,p.textContent),line:wordLineHeight(p),expected,source:p.dataset.wordLine});
+    p.dataset.wordLineRule='exact';p.style.lineHeight='8pt';layoutWordLines(host);rows[rows.length-1].exact=p.style.lineHeight;
+   }
+   const external=new FontFace('WSUnregisteredOverride','url(/src/assets/fonts/texgyreadventor-regular.otf)',{ascentOverride:'97.119140625%',descentOverride:'22.021484375%'});document.fonts.add(external);await external.load();
+   const p=document.createElement('p');p.style.cssText='font-family:WSUnregisteredOverride;font-size:11.3pt';host.append(p);rows.push({name:'unrelated',metric:wordFallbackLineHeight(getComputedStyle(p),'Ag')});
+   return rows;
+  }finally{host.remove()}
+ });
+ for(const row of rows){if(row.name==='unrelated'){expect(row.metric).toBeNull();continue}expect(row.metric,row.name).toBeCloseTo(row.expected!,5);expect(row.line,row.name).toBeCloseTo(row.expected!*1.15,5);expect(row.source).toBe('1.15');expect(row.exact).toBe('8pt')}
+});
+
+test('an optional stalled local font probe cannot keep startup waiting indefinitely',async({page})=>{
+ await page.goto('/');await page.getByRole('textbox',{name:'문서 편집 영역',exact:true}).waitFor();
+ const result=await page.evaluate(async()=>{
+  const{initializeWordFontFallbacks}=await import('/src/word-font-fallbacks.ts');const original=globalThis.FontFace;
+  const start=performance.now();
+  try{
+   globalThis.FontFace=class{load(){return new Promise(()=>{})}}as unknown as typeof FontFace;
+   await initializeWordFontFallbacks([{family:'WSStalledOptionalFont',faces:[{names:['Stalled'],weight:'400',style:'normal',url:'/must-not-fetch-an-unresolved-probe.otf',ascent:'100%',descent:'20%'}]}]);
+   return{elapsed:performance.now()-start,registered:[...document.fonts].some(face=>face.family.includes('WSStalledOptionalFont'))};
+  }finally{globalThis.FontFace=original}
+ });
+ expect(result.elapsed).toBeLessThan(5000);expect(result.registered).toBe(false);
+ await expect(page.getByRole('textbox',{name:'문서 편집 영역',exact:true})).toBeVisible();
+});
