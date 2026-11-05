@@ -55,7 +55,13 @@ test('table paragraph spacing inherits below paragraph/direct formatting, stays 
   }
   await page.locator('input[type=file]').first().setInputFiles({ name: 'table-style.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(result.initial)) });
   const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true }), cell = editor.locator('td').first().locator('p').first();
-  await expect(cell).toHaveCSS('margin-bottom', '0px'); await cell.click(); await page.keyboard.press('End'); await page.keyboard.type(' EDIT');
+  await expect(cell).toHaveCSS('margin-bottom', '0px'); await cell.click();
+  await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End');
+  await expect.poll(() => cell.evaluate(p => {
+    const s = getSelection(); if (!s?.isCollapsed || !s.anchorNode || !p.contains(s.anchorNode)) return null;
+    const r = document.createRange(); r.selectNodeContents(p); r.setEnd(s.anchorNode, s.anchorOffset); return r.toString();
+  })).toBe('INHERITED TABLE');
+  await page.keyboard.type(' EDIT');
   await expect(cell).toHaveText('INHERITED TABLE EDIT'); await page.keyboard.press('ControlOrMeta+z'); await expect(cell).toHaveText('INHERITED TABLE'); await page.keyboard.press('ControlOrMeta+Shift+z'); await expect(cell).toHaveText('INHERITED TABLE EDIT');
   await expect(editor.locator('table')).toHaveCount(2); await expect(editor.locator('td[colspan="2"]')).toHaveCount(1);
 });
