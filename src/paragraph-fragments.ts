@@ -121,3 +121,16 @@ export function paragraphPrefixHeight(paragraph: HTMLElement, offset: number, sc
   Object.assign(head.style, { margin: '0', width: '100%', boxSizing: 'border-box' }); host.append(head); document.body.append(host);
   try { return head.getBoundingClientRect().height; } finally { host.remove(); }
 }
+
+/** A short Word body paragraph cannot satisfy both sides of an internal
+ * break when its line count is below orphans + widows. Move that fitting
+ * paragraph intact. Oversized paragraphs and other flow contexts retain
+ * their own continuation rules, so protection never forces text to shrink. */
+export function keepShortWordParagraphTogether(paragraph: HTMLElement, lineCount: number, bodyHeight: number, scale = 1) {
+  if (!paragraph.matches('p[data-word-paragraph-style]') || lineCount < 2 ||
+      paragraph.closest('li,td,th,[data-document-textbox],[data-textbox-content],[data-column-count]') ||
+      paragraph.querySelector('img:not(.ProseMirror-separator),svg,table,[data-note-reference],[data-page-number],[data-flow-widget]')) return false;
+  const orphans = Math.max(1, Number(paragraph.style.orphans) || 1), widows = Math.max(1, Number(paragraph.style.widows) || 1);
+  const before = Math.max(0, parseFloat(getComputedStyle(paragraph).marginTop) || 0);
+  return lineCount < orphans + widows && paragraph.getBoundingClientRect().height / scale + before <= bodyHeight + .5;
+}

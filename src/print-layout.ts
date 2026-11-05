@@ -1,5 +1,5 @@
 import { layoutTextBoxes } from './textbox-frame';
-import { paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
+import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
 import { tableFragmenter } from './table-fragments';
 import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
@@ -374,7 +374,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // Explicit empty lines have flow even when the paragraph has no letters.
     if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && ((element.textContent?.length ?? 0) > 1 || element.querySelector('br'))) {
       const offsets = paragraphLineOffsets(element);
-      let low = 0, high = offsets.length - 1, best = 0;
+      const keepTogether = keepShortWordParagraphTogether(element, offsets.length + 1, content.getBoundingClientRect().height);
+      let low = 0, high = keepTogether ? -1 : offsets.length - 1, best = 0;
       element.remove();
       while (low <= high) {
         const mid = (low + high) >> 1;

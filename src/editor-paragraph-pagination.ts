@@ -1,7 +1,7 @@
 import type { EditorView } from '@tiptap/pm/view';
 import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
-import { paragraphPrefixHeight, paragraphTextOffset } from './paragraph-fragments';
+import { keepShortWordParagraphTogether, paragraphPrefixHeight, paragraphTextOffset } from './paragraph-fragments';
 
 /** Continue ordinary body text at the same line boundaries used by print.
  * Widgets affect the view only; the paragraph and undo history stay intact. */
@@ -17,7 +17,7 @@ export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
     return y - g.removed.filter(gap => gap.top < y - .5).reduce((sum, gap) => sum + gap.height, 0);
   };
   const lines = measureParagraphLines(view, paragraph, naturalY);
-  if (lines.length < 2) return null;
+  if (lines.length < 2 || keepShortWordParagraphTogether(paragraph, lines.length, g.height - g.top - g.bottom, g.scale)) return null;
   const stride = g.height + 24, decorations: Decoration[] = [], signatures: string[] = [];
   let extra = 0;
   const listParagraph = !!paragraph.closest('li');

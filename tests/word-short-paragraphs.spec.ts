@@ -1,0 +1,24 @@
+import {test,expect} from '@playwright/test';
+import {Document,Packer,Paragraph,TextRun,LineRuleType} from 'docx';
+import {writeFile} from 'node:fs/promises';
+
+for(const lines of [2,3])for(const enabled of [true,false])test(`Word ${lines}-line body paragraph with widow protection ${enabled?'enabled':'disabled'} keeps its authored page policy`,async({page})=>{
+ const text=Array.from({length:lines},(_,i)=>new TextRun({text:'TARGET'+i,break:i?1:0,size:18,font:'Arial'}));
+ const bytes=await Packer.toBuffer(new Document({sections:[{properties:{page:{size:{width:6000,height:6000},margin:{top:750,right:750,bottom:750,left:750}}},children:[new Paragraph({children:[new TextRun({text:'LEAD',font:'Arial',size:18})],spacing:{before:0,after:0,line:(lines===2?270:250)*15,lineRule:LineRuleType.EXACT}}),new Paragraph({children:text,widowControl:enabled,spacing:{before:0,after:0,line:300,lineRule:LineRuleType.EXACT}})]}]}));
+ await writeFile(test.info().outputPath(`textbox-save-input-short-${lines}-${enabled}.docx`),bytes);await page.goto('/');
+ const result=await page.evaluate(async bytes=>{
+  const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml,editorExtensions}=await import('/src/extensions.ts'),{generateHTML}=await import('/node_modules/.vite/deps/@tiptap_react.js'),{createPrintLayout}=await import('/src/print-layout.ts');
+  let file=new File([new Uint8Array(bytes)],'short.docx'),doc:any;const states:any[]=[],saves:number[][]=[];
+  for(let i=0;i<3;i++){const opened=await importFile(file);doc={...opened.document,content:parseDocumentHtml(opened.html!)};const layout=await createPrintLayout(generateHTML(doc.content,editorExtensions),doc.page);try{states.push({content:doc.content,pages:[...layout.element.querySelectorAll('.print-content')].map(e=>e.textContent!.replace(/\s/g,'')),zoomed:[...layout.element.querySelectorAll<HTMLElement>('.print-content [style*="zoom"]')].map(e=>e.style.zoom)});}finally{layout.dispose();}if(i<2){const output=[...new Uint8Array(await(await exportDocx(doc)).arrayBuffer())];saves.push(output);file=new File([new Uint8Array(output)],'again.docx');}}
+  return{doc,states,saves};
+ },[...bytes]);
+ const tokens=Array.from({length:lines},(_,i)=>'TARGET'+i),expected=enabled?['LEAD',tokens.join('')]:['LEAD'+tokens.slice(0,-1).join(''),tokens.at(-1)!];
+ for(const s of result.states){expect(s.pages).toEqual(expected);expect(s.zoomed).toEqual([]);const p=s.content.content[1];expect(p.attrs.wordWidowControl).toBe(enabled);expect(p.content.filter(n=>n.type==='hardBreak')).toHaveLength(lines-1);}
+ for(const[i,s]of result.saves.entries())await writeFile(test.info().outputPath(`textbox-save-short-${lines}-${enabled}-${i+1}.docx`),Buffer.from(s));
+ await page.locator('input[type=file]').first().setInputFiles({name:'short.wordstudio',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(result.doc))});const editor=page.getByRole('textbox',{name:'문서 편집 영역',exact:true});await expect(editor).toContainText(tokens[0]);
+ for(const zoom of [100,50,125,100]){
+  const slider=page.getByRole('slider',{name:'확대 축소'});await slider.fill(String(zoom));await slider.dispatchEvent('input');await slider.dispatchEvent('change');
+  await expect.poll(()=>editor.evaluate((root,zoom)=>{const sheet=root.closest<HTMLElement>('.document-stack')!,origin=root.getBoundingClientRect().top,height=Number(sheet.dataset.pageHeight),top=Number(sheet.dataset.margin),bottom=Number(sheet.dataset.bottomMargin),pages:string[]=[];const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);while(walker.nextNode()){const n=walker.currentNode as Text;if(n.parentElement?.closest('.pagination-gap,.pagination-cell-gap,[data-flow-widget]'))continue;for(let i=0;i<n.length;i++){if(/\s/.test(n.data[i]))continue;const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+1);const b=r.getBoundingClientRect(),y=(b.top-origin)/(zoom/100),p=Math.max(0,Math.floor((y+.5)/(height+24))),local=y-p*(height+24);if(local<top-1||local+b.height/(zoom/100)>height-bottom+1)return['INK IN MARGIN'];pages[p]=(pages[p]||'')+n.data[i];}}return pages;},zoom)).toEqual(expected);
+ }
+ const before=await editor.evaluate((el:any)=>el.editor.getJSON());await editor.locator('p').nth(1).click();await page.keyboard.press(process.platform==='darwin'?'Meta+ArrowDown':'Control+End');await expect.poll(()=>editor.evaluate((el:any)=>{const s=el.editor.state.selection;return s.empty?el.editor.state.doc.textBetween(s.$from.start(),s.from,'','\n'):null;})).toBe(tokens.join('\n'));await page.keyboard.insertText(' EDIT');await expect(editor).toContainText(tokens.at(-1)!+' EDIT');await page.keyboard.press('ControlOrMeta+z');expect(await editor.evaluate((el:any)=>el.editor.getJSON())).toEqual(before);await page.keyboard.press('ControlOrMeta+Shift+z');await expect(editor).toContainText(tokens.at(-1)!+' EDIT');
+});
