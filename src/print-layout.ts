@@ -385,7 +385,11 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       }
       if (!budget && element.dataset.wordKeepLines === 'true' && !element.dataset.printParagraphFragment && element.getBoundingClientRect().height > bodyHeight + .5) budget = element.getBoundingClientRect().height;
       if (budget && content.children.length > 1 && element.getBoundingClientRect().top + budget > content.getBoundingClientRect().bottom + .5) {
-        element.remove(); newPage(); append(element); return;
+        element.remove(); newPage();
+        // Word suppresses space-before at an automatic keep break. The editor
+        // gap already places this paragraph at the body top. Retain the saved
+        // spacing; this adjustment belongs only to the new printed fragment.
+        element.style.marginTop = '0'; append(element); return;
       }
     }
     const fitsPage = fits();
@@ -410,7 +414,11 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         const [a, b] = splitText(element, best);
         content.append(a); newPage(); append(b); return;
       }
-      if (content.children.length) { newPage(); append(element); return; }
+      if (content.children.length) {
+        newPage();
+        if (wordKeepParagraph(element) && element.dataset.wordKeepLines === 'true') element.style.marginTop = '0';
+        append(element); return;
+      }
       content.append(element); scaleOversized(element); return;
     }
     if (content.children.length > 1) { element.remove(); newPage(); content.append(element); }
