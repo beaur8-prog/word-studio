@@ -78,7 +78,9 @@ $passed = $false
 try {
   while ([DateTime]::UtcNow -lt $deadline) {
     # NSIS can run from a temporary child process; include descendants, not other apps.
-    $tree = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId, CreationDate)
+    [ordered]@{ at=[DateTime]::UtcNow.ToString('o'); stage=$Stage; phase='process-snapshot-start'; installed=$installed; finished=$finished } | ConvertTo-Json | Set-Content (Join-Path $evidence "installer-language-$Stage-progress.json") -Encoding utf8
+    $tree = @(Get-CimInstance Win32_Process -OperationTimeoutSec 10 | Select-Object ProcessId, ParentProcessId, CreationDate)
+    [ordered]@{ at=[DateTime]::UtcNow.ToString('o'); stage=$Stage; phase='process-snapshot-complete'; processes=$tree.Count; installed=$installed; finished=$finished } | ConvertTo-Json | Set-Content (Join-Path $evidence "installer-language-$Stage-progress.json") -Encoding utf8
     do {
       $added = $false
       foreach ($item in $tree) {

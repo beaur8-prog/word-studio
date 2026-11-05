@@ -16,6 +16,11 @@ New-Item -ItemType Directory -Path (Split-Path $recovery -Parent), (Split-Path $
 [IO.File]::WriteAllText($recovery,'PRESERVE RECOVERY')
 [IO.File]::WriteAllText($document,'PRESERVE DOCUMENT')
 
+function Write-UpdatePhase([string]$Phase) {
+  $record = [ordered]@{ at=[DateTime]::UtcNow.ToString('o'); version=$version; scenario=$scenario; phase=$Phase }
+  $record | ConvertTo-Json | Set-Content (Join-Path $root '.cache/update-in-place-progress.json') -Encoding utf8
+  Write-Output ("IN-PLACE " + $record.at + " " + $scenario + " " + $Phase)
+}
 function Run-Setup([string]$File, [string]$Scope, [string]$Directory) {
   $process = Start-Process -FilePath $File -ArgumentList @('/S',$Scope,('/D=' + $Directory)) -PassThru
   $null = $process.Handle
@@ -65,7 +70,9 @@ try {
   foreach ($scenario in @('current-user','all-users','legacy-helper-with-duplicates')) {
     $scope = if ($scenario -eq 'current-user') { '/currentuser' } else { '/allusers' }
     $directory = Join-Path $work "$scenario/Word Studio 사용자 지정"
+    Write-UpdatePhase 'seed-start'
     Run-Setup $legacySetup $scope $directory
+    Write-UpdatePhase 'seed-complete'
     $target = Join-Path $directory 'Word Studio.exe'
     if (-not (Test-Path $target)) { throw 'Legacy setup ignored the custom directory.' }
     if ($scenario -eq 'legacy-helper-with-duplicates') {
@@ -95,13 +102,16 @@ try {
     $null = $worker.Handle
     $worker.Refresh()
     if ($worker.HasExited) { throw ("Helper exited before Setup: " + (Get-Content (Join-Path $jobDirectory 'stderr.log') -Raw)) }
+    Write-UpdatePhase 'wizard-observer-start'
     & (Join-Path $PSScriptRoot 'test-windows-installer-language.ps1') -Setup $setup -Stage $scenario -ObserveProcessId $worker.Id
+    Write-UpdatePhase 'wizard-observer-complete'
     if (-not $worker.WaitForExit(120000) -or $worker.ExitCode -ne 0) { throw "Actual helper failed: $(Get-Content $log -Raw)" }
+    Write-UpdatePhase 'helper-complete'
     $text = Get-Content $log -Raw
     if ($text -match 'Update failed:' -or $text -notmatch "Installed word $([regex]::Escape($version))") { throw "Unexpected update result: $text" }
     $deadline = [DateTime]::UtcNow.AddSeconds(15)
     do {
-      $main = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'Word Studio.exe' -and $_.ExecutablePath -ieq $target -and $_.CommandLine -notmatch '--type=' })
+      $main = @(Get-CimInstance Win32_Process -OperationTimeoutSec 10 | Where-Object { $_.Name -eq 'Word Studio.exe' -and $_.ExecutablePath -ieq $target -and $_.CommandLine -notmatch '--type=' })
       if ($main.Count -eq 1) { break }
       Start-Sleep -Milliseconds 250
     } while ([DateTime]::UtcNow -lt $deadline)
@@ -118,12 +128,13 @@ try {
     $identity = & node -e 'const fs=require("node:fs"); const a=fs.statSync(process.argv[1],{bigint:true}),b=fs.statSync(process.argv[2],{bigint:true}); const same=a.dev===b.dev&&a.ino===b.ino; console.log(JSON.stringify({same,shortcut:fs.realpathSync.native(process.argv[1]),expected:fs.realpathSync.native(process.argv[2])})); process.exit(same?0:1);' $shortcutTarget $target
     if ($LASTEXITCODE -ne 0) { throw "Desktop shortcut points elsewhere: $shortcutTarget (expected $target)" }
     $report.current.identity = $identity | ConvertFrom-Json
+    Write-UpdatePhase 'installed-version-and-registration-verified'
     # Exercise the desktop shortcut itself, including its shell metadata.
     Stop-TestApp
     Start-Process -FilePath $links[0]
     $deadline = [DateTime]::UtcNow.AddSeconds(20)
     do {
-      $opened = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'Word Studio.exe' -and $_.ExecutablePath -ieq $target -and $_.CommandLine -notmatch '--type=' })
+      $opened = @(Get-CimInstance Win32_Process -OperationTimeoutSec 10 | Where-Object { $_.Name -eq 'Word Studio.exe' -and $_.ExecutablePath -ieq $target -and $_.CommandLine -notmatch '--type=' })
       if ($opened.Count -eq 1 -and (Get-Process -Id $opened[0].ProcessId).MainWindowHandle -ne 0) { break }
       Start-Sleep -Milliseconds 250
     } while ([DateTime]::UtcNow -lt $deadline)
@@ -132,7 +143,9 @@ try {
     $report.scenarios += [ordered]@{ scenario=$scenario; passed=$true; originalDirectoryPreserved=$true; originalScopePreserved=$true;
       installedVersion=$version; desktopShortcuts=$links.Count; mainProcesses=$main.Count; desktopShortcutLaunchedEditor=$true; noFailurePopup=$true; documentAndRecoveryPreserved=$true }
     Copy-Item -LiteralPath $log -Destination (Join-Path $root ".cache/update-in-place-$scenario.log")
+    Write-UpdatePhase 'uninstall-start'
     Remove-TestInstall $directory $scope
+    Write-UpdatePhase 'uninstall-complete'
     Assert-Preserved
     if (@(Entries).Count) { throw 'Uninstall left an extra installed copy.' }
   }
