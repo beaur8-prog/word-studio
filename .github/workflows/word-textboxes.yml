@@ -17,6 +17,8 @@ on:
       - 'tests/list-pagination.spec.ts'
       - 'tests/word-list-lines.spec.ts'
       - 'tests/word-list-symbols.spec.ts'
+      - 'tests/docx-grouped-pictures.spec.ts'
+      - 'tests/helpers/grouped-drawing.ts'
       - 'tests/docx-content-visibility.spec.ts'
       - 'tests/docx-table-style-paragraphs.spec.ts'
       - 'tests/docx-floating-size.spec.ts'
@@ -47,6 +49,8 @@ on:
       - 'src/docx-format.ts'
       - 'src/docx-metadata.ts'
       - 'src/imported-format.ts'
+      - 'src/docx-drawing-groups.ts'
+      - 'src/drawing-group.ts'
       - 'src/docx-textboxes.ts'
       - 'src/textbox-frame.ts'
       - 'src/docx-stories.ts'
@@ -62,6 +66,8 @@ on:
       - 'tests/list-pagination.spec.ts'
       - 'tests/word-list-lines.spec.ts'
       - 'tests/word-list-symbols.spec.ts'
+      - 'tests/docx-grouped-pictures.spec.ts'
+      - 'tests/helpers/grouped-drawing.ts'
       - 'tests/docx-content-visibility.spec.ts'
       - 'tests/docx-table-style-paragraphs.spec.ts'
       - 'tests/docx-floating-size.spec.ts'
@@ -96,7 +102,7 @@ jobs:
       - name: Verify bundled font bytes, licenses and legacy symbol coverage
         run: node --test tests/symbol-fonts.test.cjs
       - name: Exercise stories, colors, geometry, editor commands and two real DOCX exports
-        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-list-lines.spec.ts tests/word-list-symbols.spec.ts tests/docx-content-visibility.spec.ts tests/docx-table-style-paragraphs.spec.ts tests/docx-floating-size.spec.ts tests/layout-flow.spec.ts tests/word-font-fallbacks.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts --trace=off --reporter=line
+        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-list-lines.spec.ts tests/word-list-symbols.spec.ts tests/docx-content-visibility.spec.ts tests/docx-grouped-pictures.spec.ts tests/docx-table-style-paragraphs.spec.ts tests/docx-floating-size.spec.ts tests/layout-flow.spec.ts tests/word-font-fallbacks.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts --trace=off --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - name: Add optional public reproduction copies for schema validation

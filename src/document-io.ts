@@ -1,3 +1,4 @@
+import {writeDrawingGroups} from './docx-drawing-groups';
 import { wordListFontName } from './word-list-marker';
 import { prepareTextBoxes, writeTextBoxes, type TextBoxExport } from './docx-textboxes';
 import { textBoxFrame } from './textbox-frame';
@@ -990,7 +991,7 @@ async function imageRun(
   width = Math.max(1, floating ? width : Math.round(width * scale));
   height = Math.max(1, floating ? height : Math.round(height * scale));
   const name = String(node.attrs?.title || '그림');
-  const geometryId = floating?.polygon ? `wsFloat_${crypto.randomUUID()}` : undefined;
+  const geometryId = floating?.polygon || floating?.drawingGroup ? `wsFloat_${crypto.randomUUID()}` : undefined;
   if (geometryId) geometries.set(geometryId, { name, geometry: floating! });
   return new ImageRun({
     type: type as "png" | "jpg" | "gif" | "bmp",
@@ -1581,6 +1582,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   }
   await writeTextBoxes(zip, textBoxes);
   await restoreImageGeometry(zip, geometries);
+  await writeDrawingGroups(zip);
   if (document.comments.length) {
     const commentsXml = xml(await zip.file('word/comments.xml')!.async('string'));
     const extended = document.comments.map((comment, index) => {

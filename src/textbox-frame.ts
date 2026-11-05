@@ -1,9 +1,11 @@
+import {imageFloating} from './image-floating';
+import {drawingGroup,type DrawingGroup} from './drawing-group';
 import { Node, Extension } from '@tiptap/core';
 import { Plugin, TextSelection } from '@tiptap/pm/state';
 import { documentScale } from './document-scale';
 
 export type TextBoxFrame = {
-  group?: string;
+  group?: string; drawingGroup?: DrawingGroup;
   width: number; height: number; x: number; y: number;
   position: 'floating' | 'inline'; wrap?: 'none' | 'square'; noWrap?: boolean; autoFit?: boolean; horizontalAlign?: 'left'|'center'|'right'; horizontalReference?: 'page'|'margin'|'column'; horizontalOffset?: number; vertical: 'page' | 'paragraph';
   padding: [number, number, number, number];
@@ -19,6 +21,7 @@ export function textBoxFrame(value: unknown): TextBoxFrame | undefined {
   if (typeof value !== 'string' || value.length > 10000) return;
   try {
     const v = JSON.parse(value);
+    if(v?.drawingGroup!==undefined && !drawingGroup(v.drawingGroup))return;
     if(v?.group!==undefined && (typeof v.group!=='string' || !/^[a-z0-9_]{1,64}$/i.test(v.group)))return;
     if (!v || typeof v !== 'object' || !number(v.width, .1, 100000) || !number(v.height, .1, 100000) ||
       !number(v.x, -100000, 100000) || !number(v.y, -100000, 100000) || !['floating','inline'].includes(v.position) ||
@@ -33,7 +36,7 @@ export function textBoxFrame(value: unknown): TextBoxFrame | undefined {
       v.borderWidth !== undefined && !number(v.borderWidth, 0, 1000) || v.behind !== undefined && typeof v.behind !== 'boolean') return;
     if (v.gradient !== undefined && (!Array.isArray(v.gradient) || !v.gradient.length || v.gradient.length > 16 ||
       !v.gradient.every((s: any) => s && number(s.position, 0, 1) && color(s.color)))) return;
-    return { ...(v.group?{group:v.group}:{}), width:v.width, height:v.height, x:v.x, y:v.y, position:v.position, vertical:v.vertical,
+    return { ...(v.group?{group:v.group}:{}), ...(v.drawingGroup?{drawingGroup:drawingGroup(v.drawingGroup)}:{}), width:v.width, height:v.height, x:v.x, y:v.y, position:v.position, vertical:v.vertical,
       padding:v.padding, ...(v.wrapMargins?{wrapMargins:v.wrapMargins}:{}), align:v.align, shape:v.shape, ...(v.horizontalReference ? {horizontalReference:v.horizontalReference} : {}), ...(v.horizontalOffset!==undefined ? {horizontalOffset:v.horizontalOffset} : {}), ...(v.autoFit!==undefined ? {autoFit:v.autoFit} : {}), ...(v.horizontalAlign ? {horizontalAlign:v.horizontalAlign} : {}), ...(v.wrap ? {wrap:v.wrap} : {}), ...(v.noWrap!==undefined ? {noWrap:v.noWrap} : {}), ...(v.fill ? { fill:v.fill } : {}),
       ...(v.gradient ? { gradient:v.gradient.map((s: any) => ({ position:s.position, color:s.color })) } : {}),
       ...(v.border ? { border:v.border, borderWidth:v.borderWidth ?? 0 } : {}), ...(v.behind !== undefined ? { behind:v.behind } : {}) };
@@ -100,11 +103,12 @@ export function layoutTextBoxes(root: HTMLElement) {
     const sheet=frame.closest<HTMLElement>('.print-page,.document-section-content,.document-stack');if(!sheet)continue;
     const scale=documentScale(frame),paper=sheet.getBoundingClientRect(),rect=frame.getBoundingClientRect();if(!(scale>0))continue;
     const height=Number(sheet.dataset.pageHeight) || paper.height/scale;
-    const natural=(rect.top-paper.top)/scale, page=sheet.classList.contains('print-page') ? 0 : Math.max(0,Math.floor((natural+.5)/(height+24)));
+    const carrier=f.drawingGroup && [...root.querySelectorAll<HTMLImageElement>('img[data-image-floating]')].find(img=>imageFloating(img.dataset.imageFloating)?.drawingGroup?.id===f.drawingGroup!.id)?.closest('p,h1,h2,h3,h4,h5,h6');
+    const natural=((carrier?.getBoundingClientRect().top??rect.top)-paper.top)/scale, page=sheet.classList.contains('print-page') ? 0 : Math.max(0,Math.floor((natural+.5)/(height+24)));
     const actualWidth=frame.firstElementChild!.getBoundingClientRect().width/scale;
     const adjustment=f.autoFit && f.noWrap ? (f.width-actualWidth)*(f.horizontalAlign==='center'?.5:f.horizontalAlign==='right'?1:0):0;
     frame.style.setProperty('--textbox-left',`${f.x+adjustment-(rect.left-paper.left)/scale}px`);
-    frame.style.setProperty('--textbox-top',`${f.vertical==='paragraph' ? f.y : page*(height+24)+f.y-natural}px`);
+    frame.style.setProperty('--textbox-top',`${f.vertical==='paragraph' ? f.y+(carrier?(carrier.getBoundingClientRect().top-rect.top)/scale:0) : page*(height+24)+f.y-(rect.top-paper.top)/scale}px`);
   }
 }
 function syncPaintedSelection(view: import('@tiptap/pm/view').EditorView) {

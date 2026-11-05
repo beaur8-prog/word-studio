@@ -151,6 +151,14 @@ function exclusion(picture: Picture, y: number, height: number): [number, number
   }
   return [[a - (m?.left || 0) / 9525, b + (m?.right || 0) / 9525]];
 }
+/** A Word group excludes text as one drawing, including gaps between children. */
+function groupExclusion(picture: Picture):Picture|undefined {
+  const g=picture.geometry.drawingGroup;if(!g)return;
+  return {index:-100000-picture.index,left:picture.left-((picture.geometry.horizontalPosition.offset||0)/9525-g.x),
+    top:picture.top-((picture.geometry.verticalPosition.offset||0)/9525-g.y),width:g.width,height:g.height,cssLeft:0,cssTop:0,
+    geometry:{horizontalPosition:{relative:'page',offset:g.x*9525},verticalPosition:{relative:g.vertical,offset:g.y*9525},wrap:g.wrap,
+      ...(g.polygon?{polygon:g.polygon}:{}),drawingGroup:g,margins:{top:g.margins[0]*9525,right:g.margins[1]*9525,bottom:g.margins[2]*9525,left:g.margins[3]*9525}}};
+}
 function slots(pictures: Picture[], x: number, y: number, width: number, height: number) {
   let spans: [number, number][] = [[x, x + width]];
   for (const picture of pictures)
@@ -329,6 +337,8 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       pictures.push({ index:-1-index,left:box.left,top:box.top,width:box.width,height:box.height,cssLeft:0,cssTop:0,
         geometry:{ horizontalPosition:{relative:'page',offset:0},verticalPosition:{relative:'page',offset:0},wrap:{type:1},margins:{top:(data.wrapMargins?.[0]||0)*9525,right:(data.wrapMargins?.[1]||0)*9525,bottom:(data.wrapMargins?.[2]||0)*9525,left:(data.wrapMargins?.[3]||0)*9525} } });
     }
+    const groupIds=new Set<string>();
+    for(const picture of [...pictures])if(picture.index>=0){const group=groupExclusion(picture);if(group && !groupIds.has(group.geometry.drawingGroup!.id)){pictures.push(group);groupIds.add(group.geometry.drawingGroup!.id);}}
     const result: ParagraphPlan[] = [];
     for (let pi = 0; pi < ps.length; pi++) {
       const p = ps[pi],
@@ -340,6 +350,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       for (const picture of own) {
         const i = pictures.findIndex((v) => v.index === picture.index);
         if (i >= 0) pictures[i] = picture;
+        const group=groupExclusion(picture);if(group){const gi=pictures.findIndex(v=>v.index<=-100000 && v.geometry.drawingGroup?.id===group.geometry.drawingGroup!.id);if(gi>=0)pictures[gi]=group;}
       }
       // Behind/in-front artwork needs positioning but does not exclude text.
       // Its often page-sized bounds must not trigger a manual re-layout of

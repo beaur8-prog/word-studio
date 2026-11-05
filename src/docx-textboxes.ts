@@ -1,3 +1,4 @@
+import { normalizeDrawingGroups } from './docx-drawing-groups';
 import type JSZip from 'jszip';
 import { W, all, child, ancestor } from './docx-format';
 import { storyHtml } from './docx-stories';
@@ -116,6 +117,7 @@ function legacyFrame(box:Element,page:PageSettings):TextBoxFrame {
  * Modern Choice wins once; the equivalent legacy fallback is never imported twice. */
 export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSettings[],depth=0) {
  if(depth>12)throw Error('중첩 텍스트상자 구조가 너무 깊습니다.');
+ normalizeDrawingGroups(body,pages);
  const palette=await colors(zip),records:PreparedBox[]=[];
  const candidates=all(body,'txbxContent').filter(box=>{
   const fallback=ancestor(box,'Fallback');if(!fallback)return true;
@@ -134,7 +136,9 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
   const page=pageFor.get(ancestor(container,'p')!)||pages[0];const frames=[];
   for(const box of boxes) {
    const frame=ancestor(box,'wsp') ? modernFrame(box,page,palette):legacyFrame(box,page);
-   if(boxes.length>1 && ancestor(box,'wgp'))frame.group='textbox_group_'+records.length;
+   const raw=ancestor(box,'drawing')?.getAttribute('data-ws-drawing-group');
+   if(raw){frame.drawingGroup=JSON.parse(raw);frame.group=frame.drawingGroup!.id;}
+   else if(boxes.length>1 && ancestor(box,'wgp'))frame.group='textbox_group_'+records.length;
    frames.push({frame,html:await storyHtml(zip,'word/document.xml',box,page,depth+1)});
   }
   const marker='ws_textbox_'+crypto.randomUUID().replaceAll('-','');
@@ -178,12 +182,13 @@ export async function writeTextBoxes(zip:JSZip,records:TextBoxExport[]) {
    const parsed=new DOMParser().parseFromString(xml,'application/xml');if(parsed.getElementsByTagName('parsererror').length)throw Error('텍스트상자 XML을 만들 수 없습니다.');
    const p=doc.importNode(parsed.documentElement,true),target=all(p,'txbxContent')[0];target.append(...children);
    if(f.position==='inline'){const anchor=p.getElementsByTagNameNS(WP,'anchor')[0],inline=doc.createElementNS(WP,'wp:inline');for(const c of [...anchor.children])if(['extent','effectExtent','docPr','cNvGraphicFramePr','graphic'].includes(c.localName))inline.append(c);anchor.replaceWith(inline);}
+   if(f.drawingGroup)p.getElementsByTagNameNS(WP,'anchor')[0].setAttribute('data-ws-drawing-group',JSON.stringify(f.drawingGroup));
    start.replaceWith(p);finish.remove();written.push({record,paragraph:p});
   }
   // A Word group is one anchor. Splitting its children into separate anchors
   // makes Word's web editor give each large child another page of its own.
   const groups=new Map<string,typeof written>();
-  for(const item of written)if(item.record.frame.group){const items=groups.get(item.record.frame.group)||[];items.push(item);groups.set(item.record.frame.group,items);}
+  for(const item of written)if(item.record.frame.group && !item.record.frame.drawingGroup){const items=groups.get(item.record.frame.group)||[];items.push(item);groups.set(item.record.frame.group,items);}
   for(const members of groups.values()) {
     if(members.length<2 || members.some((m,i)=>m.record.frame.position!=='floating' || m.record.frame.vertical!==members[0].record.frame.vertical || i>0 && members[i-1].paragraph.nextElementSibling!==m.paragraph))continue;
     const x=Math.min(...members.map(m=>m.record.frame.x)),y=Math.min(...members.map(m=>m.record.frame.y));

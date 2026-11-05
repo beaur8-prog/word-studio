@@ -1,6 +1,7 @@
+import {drawingGroup,type DrawingGroup} from './drawing-group';
 import type { IFloating } from "docx";
 import type JSZip from "jszip";
-export type ImageFloating = IFloating & { polygon?: [number, number][] };
+export type ImageFloating = IFloating & { polygon?: [number, number][]; drawingGroup?: DrawingGroup };
 export type ImageGeometryRecord = { name: string; geometry: ImageFloating };
 
 /** docx emits a rectangular wrapPolygon. Replace it with the document's
@@ -15,6 +16,7 @@ export async function restoreImageGeometry(zip: JSZip, records: Map<string, Imag
       const record = records.get(properties.getAttribute("name") || "");
       if (!record) continue;
       properties.setAttribute("name", record.name);
+      if(record.geometry.drawingGroup)properties.parentElement!.setAttribute("data-ws-drawing-group",JSON.stringify(record.geometry.drawingGroup));
       const anchor = properties.parentElement,
         wrap =
           anchor &&
@@ -96,6 +98,7 @@ export function imageFloating(value: unknown): ImageFloating | undefined {
         ? (data.polygon as [number, number][])
         : undefined;
     if (data.polygon !== undefined && !polygon) return;
+    const group=drawingGroup(data.drawingGroup);if(data.drawingGroup!==undefined && !group)return;
     return {
       horizontalPosition: data.horizontalPosition,
       verticalPosition: data.verticalPosition,
@@ -106,6 +109,7 @@ export function imageFloating(value: unknown): ImageFloating | undefined {
           : {}),
       },
       ...(polygon ? { polygon } : {}),
+      ...(group ? {drawingGroup:group} : {}),
       ...(data.margins && typeof data.margins === "object"
         ? {
             margins: Object.fromEntries(
@@ -185,6 +189,7 @@ export function drawingFloating(drawing: Element) {
         ]),
       ),
       behindDocument: anchor.getAttribute("behindDoc") === "1",
+      ...(drawing.hasAttribute("data-ws-drawing-group")?{drawingGroup:JSON.parse(drawing.getAttribute("data-ws-drawing-group")!)}:{}),
     }),
   );
 }
