@@ -129,3 +129,24 @@ test('a legacy bullet on a long split item appears once and is suppressed on con
   expect(actual.items.every(item => item.glyph === '•')).toBe(true);
   for (let i = 0; i < 1600; i++) expect(actual.text?.match(new RegExp(`\\bTOKEN${i}\\b`, 'g'))).toHaveLength(1);
 });
+
+test('printing a resolved marker keeps neighboring paragraph coordinates and source reading order', async ({ page }, info) => {
+  const expected = 'READ_ORDER_BEGINREAD_ORDER_LISTREAD_ORDER_END';
+  const input = await Packer.toBuffer(new Document({ styles: { default: defaults }, numbering: { config: [{ reference: 'Order', levels: [{ level: 0, format: LevelFormat.BULLET, text: '•', style: { run: { font: 'Arial' }, paragraph: { indent: { left: 720, hanging: 360 } } } }] }] }, sections: [{ children: [new Paragraph('READ_ORDER_BEGIN'), new Paragraph({ text: 'READ_ORDER_LIST', numbering: { reference: 'Order', level: 0 } }), new Paragraph('READ_ORDER_END')] }] }));
+  await page.goto('/');
+  await page.evaluate(async bytes => {
+    const { importFile } = await import('/src/document-io.ts'), { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts'), { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js'), { createPrintLayout } = await import('/src/print-layout.ts');
+    const opened = await importFile(new File([new Uint8Array(bytes)], 'reading-order.docx'));
+    (window as any).listOrderLayout = await createPrintLayout(generateHTML(parseDocumentHtml(opened.html!), editorExtensions), opened.document.page);
+    document.body.classList.add('studio-printing');
+  }, [...input]);
+  const bounds = () => page.locator('.print-content p').evaluateAll(ps => ps.map(p => { const content = p.closest('.print-content')!.getBoundingClientRect(), r = document.createRange(); r.selectNodeContents(p); const rect = r.getBoundingClientRect(); return { text: p.textContent, x: rect.x - content.x, y: rect.y - content.y, width: rect.width, height: rect.height }; }));
+  try {
+    const before = await bounds(); await page.emulateMedia({ media: 'print' }); expect(await bounds()).toEqual(before);
+    expect((await bounds()).map(p => p.text).join('')).toBe(expected);
+    // The PDF/expected pair is audited by the local PDF text-order check,
+    // independently of this DOM/geometry check and the OOXML validator.
+    await page.pdf({ path: info.outputPath('list-reading-order.pdf'), printBackground: true, preferCSSPageSize: true });
+    await fs.writeFile(info.outputPath('list-reading-order-expected.txt'), expected);
+  } finally { await page.evaluate(() => { (window as any).listOrderLayout.dispose(); document.body.classList.remove('studio-printing'); }); }
+});

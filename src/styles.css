@@ -2004,6 +2004,10 @@ button:hover:not(:disabled) {
   /* Positioned cells paint their fill over collapsed borders in Chromium PDF. */
   body.studio-printing .print-content td, body.studio-printing .print-content th { position: static !important; }
   body.studio-printing .print-content p, body.studio-printing .print-content h1, body.studio-printing .print-content h2, body.studio-printing .print-content h3 { orphans: 1; widows: 1; break-after: auto; }
+  /* Positioned list labels otherwise paint their body text after later
+     static paragraphs. Keep sibling blocks in document order for PDF readers
+     without changing their flow coordinates or saved document formatting. */
+  .print-content:has(li[data-word-list-layout]) > :is(p,h1,h2,h3,h4,h5,h6,ol,ul,blockquote) { position: relative; }
   body.studio-printing .print-header, body.studio-printing .print-footer { display: flex !important; }
 }
 
