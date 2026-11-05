@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import fs from 'node:fs/promises';
-import { Document, Packer, Paragraph, Header, Footer, LevelFormat } from 'docx';
+import { Document, Packer, Paragraph, Header, Footer, Table, TableRow, TableCell, LevelFormat } from 'docx';
 
 const defaults = { document: { run: { font: 'Arial', size: 20 }, paragraph: { spacing: { line: 276, before: 0, after: 0 } } } };
 
@@ -131,8 +131,8 @@ test('a legacy bullet on a long split item appears once and is suppressed on con
 });
 
 test('printing a resolved marker keeps neighboring paragraph coordinates and source reading order', async ({ page }, info) => {
-  const expected = 'READ_ORDER_BEGINREAD_ORDER_LISTREAD_ORDER_END';
-  const input = await Packer.toBuffer(new Document({ styles: { default: defaults }, numbering: { config: [{ reference: 'Order', levels: [{ level: 0, format: LevelFormat.BULLET, text: '•', style: { run: { font: 'Arial' }, paragraph: { indent: { left: 720, hanging: 360 } } } }] }] }, sections: [{ children: [new Paragraph('READ_ORDER_BEGIN'), new Paragraph({ text: 'READ_ORDER_LIST', numbering: { reference: 'Order', level: 0 } }), new Paragraph('READ_ORDER_END')] }] }));
+  const expected = 'READ_ORDER_BEGINREAD_ORDER_LISTREAD_ORDER_MIDTABLE_ATABLE_BREAD_ORDER_END';
+  const input = await Packer.toBuffer(new Document({ styles: { default: defaults }, numbering: { config: [{ reference: 'Order', levels: [{ level: 0, format: LevelFormat.BULLET, text: '•', style: { run: { font: 'Arial' }, paragraph: { indent: { left: 720, hanging: 360 } } } }] }] }, sections: [{ children: [new Paragraph('READ_ORDER_BEGIN'), new Paragraph({ text: 'READ_ORDER_LIST', numbering: { reference: 'Order', level: 0 } }), new Paragraph('READ_ORDER_MID'), new Table({ rows: [new TableRow({ children: ['TABLE_A', 'TABLE_B'].map(text => new TableCell({ shading: { fill: 'DCE6F1' }, children: [new Paragraph(text)] })) })] }), new Paragraph('READ_ORDER_END')] }] }));
   await page.goto('/');
   await page.evaluate(async bytes => {
     const { importFile } = await import('/src/document-io.ts'), { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts'), { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js'), { createPrintLayout } = await import('/src/print-layout.ts');
