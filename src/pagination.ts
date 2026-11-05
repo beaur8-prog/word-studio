@@ -277,7 +277,11 @@ export const Pagination = Extension.create({
                   if (!budget && paragraph.dataset.wordKeepLines === 'true' && piece.height > usable + .5) budget = piece.height;
                   if (budget) {
                     const y = piece.top + extra, page = Math.max(0, Math.floor((y - top + .5) / stride));
-                    if (y > page * stride + top + .5 && y + budget > page * stride + h - bottom - reserve(page, []) + .5) {
+                    // Space-before at the start of a fresh page is not
+                    // preceding content. Do not create an empty extra sheet
+                    // for an oversized first paragraph/chain.
+                    const before = Math.max(0, parseFloat(getComputedStyle(paragraph).marginTop) || 0);
+                    if (y - before > page * stride + top + .5 && y + budget > page * stride + h - bottom - reserve(page, []) + .5) {
                       const gap = Math.max(0, Math.ceil(((page + 1) * stride + top - y) * 64) / 64);
                       dec.push(Decoration.widget(piece.pos, () => {
                         const spacer = document.createElement('div'); spacer.className = 'pagination-gap'; spacer.style.height = `${gap}px`;
