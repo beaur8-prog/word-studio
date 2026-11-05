@@ -1,3 +1,4 @@
+import {DocumentDrawingAnchor} from './drawing-group-anchor';
 import { Node, Extension, Mark } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from '@tiptap/extension-underline';
@@ -116,7 +117,7 @@ export const editorExtensions = [
   DocumentTextBox, TextBoxLayout,
   TableAnchorLayout,
   BlockImage.configure({ allowBase64: true }),
-  InlineImage,
+  InlineImage, DocumentDrawingAnchor,
   DocumentTab,
   DocumentBookmark,
   NoteReference, DocumentNote, DocumentField, ColumnGroup, SectionContent,

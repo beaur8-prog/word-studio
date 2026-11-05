@@ -1,3 +1,4 @@
+import {imageFloating} from './image-floating';
 // A hard break belongs to the preceding printed line. Give it an offset so
 // cutting after that line does not leave a spurious blank line on the tail.
 export function paragraphTextWalker(element: HTMLElement) {
@@ -11,6 +12,11 @@ export const textUnitLength = (node: Node) => node instanceof Text ? node.length
 export function prepareParagraphEnds(root: HTMLElement) {
   const paragraphs = [...(root.matches('p,h1,h2,h3,h4,h5,h6') ? [root] : []), ...root.querySelectorAll<HTMLElement>('p,h1,h2,h3,h4,h5,h6')];
   for (const p of paragraphs) {
+    // An anchor-only Word paragraph still has a paragraph-mark line. The
+    // editor supplies a trailing BR; its static HTML needs the same strut.
+    const images=[...p.querySelectorAll<HTMLImageElement>('img')];
+    if(images.some(img=>imageFloating(img.dataset.imageFloating)?.drawingGroup) && !p.textContent?.trim() && !p.querySelector('br') && images.every(img=>imageFloating(img.dataset.imageFloating)))p.dataset.printDrawingAnchor='true';
+    else delete p.dataset.printDrawingAnchor;
     const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT); let last: Node | undefined;
     while (walker.nextNode()) {
       const node = walker.currentNode;

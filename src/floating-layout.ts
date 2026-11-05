@@ -1,3 +1,4 @@
+import {inlineDrawingAnchor,prepareDrawingGroupAnchors} from './drawing-group';
 import { layoutTextBoxes, textBoxFrame } from './textbox-frame';
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
@@ -32,7 +33,7 @@ type Picture = {
 };
 type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[] };
 const atomic =
-  "img,[data-symbol-font],[data-word-overlap],[data-docx-tab],[data-docx-bookmark],[data-note-reference],[data-page-number]";
+  "img,[data-drawing-group-anchor],[data-symbol-font],[data-word-overlap],[data-docx-tab],[data-docx-bookmark],[data-note-reference],[data-page-number]";
 const floatingImages = (root: HTMLElement) =>
   [...root.querySelectorAll<HTMLImageElement>("img[data-image-floating]")].filter(
     (img) => !img.closest(".document-furniture,.paper-backgrounds,.section-papers"),
@@ -248,14 +249,15 @@ function imagePosition(
       : vertical.relative === "margin"
         ? ph - top - bottom
         : rect.height;
-  const left =
+  const inline=g.drawingGroup?.position==='inline' ? inlineDrawingAnchor(root,g.drawingGroup.id)?.getBoundingClientRect():undefined;
+  const left = inline ? inline.left+(horizontal.offset||0)/9525-g.drawingGroup!.x :
     hbase +
     (horizontal.align === "center"
       ? (hwidth - width) / 2
       : horizontal.align === "right"
         ? hwidth - width
         : (horizontal.offset || 0) / 9525);
-  let y =
+  let y = inline ? inline.top+(vertical.offset||0)/9525-g.drawingGroup!.y :
     vbase +
     (vertical.align === "center"
       ? (vh - height) / 2
@@ -327,6 +329,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
   try {
     const ps = paragraphs(copy),
       images = floatingImages(copy);
+    prepareDrawingGroupAnchors(copy);
     layoutTextBoxes(copy);
     const pictures = images
       .map((img, index) => imagePosition(img, index, copy))

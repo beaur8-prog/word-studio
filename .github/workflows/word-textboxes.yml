@@ -51,6 +51,7 @@ on:
       - 'src/imported-format.ts'
       - 'src/docx-drawing-groups.ts'
       - 'src/drawing-group.ts'
+      - 'src/drawing-group-anchor.ts'
       - 'src/docx-textboxes.ts'
       - 'src/textbox-frame.ts'
       - 'src/docx-stories.ts'

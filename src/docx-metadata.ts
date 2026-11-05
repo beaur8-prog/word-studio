@@ -1,3 +1,4 @@
+import {parseDrawingGroup} from './drawing-group';
 import type JSZip from 'jszip';
 import { pageMargins, paperDimensions, type Comment, type PageSettings } from './types';
 import { W, all, val, child, ancestor, docxFormat } from './docx-format';
@@ -171,6 +172,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       const tableGaps = new Map<HTMLElement, number>();
       const tableAnchorParagraphs = new Set<HTMLElement>();
       const tableOffsetParagraphs = new Set<HTMLElement>();
+      const inlineGroups=new Set<string>();
       for (const el of template.content.querySelectorAll('img')) {
         const name = el.getAttribute('alt') || '', marker = markers.get(name);
         if (marker?.kind !== 'image') continue;
@@ -182,6 +184,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           const original = el.parentElement; anchor.after(el);
           if (original && original !== el.parentElement && original.matches('p') && !original.textContent && !original.querySelector('img,[data-ws-marker],[data-docx-bookmark]')) original.remove();
         }
+        const group=marker.floating ? parseDrawingGroup(JSON.stringify(JSON.parse(marker.floating).drawingGroup)) : undefined;
+        if(group?.position==='inline' && !inlineGroups.has(group.id)){const extent=document.createElement('span');extent.dataset.drawingGroupAnchor=JSON.stringify(group);el.before(extent);inlineGroups.add(group.id);}
       }
       // Attach paragraph properties before deleting marker anchors.
       for (const anchor of template.content.querySelectorAll('[data-ws-marker]')) {

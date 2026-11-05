@@ -1,3 +1,4 @@
+import {parseDrawingGroup} from './drawing-group';
 import {writeDrawingGroups} from './docx-drawing-groups';
 import { wordListFontName } from './word-list-marker';
 import { prepareTextBoxes, writeTextBoxes, type TextBoxExport } from './docx-textboxes';
@@ -82,7 +83,7 @@ const MAX_INFLATED_BYTES = documentLimits.documentInflatedBytes;
 export function documentFileLimit(extension: string | undefined): number {
   return extension === 'wordstudio' ? documentLimits.studioDocumentBytes : extension === 'html' || extension === 'htm' ? documentLimits.hwpEditableHtmlBytes : MAX_FILE_BYTES;
 }
-const INLINE = new Set(["text", "hardBreak", "inlineImage", "documentTab", "wordOverlap", "documentBookmark", "noteReference", "documentField", "documentSymbol"]);
+const INLINE = new Set(["text", "hardBreak", "inlineImage", "documentTab", "wordOverlap", "documentBookmark", "noteReference", "documentField", "documentSymbol", "documentDrawingAnchor"]);
 const BLOCKS = new Set([
   "paragraph",
   "heading",
@@ -252,6 +253,7 @@ export function validateDocument(input: unknown): StudioDocument {
         fail("표 셀 구조가 올바르지 않습니다.");
     } else if (parent !== null && !BLOCKS.has(type))
       fail("잘못된 본문 요소 위치입니다.");
+    if(type==='documentDrawingAnchor' && (!object(value.attrs) || parseDrawingGroup(value.attrs.frame)?.position!=='inline'))fail('그림 그룹의 인라인 크기가 올바르지 않습니다.');
     if (type === 'documentTextBox' && (!object(value.attrs) || !textBoxFrame(value.attrs.frame))) fail('텍스트상자 설정이 올바르지 않습니다.');
     if (value.attrs !== undefined) {
       if (!object(value.attrs)) fail("본문 속성이 올바르지 않습니다.");
@@ -1122,6 +1124,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         }
       } else if (node.type === "hardBreak")
         runs.push(new TextRun({ ...defaults, break: 1 }));
+      // The actual picture run below becomes the one standard inline group.
+      else if(node.type==='documentDrawingAnchor')continue;
       else if (node.type === 'documentTab') runs.push(new TextRun({ ...defaults, children: [new Tab()] }));
       else if (node.type === 'documentBookmark') runs.push(new Bookmark({ id: bookmarkName(String(node.attrs?.name || '')), children: [] }));
       else if (node.type === 'documentField') runs.push(new TextRun({ ...defaults, children: [node.attrs?.kind === 'NUMPAGES' ? PageNumber.TOTAL_PAGES : PageNumber.CURRENT] }));

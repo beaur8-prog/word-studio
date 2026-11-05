@@ -1,3 +1,4 @@
+import {inlineDrawingAnchor} from './drawing-group';
 import { normalizeDrawingGroups } from './docx-drawing-groups';
 import type JSZip from 'jszip';
 import { W, all, child, ancestor } from './docx-format';
@@ -153,6 +154,7 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
    if(!marker)continue;
    const paragraph=marker.closest('p,h1,h2,h3,h4,h5,h6,li');let after=paragraph ? last.get(paragraph)||paragraph:marker;
    for(const item of record.frames) {
+    if(item.frame.drawingGroup?.position==='inline' && !inlineDrawingAnchor(template.content,item.frame.drawingGroup.id)){const anchor=document.createElement('span');anchor.dataset.drawingGroupAnchor=JSON.stringify(item.frame.drawingGroup);marker.before(anchor);}
     const box=document.createElement('div'),content=document.createElement('div');box.dataset.documentTextbox=JSON.stringify(item.frame);content.dataset.textboxContent='true';content.innerHTML=item.html;box.append(content);after.after(box);after=box;
    }
    if(paragraph)last.set(paragraph,after);marker.remove();

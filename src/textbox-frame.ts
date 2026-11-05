@@ -1,5 +1,5 @@
 import {imageFloating} from './image-floating';
-import {drawingGroup,type DrawingGroup} from './drawing-group';
+import {drawingGroup,inlineDrawingAnchor,type DrawingGroup} from './drawing-group';
 import { Node, Extension } from '@tiptap/core';
 import { Plugin, TextSelection } from '@tiptap/pm/state';
 import { documentScale } from './document-scale';
@@ -53,6 +53,14 @@ function applyFrame(dom: HTMLElement, content: HTMLElement, frame: TextBoxFrame)
   content.dataset.textboxContent = 'true'; content.className = 'document-textbox-content';
   content.style.cssText = contentStyle(frame);
 }
+/** Furniture HTML has no editor NodeView. Apply the same resolved colors and
+ * frame styles before positioning, so white story text keeps its background. */
+export function prepareStaticTextBoxes(root:HTMLElement){
+ for(const frame of root.querySelectorAll<HTMLElement>('.document-furniture [data-document-textbox]')){
+  const f=textBoxFrame(frame.dataset.documentTextbox),content=frame.querySelector<HTMLElement>(':scope > [data-textbox-content]');
+  if(f && content){applyFrame(frame,content,f);frame.removeAttribute('title');}
+ }
+}
 export const DocumentTextBox = Node.create({
   name:'documentTextBox', priority:110, group:'block', content:'block+', defining:true, isolating:true,
   addAttributes: () => ({ frame:{ default:'', parseHTML: el => { const f=textBoxFrame(el.getAttribute('data-document-textbox')); return f ? JSON.stringify(f) : ''; }, renderHTML: a => ({ 'data-document-textbox':a.frame }) } }),
@@ -100,11 +108,13 @@ export const DocumentTextBox = Node.create({
 export function layoutTextBoxes(root: HTMLElement) {
   for (const frame of root.querySelectorAll<HTMLElement>('.document-textbox[data-document-textbox]')) {
     const f=textBoxFrame(frame.dataset.documentTextbox); if(!f || f.position!=='floating')continue;
-    const sheet=frame.closest<HTMLElement>('.print-page,.document-section-content,.document-stack');if(!sheet)continue;
+    const sheet=frame.closest<HTMLElement>('.print-page,.paper,.document-section-content,.document-stack');if(!sheet)continue;
     const scale=documentScale(frame),paper=sheet.getBoundingClientRect(),rect=frame.getBoundingClientRect();if(!(scale>0))continue;
     const height=Number(sheet.dataset.pageHeight) || paper.height/scale;
     const carrier=f.drawingGroup && [...root.querySelectorAll<HTMLImageElement>('img[data-image-floating]')].find(img=>imageFloating(img.dataset.imageFloating)?.drawingGroup?.id===f.drawingGroup!.id)?.closest('p,h1,h2,h3,h4,h5,h6');
-    const natural=((carrier?.getBoundingClientRect().top??rect.top)-paper.top)/scale, page=sheet.classList.contains('print-page') ? 0 : Math.max(0,Math.floor((natural+.5)/(height+24)));
+    const natural=((carrier?.getBoundingClientRect().top??rect.top)-paper.top)/scale, page=sheet.matches('.print-page,.paper') ? 0 : Math.max(0,Math.floor((natural+.5)/(height+24)));
+    const inline=f.drawingGroup?.position==='inline' && inlineDrawingAnchor(root,f.drawingGroup.id)?.getBoundingClientRect();
+    if(inline){frame.style.setProperty('--textbox-left',`${(inline.left-rect.left)/scale+f.x-f.drawingGroup!.x}px`);frame.style.setProperty('--textbox-top',`${(inline.top-rect.top)/scale+f.y-f.drawingGroup!.y}px`);continue;}
     const actualWidth=frame.firstElementChild!.getBoundingClientRect().width/scale;
     const adjustment=f.autoFit && f.noWrap ? (f.width-actualWidth)*(f.horizontalAlign==='center'?.5:f.horizontalAlign==='right'?1:0):0;
     frame.style.setProperty('--textbox-left',`${f.x+adjustment-(rect.left-paper.left)/scale}px`);

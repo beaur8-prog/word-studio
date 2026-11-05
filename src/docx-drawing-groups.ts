@@ -31,22 +31,38 @@ function shapeGeometry(shape:Element,group:Element) {
 /** Mammoth skips pictures in wpg:wgp. Extract supported members before the
  * textbox pass removes their shared drawing, retaining one parent wrap/anchor. */
 export function normalizeDrawingGroups(body:Document,pages:PageSettings[]) {
+ const groups=new Map<Element,Element[]>();
+ const collect=(root:Element,members:Element[],depth=0)=>{
+  if(depth>24)throw Error('중첩 그림 그룹이 너무 깊습니다.');
+  for(const c of root.children){
+   if(c.namespaceURI===PIC && c.localName==='pic' || c.namespaceURI===WPS && c.localName==='wsp')members.push(c);
+   else if(c.namespaceURI===WPG && c.localName==='grpSp')collect(c,members,depth+1);
+  }
+ };
+ for(const group of [...body.getElementsByTagNameNS(WPG,'wgp')]){
+  if(ancestor(group,'txbxContent') || ancestor(group,'Fallback'))continue;
+  const members:Element[]=[];collect(group,members);
+  // A picture in a textbox's own story is not a sibling group member. Keep
+  // floating box-only groups on their existing path; nested stories handle themselves.
+  const drawing=ancestor(group,'drawing');
+  if(members.some(m=>m.namespaceURI===PIC) || drawing && first(drawing,'inline') && members.some(m=>m.namespaceURI===WPS))groups.set(group,members);
+ }
+ if(!groups.size)return;
  let section=0;const pageFor=new Map<Element,PageSettings>();
  for(const p of all(body,'p')){pageFor.set(p,pages[Math.min(section,pages.length-1)]||pages[0]);if(first(first(p,'pPr'),'sectPr') && !ancestor(p,'txbxContent'))section++;}
- for(const group of [...body.getElementsByTagNameNS(WPG,'wgp')]) {
-  if(!group.isConnected || ancestor(group,'txbxContent'))continue;
-  const drawing=ancestor(group,'drawing'),anchor=drawing && first(drawing,'anchor');if(!drawing || !anchor || !group.getElementsByTagNameNS(PIC,'pic').length)continue;
-  const fallback=ancestor(drawing,'Fallback');if(fallback)continue;
+ for(const [group,members]of groups) {
+  if(!group.isConnected)continue;
+  const drawing=ancestor(group,'drawing'),anchor=drawing && (first(drawing,'anchor')||first(drawing,'inline'));if(!drawing || !anchor)continue;
   const page=pageFor.get(ancestor(drawing,'p')!)||pages[0];if(!page)continue;
   const h=position(anchor,'positionH',false,page),v=position(anchor,'positionV',true,page),floating=drawingFloating(drawing);
-  const bounds=drawingGroup({id:'drawing_group_'+crypto.randomUUID().replaceAll('-',''),order:0,x:h.value,y:v.value,width:number(first(anchor,'extent'),'cx')/EMU,height:number(first(anchor,'extent'),'cy')/EMU,
+  const bounds=drawingGroup({...(anchor.localName==='inline'?{position:'inline'}:{}),id:'drawing_group_'+crypto.randomUUID().replaceAll('-',''),order:0,x:h.value,y:v.value,width:number(first(anchor,'extent'),'cx')/EMU,height:number(first(anchor,'extent'),'cy')/EMU,
    vertical:['paragraph','line'].includes(v.relative)?'paragraph':'page',wrap:floating?.wrap||{type:0},margins:[number(anchor,'distT')/EMU,number(anchor,'distR')/EMU,number(anchor,'distB')/EMU,number(anchor,'distL')/EMU],behind:anchor.getAttribute('behindDoc')==='1',...(floating?.polygon?{polygon:floating.polygon}:{})});
   if(!bounds)continue;
-  const members:Element[]=[];const visit=(root:Element,depth=0)=>{if(depth>24)throw Error('중첩 그림 그룹이 너무 깊습니다.');for(const c of root.children){if(c.namespaceURI===PIC && c.localName==='pic' || c.namespaceURI===WPS && c.localName==='wsp')members.push(c);else if(c.namespaceURI===WPG && c.localName==='grpSp')visit(c,depth+1);}};visit(group);
   const replacement=body.createDocumentFragment();
   for(const [order,member]of members.entries()){
    const geometry=shapeGeometry(member,group);if(!(geometry.width>0 && geometry.height>0))continue;
-   const copy=drawing.cloneNode(false) as Element,a=anchor.cloneNode(false) as Element;copy.append(a);
+   const copy=drawing.cloneNode(false) as Element,a=anchor.localName==='inline'?body.createElementNS(WP,'wp:anchor'):anchor.cloneNode(false) as Element;copy.append(a);
+   if(anchor.localName==='inline'){for(const[k,v]of Object.entries({simplePos:'0',relativeHeight:'0',behindDoc:'0',locked:'0',layoutInCell:'1',allowOverlap:'1'}))a.setAttribute(k,v);const simple=body.createElementNS(WP,'wp:simplePos');simple.setAttribute('x','0');simple.setAttribute('y','0');a.append(simple);}
    // Clone only anchor properties, never the entire group per member. Large
    // groups must remain linear in memory rather than duplicating every image.
    for(const c of anchor.children){if(c.localName!=='graphic')a.append(c.cloneNode(true));else{const g=c.cloneNode(false) as Element,d=first(c,'graphicData')!;g.append(d.cloneNode(false));a.append(g);}}
@@ -104,6 +120,7 @@ export async function writeDrawingGroups(zip:JSZip) {
    const kind=['wrapNone','wrapSquare','wrapTight','wrapTopAndBottom','wrapThrough'][f.wrap.type],wrap=element(WP,'wp:'+kind,f.wrap.type===1 || f.wrap.type===2 || f.wrap.type===4?{wrapText:f.wrap.side||'bothSides'}:{});
    if(f.wrap.type===2 || f.wrap.type===4){const polygon=element(WP,'wp:wrapPolygon',{edited:'0'});for(const[i,p]of (f.polygon||[[0,0],[1,0],[1,1],[0,1],[0,0]]).entries())polygon.append(element(WP,i?'wp:lineTo':'wp:start',{x:String(Math.round(p[0]*21600)),y:String(Math.round(p[1]*21600))}));wrap.append(polygon);}
    base.insertBefore(wrap,first(base,'docPr')!);
+   if(f.position==='inline'){const inline=element(WP,'wp:inline');for(const c of [...base.children])if(['extent','effectExtent','docPr','cNvGraphicFramePr','graphic'].includes(c.localName))inline.append(c);base.replaceWith(inline);}
   }
   zip.file(name,new XMLSerializer().serializeToString(doc));
  }
