@@ -418,13 +418,18 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
         return value;
       };
       const size = (start: number, end: number) => metrics(start, end).width;
+      // A measured range must really fit. Allowing a positive tolerance can
+      // wrap its final whole word onto an extra native line without that
+      // line's picture-exclusion widget. Reserve one Chromium layout unit;
+      // text size and the document's wrap geometry remain unchanged.
+      const fitReserve = 1 / 64;
       const fit = (start: number, end: number, available: number) => {
         let low = start,
           high = end,
           best = start;
         while (low <= high) {
           const mid = (low + high) >> 1;
-          if (size(start, mid) <= available + 0.15) {
+          if (size(start, mid) <= available - fitReserve) {
             best = mid;
             low = mid + 1;
           } else high = mid - 1;
@@ -476,7 +481,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
             // word into one-letter columns when that word fits the body width.
             if(next<end && next>nextStart && /[\p{Script=Latin}\p{N}]/u.test(tokens[next-1].text) && /[\p{Script=Latin}\p{N}]/u.test(tokens[next].text)) {
               let wordEnd=next;while(wordEnd<end && /[\p{Script=Latin}\p{N}]/u.test(tokens[wordEnd].text))wordEnd++;
-              if(size(nextStart,wordEnd)<=width-indent+.15 && size(nextStart,wordEnd)>right-left+.15)continue;
+              if(size(nextStart,wordEnd)<=width-indent && size(nextStart,wordEnd)>right-left-fitReserve)continue;
             }
             const last = next === nextStart && nextStart < end ? nextStart + 1 : next;
             const textWidth = size(nextStart, last);

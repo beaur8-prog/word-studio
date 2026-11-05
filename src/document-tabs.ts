@@ -22,7 +22,10 @@ export function layoutTabs(root: HTMLElement) {
     const paragraphStyle = getComputedStyle(paragraph);
     const scale = documentScale(paragraph);
     const origin = paragraph.getBoundingClientRect().left - (parseFloat(paragraphStyle.marginLeft) || 0) * scale;
-    for (const tab of tabs) tab.style.width = '0px';
+    // Header/footer HTML is sanitized directly rather than passed through the
+    // editor's node view. Give those imported spans the same measurable inline
+    // box; an ordinary inline span ignores the computed tab width.
+    for (const tab of tabs) { tab.classList.add('document-tab'); tab.style.width = '0px'; }
     for (const tab of tabs) {
       const current = (tab.getBoundingClientRect().left - origin) / scale;
       const nextDefault = (Math.floor((current + .5) / 48) + 1) * 48;

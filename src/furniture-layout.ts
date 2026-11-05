@@ -1,5 +1,6 @@
 import { imageFloating } from './image-floating';
 import { documentScale } from './document-scale';
+import { layoutTabs } from './document-tabs';
 
 /** Header/footer drawings are anchored to their paper, independently of the
  * story's text flow. Keep margin-spanning rules from enlarging the body inset. */
@@ -15,4 +16,7 @@ export function layoutFurnitureImages(paper: HTMLElement) {
     if (y.relative === 'page' && y.offset !== undefined) image.style.top = `${y.offset / 9525 - (rect.top - sheet.top) / scale}px`;
     else if (y.relative === 'paragraph' && y.offset !== undefined) image.style.top = `${y.offset / 9525}px`;
   }
+  // Source tabs can separate a floating logo from its title or page fields.
+  // Resolve them after drawings leave the text flow, in every paper/story.
+  for (const story of paper.querySelectorAll<HTMLElement>('.document-furniture')) layoutTabs(story);
 }
