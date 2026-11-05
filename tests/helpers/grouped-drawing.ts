@@ -40,3 +40,18 @@ export async function boxGroupWithNestedDrawing(){
  const outer=shape.replace('EDITABLE GROUP STORY','OUTER GROUP STORY').replace('</w:txbxContent>',`<w:p><w:r>${drawing.replace('<wp:docPr id="10"','<wp:docPr id="11"')}</w:r></w:p></w:txbxContent>`),second=shape.replace('EDITABLE GROUP STORY','SECOND OUTER STORY').replace('<a:off x="0" y="0"/>','<a:off x="2286000" y="0"/>');
  const start=xml.indexOf(shape),picEnd=xml.indexOf('</pic:pic>',start)+10;xml=xml.slice(0,start)+outer+second+xml.slice(picEnd);zip.file('word/document.xml',xml);return zip.generateAsync({type:'nodebuffer'});
 }
+
+/** A separate group member and an inline cell picture use distinct image parts. */
+export const TABLE_GROUP_INNER_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAADUlEQVQImWNgYPj/HwADAgH/xCAAOgAAAABJRU5ErkJggg==';
+export async function tableGroupedDrawing(scenario:'mixed'|'inline') {
+ const zip=await JSZip.loadAsync(await groupedDrawing(scenario));
+ const paragraph=(t:string)=>`<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:color w:val="FFFFFF"/><w:sz w:val="20"/></w:rPr><w:t>${t}</w:t></w:r></w:p>`;
+ const innerPicture=picture(35,0,0,12,12).replace('groupPicture','innerPicture').replaceAll('GROUP PICTURE 35','INNER TABLE PICTURE');
+ const image=`<w:drawing><wp:inline><wp:extent cx="${emu(12)}" cy="${emu(12)}"/><wp:docPr id="35" name="Inner table picture" descr="INNER TABLE PICTURE"/><a:graphic><a:graphicData uri="${PIC}">${innerPicture}</a:graphicData></a:graphic></wp:inline></w:drawing>`;
+ const margins='<w:tcMar><w:top w:w="0" w:type="dxa"/><w:left w:w="0" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="0" w:type="dxa"/></w:tcMar>';
+ const cell=(t:string,extra='')=>`<w:tc><w:tcPr><w:tcW w:w="${extra.includes('gridSpan')?3000:1500}" w:type="dxa"/>${extra}${margins}</w:tcPr>${paragraph(t)}</w:tc>`;
+ const table=`<w:tbl><w:tblPr><w:tblW w:w="3000" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid><w:gridCol w:w="1500"/><w:gridCol w:w="1500"/></w:tblGrid><w:tr>${cell('MERGED HEADER','<w:gridSpan w:val="2"/>')}</w:tr><w:tr>${cell('ROWSPAN CELL','<w:vMerge w:val="restart"/>')}${cell('UPPER CELL').replace('</w:p>',`<w:r>${image}</w:r></w:p>`)}</w:tr><w:tr>${cell('','<w:vMerge/>')}${cell('TAIL CELL')}</w:tr></w:tbl>${paragraph('BOX TAIL')}`;
+ const xml=(await zip.file('word/document.xml')!.async('string')).replaceAll(`cy="${emu(100)}"`,`cy="${emu(160)}"`).replace(`<a:ext cx="${emu(240)}" cy="${emu(80)}"/>`,`<a:ext cx="${emu(240)}" cy="${emu(140)}"/>`);zip.file('word/document.xml',xml.replace(/<w:txbxContent>[\s\S]*?<\/w:txbxContent>/,`<w:txbxContent>${table}</w:txbxContent>`));
+ zip.file('word/_rels/document.xml.rels',(await zip.file('word/_rels/document.xml.rels')!.async('string')).replace('</Relationships>',`<Relationship Id="innerPicture" Type="${R}/image" Target="media/inner-picture.png"/></Relationships>`));
+ zip.file('word/media/inner-picture.png',Buffer.from(TABLE_GROUP_INNER_PNG,'base64'));return zip.generateAsync({type:'nodebuffer'});
+}

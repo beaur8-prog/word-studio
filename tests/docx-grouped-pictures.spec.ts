@@ -1,7 +1,7 @@
 import {writeFile} from 'node:fs/promises';
 import {test,expect} from '@playwright/test';
 import JSZip from 'jszip';
-import {groupedDrawing,headerGroupedDrawing,boxGroupWithNestedDrawing,GROUP_PNG,type GroupScenario} from './helpers/grouped-drawing';
+import {groupedDrawing,headerGroupedDrawing,boxGroupWithNestedDrawing,tableGroupedDrawing,GROUP_PNG,TABLE_GROUP_INNER_PNG,type GroupScenario} from './helpers/grouped-drawing';
 
 for(const scenario of ['mixed','pictures','nested','repeated','fallback','paragraph','inline','inline-box'] as GroupScenario[]) test(`grouped ${scenario} pictures and editable stories survive import and two standard DOCX saves`,async({page})=>{
  const bytes=await groupedDrawing(scenario);await writeFile(test.info().outputPath('textbox-save-input-group.docx'),bytes);
@@ -90,4 +90,40 @@ test('an inline picture and textbox group reserves its actual inline box without
  const geometry=(root:Element)=>{const a=root.querySelector('[data-drawing-group-anchor]')!.getBoundingClientRect(),i=root.querySelector('img[data-inline-image]')!.getBoundingClientRect(),b=root.querySelector('.document-textbox-content')!.getBoundingClientRect();return{width:a.width,height:a.height,image:[i.x-a.x,i.y-a.y,i.width,i.height],box:[b.x-a.x,b.y-a.y,b.width,b.height],text:root.textContent};};
  await expect.poll(async()=>(await editor.evaluate(geometry)).image[0]).toBeCloseTo(280,0);const before=await editor.evaluate(geometry);expect(before.width).toBeCloseTo(480,0);expect(before.height).toBeCloseTo(100,0);expect(before.image).toEqual([280,10,80,80]);expect(before.box).toEqual([0,0,240,80]);expect(before.text).toContain('INLINE BEFORE');expect(before.text).toContain('INLINE AFTER');
  await page.getByRole('button',{name:'보기',exact:true}).click();await page.getByRole('button',{name:'인쇄 미리보기',exact:true}).click();const after=await page.locator('.print-content').evaluate(geometry);expect(after.image).toEqual(before.image);expect(after.box).toEqual(before.box);expect(after.width).toBe(before.width);expect(after.height).toBe(before.height);
+});
+
+for(const scenario of ['mixed','inline'] as const)test(`grouped ${scenario} merged table and two picture roles survive two DOCX saves`,async({page})=>{
+ const bytes=await tableGroupedDrawing(scenario);await writeFile(test.info().outputPath(`textbox-save-input-table-group-${scenario}.docx`),bytes);await page.goto('/');
+ const result=await page.evaluate(async bytes=>{
+  const{importFile,exportDocx}=await import('/src/document-io.ts'),{parseDocumentHtml}=await import('/src/extensions.ts');let file=new File([new Uint8Array(bytes)],'table-group.docx');const states:any[]=[],saves:number[][]=[];
+  for(let i=0;i<3;i++){
+   const opened=await importFile(file),doc={...opened.document,content:parseDocumentHtml(opened.html!)};const nodes:any[]=[];const walk=(n:any)=>{nodes.push(n);for(const c of n.content||[])walk(c);};walk(doc.content);
+   const table=nodes.find(n=>n.type==='table'),boxes=nodes.filter(n=>n.type==='documentTextBox');
+   states.push({text:nodes.map(n=>n.text||'').join(''),boxes:boxes.length,rows:table?.content.map((r:any)=>r.content.map((c:any)=>({colspan:c.attrs.colspan,rowspan:c.attrs.rowspan,text:c.content.map((p:any)=>(p.content||[]).map((n:any)=>n.text||'').join('')).join('')}))),pictures:nodes.filter(n=>['image','inlineImage'].includes(n.type)).map(n=>({alt:n.attrs.alt,png:n.attrs.src.split(',')[1],width:Number(n.attrs.width),height:Number(n.attrs.height),group:!!JSON.parse(n.attrs.floating||'null')?.drawingGroup}))});
+   if(i<2){const output=[...new Uint8Array(await(await exportDocx(doc)).arrayBuffer())];saves.push(output);file=new File([new Uint8Array(output)],'again.docx');}
+  }return{states,saves};
+ },[...bytes]);
+ for(const s of result.states){
+  expect(s.boxes).toBe(1);for(const marker of ['BODY BEFORE','BODY AFTER','MERGED HEADER','ROWSPAN CELL','UPPER CELL','TAIL CELL','BOX TAIL'])expect(s.text.split(marker)).toHaveLength(2);
+  expect(s.rows).toEqual([[{colspan:2,rowspan:1,text:'MERGED HEADER'}],[{colspan:1,rowspan:2,text:'ROWSPAN CELL'},{colspan:1,rowspan:1,text:'UPPER CELL'}],[{colspan:1,rowspan:1,text:'TAIL CELL'}]]);
+  expect(s.pictures).toHaveLength(2);expect(s.pictures.find(p=>p.alt==='GROUP PICTURE 14')).toMatchObject({png:GROUP_PNG,width:80,height:80,group:true});expect(s.pictures.find(p=>p.alt==='INNER TABLE PICTURE')).toMatchObject({png:TABLE_GROUP_INNER_PNG,width:12,height:12,group:false});
+ }
+ // Internal editable stories need not be traversed in XML reference order.
+ // Check the saved standard group itself, including the cell's own picture.
+ for(const [i,data]of [bytes,...result.saves.map(s=>Buffer.from(s))].entries()){
+  const zip=await JSZip.loadAsync(data),xml=await zip.file('word/document.xml')!.async('string'),rels=await zip.file('word/_rels/document.xml.rels')!.async('string');
+  const paths=new Map([...rels.matchAll(/<Relationship\b[^>]*>/g)].map(m=>[m[0].match(/\bId="([^"]+)"/)![1],m[0].match(/\bTarget="([^"]+)"/)![1]])),pictures=[...xml.matchAll(/<pic:pic\b[\s\S]*?<\/pic:pic>/g)];const ordered=[];
+  for(const p of pictures){const id=p[0].match(/\br:embed="([^"]+)"/)![1],target=paths.get(id)!;ordered.push((await zip.file(target.startsWith('/')?target.slice(1):'word/'+target)!.async('base64')));}
+  expect(ordered).toEqual([TABLE_GROUP_INNER_PNG,GROUP_PNG]);expect(xml.match(/<wpg:wgp\b/g)).toHaveLength(1);expect(xml.match(/<w:tbl\b/g)).toHaveLength(1);expect(xml).toMatch(/<w:gridSpan\b[^>]*w:val="2"/);expect(xml).toMatch(/<w:vMerge\b[^>]*w:val="restart"/);
+  if(i)await writeFile(test.info().outputPath(`textbox-save-table-group-${scenario}-${i}.docx`),Buffer.from(data));
+ }
+});
+
+for(const scenario of ['mixed','inline']as const)test(`grouped ${scenario} table cell stays visible and editable in editor and print`,async({page})=>{
+ await page.goto('/');await page.locator('input[type=file]').first().setInputFiles({name:'table-group.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:await tableGroupedDrawing(scenario)});
+ const editor=page.getByRole('textbox',{name:'문서 편집 영역',exact:true}),box=editor.locator('.document-textbox-content');await expect(box.locator('table')).toHaveCount(1);await expect(box.locator('img[data-inline-image]')).toHaveCount(1);await expect(editor.locator('img[data-inline-image]')).toHaveCount(2);await expect(box).toHaveCSS('background-color','rgb(32, 80, 128)');
+ const inspect=(root:Element)=>{const frame=root.getBoundingClientRect(),table=root.querySelector('table')!.getBoundingClientRect(),cells=[...root.querySelectorAll('td,th')];let outside=0;const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);while(walker.nextNode()){const n=walker.currentNode;for(let i=0;i<(n.textContent||'').length;i++){if(/\s/.test(n.textContent![i]))continue;const range=document.createRange();range.setStart(n,i);range.setEnd(n,i+1);const r=range.getBoundingClientRect();if(r.left<frame.left-.5||r.right>frame.right+.5||r.top<frame.top-.5||r.bottom>frame.bottom+.5)outside++;}}return{outside,table:[table.x-frame.x,table.y-frame.y,table.width,table.height],cells:cells.map(e=>({text:e.textContent,colspan:e.getAttribute('colspan')||'1',rowspan:e.getAttribute('rowspan')||'1'}))};};
+ await expect.poll(async()=>(await box.evaluate(inspect)).outside).toBe(0);const before=await editor.evaluate((el:any)=>el.editor.getJSON()),p=box.locator('tr').nth(2).locator('td p').first();await p.click();await page.keyboard.press(process.platform==='darwin'?'Meta+ArrowRight':'End');
+ await expect.poll(()=>editor.evaluate((el:any)=>{const s=el.editor.state.selection;return s.empty?el.editor.state.doc.textBetween(s.$from.start(),s.from,'','\ufffc'):null;})).toBe('TAIL CELL');await page.keyboard.insertText(' EDIT');await expect(p).toHaveText('TAIL CELL EDIT');await page.keyboard.press('ControlOrMeta+z');expect(await editor.evaluate((el:any)=>el.editor.getJSON())).toEqual(before);await page.keyboard.press('ControlOrMeta+Shift+z');await expect(p).toHaveText('TAIL CELL EDIT');
+ const layout=await box.evaluate(inspect);await page.getByRole('button',{name:'보기',exact:true}).click();await page.getByRole('button',{name:'인쇄 미리보기',exact:true}).click();const printed=page.locator('.print-content [data-textbox-content]');await expect(printed).toHaveCount(1);await expect(printed.locator('img[data-inline-image]')).toHaveCount(1);await expect(page.locator('.print-content img[data-inline-image]')).toHaveCount(2);await expect(printed).toHaveCSS('background-color','rgb(32, 80, 128)');const after=await printed.evaluate(inspect);expect(after.outside).toBe(0);expect(after.cells).toEqual(layout.cells);for(const[i,v]of after.table.entries())expect(v).toBeCloseTo(layout.table[i],0);
 });
