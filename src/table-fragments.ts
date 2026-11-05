@@ -1,3 +1,4 @@
+import { rowSplitPolicy } from './row-split-policy';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { paragraphLineOffsets, paragraphTextWalker, splitText, textUnitLength } from './paragraph-fragments';
 
@@ -38,10 +39,10 @@ export function tableFragmenter(context: FragmentContext) {
       layoutHwpCellLines(element); return tail;
     }
     if (element.matches('tr')) {
-      if (element.dataset.rowSplit === 'avoid' || element.dataset.wordRowRule === 'exact') return null;
+      if (rowSplitPolicy(element.dataset) === 'avoid' || element.dataset.wordRowRule === 'exact') return null;
       const row = element as HTMLTableRowElement;
       if (row.cells.length) {
-        if (row.cells.length > 1 && row.dataset.rowSplit !== 'allow' || [...row.cells].some(c => c.rowSpan > 1)) return null;
+        if (row.cells.length > 1 && rowSplitPolicy(row.dataset) !== 'allow' || [...row.cells].some(c => c.rowSpan > 1)) return null;
         const original = row.cloneNode(true) as HTMLTableRowElement, height = row.getBoundingClientRect().height;
         const available = boundary - row.getBoundingClientRect().top;
         if (available <= .5) return null;
@@ -108,7 +109,7 @@ export function tableFragmenter(context: FragmentContext) {
   // Only explicitly permitted continuing merges may cross a row boundary. Keep
   // the grid and every cell's content exactly once; this is print DOM only.
   function splitMergedGroup(group: HTMLTableRowElement[], boundary: number): HTMLTableRowElement[] | null {
-    if (group.length < 2 || group.some(r => r.dataset.rowSplit === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
+    if (group.length < 2 || group.some(r => rowSplitPolicy(r.dataset) === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
     const entries: { cell: HTMLTableCellElement; row: number; col: number }[] = [];
     const occupied: number[] = [];
     for (let row = 0; row < group.length; row++) {

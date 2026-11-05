@@ -1,3 +1,4 @@
+import { exportedRowCantSplit } from './row-split-policy';
 import {parseDrawingGroup} from './drawing-group';
 import {writeDrawingGroups} from './docx-drawing-groups';
 import { wordListFontName } from './word-list-marker';
@@ -296,7 +297,7 @@ export function validateDocument(input: unknown): StudioDocument {
     if (type === 'wordOverlap' && !overlapParts(attrs?.parts).length) fail('겹친 글자 형식이 올바르지 않습니다.');
     if (type === 'tableRow' && attrs?.rowHeight != null && !rowHeight(attrs.rowHeight))
       fail(`표 행 높이는 0보다 크고 ${MAX_ROW_HEIGHT}px 이하여야 합니다.`);
-    if (type === 'tableRow' && attrs?.rowSplit != null && !['allow', 'avoid'].includes(String(attrs.rowSplit)))
+    if (type === 'tableRow' && [attrs?.rowSplit, attrs?.wordRowSplit].some(value => value != null && !['allow', 'avoid'].includes(String(value))))
       fail('표 행의 쪽 나누기 설정이 올바르지 않습니다.');
     if (type === 'sectionBreak' || type === 'sectionContent') {
       if (parent !== 'doc') fail('구역 나누기는 문서의 최상위에 있어야 합니다.');
@@ -1399,10 +1400,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             );
           }
           occupied = nextOccupied;
+          const cantSplit = exportedRowCantSplit(row.attrs, continuingMergeRows.has(rowIndex));
           rows.push(
             new TableRow({
               children: cells,
-              ...(row.attrs?.rowSplit ? { cantSplit: row.attrs.rowSplit === 'avoid' } : continuingMergeRows.has(rowIndex) ? { cantSplit: false } : {}),
+              ...(cantSplit !== undefined ? { cantSplit } : {}),
               ...(rowHeight(row.attrs?.rowHeight) ? { height: { value: Math.max(1, Math.round((row.attrs!.rowHeight - (row.attrs?.wordRowRule === 'exact' ? 0 : rowPadding + rowBorder)) * 15)), rule: row.attrs?.wordRowRule === 'exact' ? HeightRule.EXACT : HeightRule.ATLEAST } } : {}),
               ...((row.content?.length ?? 0) > 0 && (row.content ?? []).every(
                 (cell) => cell.type === "tableHeader",

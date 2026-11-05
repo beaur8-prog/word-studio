@@ -1,3 +1,4 @@
+import { rowSplitPolicy } from './row-split-policy';
 import { layoutTextBoxes } from './textbox-frame';
 import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
 import { tableFragmenter } from './table-fragments';
@@ -71,7 +72,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // A later reference in a continuing row must move with its note. Keep
     // that decision while filling the other columns up to the page bottom;
     // otherwise a late note reserves blank space on the preceding page.
-    for (const ref of references) if (ids.includes(ref.dataset.noteReference!) && ref.closest('tr[data-row-split="allow"]') &&
+    for (const ref of references) if (ids.includes(ref.dataset.noteReference!) && rowSplitPolicy(ref.closest('tr')?.dataset) === 'allow' &&
       ref.getBoundingClientRect().bottom > noteBoundary + .5) deferredNotes.add(ref.dataset.noteReference!);
     if (ids.some(id => deferredNotes.has(id))) {
       ids = ids.filter(id => !deferredNotes.has(id));
@@ -209,7 +210,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         // A final one-row fragment is still part of that merge: keep its row
         // boundary instead of moving only its empty height to the next sheet.
         if (group[0].querySelector(':scope > [data-print-merge-continuation]') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
-        if (group[0].dataset.rowSplit !== 'allow' && !group[0].querySelector('table') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
+        if (rowSplitPolicy(group[0].dataset) !== 'allow' && !group[0].querySelector('table') && group[0].getBoundingClientRect().height <= content.getBoundingClientRect().height + .5) return;
         const tail = splitElement(group[0], content.getBoundingClientRect().bottom);
         if (tail) rows.splice(end, 0, tail as HTMLTableRowElement);
       };

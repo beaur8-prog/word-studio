@@ -1,3 +1,4 @@
+import { rowSplitPolicy } from './row-split-policy';
 import {parseDrawingGroup} from './drawing-group';
 import type JSZip from 'jszip';
 import { pageMargins, paperDimensions, type Comment, type PageSettings } from './types';
@@ -353,9 +354,11 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       for (const [table, sourceTable] of sizedTables) {
         const rows = all(sourceTable, 'tr').filter(row => ancestor(row, 'tbl') === sourceTable);
         if (rows.length !== table.rows.length) continue;
+        const inheritedSplit = format.tableRowSplit(sourceTable);
         rows.forEach((source, index) => {
           const split = child(child(source, 'trPr'), 'cantSplit');
           if (split) table.rows[index].dataset.rowSplit = ['0', 'false', 'off'].includes(val(split)) ? 'allow' : 'avoid';
+          else if (inheritedSplit) table.rows[index].dataset.wordRowSplit = inheritedSplit;
           const property = child(child(source, 'trPr'), 'trHeight'), height = Number(val(property));
           if (height <= 0 || val(property, 'hRule') === 'auto') return;
           const row = table.rows[index], exact = val(property, 'hRule') === 'exact';
@@ -377,7 +380,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       // An explicit cantSplit=false across the whole merge preserves its
       // permission to continue. Missing/default policy is not new evidence.
       for (const table of sizedTables.keys()) for (const [index, row] of [...table.rows].entries()) for (const cell of [...row.cells]) {
-        if (cell.rowSpan > 1 && [...table.rows].slice(index, index + cell.rowSpan).every(r => r.dataset.rowSplit === 'allow' && r.dataset.wordRowRule !== 'exact')) cell.dataset.cellSplit = 'allow';
+        if (cell.rowSpan > 1 && [...table.rows].slice(index, index + cell.rowSpan).every(r => rowSplitPolicy(r.dataset) === 'allow' && r.dataset.wordRowRule !== 'exact')) cell.dataset.cellSplit = 'allow';
       }
       // Resolve preferred widths in their containing text area. Process outer
       // tables first so nested percentages use the actual padded parent cell.

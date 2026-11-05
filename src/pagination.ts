@@ -1,3 +1,4 @@
+import { rowSplitPolicy } from './row-split-policy';
 import { documentScale } from './document-scale';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -110,7 +111,7 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const first = rect(rows[i].dom), last = rect(rows[end - 1].dom);
       const height = last.top + last.height - first.top;
       const row = rows[i];
-      if (i === 0 && headerEnd && height > usableHeight && rows[headerEnd]?.node.attrs.rowSplit === 'allow') {
+      if (i === 0 && headerEnd && height > usableHeight && rowSplitPolicy(rows[headerEnd]?.node.attrs) === 'allow') {
         const headers = rect(rows[headerEnd - 1].dom);
         const paragraph = rows[headerEnd].dom.querySelector('p');
         const line = paragraph ? parseFloat(getComputedStyle(paragraph).lineHeight) || 24 : 24;
@@ -120,12 +121,12 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       }
       let containsTable = false;
       if (row.node.childCount === 1) row.node.firstChild!.forEach(block => { if (block.type.name === 'table') containsTable = true; });
-      if ((height > usableHeight || containsTable) && end === i + 1 && row.node.childCount === 1 && row.node.attrs.rowSplit !== 'allow') {
+      if ((height > usableHeight || containsTable) && end === i + 1 && row.node.childCount === 1 && rowSplitPolicy(row.node.attrs) !== 'allow') {
         const cell = row.node.firstChild!;
         cell.forEach((block, offset) => walk(block, row.pos + 2 + offset));
       } else {
         let columns = 0; row.node.forEach(cell => { columns += Number(cell.attrs.colspan || 1); });
-        const cellRow = end === i + 1 && row.node.attrs.rowSplit === 'allow' && row.node.attrs.wordRowRule !== 'exact' && row.node.content.content.every(c => Number(c.attrs.rowspan || 1) === 1)
+        const cellRow = end === i + 1 && rowSplitPolicy(row.node.attrs) === 'allow' && row.node.attrs.wordRowRule !== 'exact' && row.node.content.content.every(c => Number(c.attrs.rowspan || 1) === 1)
           ? row.dom as HTMLTableRowElement : undefined;
         result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns, cellRow, header: i >= headerEnd ? headerFor(row.dom as HTMLTableRowElement) : undefined, tableTop: rect(rows[0].dom).top, mergedRows: end > i + 1 ? rows.slice(i, end).map(r => r.dom as HTMLTableRowElement) : undefined });
       }

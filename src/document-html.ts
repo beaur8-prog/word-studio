@@ -99,7 +99,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-exact-line-height",
       "data-hwp-cell-line",
       "data-hwp-body-line",
-      "data-word-row-rule",
+      "data-word-row-rule", "data-word-row-split",
       "data-row-split", "data-cell-split",
       "data-word-overlap",
       "data-docx-bookmark", "id",

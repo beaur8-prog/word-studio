@@ -12,8 +12,9 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 }
 // 10 textbox, 10 conditional-spacing, 2 edited-list, 6 list-line/level/suffix,
 // 6 list-marker, 4 header/footer visibility, 2 table-style copies,
-// 12 drawing-group and 4 short-paragraph fixtures with two saved copies each.
-let count = 88;
+// 12 drawing-group and 4 short-paragraph fixtures with two saved copies each,
+// plus7 row-policy inputs and their14 saved copies.
+let count = 109;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);

@@ -212,6 +212,20 @@ export async function docxFormat(zip: JSZip) {
       const layers = chain(val(child(props, 'tblStyle')) || val(normalTable, 'styleId')).map(s => child(s, 'tblPr'));
       decorateCell(cell, source, layers);
     },
+    tableRowSplit(table: Element): 'allow' | 'avoid' | null {
+      const id = val(child(child(table, 'tblPr'), 'tblStyle')) || val(normalTable, 'styleId');
+      const layers = chain(id);
+      // Conditional row styles need their own applicability/precedence pass.
+      // Keep the previous atomic fallback until that policy is resolved;
+      // direct cantSplit still takes precedence in the importer.
+      if (layers.some(style => Array.from(style.children).some(part => part.localName === 'tblStylePr' && child(child(part, 'trPr'), 'cantSplit')))) return null;
+      let policy: 'allow' | 'avoid' = 'allow';
+      for (const style of layers) {
+        const setting = child(child(style, 'trPr'), 'cantSplit');
+        if (setting) policy = on(setting) ? 'avoid' : 'allow';
+      }
+      return policy;
+    },
     tableLayout(table: Element): 'fixed' | 'autofit' {
       const direct = child(table, 'tblPr');
       const defaultStyle = all(styles, 'style').find(s => val(s, 'type') === 'table' && ['1', 'true', 'on'].includes(val(s, 'default')));

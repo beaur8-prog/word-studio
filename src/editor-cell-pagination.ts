@@ -1,3 +1,4 @@
+import { rowSplitPolicy } from './row-split-policy';
 import type { EditorView } from '@tiptap/pm/view';
 import { Decoration } from '@tiptap/pm/view';
 
@@ -76,8 +77,8 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
                 // Print can continue a single-cell row inside a multi-row form
                 // at its paragraph/line boundaries. Moving the whole nested row
                 // here leaves an extra blank area and shifts all later rows.
-                if (!wholeForm && end === i + 1 && first.dataset.rowSplit !== 'avoid' && first.dataset.wordRowRule !== 'exact' &&
-                  (first.dataset.rowSplit === 'allow' || first.cells.length === 1)) {
+                if (!wholeForm && end === i + 1 && rowSplitPolicy(first.dataset) !== 'avoid' && first.dataset.wordRowRule !== 'exact' &&
+                  (rowSplitPolicy(first.dataset) === 'allow' || first.cells.length === 1)) {
                   const more = flowRow(first, view.posAtDOM(first, 0) - 1, offset + extra, nestedBefore, nestedAfter);
                   if (more === null) return false;
                   extra += more; cellGaps += more;
@@ -167,7 +168,7 @@ function mergedRowFlow(view: EditorView, rows: HTMLTableRowElement[], geometry: 
   const atomicTable = (block: Element) => block.matches('table,.tableWrapper');
   const blockPosition = (block: HTMLElement) => atomicTable(block)
     ? view.posAtDOM(block.parentNode!, [...block.parentNode!.childNodes].indexOf(block)) : view.posAtDOM(block, 0) - 1;
-  if (!merges.length || rows.some(r => r.dataset.wordRowRule === 'exact' || r.dataset.rowSplit === 'avoid' || r.getBoundingClientRect().height / g.scale > usable) ||
+  if (!merges.length || rows.some(r => r.dataset.wordRowRule === 'exact' || rowSplitPolicy(r.dataset) === 'avoid' || r.getBoundingClientRect().height / g.scale > usable) ||
     merges.some(({ cell }) => cell.dataset.cellSplit !== 'allow' || [...cell.children].some(block => !block.matches('p,h1,h2,h3,h4,h5,h6') && !atomicTable(block)) || cell.querySelector('img[data-image-floating],[data-note-reference]'))) return null;
   if (!attempt) {
     const measured = measuredMergedFragments(view, rows, g);
