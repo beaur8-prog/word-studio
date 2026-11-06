@@ -1,3 +1,4 @@
+import { encodeDocxXmlParts } from './docx-package-text';
 import { tablePixelGrid } from './table-grid-widths';
 import { rowSplitPolicy } from './row-split-policy';
 import {parseDrawingGroup} from './drawing-group';
@@ -162,6 +163,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     paragraph.insertBefore(bookmark(name), properties ? properties.nextSibling : paragraph.firstChild);
   }
   zip.file('word/document.xml', new XMLSerializer().serializeToString(body));
+  await encodeDocxXmlParts(zip);
   return {
     buffer: await zip.generateAsync({ type: 'arraybuffer' }), comments,
     decorate(html: string) {
