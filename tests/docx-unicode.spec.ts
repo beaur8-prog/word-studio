@@ -21,19 +21,22 @@ test('supplementary Unicode survives DOCX XML chunk boundaries and two saves', a
         try { new TextDecoder('utf-8', { fatal: true }).decode(await part.async('uint8array')); }
         catch { invalid.push(part.name); }
       }
+      const types = new DOMParser().parseFromString(await zip.file('[Content_Types].xml')!.async('string'), 'application/xml');
+      const commentsType = [...types.getElementsByTagName('Override')].find(e => e.getAttribute('PartName') === '/word/commentsExtended.xml')?.getAttribute('ContentType');
       const xml = await zip.file('word/document.xml')!.async('string');
       const body = new DOMParser().parseFromString(xml, 'application/xml');
       const actual = [...body.getElementsByTagNameNS('http://schemas.openxmlformats.org/wordprocessingml/2006/main', 't')].map(t => t.textContent).join('');
       const loaded = await importFile(new File([bytes], 'unicode.docx'));
       current = { ...loaded.document, content: loaded.html === undefined ? loaded.document.content : parseDocumentHtml(loaded.html) };
       const logical = (n: any): string => (n.text || '') + (n.content || []).map(logical).join('');
-      states.push({ save, invalid, textEqual: actual === text, importedEqual: logical(current.content) === text, bytes: [...bytes] });
+      states.push({ save, invalid, commentsType, textEqual: actual === text, importedEqual: logical(current.content) === text, bytes: [...bytes] });
     }
     return states;
   });
   for (const state of result) {
     await writeFile(info.outputPath(`hwp-gov-unicode-save${state.save}.docx`), Buffer.from(state.bytes));
     expect(state.invalid, `save ${state.save}: all XML parts must be strict UTF-8`).toEqual([]);
+    expect(state.commentsType).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml');
     expect(state.textEqual).toBe(true);
     expect(state.importedEqual).toBe(true);
   }
