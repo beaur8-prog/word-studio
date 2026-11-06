@@ -109,8 +109,14 @@ jobs:
         run: node --test tests/hwp-table-captions.test.cjs tests/hwp-empty-cell-terminal.test.cjs tests/hwp-inline-wrap.test.cjs tests/hwp-object-images.test.cjs tests/hwp-cell-break-policy.test.cjs tests/hwp-range-bookmarks.test.cjs
       - name: Test HWP table, object and saved DOCX layouts
         run: npx playwright test tests/hwp-table-captions.spec.ts tests/hwp-empty-cell-terminal.spec.ts tests/hwp-inline-wrap.spec.ts tests/hwp-object-images.spec.ts tests/paragraph-text-alignment.spec.ts tests/hwp-cell-break-policy.spec.ts tests/docx-grid-budget.spec.ts tests/docx-inactive-stories.spec.ts tests/hwp-range-bookmarks.spec.ts tests/io.spec.ts tests/docx-unicode.spec.ts --output=test-results/hwp-conversion --reporter=line
-      - name: Test native terminal cell matrix in a separate browser
-        run: npx playwright test tests/hwp-cell-terminal.spec.ts --output=test-results/terminal-matrix --reporter=line
+      # Windows can exhaust CSS network buffers within the 110-case matrix.
+      # Keep every case/assertion and recycle Chromium between the two formats.
+      - name: Test HWP terminal cell matrix in a separate browser
+        run: npx playwright test tests/hwp-cell-terminal.spec.ts --grep "\bhwp " --output=test-results/terminal-matrix-hwp --reporter=line
+        env:
+          HWP_LAYOUT_DIAGNOSTICS: '1'
+      - name: Test HWPX terminal cell matrix in a separate browser
+        run: npx playwright test tests/hwp-cell-terminal.spec.ts --grep "\bhwpx " --output=test-results/terminal-matrix-hwpx --reporter=line
         env:
           HWP_LAYOUT_DIAGNOSTICS: '1'
       - name: Test font metrics, paragraph pagination and inline tables
