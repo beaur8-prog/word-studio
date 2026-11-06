@@ -547,11 +547,14 @@
         "url": "https://www.kisa.or.kr/post/fileDownload?menuSeq=401&postSeq=3605&attachSeq=1&lang_type=KO",
         "pages": 8
       },
-      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "referenceGrade": "C-different-edition-and-scope",
       "microsoftWord": "unmeasured-screen-locked",
       "notes": [
-        "공식 .hwpx 이름이지만 CFB/HWP. 수정 전 fresh 변환이 컨트롤주소 오류로 실패: 실패를 유지하고 비교 분모에서 숨기지 않음"
-      ]
+        "공식 .hwpx 이름이지만 CFB/HWP. 수정 전 fresh 변환이 컨트롤주소 오류로 실패: 실패를 유지하고 비교 분모에서 숨기지 않음",
+        "14:27 UTC qualification: HWP includes 2024 추진계획 and multiple application versions; PDF starts with a revised application and omits the plan. Same page attachment is not a same-edition reference. Retained as diagnostic, no paired page error.",
+        "Previous conversion failure was the collector querying a header table stableIndex as a body table. editableHwp succeeds; corrected baseline/current Studio are both19 pages."
+      ],
+      "pairedPageEvaluation": false
     },
     {
       "id": "mofe-budget",

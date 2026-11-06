@@ -935,6 +935,9 @@ button:hover:not(:disabled) {
   outline: 3px solid #86aede;
 }
 .tiptap img[data-inline-image] { display: inline; margin: 0; vertical-align: baseline; }
+/* A source object-only line aligns its own top; a CSS baseline would add the
+   paragraph font's descender below the picture and can create an extra page. */
+.tiptap :is(p,h1,h2,h3,h4,h5,h6)[data-word-text-alignment="top"] img[data-inline-image]:not([data-image-floating]) { vertical-align: top; }
 .tiptap img.ProseMirror-separator { display: inline !important; width: 0 !important; height: 0 !important; margin: 0 !important; }
 .document-tab { display: inline-block; position: relative; height: 0; line-height: 0; vertical-align: baseline; white-space: pre; text-indent: 0; }
 .document-tab[data-leader='dot']::after { content: ''; border-bottom: .06em dotted currentColor; }

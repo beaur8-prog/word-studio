@@ -2,6 +2,7 @@ import { Extension } from '@tiptap/core';
 import { TableView } from '@tiptap/extension-table';
 import type { Node } from '@tiptap/pm/model';
 import { tableAnchor } from './table-anchor';
+import { paragraphTextAlignment } from './paragraph-text-alignment';
 
 const properties = {
   spaceBefore: 'margin-top', spaceAfter: 'margin-bottom', rightIndent: 'margin-right', firstLineIndent: 'text-indent',
@@ -36,6 +37,11 @@ export const ImportedFormat = Extension.create({
           parseHTML: (el: HTMLElement) => { const value = el.getAttribute(name); return value === 'true' ? true : value === 'false' ? false : null; },
           renderHTML: (a: Record<string, unknown>) => typeof a[key] === 'boolean' ? { [name]: String(a[key]) } : {},
         }])),
+        wordTextAlignment: {
+          default: null, parseHTML: (el: HTMLElement) => paragraphTextAlignment(el.dataset.wordTextAlignment),
+          renderHTML: (a: Record<string, unknown>) => paragraphTextAlignment(a.wordTextAlignment)
+            ? { 'data-word-text-alignment': a.wordTextAlignment } : {},
+        },
         wordParagraphStyle: {
           default: null, parseHTML: (el: HTMLElement) => el.getAttribute('data-word-paragraph-style'),
           renderHTML: (a: Record<string, unknown>) => typeof a.wordParagraphStyle === 'string' && a.wordParagraphStyle

@@ -6,6 +6,7 @@ import type { HwpLayoutMetadata } from './layout-metadata';
 import { cellContents, restoreCellContent, restoreHardLineBreaks, entities, type CellPath } from './cell-content';
 import { serializedParts } from './serialized-parts';
 import { olePreview } from './ole-preview';
+import { objectImageSizes } from './object-image-sizes';
 import { headerDefinitions, headerPreviewPage, headerLayer, hiddenStories, editableHeaderStories } from './header-stories';
 import { stageHwpFields } from './export-fields';
 import { importHwpNotes, stageHwpNotes } from './note-stories';
@@ -326,6 +327,9 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       if (matches.length === 1) { const b = matches[0].bounds; return { type: 'shape', page: box.pageIndex, x: b.x, y: b.y, w: b.width, h: b.height }; }
     }
   };
+  let originalObjectImageSize: ReturnType<typeof objectImageSizes> | undefined;
+  const objectImageBytes = new Map<string, Uint8Array>();
+  let cachedObjectImageBytes = 0;
   const objectHtml = (position: any, props: any, label: string, cell = false, subtree?: any): string | undefined => {
     try {
       if (!position || !['shape', 'line', 'ellipse', 'polygon', 'group'].includes(position.type)) return;
@@ -345,8 +349,8 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       };
       if (!subtree) find(layerRoot);
       if (matches.length !== 1) return;
-      const node = matches[0], text: string[] = [];
-      let count = 0, stroke = 0;
+      const node = structuredClone(matches[0]), text: string[] = [];
+      let count = 0, stroke = 0, needsBleed = false;
       const supported = (node: any, depth = 0): boolean => {
         if (++count > 10000 || depth > 40) return false;
         if (node.kind === 'group') return Array.isArray(node.children) && node.children.every((child: any) => supported(child, depth + 1));
@@ -354,12 +358,45 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         return node.kind === 'leaf' && Array.isArray(node.ops) && node.ops.every((op: any) => {
           if (++count > 10000) return false;
           stroke = Math.max(stroke, Number(op.style?.strokeWidth ?? op.style?.width) || 0);
-          if (op.type === 'textRun') text.push(op.displayText ?? op.text ?? '');
+          if (op.type === 'textRun') {
+            const value = op.displayText ?? op.text ?? ''; text.push(value);
+            if (value.trim()) needsBleed = true;
+          } else if (!['rectangle', 'image'].includes(op.type)) needsBleed = true;
+          if (op.transform?.rotation) needsBleed = true;
+          if (op.type === 'image') {
+            if (!/^image\/(?:png|jpeg|gif|webp|bmp)$/.test(op.mime) || op.effect && op.effect !== 'realPic' || op.brightness || op.contrast) return false;
+            let bytes: Uint8Array;
+            if (typeof op.base64 === 'string') {
+              if (op.base64.length > 4 * 1024 * 1024 || !/^[A-Za-z0-9+/]+=*$/.test(op.base64)) return false;
+              bytes = Uint8Array.from(atob(op.base64), ch => ch.charCodeAt(0));
+            } else if (typeof op.sourceImageKey === 'string') {
+              bytes = objectImageBytes.get(op.sourceImageKey) ?? doc.getSourceImageBytes(op.sourceImageKey);
+              if (bytes.length > 3 * 1024 * 1024) return false;
+              if (!objectImageBytes.has(op.sourceImageKey) && cachedObjectImageBytes + bytes.length <= 4 * 1024 * 1024) {
+                objectImageBytes.set(op.sourceImageKey, bytes); cachedObjectImageBytes += bytes.length;
+              }
+              let binary = '';
+              for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
+              op.base64 = btoa(binary);
+            } else return false;
+            if (op.crop && !op.originalSizeHu) {
+              originalObjectImageSize ??= objectImageSizes(doc);
+              op.originalSizeHu = originalObjectImageSize(bytes);
+              if (!op.originalSizeHu) return false;
+            }
+            delete op.imageBytesOmitted;
+            return true;
+          }
+          if (op.type === 'tabLeader') return op.leadersComplete === true && !op.rotation && !op.isVertical &&
+            Array.isArray(op.leaders) && op.leaders.length <= 1000 && op.leaders.every((leader: any) => leader.fillType === 3);
           return ['rectangle', 'ellipse', 'line', 'polygon', 'path', 'textRun'].includes(op.type);
         });
       };
       if (!supported(node)) return;
-      const padding = Math.max(2, Math.ceil(stroke / 2 + 1));
+      // Inline image-only groups have no ink beyond their declared bounds.
+      // Inflating them by the generic preview padding can create a logo-only
+      // page even though the original object fits its remaining line budget.
+      const padding = cell && props.treatAsChar && !needsBleed && stroke === 0 ? 0 : Math.max(2, Math.ceil(stroke / 2 + 1));
       if (!Number.isFinite(padding) || padding > 1000) return;
       const payload = JSON.stringify({ ...node, previewPadding: padding });
       if (payload.length > 4 * 1024 * 1024) return;
@@ -780,6 +817,18 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         if (lastInlineTable && onlyWhitespace(content)) open = cssStyle(open, 'line-height:0.1px;margin-top:0px;');
         else if (onlyFloating(content))
           open = cssStyle(open, 'line-height:1px;margin-top:0;margin-bottom:0;');
+        const imageControl = paragraphControls.find(c => c.ctrlId === 'gso');
+        if (imageControl && paragraphControls.every(c => c === imageControl || c.ctrlId === 'pghd') &&
+          (content.match(/<img\b/g) ?? []).length === 1 && content.includes('data-hwp-object=') && !content.includes('data-image-floating=') &&
+          !doc.getTextRange(section, para, 0, 0xffffffff).trim()) {
+          // The native object-only line includes the picture's descent inside
+          // its measured height. Baseline-aligned CSS images add the font's
+          // descent again. Keep the native top alignment as standard OOXML.
+          const metrics = JSON.parse(doc.getParagraphLineMetrics(section, para, '[]'));
+          const position = controlPosition(section, para, imageControl.controlIndex);
+          if (metrics.lines?.length === 1 && position && Math.abs(Number(metrics.lines[0].height) - position.h) <= 1)
+            open = open.replace(/>$/, ' data-word-text-alignment="top">');
+        }
         append(open + content + '</p>');
       }
       onProgress?.({ label: '본문·표·그림을 변환하는 중…', completed: globalPara + 1, total, unit: '문단' });

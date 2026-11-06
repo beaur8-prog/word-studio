@@ -95,7 +95,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-word-line-rule", "data-word-line", "data-word-heading-marks",
       "data-word-auto-space-de", "data-word-auto-space-dn",
       "data-word-paragraph-style", "data-word-paragraph-style-name", "data-word-contextual-spacing", "data-word-keep-next", "data-word-keep-lines",
-      "data-word-table-layout",
+      "data-word-table-layout", "data-word-text-alignment",
       "data-exact-line-height",
       "data-hwp-cell-line",
       "data-hwp-body-line",

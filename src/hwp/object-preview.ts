@@ -30,8 +30,21 @@ function dash(ctx: CanvasRenderingContext2D, value: string | undefined, width: n
 export async function rasterizeHwpObject(raw: string, width: number, height: number, signal?: AbortSignal): Promise<string> {
   if (raw.length > 4 * 1024 * 1024 || ![width, height].every(n => Number.isFinite(n) && n > 0 && n <= 10000)) throw Error('Object preview too large');
   const root = JSON.parse(raw), bounds = box(root.bounds), padding = number(root.previewPadding ?? 2);
-  if (padding < 2 || padding > 1000 || Math.abs(width - bounds.width - padding * 2) > 1 || Math.abs(height - bounds.height - padding * 2) > 1) throw Error('Object size mismatch');
-  const fonts = new Map<string, string>();
+  if (padding < 0 || padding > 1000 || Math.abs(width - bounds.width - padding * 2) > 1 || Math.abs(height - bounds.height - padding * 2) > 1) throw Error('Object size mismatch');
+  const fonts = new Map<string, string>(), bitmaps = new Map<string, HTMLImageElement>(), pictures = new Map<any, HTMLImageElement>();
+  const imageSource = (op: any) => {
+    if (!/^image\/(?:png|jpeg|gif|webp|bmp)$/.test(op.mime) || typeof op.base64 !== 'string' ||
+      !op.base64.length || op.base64.length > 4 * 1024 * 1024 || !/^[A-Za-z0-9+/]+=*$/.test(op.base64) ||
+      op.effect && op.effect !== 'realPic' || op.brightness || op.contrast) throw Error('Unsupported object picture');
+    const head = atob(op.base64.slice(0, 32));
+    const signatures: Record<string, boolean> = {
+      'image/png': head.startsWith('\x89PNG\r\n\x1a\n'), 'image/jpeg': head.startsWith('\xff\xd8\xff'),
+      'image/gif': /^GIF8[79]a/.test(head), 'image/bmp': head.startsWith('BM'),
+      'image/webp': head.startsWith('RIFF') && head.slice(8, 12) === 'WEBP',
+    };
+    if (!signatures[op.mime]) throw Error('Invalid object picture signature');
+    return `data:${op.mime};base64,${op.base64}`;
+  };
   let count = 0;
   const visit = (node: any, draw: (node: any) => void, depth = 0) => {
     if (!node || ++count > 10000 || depth > 40) throw Error('Object drawing too complex');
@@ -43,6 +56,13 @@ export async function rasterizeHwpObject(raw: string, width: number, height: num
   visit(root, node => {
     for (const op of node.ops ?? []) {
       if (++count > 10000) throw Error('Object drawing too complex');
+      if (op.type === 'image') {
+        const src = imageSource(op);
+        let image = bitmaps.get(src);
+        if (!image) { image = new Image(); bitmaps.set(src, image); }
+        pictures.set(op, image);
+        if (bitmaps.size > 256) throw Error('Too many object pictures');
+      }
       if (op.type === 'textRun') {
         const text = op.displayText ?? op.text ?? '', family = font(op.paintStyle ?? op.style);
         characters += text.length;
@@ -52,13 +72,21 @@ export async function rasterizeHwpObject(raw: string, width: number, height: num
     }
   });
   signal?.throwIfAborted();
-  let abort: (() => void) | undefined;
+  let abort: (() => void) | undefined, decodedPixels = 0;
+  const releasePictures = () => { for (const image of bitmaps.values()) image.src = ""; };
   try {
     // CJK fonts are split by unicode-range. Loading the default space alone
     // would not wait for the Korean glyphs needed by the actual textbox.
-    await Promise.race([Promise.all([...fonts].map(([value, text]) => document.fonts.load(value, text))),
-      new Promise((_, reject) => { if (signal) { abort = () => reject(signal.reason); signal.addEventListener('abort', abort, { once: true }); } })]);
-  } finally { if (abort) signal?.removeEventListener('abort', abort); }
+    await Promise.race([Promise.all([
+      ...[...fonts].map(([value, text]) => document.fonts.load(value, text)),
+      ...[...bitmaps].map(async ([src, image]) => {
+        image.src = src; await image.decode();
+        const pixels = image.naturalWidth * image.naturalHeight;
+        if (!(pixels > 0) || (decodedPixels += pixels) > 32_000_000) throw Error('Object pictures too large');
+      }),
+    ]), new Promise((_, reject) => { if (signal) { abort = () => reject(signal.reason); signal.addEventListener('abort', abort, { once: true }); } })]);
+  } catch (error) { releasePictures(); throw error; }
+  finally { if (abort) signal?.removeEventListener('abort', abort); }
   signal?.throwIfAborted();
   const scale = Math.min(2, Math.sqrt(4_000_000 / (width * height)));
   const canvas = document.createElement('canvas');
@@ -101,6 +129,33 @@ export async function rasterizeHwpObject(raw: string, width: number, height: num
         ctx.translate(-b.x - b.width / 2, -b.y - b.height / 2);
       }
       ctx.globalAlpha = Math.max(0, Math.min(1, number(s.opacity ?? 1)));
+      if (op.type === 'image') {
+        const image = pictures.get(op);
+        if (!image || !(b.width > 0 && b.height > 0)) throw Error('Missing object picture');
+        let crop = [0, 0, image.naturalWidth, image.naturalHeight];
+        if (op.crop) {
+          if (!Array.isArray(op.originalSizeHu) || op.originalSizeHu.length !== 2) throw Error('Missing picture crop size');
+          const [width, height] = op.originalSizeHu.map(number), c = ['left', 'top', 'right', 'bottom'].map(key => number(op.crop[key]));
+          // RHWP's layer crop stores source-region endpoints in HWPUNIT,
+          // unlike the trim amounts on the general PictureProperties API.
+          if (!(width > 0 && height > 0 && c[0] >= 0 && c[1] >= 0 && c[2] > c[0] && c[3] > c[1] && c[2] <= width && c[3] <= height)) throw Error('Invalid picture crop');
+          crop = [c[0] / width * image.naturalWidth, c[1] / height * image.naturalHeight,
+            (c[2] - c[0]) / width * image.naturalWidth, (c[3] - c[1]) / height * image.naturalHeight];
+        }
+        ctx.drawImage(image, crop[0], crop[1], crop[2], crop[3], b.x, b.y, b.width, b.height); return;
+      }
+      if (op.type === 'tabLeader') {
+        const size = number(op.fontSize);
+        if (op.rotation || op.isVertical || op.leadersComplete !== true || !(size > 0 && size <= 2000) || !Array.isArray(op.leaders) || op.leaders.length > 1000) throw Error('Unsupported object tab leader');
+        ctx.strokeStyle = color(op.color) ?? '#000000'; ctx.lineWidth = Math.max(.5, size * .12); ctx.lineCap = 'round';
+        ctx.setLineDash([.1, ctx.lineWidth * 2]);
+        for (const leader of op.leaders) {
+          const start = number(leader.startX), end = number(leader.endX);
+          if (leader.fillType !== 3 || start < 0 || end <= start || end > b.width + .5) throw Error('Unsupported object tab leader');
+          ctx.beginPath(); ctx.moveTo(b.x + start, b.y + size / 2); ctx.lineTo(b.x + end, b.y + size / 2); ctx.stroke();
+        }
+        return;
+      }
       ctx.beginPath();
       if (op.type === 'line') {
         if ((s.startArrow && s.startArrow !== 'none') || (s.endArrow && s.endArrow !== 'none') || (s.lineType && s.lineType !== 'single')) throw Error('Unsupported object line');
@@ -142,5 +197,5 @@ export async function rasterizeHwpObject(raw: string, width: number, height: num
     } finally { ctx.restore(); }
   };
   try { render(root); return canvas.toDataURL('image/png'); }
-  finally { canvas.width = canvas.height = 0; }
+  finally { releasePictures(); canvas.width = canvas.height = 0; }
 }

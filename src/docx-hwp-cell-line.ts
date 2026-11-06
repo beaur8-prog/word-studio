@@ -1,12 +1,13 @@
 import { Paragraph, type IParagraphOptions } from 'docx';
 import { hwpCellLineNamespace } from './hwp-cell-line';
 import { hwpBodyLineNamespace } from './hwp-body-line';
+import { paragraphTextAlignment } from './paragraph-text-alignment';
 
 /** Standard spacing carries the current measured single/multi-line geometry.
  * Ignorable metadata retains the original live HWP spacing policy locally. */
 export class HwpCellParagraph extends Paragraph {
   constructor(options: IParagraphOptions, private readonly policy?: string, private readonly bodyPolicy?: string,
-    private readonly autoSpacing?: { de?: unknown; dn?: unknown }) { super(options); }
+    private readonly autoSpacing?: { de?: unknown; dn?: unknown }, private readonly textAlignment?: unknown) { super(options); }
   prepForXml(context: Parameters<Paragraph['prepForXml']>[0]) {
     const result = super.prepForXml(context), children = result?.['w:p'];
     // docx 9.x emits wordWrap before tabs. CT_PPr requires tabs first;
@@ -26,6 +27,15 @@ export class HwpCellParagraph extends Paragraph {
       const later = new Set(['bidi','adjustRightInd','snapToGrid','spacing','ind','contextualSpacing','mirrorIndents','suppressOverlap','jc','textDirection','textAlignment','textboxTightWrap','outlineLvl','divId','cnfStyle','rPr','sectPr','pPrChange'].map(n => 'w:' + n));
       const at = properties.findIndex((p: any) => p && Object.keys(p).some(n => later.has(n)));
       properties.splice(at < 0 ? properties.length : at, 0, ...automatic.map(([name, value]) => ({ [name as string]: [{ _attr: { 'w:val': String(value) } }] })));
+    }
+    const vertical = paragraphTextAlignment(this.textAlignment);
+    if (vertical && Array.isArray(children)) {
+      if (!Array.isArray(properties)) { properties = []; children.splice(children[0]?._attr ? 1 : 0, 0, { 'w:pPr': properties }); }
+      const previous = properties.findIndex((p: any) => p && 'w:textAlignment' in p);
+      if (previous >= 0) properties.splice(previous, 1);
+      const later = new Set(['textboxTightWrap','outlineLvl','divId','cnfStyle','rPr','sectPr','pPrChange'].map(n => 'w:' + n));
+      const at = properties.findIndex((p: any) => p && Object.keys(p).some(n => later.has(n)));
+      properties.splice(at < 0 ? properties.length : at, 0, { 'w:textAlignment': [{ _attr: { 'w:val': vertical } }] });
     }
     if ((this.policy || this.bodyPolicy) && Array.isArray(children)) {
       let attributes = children.find((entry: any) => entry && '_attr' in entry)?.['_attr'];

@@ -284,6 +284,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const keeps = format.paragraphKeeps(marker.paragraph);
         if (keeps.next !== null) p.dataset.wordKeepNext = String(keeps.next);
         if (keeps.lines !== null) p.dataset.wordKeepLines = String(keeps.lines);
+        const textAlignment = format.textAlignment(marker.paragraph);
+        if (textAlignment) p.dataset.wordTextAlignment = textAlignment;
         const contextual = format.contextualSpacing(marker.paragraph);
         if (contextual !== null) p.dataset.wordContextualSpacing = String(contextual);
         if (/^H[1-6]$/.test(p.tagName)) p.dataset.wordHeadingMarks = format.headingMarks(marker.paragraph);

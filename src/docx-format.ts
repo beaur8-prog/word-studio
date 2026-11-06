@@ -1,3 +1,4 @@
+import { paragraphTextAlignment } from './paragraph-text-alignment';
 import type JSZip from 'jszip';
 import { wordNumberText } from './word-numbering';
 
@@ -169,6 +170,14 @@ export async function docxFormat(zip: JSZip) {
     paragraphStyleName(p: Element) {
       const id = val(child(child(p, 'pPr'), 'pStyle')) || val(normal, 'styleId') || 'Normal';
       return val(child(byId.get(id), 'name')) || id;
+    },
+    textAlignment(p: Element): string | null {
+      let result: string | null = null;
+      for (const props of paragraphProperties(p)) {
+        const setting = child(props, 'textAlignment');
+        if (setting) result = paragraphTextAlignment(val(setting));
+      }
+      return result;
     },
     contextualSpacing(p: Element): boolean | null {
       let enabled: boolean | null = null;
