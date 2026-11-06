@@ -10,7 +10,7 @@ for(const inline of [false,true])for(const nested of [false,true])for(const form
   try{await session.open(new File([new Uint8Array(bytes)],'policy.'+format));let doc=importEditableHwp(await session.editable(),'policy.'+format);
    doc.page={...doc.page,size:'Custom',width:150,height:180,margin:10,margins:undefined,pageNumbers:false};
    const lead=doc.content.content!.find(n=>n.type==='paragraph'&&n.content?.some(t=>t.text==='LEAD'))!;lead.attrs={...lead.attrs,lineSpacing:'350px',spaceBefore:'0px',spaceAfter:'0px'};
-   const states=[],files=[];
+   const first=structuredClone(doc),states=[],files=[];
    for(let save=0;save<3;save++){
     const layout=await createPrintLayout(generateHTML(doc.content,editorExtensions),doc.page);
     try{const sheets=[...layout.element.querySelectorAll('.print-content')],rows=[...layout.element.querySelectorAll<HTMLTableRowElement>('tr')];
@@ -18,7 +18,7 @@ for(const inline of [false,true])for(const nested of [false,true])for(const form
     }finally{layout.dispose();}
     if(save<2){const blob=await exportDocx(doc);files.push([...new Uint8Array(await blob.arrayBuffer())]);const loaded=await importFile(new File([blob],'again.docx'));doc={...loaded.document,content:parseDocumentHtml(loaded.html!)};}
    }
-   return{states,files};
+   return{first,states,files};
   }finally{session.close();}
  },{bytes:[...sample.bytes],format});
  for(const [i,bytes]of result.files.entries())await fs.writeFile(info.outputPath(`hwp-gov-cellbreak-${format}-${policy}-${nested?'nested':'ordinary'}-${inline?'inline':'floating'}-save${i+1}.docx`),Buffer.from(bytes));
@@ -26,5 +26,12 @@ for(const inline of [false,true])for(const nested of [false,true])for(const form
   for(const [i,label]of ['LEFT','RIGHT'].entries())expect(state.columns[i]).toBe(Array.from({length:24},(_,n)=>label+' '+n).join(''));
   for(const widths of state.widths){expect(widths).toHaveLength(2);expect(widths[0]).toBeCloseTo(widths[1],0);}
   expect(state.policies).toHaveLength(1);expect(state.policies[0]==='allow').toBe(policy===2&&!inline);
+ }
+ if(nested){
+  await page.locator('input[type=file]').first().setInputFiles({name:'cell-policy.wordstudio',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(result.first))});
+  const editor=page.getByRole('textbox',{name:'문서 편집 영역',exact:true});await expect(editor).toContainText('LEFT 23');
+  const position=(label:string)=>editor.evaluate((e,label)=>{const p=[...e.querySelectorAll('p')].find(p=>p.textContent===label)!;if(!p)throw Error('Missing cell paragraph');let scale=1;for(let n:HTMLElement|null=e;n;n=n.parentElement){const css=getComputedStyle(n),zoom=parseFloat(css.zoom);if(zoom>0)scale*=zoom;if(css.transform!=='none'){const m=new DOMMatrixReadOnly(css.transform);scale*=Math.hypot(m.a,m.b);}}const walker=document.createTreeWalker(p,NodeFilter.SHOW_TEXT);while(walker.nextNode()){if(!walker.currentNode.textContent)continue;const range=document.createRange();range.setStart(walker.currentNode,0);range.setEnd(walker.currentNode,1);const rect=range.getBoundingClientRect(),origin=e.getBoundingClientRect(),height=Number(e.closest<HTMLElement>('.document-stack')!.dataset.pageHeight);return 1+Math.floor(((rect.top-origin.top)/scale+.5)/(height+24));}throw Error('No cell glyph');},label);
+  await expect.poll(()=>position('LEFT 0')).toBe(policy===2&&!inline?1:2);
+  await expect.poll(()=>position('LEFT 23')).toBe(2);
  }
 });

@@ -73,7 +73,8 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
               const first = rows[i], top = naturalY(first.getBoundingClientRect().top), bottom = naturalY(rows[end - 1].getBoundingClientRect().bottom);
               const gap = gapFor(top, bottom, offset + extra, nestedBefore, nestedAfter, ownIn(table, top, bottom));
               if (gap) {
-                const wholeForm = rows.length === 1 && table.getBoundingClientRect().height / g.scale <= g.height - g.top - g.bottom + .5;
+                const wholeForm = rows.length === 1 && rowSplitPolicy(rows[0].dataset) !== 'allow' &&
+                  table.getBoundingClientRect().height / g.scale <= g.height - g.top - g.bottom + .5;
                 // Print can continue a single-cell row inside a multi-row form
                 // at its paragraph/line boundaries. Moving the whole nested row
                 // here leaves an extra blank area and shifts all later rows.
