@@ -31,7 +31,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 24,
+        "nestedTables": 1,
+        "horizontallyMergedCells": 4,
+        "verticallyMergedCells": 17,
+        "repeatHeaderTables": 24,
+        "picturesAllStories": 3,
+        "nativeBodyTables": 23,
+        "nativeMultiPageBodyTables": 3,
+        "nativeReaderPages": 19,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "mss-funding-notice",
@@ -62,7 +74,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 143,
+        "nestedTables": 12,
+        "horizontallyMergedCells": 127,
+        "verticallyMergedCells": 155,
+        "repeatHeaderTables": 143,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 131,
+        "nativeMultiPageBodyTables": 3,
+        "nativeReaderPages": 47,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "mss-funding-guidance",
@@ -93,7 +117,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 43,
+        "nestedTables": 3,
+        "horizontallyMergedCells": 29,
+        "verticallyMergedCells": 133,
+        "repeatHeaderTables": 43,
+        "picturesAllStories": 32,
+        "nativeBodyTables": 40,
+        "nativeMultiPageBodyTables": 9,
+        "nativeReaderPages": 48,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "household-finance",
@@ -130,11 +166,25 @@
         "url": "https://mods.go.kr/boardDownload.es?bid=215&list_no=439535&seq=1",
         "pages": 90
       },
-      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "referenceGrade": "C-different-scope-statistical-annex-in-PDF-only",
       "microsoftWord": "unmeasured-screen-locked",
       "notes": [
-        "공식 PDF 본문이 윤곽선/이미지여서 OCR·시각 판본 대조 필요; 내부 파서쪽수는 원문 정답이 아님"
-      ]
+        "공식 PDF 본문이 윤곽선/이미지여서 OCR·시각 판본 대조 필요; 내부 파서쪽수는 원문 정답이 아님",
+        "2026-11-06 독립 XML 범위 대조: HWPX section1 끝에는 통계표 목차만 있고 49–80물리쪽의 상세 통계표는 없다. section2는 부록부터 시작한다. 공식 게시글에도 통계표 XLSX가 별도 첨부되어 있다. 공식 PDF 전체90쪽과 HWP/HWPX 변환 총쪽수는 같은 범위가 아니므로 90 대78/79를 페이지 정확도 점수로 사용하지 않는다. 공유 범위 PDF1–48/81–90의 매핑·대조는 별도 미완료이며 원본/이전 진단 점수와 고정 기준점은 보존한다."
+      ],
+      "pairedPageEvaluation": false,
+      "sourceFeatures": {
+        "tablesAllStories": 167,
+        "nestedTables": 27,
+        "horizontallyMergedCells": 163,
+        "verticallyMergedCells": 280,
+        "repeatHeaderTables": 166,
+        "picturesAllStories": 51,
+        "nativeBodyTables": 140,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 59,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "fsc-disaster",
@@ -173,7 +223,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 9,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 1,
+        "verticallyMergedCells": 11,
+        "repeatHeaderTables": 9,
+        "picturesAllStories": 6,
+        "nativeBodyTables": 9,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 4,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "fsc-remarks",
@@ -212,7 +274,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 1,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 0,
+        "verticallyMergedCells": 0,
+        "repeatHeaderTables": 1,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 1,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 4,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "fsc-fintech",
@@ -251,7 +325,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 21,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 13,
+        "verticallyMergedCells": 28,
+        "repeatHeaderTables": 21,
+        "picturesAllStories": 8,
+        "nativeBodyTables": 21,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 13,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "fsc-ltv",
@@ -290,7 +376,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 4,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 0,
+        "verticallyMergedCells": 4,
+        "repeatHeaderTables": 4,
+        "picturesAllStories": 2,
+        "nativeBodyTables": 4,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 1,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "moel-bid",
@@ -321,7 +419,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 16,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 15,
+        "verticallyMergedCells": 7,
+        "repeatHeaderTables": 15,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 16,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 9,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "moel-rfp",
@@ -361,7 +471,19 @@
       "notes": [
         "공식 PDF는 4-up 9매, 실제 논리쪽 분리 검증 전 총쪽수 정답 채택 보류",
         "같은 공식 게시물의 원문과 PDF에서 고유 문단222개를 대조. PDF9매는4-up35논리쪽(마지막33쪽+표지/목차2쪽)이며 끝 칸은 문자·그림0/렌더100%흰색. 작성 앱·글꼴·인쇄 설정 미확인."
-      ]
+      ],
+      "sourceFeatures": {
+        "tablesAllStories": 51,
+        "nestedTables": 2,
+        "horizontallyMergedCells": 36,
+        "verticallyMergedCells": 26,
+        "repeatHeaderTables": 51,
+        "picturesAllStories": 1,
+        "nativeBodyTables": 49,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 35,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "daejeon-safety",
@@ -392,7 +514,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 2,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 2,
+        "verticallyMergedCells": 2,
+        "repeatHeaderTables": 2,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 2,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 1,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "gg-facility",
@@ -423,7 +557,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 5,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 34,
+        "verticallyMergedCells": 6,
+        "repeatHeaderTables": 5,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 5,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 4,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "motie-budget",
@@ -456,7 +602,19 @@
       "microsoftWord": "unmeasured-screen-locked",
       "notes": [
         "공식 .hwpx 이름이지만 실제 CFB/HWP; 다운로드 바이트 형식으로 등록"
-      ]
+      ],
+      "sourceFeatures": {
+        "tablesAllStories": 9,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 2,
+        "verticallyMergedCells": 4,
+        "repeatHeaderTables": 8,
+        "picturesAllStories": 5,
+        "nativeBodyTables": 9,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 7,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "motie-ax-notice",
@@ -487,7 +645,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 10,
+        "nestedTables": 1,
+        "horizontallyMergedCells": 53,
+        "verticallyMergedCells": 18,
+        "repeatHeaderTables": 10,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 9,
+        "nativeMultiPageBodyTables": 1,
+        "nativeReaderPages": 8,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "motie-ax-rfp",
@@ -518,7 +688,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 4,
+        "nestedTables": 3,
+        "horizontallyMergedCells": 14,
+        "verticallyMergedCells": 5,
+        "repeatHeaderTables": 3,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 1,
+        "nativeMultiPageBodyTables": 1,
+        "nativeReaderPages": 3,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "kisa-iot",
@@ -554,7 +736,19 @@
         "14:27 UTC qualification: HWP includes 2024 추진계획 and multiple application versions; PDF starts with a revised application and omits the plan. Same page attachment is not a same-edition reference. Retained as diagnostic, no paired page error.",
         "Previous conversion failure was the collector querying a header table stableIndex as a body table. editableHwp succeeds; corrected baseline/current Studio are both19 pages."
       ],
-      "pairedPageEvaluation": false
+      "pairedPageEvaluation": false,
+      "sourceFeatures": {
+        "tablesAllStories": 25,
+        "nestedTables": 2,
+        "horizontallyMergedCells": 97,
+        "verticallyMergedCells": 55,
+        "repeatHeaderTables": 25,
+        "picturesAllStories": 40,
+        "nativeBodyTables": 22,
+        "nativeMultiPageBodyTables": 2,
+        "nativeReaderPages": 17,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "mofe-budget",
@@ -585,7 +779,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 32,
+        "nestedTables": 2,
+        "horizontallyMergedCells": 7,
+        "verticallyMergedCells": 6,
+        "repeatHeaderTables": 32,
+        "picturesAllStories": 3,
+        "nativeBodyTables": 30,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 11,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "mfds-revenue",
@@ -616,7 +822,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 45,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 30,
+        "verticallyMergedCells": 90,
+        "repeatHeaderTables": 45,
+        "picturesAllStories": 1,
+        "nativeBodyTables": 45,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 42,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "mois-sop",
@@ -647,7 +865,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 158,
+        "nestedTables": 5,
+        "horizontallyMergedCells": 186,
+        "verticallyMergedCells": 259,
+        "repeatHeaderTables": 100,
+        "picturesAllStories": 40,
+        "nativeBodyTables": 137,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 133,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "mois-budget",
@@ -678,7 +908,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 124,
+        "nestedTables": 47,
+        "horizontallyMergedCells": 299,
+        "verticallyMergedCells": 255,
+        "repeatHeaderTables": 124,
+        "picturesAllStories": 33,
+        "nativeBodyTables": 76,
+        "nativeMultiPageBodyTables": 6,
+        "nativeReaderPages": 146,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "nhis-overcharge",
@@ -709,7 +951,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 2,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 52,
+        "verticallyMergedCells": 6,
+        "repeatHeaderTables": 2,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 2,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 2,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "nhis-postpone",
@@ -740,7 +994,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 1,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 18,
+        "verticallyMergedCells": 3,
+        "repeatHeaderTables": 1,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 1,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 1,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "moel-harassment-manual",
@@ -771,7 +1037,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 162,
+        "nestedTables": 13,
+        "horizontallyMergedCells": 76,
+        "verticallyMergedCells": 7,
+        "repeatHeaderTables": 162,
+        "picturesAllStories": 3,
+        "nativeBodyTables": 149,
+        "nativeMultiPageBodyTables": 11,
+        "nativeReaderPages": 97,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "lh-smartcity",
@@ -802,7 +1080,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 8,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 0,
+        "verticallyMergedCells": 0,
+        "repeatHeaderTables": 8,
+        "picturesAllStories": 5,
+        "nativeBodyTables": 8,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 4,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "nps-fund",
@@ -833,7 +1123,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 14,
+        "nestedTables": 3,
+        "horizontallyMergedCells": 16,
+        "verticallyMergedCells": 12,
+        "repeatHeaderTables": 14,
+        "picturesAllStories": 3,
+        "nativeBodyTables": 11,
+        "nativeMultiPageBodyTables": 2,
+        "nativeReaderPages": 12,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "nps-venture",
@@ -864,7 +1166,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 6,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 0,
+        "verticallyMergedCells": 0,
+        "repeatHeaderTables": 6,
+        "picturesAllStories": 6,
+        "nativeBodyTables": 6,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 2,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "lh-campus",
@@ -895,7 +1209,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 44,
+        "nestedTables": 4,
+        "horizontallyMergedCells": 142,
+        "verticallyMergedCells": 36,
+        "repeatHeaderTables": 44,
+        "picturesAllStories": 4,
+        "nativeBodyTables": 40,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 16,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "law-request",
@@ -926,7 +1252,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 2,
+        "nestedTables": 1,
+        "horizontallyMergedCells": 58,
+        "verticallyMergedCells": 3,
+        "repeatHeaderTables": 2,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 1,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 1,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "law-register",
@@ -957,7 +1295,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 2,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 36,
+        "verticallyMergedCells": 4,
+        "repeatHeaderTables": 2,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 2,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 3,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     },
     {
       "id": "law-operation",
@@ -988,7 +1338,19 @@
       },
       "referenceGrade": "pending-edition-and-layout-crosscheck",
       "microsoftWord": "unmeasured-screen-locked",
-      "notes": []
+      "notes": [],
+      "sourceFeatures": {
+        "tablesAllStories": 2,
+        "nestedTables": 0,
+        "horizontallyMergedCells": 192,
+        "verticallyMergedCells": 5,
+        "repeatHeaderTables": 2,
+        "picturesAllStories": 0,
+        "nativeBodyTables": 2,
+        "nativeMultiPageBodyTables": 0,
+        "nativeReaderPages": 2,
+        "method": "source XML structure + native reader body controls; independent layout qualification separate"
+      }
     }
   ],
   "counts": {
@@ -1026,7 +1388,16 @@
       "한국토지주택공사": 2,
       "국민연금공단": 2
     },
-    "hwpHwpxPairs": 5
+    "hwpHwpxPairs": 5,
+    "sourceStructure": {
+      "documentsWithBodyTables": 30,
+      "documentsWithNativeMultiPageTables": 9,
+      "documentsWithNestedTables": 15,
+      "documentsWithHorizontalMerges": 26,
+      "documentsWithVerticalMerges": 27,
+      "documentsWithRepeatHeaderFlag": 30,
+      "notStudioOutputAndNotIndependentHancomProof": true
+    }
   },
   "quotaGaps": [
     "유형별5개는 미충족: 업무계획1/매뉴얼3/보도6/양식8/공고7/통계5. 페이지 실패와 표 구조를 우선 확인하되 부족 유형은 추가 후보 조사 후 별도 보완한다.",

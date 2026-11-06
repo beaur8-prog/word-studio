@@ -86,9 +86,10 @@ export function tableFragmenter(context: FragmentContext) {
     }
     if (element.matches('table')) {
       const table = element as HTMLTableElement;
-      // A nested form table that fits a sheet moves as a unit. Splitting its
-      // cell paragraphs merely to fill the preceding sheet changes the form.
-      if (table.rows.length === 1 && table.getBoundingClientRect().height <= context.bodyHeight() + .5) return null;
+      // An atomic nested form moves as a unit. An explicit cell-break
+      // permission must still work when preceding edits leave less space.
+      if (table.rows.length === 1 && rowSplitPolicy(table.rows[0].dataset) !== 'allow' &&
+        table.getBoundingClientRect().height <= context.bodyHeight() + .5) return null;
       if ([...table.rows].some(row => [...row.cells].some(cell => cell.rowSpan > 1))) return null;
     }
     const children = [...element.children] as HTMLElement[];

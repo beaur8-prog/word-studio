@@ -1,12 +1,12 @@
 import type { HwpDocument } from '@rhwp/core';
-import type { CellPath } from './cell-content';
+import type { CellPath, SerializedTablePolicy } from './cell-content';
 import { hwpTableGrid } from './table-grid';
 import { cellParagraphCss, cellParagraphKey, physicalLineHeight, paragraphAutoSpace } from './paragraph-layout';
 import { hwpCellBorders } from './cell-borders';
 
 /** The clipboard HTML carries nested text and padding but omits its grid.
  * Restore source widths and minimum row heights without clipping content or scaling text. */
-export function nestedTableGeometry(doc: HwpDocument, section: number, paragraph: number, path: CellPath, html: string, pitches: Map<string, number>): string {
+export function nestedTableGeometry(doc: HwpDocument, section: number, paragraph: number, path: CellPath, html: string, pitches: Map<string, number>, policy?: SerializedTablePolicy): string {
   const json = JSON.stringify(path), dims = JSON.parse(doc.getTableDimensionsByPath(section, paragraph, json));
   if (dims.cellCount > 50000 || dims.colCount > 1000 || dims.rowCount > 10000) throw Error('편집할 표의 셀 수가 너무 많습니다.');
   const cells = Array.from({ length: dims.cellCount }, (_, index) => ({
@@ -29,6 +29,10 @@ export function nestedTableGeometry(doc: HwpDocument, section: number, paragraph
       (['Percent', 'SpaceOnly'].includes(properties.lineSpacingType) ? physicalLineHeight(properties, char) - Number(char.fontSize) / 75 : 0);
     if (Number.isFinite(leading)) spacing += Math.max(0, leading);
   }
+  const declaredCellBreak = policy?.pageBreak === 'CELL' && policy.treatAsChar === false;
+  const splittableRows = new Set<number>();
+  if (declaredCellBreak) for (const c of cells)
+    if (c.rowSpan === 1 && (!c.isHeader || !policy.repeatHeader)) splittableRows.add(c.row);
   let depth = 0, cell = 0, cellParagraph = 0, row = 0;
   const style = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old};${css}"`) : tag.replace(/>$/, ` style="${css}">`);
   return html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, (tag, offset: number) => {
@@ -39,7 +43,10 @@ export function nestedTableGeometry(doc: HwpDocument, section: number, paragraph
     if (tag === '</table>') { depth--; return tag; }
     if (depth !== 1) return tag;
     // CSS table-row height is a minimum; text and nested content may grow it.
-    if (/^<tr\b/.test(tag)) return style(tag, `height:${rows[row++] ?? 1}px;`);
+    if (/^<tr\b/.test(tag)) {
+      if (splittableRows.has(row)) tag = tag.replace(/>$/, ' data-row-split="allow">');
+      return style(tag, `height:${rows[row++] ?? 1}px;`);
+    }
     if (/^<p\b/.test(tag)) {
       const c = cells[cell - 1]; if (!c) return tag;
       const sourceIndex = tag.match(/\bdata-hwp-cell-paragraph="(\d+)"/)?.[1];
@@ -62,6 +69,7 @@ export function nestedTableGeometry(doc: HwpDocument, section: number, paragraph
     if (!/^<td\b/.test(tag)) return tag;
     cellParagraph = 0;
     const c = cells[cell++]; if (!c) return tag;
+    if (declaredCellBreak && c.rowSpan > 1 && (!c.isHeader || !policy.repeatHeader)) tag = tag.replace(/>$/, ' data-cell-split="allow">');
     const widths = columns.slice(c.col, c.col + c.colSpan).map(n => Math.max(1, Math.round(n)));
     return style(tag.replace(/>$/, ` colwidth="${widths.join(',')}">`), `width:${Math.round(c.width / 75 * 100) / 100}px;vertical-align:${['top', 'middle', 'bottom'][c.verticalAlign] ?? 'top'};${hwpCellBorders(c)}`);
   });

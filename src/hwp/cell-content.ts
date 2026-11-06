@@ -8,10 +8,11 @@ import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
 export type CellPath = { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
 type Equation = { script: string; fontSize: number; color: number; width: number; height: number };
 export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string; noteId?: string; noteLabel?: string; bookmarkName?: string };
-type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[]; tabStops?: DocumentTabStop[] };
+export type SerializedTablePolicy = { pageBreak: 'NONE' | 'TABLE' | 'CELL'; repeatHeader: boolean; treatAsChar?: boolean };
+type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[]; tabStops?: DocumentTabStop[]; tablePolicies?: (SerializedTablePolicy | undefined)[] };
 type Paragraph = { key: string; tables: number; cell: boolean; offset: number; tabRef: string; width: number; tabCell?: Cell };
 type Cell = { key: string; paragraphs: number; width?: number };
-type Table = { key: string; cells: number };
+type Table = { key: string; cells: number; policy?: SerializedTablePolicy };
 type Frame = { name: string; paragraph?: Paragraph; table?: Table; cell?: Cell; equation?: Equation; control?: SerializedControl };
 const fragment = (html: string) => html.match(/<!--StartFragment-->([\s\S]*?)<!--EndFragment-->/)?.[1].trim() ?? html;
 export const entities = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/gi, value => {
@@ -94,7 +95,17 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
           frame.paragraph = undefined; frame.table = undefined; frame.cell = undefined;
         }
       } else if (name === 'tbl' && frame.paragraph) {
-        frame.table = { key: `${frame.paragraph.key}/t${frame.paragraph.tables++}`, cells: 0 };
+        const ordinal = frame.paragraph.tables++;
+        frame.table = { key: `${frame.paragraph.key}/t${ordinal}`, cells: 0 };
+        const pageBreak = attr('pageBreak');
+        if (pageBreak === 'NONE' || pageBreak === 'TABLE' || pageBreak === 'CELL') {
+          const data = result.get(frame.paragraph.key)!;
+          const policy: SerializedTablePolicy = { pageBreak, repeatHeader: attr('repeatHeader') === '1' };
+          (data.tablePolicies ??= [])[ordinal] = policy; frame.table.policy = policy;
+        }
+      } else if (name === 'pos' && parent?.name === 'tbl' && frame.table?.policy) {
+        const inline = attr('treatAsChar');
+        if (inline === '0' || inline === '1') frame.table.policy.treatAsChar = inline === '1';
       } else if (name === 'tc' && frame.table) {
         frame.cell = { key: `${frame.table.key}/c${frame.table.cells++}`, paragraphs: 0 };
       } else if (name === 'cellSz' && frame.cell) {
@@ -135,7 +146,7 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
 export function restoreCellContent(doc: HwpDocument, section: number, para: number, tableControl: number, tableOrdinal: number, html: string,
   equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
   picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined,
-  nestedTable?: (path: CellPath, html: string) => string, caption?: (key: string, html: string) => string) {
+  nestedTable?: (path: CellPath, html: string, policy?: SerializedTablePolicy) => string, caption?: (key: string, html: string) => string) {
   const breakKeys = [...metadata()].filter(([, value]) => value.breaks.length).map(([key]) => key);
   const hasBreaks = (prefix: string) => breakKeys.some(key => key.startsWith(prefix + '/'));
   const fontCache = new Map<number, readonly string[]>();
@@ -165,8 +176,10 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
   };
   const repair = (source: string, parents: CellPath, control: number, key: string, depth = 0): string => {
     const finish = (html: string) => {
+      const owner = key.match(/^(.*)\/t(\d+)$/);
+      const policy = owner ? metadata().get(owner[1])?.tablePolicies?.[Number(owner[2])] : undefined;
       const geometry = parents.length && nestedTable && depth <= 12
-        ? nestedTable([...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }], html) : html;
+        ? nestedTable([...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }], html, policy) : html;
       return caption?.(key, geometry) ?? geometry;
     };
     if (depth > 12) return finish(source);

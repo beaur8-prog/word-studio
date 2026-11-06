@@ -102,17 +102,20 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     return hwpTableGrid(cells, axis, length);
   };
   const columns = grid('col', dims.colCount), rows = grid('row', dims.rowCount);
-  // Some stored HWP row layouts continue their cell contents onto later
-  // sheets even under RowBreak. Keep that observed behavior, rather than
-  // treating every multi-cell row as an indivisible form or guessing from
-  // the enum alone. Repeated header cells are not continuation evidence.
+  // CELL (native value 2) explicitly permits breaking within a cell, even
+  // if the stored row currently fits one sheet. An edit/font change must not
+  // turn that permission into an atomic DOCX row. For other policies retain
+  // observed source continuations; repeated headers are not such evidence.
+  // Inline tables do not activate the multiple-page option. Keep native
+  // observed continuations, but do not grant a new split to an inline form.
+  const declaredCellBreak = Number(tableProperties.pageBreak) === 2 && !tableProperties.treatAsChar;
   const continuationRows = new Set<number>();
   const cellPages = new Map<number, Set<number>>();
   for (const box of JSON.parse(doc.getTableCellBboxes(section, para, control))) {
     const pages = cellPages.get(box.cellIdx) ?? new Set<number>(); pages.add(box.pageIndex); cellPages.set(box.cellIdx, pages);
   }
   for (const c of cells) if ((!c.isHeader || !tableProperties.repeatHeader) && c.rowSpan === 1 &&
-    (cellPages.get(c.index)?.size ?? 0) > 1) continuationRows.add(c.row);
+    (declaredCellBreak || (cellPages.get(c.index)?.size ?? 0) > 1)) continuationRows.add(c.row);
   const style = (tag: string, css: string) => tag.includes('style="') ? tag.replace(/style="([^"]*)"/, (_, old) => `style="${old}${css}"`) : tag.replace(/>$/, ` style="${css}">`);
   let depth = 0, cellIndex = 0, row = 0, cellParagraph = 0, header = false, paragraphStyle = '', paragraphProperties: Record<string, any> = {};
   return html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, (tag, offset: number) => {
@@ -169,11 +172,10 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     if (!/^<td\b/.test(tag)) return tag;
     const c = cells[cellIndex++]; if (!c) return tag;
     cellParagraph = 0; header = !!c.isHeader && !!tableProperties.repeatHeader;
-    // RowBreak explicitly permits a break at row boundaries, including
-    // through a vertical merge. It must still work when preceding edits
-    // move a formerly single-page merge to a new boundary. This does not
-    // grant permission to cut an ordinary row through its cell text.
-    if (!header && c.rowSpan > 1 && (Number(tableProperties.pageBreak) === 2 || (cellPages.get(c.index)?.size ?? 0) > 1))
+    // CELL permits a continuing vertical merge after preceding edits move
+    // a formerly single-page cell to a new boundary. Other policies need
+    // observed source continuation before crossing that merged boundary.
+    if (!header && c.rowSpan > 1 && (declaredCellBreak || (cellPages.get(c.index)?.size ?? 0) > 1))
       tag = tag.replace(/>$/, ' data-cell-split="allow">');
     try { paragraphProperties = JSON.parse(doc.getCellParaPropertiesAt(section, para, control, c.index, 0)); paragraphStyle = paragraphCss(paragraphProperties, JSON.parse(doc.getCellCharPropertiesAt(section, para, control, c.index, 0, 0)),
       c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined, false); }
@@ -653,7 +655,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
               return croppedPicture(picture, props);
             }
             catch { return html; }
-          }, noteReference, (path, html) => nestedTableGeometry(doc, section, para, path, html, pitches),
+          }, noteReference, (path, html, policy) => nestedTableGeometry(doc, section, para, path, html, pitches, policy),
             (key, html) => captionKeys.has(key) ? html.replace(/^<table\b/, `<table data-hwp-caption-key="${key}"`) : html);
           controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches,
             (cell, p) => hwpTabAttribute(equationMetadata().get(`${section}:${para}/t${ordinal}/c${cell}/p${p}`)?.tabStops));
