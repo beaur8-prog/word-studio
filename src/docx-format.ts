@@ -341,6 +341,14 @@ export async function docxFormat(zip: JSZip) {
   };
 }
 
+/** Source grid position includes omitted leading columns and merge continuation
+ * cells, which are no longer separate cells in the HTML row. */
+export function tableCellGridOffset(source: Element): number {
+  const row = source.parentElement!, cells = Array.from(row.children).filter(el => el.localName === 'tc');
+  return cells.slice(0, cells.indexOf(source)).reduce((n, cell) => n + (Number(val(child(child(cell, 'tcPr'), 'gridSpan'))) || 1),
+    Number(val(child(child(row, 'trPr'), 'gridBefore'))) || 0);
+}
+
 export function decorateCell(cell: HTMLElement, source: Element, tableLayers: (Element | undefined)[] = []) {
   const props = child(source, 'tcPr');
   const noWrap = child(props, 'noWrap');
@@ -350,10 +358,9 @@ export function decorateCell(cell: HTMLElement, source: Element, tableLayers: (E
   const row = source.parentElement!;
   const rows = Array.from(table.children).filter(el => el.localName === 'tr');
   const rowIndex = rows.indexOf(row);
-  const cells = Array.from(row.children).filter(el => el.localName === 'tc');
   const grid = Array.from(child(table, 'tblGrid')?.children ?? []).map(col => Number(val(col, 'w')) / 15);
   const span = (c: Element) => Number(val(child(child(c, 'tcPr'), 'gridSpan'))) || 1;
-  const offset = cells.slice(0, cells.indexOf(source)).reduce((n, c) => n + span(c), Number(val(child(child(row, 'trPr'), 'gridBefore'))) || 0);
+  const offset = tableCellGridOffset(source);
   const widths = grid.slice(offset, offset + span(source));
   if (widths.length === span(source) && widths.every(n => n > 0)) cell.setAttribute('colwidth', widths.map(n => Math.max(1, Math.round(n))).join(','));
   const shading = child(props, 'shd');

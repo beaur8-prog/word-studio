@@ -1,8 +1,9 @@
+import { tablePixelGrid } from './table-grid-widths';
 import { rowSplitPolicy } from './row-split-policy';
 import {parseDrawingGroup} from './drawing-group';
 import type JSZip from 'jszip';
 import { pageMargins, paperDimensions, type Comment, type PageSettings } from './types';
-import { W, all, val, child, ancestor, docxFormat } from './docx-format';
+import { W, all, val, child, ancestor, docxFormat, tableCellGridOffset } from './docx-format';
 import { overlapInstruction } from './word-overlap';
 import { symbolFont, symbolElement } from './document-symbols';
 import { normalizeVmlImages } from './docx-images';
@@ -170,6 +171,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       template.innerHTML = html.replace(/<a\s+id="(ws_marker_\d+)"\s*><\/a>/g, '<span data-ws-marker="$1"></span>')
         .replace(/<a\s+id="([^"]+)"\s*><\/a>/g, '<span data-docx-bookmark="$1"></span>');
       const sizedTables = new Map<HTMLTableElement, Element>();
+      const sizedCells = new WeakMap<HTMLElement, Element>();
       const tableGaps = new Map<HTMLElement, number>();
       const tableAnchorParagraphs = new Set<HTMLElement>();
       const tableOffsetParagraphs = new Set<HTMLElement>();
@@ -211,6 +213,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const cell = p.closest<HTMLElement>('td,th');
         if (cell && marker.cell) {
           format.cell(cell, marker.cell);
+          sizedCells.set(cell, marker.cell);
           const sourceTable = ancestor(marker.cell, 'tbl'), table = cell.closest('table');
           if (sourceTable && table && !sizedTables.has(table)) {
             sizedTables.set(table, sourceTable);
@@ -423,12 +426,14 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const count = page?.columns?.count || 1;
         const columnWidth = parent ? available : (available - (count - 1) * (page?.columns?.space || 0)) / count;
         const requested = val(preferred, 'type') === 'pct' && Number(val(preferred, 'w')) > 0 ? columnWidth * Number(val(preferred, 'w')) / 5000 : total;
-        const target = Math.min(columnWidth - borderReserve, requested);
-        if (Math.abs(target - total) < 1) continue;
+        const widths = tablePixelGrid(grid, requested, columnWidth - borderReserve);
+        if (!widths.length) continue;
         for (const cell of table.querySelectorAll<HTMLTableCellElement>('td[colwidth],th[colwidth]')) {
           if (cell.closest('table') !== table) continue;
-          const widths = cell.getAttribute('colwidth')!.split(',').map(Number);
-          cell.setAttribute('colwidth', widths.map(w => Math.max(1, Math.floor(w * target / total))).join(','));
+          const sourceCell = sizedCells.get(cell); if (!sourceCell) continue;
+          const offset = tableCellGridOffset(sourceCell), span = cell.getAttribute('colwidth')!.split(',').length;
+          const columns = widths.slice(offset, offset + span);
+          if (columns.length === span) cell.setAttribute('colwidth', columns.join(','));
         }
       }
       const active = new Set<string>();
