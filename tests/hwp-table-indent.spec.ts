@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
+import fs from 'node:fs/promises';
 
-for (const kind of ['dxa', 'pct']) test(`${kind}: an indented table keeps its column widths through two DOCX saves`, async ({ page }) => {
+for (const kind of ['dxa', 'pct']) test(`${kind}: an indented table keeps its column widths through two DOCX saves`, async ({ page }, info) => {
   await page.goto('/');
   const result = await page.evaluate(async kind => {
     const { importFile, exportDocx } = await import('/src/document-io.ts');
@@ -47,6 +48,8 @@ for (const kind of ['dxa', 'pct']) test(`${kind}: an indented table keeps its co
     }
     return results;
   }, kind);
+  await fs.writeFile(info.outputPath('width-states.json'), JSON.stringify(result, null, 2));
+  await info.attach('table-width-states', { body: JSON.stringify(result, null, 2), contentType: 'application/json' });
   const expected = kind === 'dxa' ? [300, 300] : result[0].states[0].widths;
   for (const row of result) for (const state of row.states) {
     expect(state.widths).toEqual(expected);

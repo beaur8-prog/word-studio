@@ -426,7 +426,12 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const count = page?.columns?.count || 1;
         const columnWidth = parent ? available : (available - (count - 1) * (page?.columns?.space || 0)) / count;
         const requested = val(preferred, 'type') === 'pct' && Number(val(preferred, 'w')) > 0 ? columnWidth * Number(val(preferred, 'w')) / 5000 : total;
-        const widths = tablePixelGrid(grid, requested, columnWidth - borderReserve);
+        const limit = columnWidth - borderReserve;
+        // Preserve a fitting declared grid within the existing subpixel
+        // border reserve. Quantization must not turn that tolerance into a
+        // one-pixel shrink on every DOCX reopen.
+        const fittingGrid = Math.abs(Math.min(requested, limit) - total) < 1;
+        const widths = tablePixelGrid(grid, requested, fittingGrid ? Math.max(limit, Math.round(total)) : limit);
         if (!widths.length) continue;
         for (const cell of table.querySelectorAll<HTMLTableCellElement>('td[colwidth],th[colwidth]')) {
           if (cell.closest('table') !== table) continue;
