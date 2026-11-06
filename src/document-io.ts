@@ -1476,6 +1476,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     } else appendGroup(sectionPage, [node]);
   }
   const sections = [];
+  const differentOddEven = groups.some(group => group.page.differentOddEven);
   let hasTableEnd = false;
   const footnotes: Record<string, { children: Paragraph[] }> = {}, endnotes: Record<string, { children: Paragraph[] }> = {};
   for (const [id, note] of notes) {
@@ -1542,11 +1543,18 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             },
           },
         },
+        // Odd/even selection is global in DOCX. A mixed document needs a
+        // default copy in sections that use one story for both page types.
+        // With no global switch, keep explicit dormant stories and do not
+        // invent even references that overwrite their values on a roundtrip.
         headers: { default: await header(page.header, page.headerHtml),
-          first: await header(page.firstHeader ?? '', page.firstHeaderHtml), even: await header(page.differentOddEven ? page.evenHeader ?? '' : page.header, page.differentOddEven ? page.evenHeaderHtml : page.headerHtml) },
+          first: await header(page.firstHeader ?? '', page.firstHeaderHtml),
+          ...(differentOddEven || page.evenHeader !== undefined || page.evenHeaderHtml !== undefined
+            ? { even: await header(differentOddEven && !page.differentOddEven ? page.header : page.evenHeader ?? '', differentOddEven && !page.differentOddEven ? page.headerHtml : page.evenHeaderHtml) } : {}) },
         footers: { default: await footer(page.footer, page.pageNumbers, page.footerHtml, page.headerHtml),
           first: await footer(page.firstFooter ?? '', page.firstPageNumbers ?? false, page.firstFooterHtml, page.firstHeaderHtml),
-          even: await footer(page.differentOddEven ? page.evenFooter ?? '' : page.footer, page.differentOddEven ? page.evenPageNumbers ?? false : page.pageNumbers, page.differentOddEven ? page.evenFooterHtml : page.footerHtml, page.differentOddEven ? page.evenHeaderHtml : page.headerHtml) },
+          ...(differentOddEven || page.evenFooter !== undefined || page.evenFooterHtml !== undefined || page.evenPageNumbers !== undefined
+            ? { even: await footer(differentOddEven && !page.differentOddEven ? page.footer : page.evenFooter ?? '', differentOddEven && !page.differentOddEven ? page.pageNumbers : page.evenPageNumbers ?? false, differentOddEven && !page.differentOddEven ? page.footerHtml : page.evenFooterHtml, differentOddEven && !page.differentOddEven ? page.headerHtml : page.evenHeaderHtml) } : {}) },
       },
   );
   }
@@ -1560,7 +1568,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       ...(groups.some(group => group.page.hideEmptyLines) ? [{ name: emptyLineDocxProperty, value: JSON.stringify(groups.flatMap((group, index) => group.page.hideEmptyLines ? [index] : [])) }] : []),
       ...(bookmarkAliases.size ? [{ name: bookmarkNamesProperty, value: JSON.stringify([...bookmarkAliases].map(([name, alias]) => [alias, name])) }] : []),
     ],
-    evenAndOddHeaderAndFooters: groups.some(group => group.page.differentOddEven),
+    evenAndOddHeaderAndFooters: differentOddEven,
     compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false), doNotBreakWrappedTables: false },
     numbering: { config: numbering },
     footnotes, endnotes,

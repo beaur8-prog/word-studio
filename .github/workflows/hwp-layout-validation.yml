@@ -52,6 +52,7 @@ on:
       - 'tests/docx-heading-default-marks.spec.ts'
       - 'tests/docx-layout.spec.ts'
       - 'tests/docx-grid-budget.spec.ts'
+      - 'tests/docx-inactive-stories.spec.ts'
       - 'tests/word-line-metrics*.spec.ts'
       - 'tests/paragraph-widows.spec.ts'
       - 'tests/paragraph-autospace.spec.ts'
@@ -99,7 +100,7 @@ jobs:
       - name: Test native HWP table and object conversion
         run: node --test tests/hwp-table-captions.test.cjs tests/hwp-empty-cell-terminal.test.cjs tests/hwp-inline-wrap.test.cjs tests/hwp-object-images.test.cjs tests/hwp-cell-break-policy.test.cjs
       - name: Test HWP table, object and saved DOCX layouts
-        run: npx playwright test tests/hwp-table-captions.spec.ts tests/hwp-empty-cell-terminal.spec.ts tests/hwp-inline-wrap.spec.ts tests/hwp-object-images.spec.ts tests/paragraph-text-alignment.spec.ts tests/hwp-cell-break-policy.spec.ts tests/docx-grid-budget.spec.ts --output=test-results/hwp-conversion --reporter=line
+        run: npx playwright test tests/hwp-table-captions.spec.ts tests/hwp-empty-cell-terminal.spec.ts tests/hwp-inline-wrap.spec.ts tests/hwp-object-images.spec.ts tests/paragraph-text-alignment.spec.ts tests/hwp-cell-break-policy.spec.ts tests/docx-grid-budget.spec.ts tests/docx-inactive-stories.spec.ts --output=test-results/hwp-conversion --reporter=line
       - name: Test native terminal cell matrix in a separate browser
         run: npx playwright test tests/hwp-cell-terminal.spec.ts --output=test-results/terminal-matrix --reporter=line
         env:
@@ -136,9 +137,9 @@ jobs:
       - name: Test native HWP table and object conversion
         run: node --test tests/hwp-table-captions.test.cjs tests/hwp-empty-cell-terminal.test.cjs tests/hwp-inline-wrap.test.cjs tests/hwp-object-images.test.cjs tests/hwp-cell-break-policy.test.cjs
       - name: Test HWP table, object and saved DOCX layouts
-        run: npx playwright test tests/hwp-table-captions.spec.ts tests/hwp-empty-cell-terminal.spec.ts tests/hwp-inline-wrap.spec.ts tests/hwp-object-images.spec.ts tests/paragraph-text-alignment.spec.ts tests/hwp-cell-break-policy.spec.ts tests/docx-grid-budget.spec.ts --output=test-results/hwp-conversion --reporter=line
+        run: npx playwright test tests/hwp-table-captions.spec.ts tests/hwp-empty-cell-terminal.spec.ts tests/hwp-inline-wrap.spec.ts tests/hwp-object-images.spec.ts tests/paragraph-text-alignment.spec.ts tests/hwp-cell-break-policy.spec.ts tests/docx-grid-budget.spec.ts tests/docx-inactive-stories.spec.ts --output=test-results/hwp-conversion --reporter=line
       - name: Verify synthetic HWP conversion DOCX with the OpenXML SDK
-        run: dotnet run --project scripts/word-openxml-validator -- test-results/hwp-conversion 92
+        run: dotnet run --project scripts/word-openxml-validator -- test-results/hwp-conversion 100
       - name: Test navigation and page boundaries
         run: npx playwright test tests/docx-imported-headings.spec.ts tests/docx-heading-default-marks.spec.ts tests/docx-layout.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts tests/paragraph-fit.spec.ts tests/paragraph-widows.spec.ts tests/paragraph-autospace.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/list-pagination.spec.ts tests/docx-compression.spec.ts tests/table-end-paragraph.spec.ts tests/table-layout-mode.spec.ts tests/paragraph-blank-breaks.spec.ts tests/official-sample-regressions.spec.ts tests/exact-line-height.spec.ts tests/hwp-merge-row-break.spec.ts tests/hwp-paragraph-table.spec.ts tests/hwp-empty-lines.spec.ts tests/hwp-cell-colors.spec.ts tests/hwp-row-flow.spec.ts tests/exact-line-boundary.spec.ts tests/table-anchor.spec.ts tests/table-wrap.spec.ts tests/merged-cell-reserve.spec.ts tests/hwp-navigation.spec.ts tests/hwp-nested-grid.spec.ts tests/hwp-nested-height.spec.ts tests/hwp-cell-reflow.spec.ts tests/hwp-cell-terminal.spec.ts tests/hwp-cell-style.spec.ts tests/hwp-cell-rules.spec.ts tests/word-use-cases.spec.ts tests/table-spacing.spec.ts tests/table-export-layout.spec.ts tests/column-page-breaks.spec.ts tests/editor-page-boundaries.spec.ts tests/column-table-borders.spec.ts tests/repeating-header-boundary.spec.ts tests/borderless-tables.spec.ts tests/hwp-nested-borders.spec.ts tests/hwp-hard-breaks.spec.ts tests/hwp-word-wrap.spec.ts tests/section-table-boundary.spec.ts tests/docx-bookmark-names.spec.ts tests/docx-floating-size.spec.ts tests/docx-textboxes.spec.ts tests/hwp-shapes.spec.ts tests/hwp-crop.spec.ts tests/hwp-floating-export.spec.ts tests/hwp-floating-cells.spec.ts tests/hwp-page-budget.spec.ts tests/hwp-script-fonts.spec.ts tests/hwp-script-cells.spec.ts tests/hwp-compound-tabs.spec.ts tests/hwp-table-indent.spec.ts --reporter=line
         env:
