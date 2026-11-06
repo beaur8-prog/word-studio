@@ -88,7 +88,11 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
           frame.paragraph = { key: `${parent.cell.key}/p${parent.cell.paragraphs++}`, tables: 0, cell: true, offset: 0, tabRef: attr('paraPrIDRef'), width, tabCell: parent.cell };
           result.set(frame.paragraph.key, { equations: [], controls: [], breaks: [] });
         }
-        else frame.paragraph = undefined; // Header/footer and textbox stories.
+        else {
+          // Captions, headers and textboxes have independent paragraph/table
+          // counters. Their nested cells must not advance the owning cell.
+          frame.paragraph = undefined; frame.table = undefined; frame.cell = undefined;
+        }
       } else if (name === 'tbl' && frame.paragraph) {
         frame.table = { key: `${frame.paragraph.key}/t${frame.paragraph.tables++}`, cells: 0 };
       } else if (name === 'tc' && frame.table) {
@@ -131,7 +135,7 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
 export function restoreCellContent(doc: HwpDocument, section: number, para: number, tableControl: number, tableOrdinal: number, html: string,
   equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
   picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined,
-  nestedTable?: (path: CellPath, html: string) => string) {
+  nestedTable?: (path: CellPath, html: string) => string, caption?: (key: string, html: string) => string) {
   const breakKeys = [...metadata()].filter(([, value]) => value.breaks.length).map(([key]) => key);
   const hasBreaks = (prefix: string) => breakKeys.some(key => key.startsWith(prefix + '/'));
   const fontCache = new Map<number, readonly string[]>();
@@ -160,8 +164,11 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
     });
   };
   const repair = (source: string, parents: CellPath, control: number, key: string, depth = 0): string => {
-    const finish = (html: string) => parents.length && nestedTable && depth <= 12
-      ? nestedTable([...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }], html) : html;
+    const finish = (html: string) => {
+      const geometry = parents.length && nestedTable && depth <= 12
+        ? nestedTable([...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }], html) : html;
+      return caption?.(key, geometry) ?? geometry;
+    };
     if (depth > 12) return finish(source);
     const tablePath = [...parents, { controlIndex: control, cellIndex: 0, cellParaIndex: 0 }];
     const dims = parents.length ? JSON.parse(doc.getTableDimensionsByPath(section, para, JSON.stringify(tablePath))) : JSON.parse(doc.getTableDimensions(section, para, control));

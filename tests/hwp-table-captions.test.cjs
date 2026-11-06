@@ -1,0 +1,10 @@
+const{test}=require('node:test'),assert=require('node:assert/strict'),fixture=require('./hwp-table-caption-fixture.cjs');
+const plain=html=>html.replace(/<[^>]*>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&').replace(/\s/g,'');
+for(const format of ['hwp','hwpx'])for(const variant of [
+ {name:'top text',side:'TOP'},
+ {name:'bottom text',side:'BOTTOM'},
+ {name:'caption table with its own caption',side:'TOP',table:true,recursive:true},
+ {name:'caption on a nested table',side:'TOP',nestedOwner:true},
+ {name:'recursive caption table inside a nested owner',side:'TOP',nestedOwner:true,table:true,recursive:true},
+ {name:'following nested caption keeps its source paragraph path',side:'TOP',nestedOwner:true,table:true,recursive:true,followingOwner:true},
+])test(`${format}: ${variant.name} retains editable caption content in source order`,async()=>{const{bytes,HwpDocument,editableHwp}=await fixture({...variant,format}),doc=new HwpDocument(bytes);try{const result=editableHwp(doc),text=plain(result.html);const expected=variant.table?['CAPTION-BEFORE','INNER-CAPTION','CAPTION-CELL-A','CAPTION-CELL-B','CAPTION-AFTER']:['CAPTION-ONLY'];for(const word of expected)assert.equal(text.split(word).length-1,1,'caption text occurs exactly once: '+word);const captionAt=text.indexOf(expected[0]),mainAt=text.indexOf('MAIN-A');assert.ok(variant.side==='BOTTOM'?mainAt<captionAt:captionAt<mainAt,'caption side and logical order');assert.ok(text.indexOf('BEFORE-CAPTION')<captionAt);assert.ok(text.indexOf('AFTER-CAPTION')>captionAt);assert.equal((result.html.match(/<table\b/g)||[]).length,1+(variant.table?1:0)+(variant.nestedOwner?1:0)+(variant.followingOwner?1:0),'caption and owner tables remain editable');if(variant.followingOwner){assert.equal(text.split('SECOND-CAPTION').length-1,1);assert.ok(text.indexOf('SECOND-CAPTION')<text.indexOf('SECOND-MAIN'));}assert.doesNotMatch(result.html,/data-hwp-caption-key/,'temporary geometry annotation must not escape conversion');}finally{doc.free();}});

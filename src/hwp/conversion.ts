@@ -22,6 +22,7 @@ import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { stageHwpTables } from './export-tables';
+import { tableCaptionDefinitions, renderTableCaptions, restoreTableCaptions } from './table-captions';
 
 export interface EditableHwp { html: string; page: PageSettings; warnings: string[]; editorPages?: number }
 export const HWP_CONVERSION_NOTICE = '본문, 기본 글자·문단 서식, 표와 그림을 변환합니다. 한글과 Word의 조판 방식이 달라 줄바꿈과 쪽 수가 달라질 수 있습니다. 원본 파일은 유지하고 변환한 문서는 새 파일로 저장하세요.';
@@ -215,7 +216,7 @@ function pageSettings(doc: HwpDocument, section: number, warnings: Set<string>):
 
 /** The engine's selection HTML intentionally omits controls. Interleave their
  * HTML at the raw paragraph offsets instead of losing tables and pictures. */
-export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, metadata?: HwpLayoutMetadata, noteStory = false): EditableHwp {
+export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, metadata?: HwpLayoutMetadata, noteStory = false, captionDepth = 0): EditableHwp {
   onProgress?.({ label: '문서의 표·그림 구조를 확인하는 중…' });
   const warnings = new Set<string>(metadata?.warnings);
   const controls: Control[] = JSON.parse(doc.getControls());
@@ -228,6 +229,9 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     catch { warnings.add('일부 개체의 보조 서식 정보를 읽지 못했습니다. 원본 보기와 비교하세요.'); return parts = {}; }
   };
   const equationMetadata = () => equations ??= cellContents(doc, serialized());
+  const captionDefinitions = tableCaptionDefinitions(serialized());
+  if (captionDefinitions.length && captionDepth >= 8) throw Error('표 캡션이 너무 깊게 중첩되어 안전하게 변환하지 못했습니다.');
+  const captionKeys = new Set(captionDefinitions.map(c => c.key));
   const noteStories = noteStory ? { notes: [], warnings: [] } : importHwpNotes(doc, serialized(), noteDoc => editableHwp(noteDoc, undefined, undefined, true));
   for (const warning of noteStories.warnings) warnings.add(warning);
   const noteReference = (control: { noteId?: string }) => {
@@ -612,7 +616,8 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
               return croppedPicture(picture, props);
             }
             catch { return html; }
-          }, noteReference, (path, html) => nestedTableGeometry(doc, section, para, path, html, pitches));
+          }, noteReference, (path, html) => nestedTableGeometry(doc, section, para, path, html, pitches),
+            (key, html) => captionKeys.has(key) ? html.replace(/^<table\b/, `<table data-hwp-caption-key="${key}"`) : html);
           controlHtml = tableGeometry(doc, section, para, c.controlIndex, controlHtml, pitches,
             (cell, p) => hwpTabAttribute(equationMetadata().get(`${section}:${para}/t${ordinal}/c${cell}/p${p}`)?.tabStops));
           const background = tableBackgrounds.get(c.controlIndex);
@@ -813,6 +818,11 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     const pitch = Number(font[1]) * (font[2] === 'pt' ? 4 / 3 : 1) * Number(line[1]) / 100;
     return cssStyle(tag, `line-height:${Math.max(.1, Math.round(pitch * 100) / 100)}px;`);
   });
+  if (captionDefinitions.length) {
+    const rendered = renderTableCaptions(doc, captionDefinitions, isolated => editableHwp(isolated, undefined, undefined, noteStory, captionDepth + 1));
+    rendered.warnings.forEach(w => warnings.add(w));
+    html = restoreTableCaptions(html, rendered.captions, warnings);
+  }
   checkHwpHtmlSize(hwpHtmlBytes(html));
   warnings.add('복잡한 표 테두리·셀 크기, 글상자·수식·각주·필드 등 고급 서식은 완전히 호환되지 않습니다. 편집본과 원본을 비교하세요.');
   return { html: html || '<p></p>', page: firstPage, warnings: [...warnings] };
