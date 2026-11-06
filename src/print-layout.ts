@@ -150,6 +150,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       // Page-relative floating pictures can extend past a column box without
       // overflowing its text. scrollWidth includes those absolute descendants
       // and would move otherwise fitting columns onto another sheet.
+      && [...content.querySelectorAll<HTMLElement>('.table-wrap-frame')].every(table => table.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)
       && [...content.querySelectorAll<HTMLElement>('[data-column-count]')].every(group =>
         columnGroupFits(group));
   }
@@ -228,7 +229,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       bodyRows += group.length; i = end;
     }
   }
+  const pairedParagraphs = new WeakSet<HTMLElement>();
   function append(element: HTMLElement) {
+    if (pairedParagraphs.has(element)) return;
     if (element.hasAttribute('data-section-page')) {
       const next = JSON.parse(element.getAttribute('data-section-page')!) as PageSettings;
       const sameSize = dimensions(settings).join(',') === dimensions(next).join(',');
@@ -261,6 +264,23 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       newPage(true); return;
     }
     if (element.hasAttribute('data-section-content')) { for (const child of [...element.children]) append(child as HTMLElement); return; }
+    if (element.tagName === 'TABLE' && tableAnchor(element.dataset.tableAnchor)?.wrap && element.nextElementSibling?.matches('p,h1,h2,h3,h4,h5,h6')) {
+      const following = element.nextElementSibling as HTMLElement, prior = content.children.length;
+      content.append(element, following); fits();
+      if (element.classList.contains('table-wrap-frame')) {
+        // A wrapping table belongs to the next regular paragraph in OOXML.
+        // Its first actual text line must travel with it even when an edit
+        // makes that line taller than the original label's row.
+        const cut = paragraphLineOffsets(following)[0];
+        const first = cut ? splitText(following, cut)[0] : following.cloneNode(true) as HTMLElement;
+        following.remove(); content.append(first);
+        const firstFits = fits(); first.remove();
+        if (!firstFits && prior) { element.remove(); newPage(); content.append(element); }
+        append(following); pairedParagraphs.add(following); return;
+      }
+      // Resized/oversized labels use the ordinary splittable table path.
+      following.remove(); element.remove();
+    }
     if (element.tagName === 'TABLE' && tableAnchor(element.dataset.tableAnchor)?.overlay) {
       content.append(element); fits();
       if (element.classList.contains('table-overlay-active')) return;

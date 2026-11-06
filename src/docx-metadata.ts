@@ -7,7 +7,7 @@ import { overlapInstruction } from './word-overlap';
 import { symbolFont, symbolElement } from './document-symbols';
 import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
-import { tableAnchor, paragraphTableNamespace } from './table-anchor';
+import { tableAnchor, tableWrapFits, paragraphTableNamespace } from './table-anchor';
 import { cssPixels, encodeHwpCellLine, hwpCellLineNamespace, parseHwpCellLine } from './hwp-cell-line';
 import { encodeHwpBodyLine, hwpBodyLineNamespace, parseHwpBodyLine } from './hwp-body-line';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
@@ -236,6 +236,18 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
                 bottom: Number(val(floating, 'bottomFromText')) / 15, reference: 'paragraph', ...(val(floating, 'horzAnchor') !== 'page' ? { horizontal: 'margin' } : {}) });
               if (anchor) table.dataset.tableAnchor = JSON.stringify(anchor);
             }
+            // Support a left-side, paragraph-relative label with text on its
+            // right. Read the standard geometry afresh: another Word editor
+            // may retain our optional attributes while moving the table.
+            if (floating && !table.closest('td,th') && val(floating, 'vertAnchor') === 'text' && ['margin', 'text'].includes(val(floating, 'horzAnchor')) &&
+              !val(floating, 'tblpXSpec') && !val(floating, 'tblpYSpec') && Number(val(floating, 'tblpY')) === 0 &&
+              gridWidth > 0 && (page.columns?.count || 1) === 1) {
+              const x = Number(val(floating, 'tblpX')) / 15, right = Number(val(floating, 'rightFromText')) / 15;
+              const anchor = tableAnchor({ x, y: 0, bottom: Number(val(floating, 'bottomFromText')) / 15,
+                reference: 'paragraph', horizontal: 'margin', wrap: 'right', right });
+              if (anchor && Number(val(floating, 'leftFromText')) / 15 >= x - .5 && tableWrapFits(anchor, gridWidth, bodyWidth))
+                table.dataset.tableAnchor = JSON.stringify(anchor);
+            }
             const stored = tableAnchor(sourceTable.getAttributeNS(paragraphTableNamespace, 'anchor'));
             const unchangedOffset = (element: Element | null, pixels: number) => !pixels || !!element && element.localName === 'p' &&
               val(child(child(element, 'pPr'), 'pStyle')) === TABLE_OFFSET_STYLE &&
@@ -247,7 +259,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             // retaining ignorable attributes. Respect those edits, including
             // text entered in an offset paragraph, instead of restoring stale
             // positioning or removing the edited paragraph.
-            if (stored?.reference === 'paragraph' && gridWidth >= bodyWidth * .8 && (page.columns?.count || 1) === 1 &&
+            if (stored?.reference === 'paragraph' && !stored.wrap && gridWidth >= bodyWidth * .8 && (page.columns?.count || 1) === 1 &&
               val(indent, 'type') === 'dxa' && Math.abs(Number(val(indent, 'w')) / 15 - stored.x + (stored.horizontal === 'margin' ? 0 : margins.left * 96 / 25.4)) <= 1 / 15 + .001 &&
               unchangedOffset(sourceTable.previousElementSibling, stored.y) && unchangedOffset(sourceTable.nextElementSibling, stored.bottom))
               table.dataset.tableAnchor = JSON.stringify(stored);

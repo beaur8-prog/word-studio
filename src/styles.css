@@ -853,6 +853,12 @@ button:hover:not(:disabled) {
 .tiptap [data-hwp-body-layout] :is(span, strong, em, b, i, u, s, mark, a) {
   line-height: var(--hwp-body-ratio) !important;
 }
+.tiptap .table-wrap-frame {
+  float: left;
+  width: max-content;
+  max-width: none;
+  margin: var(--table-wrap-top) var(--table-wrap-right) var(--table-wrap-bottom) var(--table-wrap-left) !important;
+}
 .tiptap .table-overlay-frame {
   position: relative;
   height: 0;

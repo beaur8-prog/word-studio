@@ -8,7 +8,7 @@ import type { Node as PMNode } from '@tiptap/pm/model';
 import { imageFloating } from './image-floating';
 import { paginateCellRow, paginateMergedRows } from './editor-cell-pagination';
 import { layoutColumns } from './column-layout';
-import { layoutTableAnchors } from './table-anchor';
+import { layoutTableAnchors, tableFollowingParagraph } from './table-anchor';
 import { paginateParagraph } from './editor-paragraph-pagination';
 import { paragraphFitBottom } from './paragraph-fit';
 import { wholeListItem } from './list-fragments';
@@ -85,6 +85,21 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       let breakType = '';
       if (node.type.name === 'sectionBreak') { try { breakType = JSON.parse(node.attrs.page).breakType || ''; } catch { /* Validated on file input. */ } }
       result.push({ pos, end: pos + node.nodeSize, ...box, height: 0, explicit: node.type.name === 'columnBreak' ? 'pageBreak' : node.type.name, breakType }); return;
+    }
+    if (node.type.name === 'table' && dom.classList.contains('table-wrap-frame')) {
+      const following = tableFollowingParagraph(dom);
+      if (following) {
+        const walker = document.createTreeWalker(following, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const text = walker.currentNode as Text, offset = text.data.search(/\S/); if (offset < 0) continue;
+          const range = document.createRange(); range.setStart(text, offset); range.setEnd(text, offset + 1);
+          const first = range.getBoundingClientRect(), leading = parseFloat(getComputedStyle(text.parentElement!).lineHeight) || 0;
+          const firstBottom = (first.bottom - origin) / scale;
+          const naturalBottom = firstBottom - removed.filter(g => g.top < firstBottom - .5).reduce((sum, g) => sum + g.height, 0);
+          box.height = Math.max(box.height, naturalBottom - box.top, leading); break;
+        }
+      }
+      result.push({ pos, end: pos + node.nodeSize, ...box }); return;
     }
     if (node.type.name !== 'table') { result.push({ pos, end: pos + node.nodeSize, ...box, listItem: node.type.name === 'listItem' ? node : undefined, columnFlow: node.type.name === 'columnGroup',
       empty: !node.textContent.trim() && !dom.matches('img,hr') && !dom.querySelector('img,table,hr,[data-note-reference]') }); return; }

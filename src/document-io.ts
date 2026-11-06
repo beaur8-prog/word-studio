@@ -67,7 +67,7 @@ import { parseDocumentHtml } from './extensions';
 import { imageFloating, restoreImageGeometry, type ImageGeometryRecord } from './image-floating';
 import type { PageSettings, StudioDocument } from "./types";
 import { PreservedTable, PreservedTableCell } from './docx-table-cell';
-import { tableAnchor } from './table-anchor';
+import { tableAnchor, tableWrapFits } from './table-anchor';
 import { encodeHwpBodyLine, hwpBodyTextLine, hwpBodyFallback, type HwpBodyLine } from './hwp-body-line';
 import documentLimits from '../electron/document-limits.json';
 const bookmarkNamesProperty = 'WordStudio.BookmarkNames';
@@ -1180,7 +1180,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   ): Promise<(Paragraph | Table)[]> => {
     const width = context.width ?? contentWidth;
     const output: (Paragraph | Table)[] = [];
-    for (const node of nodes) {
+    for (const [nodeIndex, node] of nodes.entries()) {
       if (node.type === 'documentTextBox') {
         const frame = textBoxFrame(node.attrs?.frame);
         if (!frame) throw Error('텍스트상자 설정이 올바르지 않습니다.');
@@ -1418,8 +1418,10 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           );
         }
         const requestedAnchor = tableAnchor(node.attrs?.tableAnchor), overlayHeight = cellLineHeights.get(node);
-        const anchor = requestedAnchor?.overlay && !(overlayHeight && overlayHeight > 0) ? undefined : requestedAnchor;
-        const paragraphAnchor = anchor?.reference === 'paragraph' ? anchor : undefined;
+        const unsupportedWrap = requestedAnchor?.wrap && (!['paragraph', 'heading'].includes(nodes[nodeIndex + 1]?.type ?? '') ||
+          !tableWrapFits(requestedAnchor, columnWidths.reduce((a, b) => a + b, 0) / 15, width / 15));
+        const anchor = requestedAnchor?.overlay && !(overlayHeight && overlayHeight > 0) || unsupportedWrap ? undefined : requestedAnchor;
+        const paragraphAnchor = anchor?.reference === 'paragraph' && !anchor.wrap ? anchor : undefined;
         const overlayPosition = anchor?.overlay ? { x: Math.round(anchor.x * 15) / 15,
           y: Math.round(((anchor.overlay === 'page-bottom' ? currentBodyBottom : currentPaperBottom) - anchor.y - overlayHeight!) * 15) / 15,
           width: columnWidths.reduce((a, b) => a + b, 0) / 15 } : undefined;
@@ -1432,16 +1434,16 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             rows,
             layout: autofit ? TableLayoutType.AUTOFIT : TableLayoutType.FIXED,
             width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
-            ...(paragraphAnchor ? { alignment: AlignmentType.LEFT } : ['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
-            ...(inlineIndent !== undefined || node.attrs?.tableIndent ? { indent: { size: Math.round((inlineIndent ?? Number.parseFloat(node.attrs!.tableIndent)) * 15) || 0, type: WidthType.DXA } } : {}),
+            ...(paragraphAnchor || anchor?.wrap ? { alignment: AlignmentType.LEFT } : ['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
+            ...(anchor?.wrap ? { indent: { size: 0, type: WidthType.DXA } } : inlineIndent !== undefined || node.attrs?.tableIndent ? { indent: { size: Math.round((inlineIndent ?? Number.parseFloat(node.attrs!.tableIndent)) * 15) || 0, type: WidthType.DXA } } : {}),
             columnWidths,
             ...(anchor && !paragraphAnchor ? { float: { horizontalAnchor: anchor.horizontal === 'margin' ? TableAnchorType.MARGIN : TableAnchorType.PAGE,
               verticalAnchor: anchor.reference === 'paragraph' ? TableAnchorType.TEXT : TableAnchorType.PAGE,
               absoluteHorizontalPosition: Math.round(anchor.x * 15), absoluteVerticalPosition: Math.round((overlayPosition?.y ?? anchor.y) * 15), bottomFromText: Math.round(anchor.bottom * 15),
-              // These supported floats wrap above/below. Otherwise Word/Writer
-              // can squeeze body characters into a narrow space at either side.
-              leftFromText: overlayPosition ? 0 : contentWidth, rightFromText: overlayPosition ? 0 : contentWidth } } : {}),
-          }, overlayPosition ? anchor : paragraphAnchor, overlayPosition);
+              // Page floats wrap above/below. A left-side paragraph label
+              // permits text only on its right and below the actual table.
+              leftFromText: overlayPosition ? 0 : contentWidth, rightFromText: anchor.wrap ? Math.round(anchor.right! * 15) : overlayPosition ? 0 : contentWidth } } : {}),
+          }, overlayPosition || anchor?.wrap ? anchor : paragraphAnchor, overlayPosition);
         // Missing imported CSS uses the editor's 18px table gap. Furniture
         // and note tables have a zero default, passed through nested blocks.
         tableSpacing.set(table, anchor ? 0 : Math.max(0, fontPoints(node.attrs?.tableSpacing) ?? (context.tableGap ?? 18) * .75) * 4 / 3);

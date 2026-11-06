@@ -553,7 +553,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const onlyWhitespace = (html: string) => !/<(?:br|img|table|svg)\b|data-(?:note-reference|page-number|symbol-font)/i.test(html) &&
         !entities(html.replace(/<[^>]*>/g, '')).trim();
       let cursor = 0, content = '', contentBytes = 0, lastInlineTable = false;
-      let inlineTail: { piece: number; line: number; width: number; left: number; available: number } | undefined;
+      let inlineTail: { piece: number; line: number; width: number; left: number; available: number; wrapping: boolean; right: number; bottom: number } | undefined;
       const appendInline = (value: string) => { contentBytes += hwpHtmlBytes(value); checkHwpHtmlSize(size + contentBytes); content += value; };
       for (const c of byParagraph.get(globalPara) ?? []) {
         if (backgroundControls.has(c.controlIndex)) continue;
@@ -728,8 +728,12 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             const pages = new Set(JSON.parse(doc.getTableCellBboxes(section, para, c.controlIndex)).map((b: any) => b.pageIndex));
             const left = position ? position.x - px(pd.marginLeft) : 0;
             const available = px((pd.landscape ? pd.height : pd.width) - pd.marginLeft - pd.marginRight) - left;
-            if (pages.size === 1 && available - tableWidth >= 1)
-              inlineTail = { piece: tablePiece, line: JSON.parse(doc.getLineInfo(section, para, pos)).lineIndex, width: tableWidth, left, available };
+            if (pages.size === 1 && available - tableWidth >= 1) {
+              const props = JSON.parse(doc.getTableProperties(section, para, c.controlIndex));
+              inlineTail = { piece: tablePiece, line: JSON.parse(doc.getLineInfo(section, para, pos)).lineIndex, width: tableWidth, left, available,
+                wrapping: pos === 0 && paragraphControls.length === 1 && !props.hasCaption && !Number(properties.spacingBefore) && left >= 0 && tableWidth <= available * .65,
+                right: px(Math.max(0, Number(props.outerRight) || 0)), bottom: px(Math.max(0, Number(props.outerBottom) || 0)) };
+            }
           }
           if (fullWidth) { append('</div>'); openColumns(); }
           content = ''; contentBytes = 0;
@@ -754,6 +758,22 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         const wrapped = `<table style="width:${available}px;margin-left:${left}px;margin-bottom:${gap}px;border:none;"><tr><td colwidth="${Math.round(width)}" style="${cell}width:${width}px;">${inner}</td><td colwidth="${Math.round(tailWidth)}" style="${cell}width:${tailWidth}px;">${tail}</td></tr></table>`;
         size += hwpHtmlBytes(wrapped) - hwpHtmlBytes(table); checkHwpHtmlSize(size);
         pieces[piece] = wrapped; content = ''; contentBytes = 0;
+      } else if (inlineTail?.wrapping && inlineTail.line === 0 && !onlyWhitespace(content) &&
+        !/<(?:br|table|img|svg)\b|data-(?:note-reference|page-number|symbol-font)/.test(content) &&
+        JSON.parse(doc.getLineInfo(section, para, 0)).lineCount > 1 && properties.lineSpacingType === 'Percent' && !properties.fontLineHeight) {
+        // A leading inline label is an object on the first line, not a block
+        // followed by a second paragraph. A paragraph-relative wrapping table
+        // lets later text regain the full line width, including after edits.
+        const { piece, left, right, bottom } = inlineTail;
+        const anchor = { x: left, y: 0, bottom, reference: 'paragraph', horizontal: 'margin', wrap: 'right', right };
+        const previous = pieces[piece];
+        pieces[piece] = previous.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify(anchor))}"`);
+        size += hwpHtmlBytes(pieces[piece]) - hwpHtmlBytes(previous); checkHwpHtmlSize(size);
+        // Cached first-line pitch includes the removed object's height. The
+        // remaining paragraph must retain its text's own percentage leading.
+        const sizes = [...content.matchAll(/font-size:\s*([\d.]+)(pt|px)/gi)].map(m => Number(m[1]) * (m[2].toLowerCase() === 'pt' ? 4 / 3 : 1));
+        const font = Math.max(Number(paragraphChar.fontSize) / 75, ...sizes), base = font * Number(properties.lineSpacing) / 100;
+        if (font > 0 && base > 0) open = cssStyle(open, `text-indent:0;line-height:${base}px;--hwp-body-line:${encodeHwpBodyLine({ percent: Number(properties.lineSpacing), font, base })};`);
       }
       // Keep real blank paragraphs, but avoid an extra empty paragraph after a table.
       if (content.trim() || !(byParagraph.get(globalPara) ?? []).some(c => c.ctrlId === 'tbl')) {
