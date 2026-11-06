@@ -4,10 +4,13 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { activeHwpBodyLine, encodeHwpBodyLine, hwpBodyTextLine, parseHwpBodyLine } from './hwp-body-line';
 
 const excluded = 'td,th';
+// A view-only page spacer carries line-height:0; it is not an authored
+// run override and must not disable the paragraph's native line policy.
+const viewFurniture = '.pagination-gap,.pagination-cell-gap,[data-flow-widget]';
 const objects = 'br,img,svg,table,sup,sub,[data-note-reference],[data-page-number],[data-docx-tab],[data-docx-bookmark],[data-word-overlap],[data-symbol-font]';
 function eligible(p: HTMLElement) {
   return !!p.textContent?.trim() && !p.closest(excluded) && !p.querySelector(objects) &&
-    ![...p.querySelectorAll<HTMLElement>('[style]')].some(span => !!span.style.lineHeight);
+    ![...p.querySelectorAll<HTMLElement>('[style]')].some(span => !!span.style.lineHeight && !span.closest(viewFurniture));
 }
 /** Static print/measurement DOM only. The editor uses decorations below, so
  * neither wrapping spans nor measured line boundaries enter the document. */

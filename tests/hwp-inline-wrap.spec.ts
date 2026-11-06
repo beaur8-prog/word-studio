@@ -56,12 +56,17 @@ test(`${format}: multiline inline label ${placement} through two DOCX saves`, as
   await page.locator('input[type=file]').first().setInputFiles({ name: 'wrap.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(result.first)) });
   const editor = page.getByRole('textbox', { name: '문서 편집 영역' }), tail = editor.locator(':scope > p').filter({ hasText: 'TAIL START' });
   await expect(tail).toBeVisible();
-  const measure = () => tail.evaluate(p => { const table = p.parentElement!.querySelector(':scope > .tableWrapper table')!, r = document.createRange(); r.selectNodeContents(p); return { first: [...r.getClientRects()].find(r => r.width > .1)!.toJSON(), table: table.getBoundingClientRect().toJSON(), height: p.getBoundingClientRect().height }; });
+  await expect(tail).toHaveAttribute('data-hwp-body-layout', 'true');
+  await expect(page.locator('.document-stack')).toHaveAttribute('data-pages', String(result.states[0].pages));
+  const measure = () => tail.evaluate(p => { const table = p.parentElement!.querySelector(':scope > .tableWrapper table')!, r = document.createRange(); r.selectNodeContents(p); return { first: [...r.getClientRects()].find(r => r.width > .1)!.toJSON(), table: table.getBoundingClientRect().toJSON(), height: p.getBoundingClientRect().height, lineHeight: getComputedStyle(p).lineHeight, html:p.outerHTML, pages:p.closest<HTMLElement>('.document-stack')?.dataset.pages }; });
   await expect.poll(async () => (await measure()).first.left - (await measure()).table.right).toBeGreaterThanOrEqual(-1);
   await expect.poll(async () => { const state = await measure(); return state.first.top - state.table.top; }).toBeLessThan(70);
-  const before = await tail.textContent(), height = (await measure()).height;
+  const before = await tail.textContent(), initial=await measure(), height=initial.height;
+  await fs.writeFile(info.outputPath('inline-print-states.json'),JSON.stringify(result.states,null,2));
   await tail.fill('TAIL START ' + 'EDIT GROW '.repeat(100)); await expect.poll(async () => (await measure()).height).toBeGreaterThan(height);
   await page.keyboard.press('ControlOrMeta+z'); await expect(tail).toHaveText(before!);
-  await expect.poll(async () => (await measure()).height).toBeCloseTo(height, 0);
+  try { await expect.poll(async () => (await measure()).height).toBeCloseTo(height, 0); }
+  finally { await fs.writeFile(info.outputPath('inline-undo-states.json'),JSON.stringify({initial,afterUndo:await measure()},null,2)); }
+  await expect(tail).toHaveAttribute('data-hwp-body-layout', 'true');
   await page.keyboard.press('ControlOrMeta+Shift+z'); await expect(tail).toContainText('EDIT GROW');
 });
