@@ -50,8 +50,13 @@ export function nestedTableGeometry(doc: HwpDocument, section: number, paragraph
       const char = JSON.parse(doc.getCellCharPropertiesAtByPath(section, paragraph, currentJson, 0));
       const count = doc.getCellParagraphCountByPath(section, paragraph, currentJson);
       const text = html.slice(offset + tag.length, html.indexOf('</p>', offset));
-      const css = cellParagraphCss(properties, char, { pitch: pitches.get(key), inkHeight: pitches.get(`height:${key}`),
-        final: ++cellParagraph === count, lines: pitches.get(`lines:${key}`), simple: !/<(?:img|table)\b|<!--\s*rhwp:/i.test(text) });
+      const final = ++cellParagraph === count, simple = !/<(?:img|table)\b|<!--\s*rhwp:/i.test(text);
+      // An empty or whitespace-only line has no painted run. Its native line
+      // still exists and needs the same terminal budget as an ordinary cell;
+      // absence from the paint index does not mean its layout is unknown.
+      const lines = pitches.get(`lines:${key}`) ?? (final && simple
+        ? JSON.parse(doc.getParagraphLineMetrics(section, paragraph, currentJson)).lines.length : undefined);
+      const css = cellParagraphCss(properties, char, { pitch: pitches.get(key), inkHeight: pitches.get(`height:${key}`), final, lines, simple });
       return paragraphAutoSpace(style(tag, css), properties);
     }
     if (!/^<td\b/.test(tag)) return tag;

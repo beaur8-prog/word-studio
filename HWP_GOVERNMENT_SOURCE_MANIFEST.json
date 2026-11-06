@@ -1,0 +1,1036 @@
+{
+  "createdUtc": "2026-11-06T12:49:52.843214+00:00",
+  "status": "provisional-30-candidate-set-not-30-verified-references",
+  "documents": [
+    {
+      "id": "mois-workplan",
+      "agency": "행정안전부",
+      "category": "workplan",
+      "split": "development",
+      "templateFamily": "mois-workplan",
+      "primaryFormat": "hwpx",
+      "title": "2025년 행정안전부 업무계획.hwpx [ 1.5 MB ]",
+      "sourcePage": "https://www.mois.go.kr/frt/bbs/type001/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000245&nttId=115198",
+      "originals": [
+        {
+          "id": "mois-2025-0",
+          "kind": "hwpx",
+          "file": "sources/mois-2025-0.hwpx",
+          "bytes": 1667365,
+          "sha256": "554470ecc730102bf6172774c2d80efa92b6ef21b714e8f55a63d78054199c6b",
+          "url": "https://www.mois.go.kr/cmm/fms/FileDown.do?atchFileId=FILE_00133356DZ3fgV-&fileSn=0"
+        }
+      ],
+      "reference": {
+        "id": "mois-2025-1",
+        "file": "sources/mois-2025-1.pdf",
+        "bytes": 798400,
+        "sha256": "393c06ea7fc0bb89778c037cf8bb164e735ad948557430d537bfbc3413b26332",
+        "url": "https://www.mois.go.kr/cmm/fms/FileDown.do?atchFileId=FILE_00133356DZ3fgV-&fileSn=1",
+        "pages": 19
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "mss-funding-notice",
+      "agency": "중소벤처기업부",
+      "category": "notice",
+      "split": "development",
+      "templateFamily": "mss-funding-2026",
+      "primaryFormat": "hwpx",
+      "title": "내려받기",
+      "sourcePage": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?bcIdx=1064253&cbIdx=310",
+      "originals": [
+        {
+          "id": "mss-funding-2026-0",
+          "kind": "hwpx",
+          "file": "sources/mss-funding-2026-0.hwpx",
+          "bytes": 240216,
+          "sha256": "5eb2799a74156a5873f4a4d7ca84e410c47771fbfc6251889263843323df5060",
+          "url": "https://www.mss.go.kr/common/board/Download.do?bcIdx=1064253&cbIdx=310&streFileNm=10890978-e39e-4c87-ac17-9a13384acb1a.hwpx"
+        }
+      ],
+      "reference": {
+        "id": "mss-funding-2026-1",
+        "file": "sources/mss-funding-2026-1.pdf",
+        "bytes": 1862884,
+        "sha256": "12a8daa0b4a130c0eb46d2fc7ac067580bce30eae63eef759bc948650174ac6c",
+        "url": "https://www.mss.go.kr/common/board/Download.do?bcIdx=1064253&cbIdx=310&streFileNm=bbe0c6c2-6f54-4e91-84f1-8263f754e58e.pdf",
+        "pages": 46
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "mss-funding-guidance",
+      "agency": "중소벤처기업부",
+      "category": "manual",
+      "split": "development",
+      "templateFamily": "mss-funding-2026",
+      "primaryFormat": "hwpx",
+      "title": "내려받기",
+      "sourcePage": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?bcIdx=1064253&cbIdx=310",
+      "originals": [
+        {
+          "id": "mss-funding-2026-2",
+          "kind": "hwpx",
+          "file": "sources/mss-funding-2026-2.hwpx",
+          "bytes": 1018634,
+          "sha256": "d720b251c1b1ff57dc5b0681638984a68aa1960f74b4f8d5a0aef03d70a92d69",
+          "url": "https://www.mss.go.kr/common/board/Download.do?bcIdx=1064253&cbIdx=310&streFileNm=bd7a4880-80e7-4626-9a78-56e35650c7f8.hwpx"
+        }
+      ],
+      "reference": {
+        "id": "mss-funding-2026-3",
+        "file": "sources/mss-funding-2026-3.pdf",
+        "bytes": 880208,
+        "sha256": "ece85b5db86b39d0e3359409722f1bdf1f0d26373087ea628c3b203c9c088f2d",
+        "url": "https://www.mss.go.kr/common/board/Download.do?bcIdx=1064253&cbIdx=310&streFileNm=878a81a7-c8dc-42c8-8db3-37e6882f1296.pdf",
+        "pages": 47
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "household-finance",
+      "agency": "국가데이터처",
+      "category": "statistics",
+      "split": "development",
+      "templateFamily": "household-finance",
+      "primaryFormat": "hwpx",
+      "title": "2025년 가계금융복지조사 결과.hwpx",
+      "sourcePage": "https://www.kostat.go.kr/board.es?act=view&bid=215&list_no=439535&mid=a10301010000",
+      "originals": [
+        {
+          "id": "mods-household-1",
+          "kind": "hwpx",
+          "file": "sources/mods-household-1.hwpx",
+          "bytes": 4781556,
+          "sha256": "838f550b785a4336ca2ce48654b8df74c4b6e18bde44f241d9cd2535c49d61b9",
+          "url": "https://mods.go.kr/boardDownload.es?bid=215&list_no=439535&seq=6"
+        },
+        {
+          "id": "mods-household-2",
+          "kind": "hwp",
+          "file": "sources/mods-household-2.hwp",
+          "bytes": 4511744,
+          "sha256": "aa735638eb5841a70c6fe9a41af7be16b970d55504aacebe76730b09e1d056e8",
+          "url": "https://mods.go.kr/boardDownload.es?bid=215&list_no=439535&seq=7"
+        }
+      ],
+      "reference": {
+        "id": "mods-household-0",
+        "file": "sources/mods-household-0.pdf",
+        "bytes": 29464627,
+        "sha256": "8bef2f739d95708b5668016de9065322373a9af9b7277b52e4138dbb9cf72b28",
+        "url": "https://mods.go.kr/boardDownload.es?bid=215&list_no=439535&seq=1",
+        "pages": 90
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": [
+        "공식 PDF 본문이 윤곽선/이미지여서 OCR·시각 판본 대조 필요; 내부 파서쪽수는 원문 정답이 아님"
+      ]
+    },
+    {
+      "id": "fsc-disaster",
+      "agency": "금융위원회",
+      "category": "press",
+      "split": "development",
+      "templateFamily": "fsc-press-template",
+      "primaryFormat": "hwp",
+      "title": "251028(보도자료) 금융위원장  ‘금융분야 재난대응 안전한국훈련’ 주관.hwp",
+      "sourcePage": "https://www.fsc.go.kr/no010101?curPage=75&srchBeginDt=&srchCtgry=&srchEndDt=%2F&srchKey=&srchText=",
+      "originals": [
+        {
+          "id": "fsc-press-1",
+          "kind": "hwp",
+          "file": "sources/fsc-press-1.hwp",
+          "bytes": 203776,
+          "sha256": "95860001f26f57267021b3e88102c5c1559095ee1979de3ec333070203479626",
+          "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85511&fileTy=ATTACH&fileNo=2"
+        },
+        {
+          "id": "fsc-press-2",
+          "kind": "hwpx",
+          "file": "sources/fsc-press-2.hwpx",
+          "bytes": 229348,
+          "sha256": "292dd713391ef5a1a137ec3a9cb31a58575bde53572cfca69f141d2525a2ac89",
+          "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85511&fileTy=ATTACH&fileNo=3"
+        }
+      ],
+      "reference": {
+        "id": "fsc-press-0",
+        "file": "sources/fsc-press-0.pdf",
+        "bytes": 305164,
+        "sha256": "4b8a81fe1e01ad9131087d9e77c367f3b0cb66d715d25aa6155f0c3c9378cf08",
+        "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85511&fileTy=ATTACH&fileNo=1",
+        "pages": 4
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "fsc-remarks",
+      "agency": "금융위원회",
+      "category": "press",
+      "split": "development",
+      "templateFamily": "fsc-press-template",
+      "primaryFormat": "hwp",
+      "title": "251028[별첨] 금융위원장 모두말씀.hwp",
+      "sourcePage": "https://www.fsc.go.kr/no010101?curPage=75&srchBeginDt=&srchCtgry=&srchEndDt=%2F&srchKey=&srchText=",
+      "originals": [
+        {
+          "id": "fsc-press-4",
+          "kind": "hwp",
+          "file": "sources/fsc-press-4.hwp",
+          "bytes": 27648,
+          "sha256": "61d6f4fc425fc93edf14daf9af6f6c1d15d8c32d5e881a027e6645b07801a540",
+          "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85511&fileTy=ATTACH&fileNo=5"
+        },
+        {
+          "id": "fsc-press-5",
+          "kind": "hwpx",
+          "file": "sources/fsc-press-5.hwpx",
+          "bytes": 26748,
+          "sha256": "124cce9e08cf01d21b3253f6ab2cdc0b755b73f6389cc0a9fbb28de73bdf76a4",
+          "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85511&fileTy=ATTACH&fileNo=6"
+        }
+      ],
+      "reference": {
+        "id": "fsc-press-3",
+        "file": "sources/fsc-press-3.pdf",
+        "bytes": 80620,
+        "sha256": "6df998ad1429dd4f30e4c90aeae55aedc13721c872e68ad70343b0d3da111ea7",
+        "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85511&fileTy=ATTACH&fileNo=4",
+        "pages": 4
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "fsc-fintech",
+      "agency": "금융위원회",
+      "category": "press",
+      "split": "development",
+      "templateFamily": "fsc-press-template",
+      "primaryFormat": "hwp",
+      "title": "251028(보도자료) 핀테크 x AI 금융에 취향을 더하다. 「코리아 핀테크 위크 2025」 11월 26일 개막.hwp",
+      "sourcePage": "https://www.fsc.go.kr/no010101?curPage=75&srchBeginDt=&srchCtgry=&srchEndDt=%2F&srchKey=&srchText=",
+      "originals": [
+        {
+          "id": "fsc-press-7",
+          "kind": "hwp",
+          "file": "sources/fsc-press-7.hwp",
+          "bytes": 5032960,
+          "sha256": "b0ba6eb752faf06b9b1d64cdc87aa118e1e5731103dac0642440dc021ba2e83c",
+          "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85502&fileTy=ATTACH&fileNo=5"
+        },
+        {
+          "id": "fsc-press-8",
+          "kind": "hwpx",
+          "file": "sources/fsc-press-8.hwpx",
+          "bytes": 4285463,
+          "sha256": "5b77144e8d54926f552e0db12e2eb22376931ff22ac012a7559b201349b5db7a",
+          "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85502&fileTy=ATTACH&fileNo=6"
+        }
+      ],
+      "reference": {
+        "id": "fsc-press-6",
+        "file": "sources/fsc-press-6.pdf",
+        "bytes": 626348,
+        "sha256": "76ce325de168b41687947e0f96e89fca6bf730b0118a2de8d94d0f608f8a4e8f",
+        "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85502&fileTy=ATTACH&fileNo=4",
+        "pages": 13
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "fsc-ltv",
+      "agency": "금융위원회",
+      "category": "press",
+      "split": "development",
+      "templateFamily": "fsc-press-template",
+      "primaryFormat": "hwp",
+      "title": "(보도참고  10.24일)규제지역 내 주택담보대출의 대환대출시 해당 주택담보대출 취급 시점의 LTV 규제비율을 적용합니다.hwp",
+      "sourcePage": "https://www.fsc.go.kr/no010101?curPage=75&srchBeginDt=&srchCtgry=&srchEndDt=%2F&srchKey=&srchText=",
+      "originals": [
+        {
+          "id": "fsc-press-10",
+          "kind": "hwp",
+          "file": "sources/fsc-press-10.hwp",
+          "bytes": 118784,
+          "sha256": "271332fd450e8f17e0d3b55dca8b6c5354751225c766a3544c5ecc90f8757d87",
+          "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85476&fileTy=ATTACH&fileNo=2"
+        },
+        {
+          "id": "fsc-press-11",
+          "kind": "hwpx",
+          "file": "sources/fsc-press-11.hwpx",
+          "bytes": 129987,
+          "sha256": "7fed91737a20da500ba172102ec10fc9916a624b40317055f8bb81c1febe4e0d",
+          "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85476&fileTy=ATTACH&fileNo=3"
+        }
+      ],
+      "reference": {
+        "id": "fsc-press-9",
+        "file": "sources/fsc-press-9.pdf",
+        "bytes": 127284,
+        "sha256": "4c85278b5e8044fc1807c09020cb29c6036cf5e3cf39657618c66fe5ae64065b",
+        "url": "https://www.fsc.go.kr/comm/getFile?srvcId=BBSTY1&upperNo=85476&fileTy=ATTACH&fileNo=1",
+        "pages": 1
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "moel-bid",
+      "agency": "고용노동부",
+      "category": "notice",
+      "split": "development",
+      "templateFamily": "moel-employment-2025",
+      "primaryFormat": "hwp",
+      "title": "1.(입찰재공고문)+2025년+구직자+취업역량강화+프로그램+위탁사업+운영기관+모집공고.hwp 다운로드",
+      "sourcePage": "https://www.moel.go.kr/local/mokpo/news/notice/noticeView.do?bbs_seq=20241202123",
+      "originals": [
+        {
+          "id": "moel-rfp-0",
+          "kind": "hwp",
+          "file": "sources/moel-rfp-0.hwp",
+          "bytes": 100864,
+          "sha256": "afd2938c183ee99e3d7ed61f786c087754e9f37fc17bb76f2c562367f97f20be",
+          "url": "https://www.moel.go.kr/local/mokpo/common/downloadFile.do?file_seq=20241203774&bbs_seq=20241202123&bbs_id=LOCAL1"
+        }
+      ],
+      "reference": {
+        "id": "moel-rfp-2",
+        "file": "sources/moel-rfp-2.pdf",
+        "bytes": 563860,
+        "sha256": "3b5b8417db39739c09752a7ea852f21b4e4555e87d9f1114306d485dd68783c4",
+        "url": "https://www.moel.go.kr/local/mokpo/common/downloadFile.do?file_seq=20241203776&bbs_seq=20241202123&bbs_id=LOCAL1",
+        "pages": 9
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "moel-rfp",
+      "agency": "고용노동부",
+      "category": "notice",
+      "split": "development",
+      "templateFamily": "moel-employment-2025",
+      "primaryFormat": "hwp",
+      "title": "2.(제안요청서)+2025년+구직자+취업역량강화+프로그램+위탁사업+운영기관+모집공고.hwp 다운로드",
+      "sourcePage": "https://www.moel.go.kr/local/mokpo/news/notice/noticeView.do?bbs_seq=20241202123",
+      "originals": [
+        {
+          "id": "moel-rfp-1",
+          "kind": "hwp",
+          "file": "sources/moel-rfp-1.hwp",
+          "bytes": 198144,
+          "sha256": "2059099d36f36a56541e37ffff3409259179155b019f745aa03f2548f902e7d4",
+          "url": "https://www.moel.go.kr/local/mokpo/common/downloadFile.do?file_seq=20241203775&bbs_seq=20241202123&bbs_id=LOCAL1"
+        }
+      ],
+      "reference": {
+        "id": "moel-rfp-3",
+        "file": "sources/moel-rfp-3.pdf",
+        "bytes": 867285,
+        "sha256": "9bd9ddd9f2de9b4ff691576c44633b689d0f49d49df7eef57d57f2caf1817406",
+        "url": "https://www.moel.go.kr/local/mokpo/common/downloadFile.do?file_seq=20241203777&bbs_seq=20241202123&bbs_id=LOCAL1",
+        "pages": 9
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": [
+        "공식 PDF는 4-up 9매, 실제 논리쪽 분리 검증 전 총쪽수 정답 채택 보류"
+      ]
+    },
+    {
+      "id": "daejeon-safety",
+      "agency": "대전광역시",
+      "category": "form",
+      "split": "development",
+      "templateFamily": "daejeon-safety",
+      "primaryFormat": "hwp",
+      "title": "집중안전점검 주민점검 신청서",
+      "sourcePage": "https://www.daejeon.go.kr/drh/depart/board/boardNormalView.do?boardId=csf_0001&menuSeq=&ntatcSeq=1506187955&pageIndex=1",
+      "originals": [
+        {
+          "id": "daejeon-safety-hwp",
+          "kind": "hwp",
+          "file": "sources/daejeon-safety-hwp.hwp",
+          "bytes": 31744,
+          "sha256": "1dedb6e853c2b08b8a452fb1e1d17666c4156dff5ce0321b0239766ead05f511",
+          "url": "https://www.daejeon.go.kr/cmm/Download.do?filePath=FileUpload%2FCommonBoard%2Fnormal_0096%2F20260303013258132.hwp&fileName=%EC%8B%A0%EC%B2%AD%EC%84%9C+%EC%96%91%EC%8B%9D.hwp"
+        }
+      ],
+      "reference": {
+        "id": "daejeon-safety-pdf",
+        "file": "sources/daejeon-safety-pdf.pdf",
+        "bytes": 37085,
+        "sha256": "add2b90d787b428450c1a352288f53f9e56f70c628142b179b06cbc04bdbd7d4",
+        "url": "https://www.daejeon.go.kr/cmm/Download.do?filePath=FileUpload%2FCommonBoard%2Fnormal_0096%2F20260303013258181.pdf&fileName=%EC%8B%A0%EC%B2%AD%EC%84%9C+%EC%96%91%EC%8B%9D.pdf",
+        "pages": 1
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "gg-facility",
+      "agency": "경기도교육청",
+      "category": "form",
+      "split": "development",
+      "templateFamily": "gg-facility",
+      "primaryFormat": "hwp",
+      "title": "시설대관 신청서",
+      "sourcePage": "https://share.gg.go.kr/facilityListO/view?eshare=1&facilityId=F0021&instiCode=7530861",
+      "originals": [
+        {
+          "id": "gg-facility-hwp",
+          "kind": "hwp",
+          "file": "sources/gg-facility-hwp.hwp",
+          "bytes": 83968,
+          "sha256": "34e9a34599f738b389fedc8ee22d40d0ef22dc6517e1adbd3ec8f9bec0d29e02",
+          "url": "https://share.gg.go.kr/comm/getAttachFile?srvcId=TEMPLATE&upperNo=2748&fileTy=ATTACH&fileNo=2"
+        }
+      ],
+      "reference": {
+        "id": "gg-facility-pdf",
+        "file": "sources/gg-facility-pdf.pdf",
+        "bytes": 106201,
+        "sha256": "5e2e8f90c3e0e97de4ed8575577b968892764e2c0742fc93f0d65795e9ebfd35",
+        "url": "https://share.gg.go.kr/comm/getAttachFile?srvcId=TEMPLATE&upperNo=2750&fileTy=ATTACH&fileNo=1",
+        "pages": 4
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "motie-budget",
+      "agency": "산업통상부",
+      "category": "statistics",
+      "split": "development",
+      "templateFamily": "motie-budget",
+      "primaryFormat": "hwp",
+      "title": "2027년도 산업부 예산안 보도자료",
+      "sourcePage": "https://m.korea.kr/briefing/pressReleaseView.do?newsId=156776365&pWiseMinistry=ministryNews&repCode=A00015&repCodeType=%EC%A0%95%EB%B6%80%EB%B6%80%EC%B2%98",
+      "originals": [
+        {
+          "id": "motie-budget-hwp",
+          "kind": "hwp",
+          "file": "sources/motie-budget-hwp.hwp",
+          "bytes": 173568,
+          "sha256": "58fe024ec8fe24e5555281888e33bb6933114059e2b461ec577ce8e52073eaed",
+          "url": "https://www.korea.kr/common/download.do?fileId=198534710&tblKey=GMN"
+        }
+      ],
+      "reference": {
+        "id": "motie-budget-pdf",
+        "file": "sources/motie-budget-pdf.pdf",
+        "bytes": 291168,
+        "sha256": "e6d7e13e8a62ec288c5e3ed3dce02e8733c235fb824fc6f33e3d59e5e919428b",
+        "url": "https://www.korea.kr/common/download.do?fileId=198534709&tblKey=GMN",
+        "pages": 7
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": [
+        "공식 .hwpx 이름이지만 실제 CFB/HWP; 다운로드 바이트 형식으로 등록"
+      ]
+    },
+    {
+      "id": "motie-ax-notice",
+      "agency": "산업통상부",
+      "category": "notice",
+      "split": "development",
+      "templateFamily": "motie-ax-2026",
+      "primaryFormat": "hwpx",
+      "title": "(산업통상부공고 제2026-250호) 첨단소재특화형AX플랫폼구축및실증 시행계획 공고.hwpx [87.9 KB]",
+      "sourcePage": "https://www.motir.go.kr/kor/article/ATCL2826a2625/70974/view?mno=&pageIndex=14",
+      "originals": [
+        {
+          "id": "motie-ax-0",
+          "kind": "hwpx",
+          "file": "sources/motie-ax-0.hwpx",
+          "bytes": 91929,
+          "sha256": "a634e5c18b626cb0f9f26363c5b2b353ee52f3ca7a0f3fda3330f1991528393e",
+          "url": "https://www.motir.go.kr/attach/down/c26df36c4f964b1523b31be51e734922/990ac4f2dae969192745b4c9bcd2ce31/9a9db098b587ee18b321c826f3707a49"
+        }
+      ],
+      "reference": {
+        "id": "motie-ax-3",
+        "file": "sources/motie-ax-3.pdf",
+        "bytes": 480145,
+        "sha256": "803c9cd691e696305229430f022b414121f55da6c8fb2b88d8fc201d167424b2",
+        "url": "https://www.motir.go.kr/attach/down/c26df36c4f964b1523b31be51e734922/990ac4f2dae969192745b4c9bcd2ce31/debc2e19d8870bf491bf5e73464259e8",
+        "pages": 8
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "motie-ax-rfp",
+      "agency": "산업통상부",
+      "category": "notice",
+      "split": "development",
+      "templateFamily": "motie-ax-2026",
+      "primaryFormat": "hwpx",
+      "title": "[붙임1] 첨단소재 특화형 AX플랫폼 구축 및 실증 제안요구서(RFP).hwpx [82 KB]",
+      "sourcePage": "https://www.motir.go.kr/kor/article/ATCL2826a2625/70974/view?mno=&pageIndex=14",
+      "originals": [
+        {
+          "id": "motie-ax-1",
+          "kind": "hwpx",
+          "file": "sources/motie-ax-1.hwpx",
+          "bytes": 85255,
+          "sha256": "5ed2c27466661c7ad21883c95bcefa08f039bb56cb2f745dbd7281ee83f63b40",
+          "url": "https://www.motir.go.kr/attach/down/c26df36c4f964b1523b31be51e734922/990ac4f2dae969192745b4c9bcd2ce31/778bdbf5db9ced7c8fd52756c00bf0cd"
+        }
+      ],
+      "reference": {
+        "id": "motie-ax-4",
+        "file": "sources/motie-ax-4.pdf",
+        "bytes": 113569,
+        "sha256": "b5e539b2ecaebc08af0ebcc337ae2e0f8db5dcc7034c08b690b87b2ae093d54c",
+        "url": "https://www.motir.go.kr/attach/down/c26df36c4f964b1523b31be51e734922/990ac4f2dae969192745b4c9bcd2ce31/c26df36c4f964b1523b31be51e734922",
+        "pages": 3
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "kisa-iot",
+      "agency": "한국인터넷진흥원",
+      "category": "form",
+      "split": "development",
+      "templateFamily": "kisa-iot",
+      "primaryFormat": "hwp",
+      "title": "IoT 보안테스트베드 이용 및 교육 신청",
+      "sourcePage": "https://www.kisa.or.kr/401/form?page=1&postSeq=3605",
+      "originals": [
+        {
+          "id": "kisa-iot-hwp",
+          "kind": "hwp",
+          "file": "sources/kisa-iot-hwp.hwp",
+          "bytes": 1105408,
+          "sha256": "d744c30803cea98dfb75a3bfe2b93196457305ea74da9374a23092f4aca10a88",
+          "url": "https://www.kisa.or.kr/post/fileDownload?menuSeq=401&postSeq=3605&attachSeq=2&lang_type=KO"
+        }
+      ],
+      "reference": {
+        "id": "kisa-iot-pdf",
+        "file": "sources/kisa-iot-pdf.pdf",
+        "bytes": 244874,
+        "sha256": "7ae975656468aacf93d759d4f43e5c87e41e841e994f91c4824f77a5a1831b69",
+        "url": "https://www.kisa.or.kr/post/fileDownload?menuSeq=401&postSeq=3605&attachSeq=1&lang_type=KO",
+        "pages": 8
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": [
+        "공식 .hwpx 이름이지만 CFB/HWP. 수정 전 fresh 변환이 컨트롤주소 오류로 실패: 실패를 유지하고 비교 분모에서 숨기지 않음"
+      ]
+    },
+    {
+      "id": "mofe-budget",
+      "agency": "기획재정부",
+      "category": "statistics",
+      "split": "development",
+      "templateFamily": "mofe-budget",
+      "primaryFormat": "hwpx",
+      "title": "2026년 예산 국회 확정",
+      "sourcePage": "https://www.mofe.go.kr/nw/nes/detailNesDtaView.do?menuNo=4010100&searchBbsId1=MOSFBBS_000000000028&searchNttId1=MOSF_000000000076027",
+      "originals": [
+        {
+          "id": "mofe-budget-hwpx",
+          "kind": "hwpx",
+          "file": "sources/mofe-budget-hwpx.hwpx",
+          "bytes": 153403,
+          "sha256": "3a0c6e027d6714292b2269154278fe0ea8953c1cfe097ec54c22f6f73cb1fd19",
+          "url": "https://www.mofe.go.kr/com/cmm/fms/FileDown.do?atchFileId=ATCH_000000000030438&fileSn=1"
+        }
+      ],
+      "reference": {
+        "id": "mofe-budget-pdf",
+        "file": "sources/mofe-budget-pdf.pdf",
+        "bytes": 885477,
+        "sha256": "4cf28f4e892f4f4e1734fc4b0fdfa8dbeca34afe656ede9b8ae16b0bd2255938",
+        "url": "https://www.mofe.go.kr/com/cmm/fms/FileDown.do?atchFileId=ATCH_000000000030438&fileSn=2",
+        "pages": 11
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "mfds-revenue",
+      "agency": "식품의약품안전처",
+      "category": "statistics",
+      "split": "development",
+      "templateFamily": "mfds-revenue",
+      "primaryFormat": "hwpx",
+      "title": "2026년도 예산 사업설명자료(세입)",
+      "sourcePage": "https://www.mfds.go.kr/brd/m_26/view.do?company_cd=&company_nm=&itm_seq_1=0&itm_seq_2=0&multi_itm_seq=0&page=1&seq=48263&srchFr=&srchTo=&srchTp=&srchWord=",
+      "originals": [
+        {
+          "id": "mfds-revenue-hwpx",
+          "kind": "hwpx",
+          "file": "sources/mfds-revenue-hwpx.hwpx",
+          "bytes": 133590,
+          "sha256": "f79c9ed552392e23deda11f0ba819d2ef1df831bb127ac372f1b1564bf3158d5",
+          "url": "https://www.mfds.go.kr/brd/m_26/down.do?brd_id=pblc0014&seq=48263&data_tp=A&file_seq=3"
+        }
+      ],
+      "reference": {
+        "id": "mfds-revenue-pdf",
+        "file": "sources/mfds-revenue-pdf.pdf",
+        "bytes": 340908,
+        "sha256": "3db5534d252bde4cb68f0659716913e9122c7af7c57bc2a7d59a0b7c2fba7134",
+        "url": "https://www.mfds.go.kr/brd/m_26/down.do?brd_id=pblc0014&seq=48263&data_tp=A&file_seq=4",
+        "pages": 42
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "mois-sop",
+      "agency": "행정안전부",
+      "category": "manual",
+      "split": "validation",
+      "templateFamily": "mois-sop-bundle",
+      "primaryFormat": "hwpx",
+      "title": "범정부 정보시스템 표준운영절차서(배포).hwpx [ 1.2 MB ]",
+      "sourcePage": "https://www.mois.go.kr/frt/bbs/type001/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000045&nttId=118182",
+      "originals": [
+        {
+          "id": "mois-sop-3",
+          "kind": "hwpx",
+          "file": "sources/mois-sop-3.hwpx",
+          "bytes": 1286620,
+          "sha256": "bc8a9eea5224e9678c86207ea40f776a0b3b428cd3659031e2dc28b5018e18d0",
+          "url": "https://www.mois.go.kr/cmm/fms/FileDown.do?atchFileId=FILE_00136424QAgtuc8&fileSn=4"
+        }
+      ],
+      "reference": {
+        "id": "mois-sop-1",
+        "file": "sources/mois-sop-1.pdf",
+        "bytes": 4050440,
+        "sha256": "227a547ec106f35d33c9cd4df8db9bf76b5190f3be02413655ec4fe8623482b2",
+        "url": "https://www.mois.go.kr/cmm/fms/FileDown.do?atchFileId=FILE_00136424QAgtuc8&fileSn=1",
+        "pages": 133
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "mois-budget",
+      "agency": "행정안전부",
+      "category": "statistics",
+      "split": "validation",
+      "templateFamily": "mois-budget",
+      "primaryFormat": "hwpx",
+      "title": "★ 2025년도 지방출자출연기관 예산편성 지침(배포용).hwpx [ 3.4 MB ]",
+      "sourcePage": "https://www.mois.go.kr/frt/bbs/type001/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000062&nttId=111179",
+      "originals": [
+        {
+          "id": "mois-budget-0",
+          "kind": "hwpx",
+          "file": "sources/mois-budget-0.hwpx",
+          "bytes": 3631642,
+          "sha256": "463a56cdf1c65a987c92c0f4b82c320d2899c7969a094e465098711aa7b22fd4",
+          "url": "https://www.mois.go.kr/cmm/fms/FileDown.do?atchFileId=FILE_00129308J3RVFGA&fileSn=0"
+        }
+      ],
+      "reference": {
+        "id": "mois-budget-1",
+        "file": "sources/mois-budget-1.pdf",
+        "bytes": 2239256,
+        "sha256": "9f0553cd527e05d58b65254abac62f30768ebb5c51b791623ec5a7176dee2d1e",
+        "url": "https://www.mois.go.kr/cmm/fms/FileDown.do?atchFileId=FILE_00129308J3RVFGA&fileSn=1",
+        "pages": 147
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "nhis-overcharge",
+      "agency": "국민건강보험공단",
+      "category": "form",
+      "split": "validation",
+      "templateFamily": "nhis-overcharge",
+      "primaryFormat": "hwp",
+      "title": "[별지_제1호서식]_부당청구_장기요양기관_신고서.hwp (19968 Bytes)",
+      "sourcePage": "https://www.longtermcare.or.kr/npbs/cms/board/board/Board.jsp?communityKey=B0017&boardId=60057&act=VIEW",
+      "originals": [
+        {
+          "id": "nhis-overcharge-0",
+          "kind": "hwp",
+          "file": "sources/nhis-overcharge-0.hwp",
+          "bytes": 19968,
+          "sha256": "b2729af55c57bf6daf614e3c65d6cfec723091f460c8cdbc701119a5f46d8c4a",
+          "url": "https://www.longtermcare.or.kr/npbs/cms/board/Download.jsp?fileId=IUAjJDc1NTU5LS0kJA=="
+        }
+      ],
+      "reference": {
+        "id": "nhis-overcharge-1",
+        "file": "sources/nhis-overcharge-1.pdf",
+        "bytes": 115754,
+        "sha256": "daf9b26cfb311551126d82ae4deaa607db31bd15dadc5d3d465463b93ae330fa",
+        "url": "https://www.longtermcare.or.kr/npbs/cms/board/Download.jsp?fileId=IUAjJDc1NTU4LS0kJA==",
+        "pages": 2
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "nhis-postpone",
+      "agency": "국민건강보험공단",
+      "category": "form",
+      "split": "validation",
+      "templateFamily": "nhis-postpone",
+      "primaryFormat": "hwp",
+      "title": "장기요양기관_평가연기_요청서.hwp (12800 Bytes)",
+      "sourcePage": "https://www.longtermcare.or.kr/npbs/cms/board/board/Board.jsp?communityKey=B0017&boardId=60096&act=VIEW",
+      "originals": [
+        {
+          "id": "nhis-postpone-1",
+          "kind": "hwp",
+          "file": "sources/nhis-postpone-1.hwp",
+          "bytes": 12800,
+          "sha256": "9e0cd29b8f3caa2c9c2e13c036a51910f4ed1a28ce6d9dda9d726da5f9ff6fbb",
+          "url": "https://www.longtermcare.or.kr/npbs/cms/board/Download.jsp?fileId=IUAjJDczNjI1LS0kJA=="
+        }
+      ],
+      "reference": {
+        "id": "nhis-postpone-0",
+        "file": "sources/nhis-postpone-0.pdf",
+        "bytes": 36413,
+        "sha256": "09bdbf7b90f439b6fd5745482efbedb981ea609bb97144ae73553e6147644d16",
+        "url": "https://www.longtermcare.or.kr/npbs/cms/board/Download.jsp?fileId=IUAjJDEwMzE1Ni0tJCQ=",
+        "pages": 1
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "moel-harassment-manual",
+      "agency": "고용노동부",
+      "category": "manual",
+      "split": "validation",
+      "templateFamily": "moel-harassment-manual",
+      "primaryFormat": "hwp",
+      "title": "190222_직장 내 괴롭힘 판단 및 예방,대응 매뉴얼(발간).hwp 다운로드",
+      "sourcePage": "https://www.moel.go.kr/news/notice/noticeView.do?bbs_seq=20190200680",
+      "originals": [
+        {
+          "id": "moel-manual-1",
+          "kind": "hwp",
+          "file": "sources/moel-manual-1.hwp",
+          "bytes": 587776,
+          "sha256": "6f91e05d2e41126119b4938becf0d4d737132e4c77136208554816d93cde5ffc",
+          "url": "https://www.moel.go.kr/common/downloadFile.do?file_seq=20190700789&bbs_seq=20190200680&bbs_id=9&file_ext=hwp"
+        }
+      ],
+      "reference": {
+        "id": "moel-manual-0",
+        "file": "sources/moel-manual-0.pdf",
+        "bytes": 33650559,
+        "sha256": "8abd294248e822a726151b5f9983f2cc03c123aa815ceead09fd5b541ddcbecd",
+        "url": "https://www.moel.go.kr/common/downloadFile.do?file_seq=20190300419&bbs_seq=20190200680&bbs_id=9&file_ext=pdf",
+        "pages": 97
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "lh-smartcity",
+      "agency": "한국토지주택공사",
+      "category": "press",
+      "split": "validation",
+      "templateFamily": "lh-smartcity",
+      "primaryFormat": "hwpx",
+      "title": "2026 월드 스마트시티 엑스포",
+      "sourcePage": "https://www.lh.or.kr/gallery.es?act=view&bid=0003&keyField=&list_no=12116&mid=a10502000000&nPage=1&orderby=&vlist_no_npage=0",
+      "originals": [
+        {
+          "id": "lh-smartcity-hwpx",
+          "kind": "hwpx",
+          "file": "sources/lh-smartcity-hwpx.hwpx",
+          "bytes": 5369482,
+          "sha256": "80dbfbcdf0e1903fbab0eb324e34709316ce164550991a98bbe73f78084d42b1",
+          "url": "https://www.lh.or.kr/galleryDownload.es?bid=0003&list_no=12116&seq=1"
+        }
+      ],
+      "reference": {
+        "id": "lh-smartcity-pdf",
+        "file": "sources/lh-smartcity-pdf.pdf",
+        "bytes": 724786,
+        "sha256": "625251ed7aec98ff55639a8f1c5614ca81f8911ad25448d202e6d0d71d7f8a65",
+        "url": "https://www.lh.or.kr/galleryDownload.es?bid=0003&list_no=12116&seq=2",
+        "pages": 4
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "nps-fund",
+      "agency": "국민연금공단",
+      "category": "notice",
+      "split": "heldOut",
+      "templateFamily": "nps-press-template",
+      "primaryFormat": "hwp",
+      "title": "국민연금 기금 운용 전문가 모집",
+      "sourcePage": "https://fund.nps.or.kr/impa/nscvrgdatadtl/getOHEF0014M0.do?hmpgBbsCd=BS20240174&pstId=ZZ202500000000000474",
+      "originals": [
+        {
+          "id": "nps-fund-hwp",
+          "kind": "hwp",
+          "file": "sources/nps-fund-hwp.hwp",
+          "bytes": 116736,
+          "sha256": "65b390d7084bf2c90b0919309f421abb615878507c2318f9108f1e2376e31537",
+          "url": "https://fund.nps.or.kr/fileDown.do?atchFileId=FL25002025&atchFileSn=3"
+        }
+      ],
+      "reference": {
+        "id": "nps-fund-pdf",
+        "file": "sources/nps-fund-pdf.pdf",
+        "bytes": 662023,
+        "sha256": "70b5209212166aa438a2413ebf20afdb3df691209c20ec6e37ac13c048a993b2",
+        "url": "https://fund.nps.or.kr/fileDown.do?atchFileId=FL25002025&atchFileSn=4",
+        "pages": 11
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "nps-venture",
+      "agency": "국민연금공단",
+      "category": "press",
+      "split": "heldOut",
+      "templateFamily": "nps-press-template",
+      "primaryFormat": "hwp",
+      "title": "벤처 위탁운용사 선정",
+      "sourcePage": "https://www.nps.or.kr/pnsgdnc/nscvrgdata/getOHAE0002M1.do?hmpgBbsCd=BS20240145&hmpgCd=01&menuId=MN24000898&pageIndex=1&pstId=ZZ202600000000000352&sortSe=FR",
+      "originals": [
+        {
+          "id": "nps-venture-hwp",
+          "kind": "hwp",
+          "file": "sources/nps-venture-hwp.hwp",
+          "bytes": 137216,
+          "sha256": "e1ff750890054645100bb1b6c19dc068d4f20cba25056481e43d425ef0bb646e",
+          "url": "https://www.nps.or.kr/fileDown.do?atchFileId=FL26001106&atchFileSn=1"
+        }
+      ],
+      "reference": {
+        "id": "nps-venture-pdf",
+        "file": "sources/nps-venture-pdf.pdf",
+        "bytes": 293502,
+        "sha256": "bb5b742a76426dbeee119ead4fd958a103ac456be2b8012b7e235514415d54ce",
+        "url": "https://www.nps.or.kr/fileDown.do?atchFileId=FL26001106&atchFileSn=2",
+        "pages": 2
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "lh-campus",
+      "agency": "한국토지주택공사",
+      "category": "notice",
+      "split": "heldOut",
+      "templateFamily": "lh-campus",
+      "primaryFormat": "hwpx",
+      "title": "캠퍼스혁신파크 산학연혁신허브 연구기관 공고",
+      "sourcePage": "https://www.lh.or.kr/board.es?bid=0034&list_no=&mid=a10601020000&tag=",
+      "originals": [
+        {
+          "id": "lh-campus-hwpx",
+          "kind": "hwpx",
+          "file": "sources/lh-campus-hwpx.hwpx",
+          "bytes": 156930,
+          "sha256": "bc295a066a6208d931ffc0d95af403faafa790e76af50ea25db2255397e91782",
+          "url": "https://www.lh.or.kr/boardDownload.es?bid=0034&list_no=734974&seq=1"
+        }
+      ],
+      "reference": {
+        "id": "lh-campus-pdf",
+        "file": "sources/lh-campus-pdf.pdf",
+        "bytes": 749615,
+        "sha256": "85b705f0ddcf07903acbdb0875675fcf560b460edc8f49a12c164478ed50630b",
+        "url": "https://www.lh.or.kr/boardDownload.es?bid=0034&list_no=734974&seq=2",
+        "pages": 16
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "law-request",
+      "agency": "행정안전부",
+      "category": "form",
+      "split": "heldOut",
+      "templateFamily": "law-information-2021",
+      "primaryFormat": "hwp",
+      "title": "정보공개 청구서",
+      "sourcePage": "https://www.law.go.kr/LSW/lsBylInfoP.do?bylSeq=13209939&lsiSeq=233313&efYd=",
+      "originals": [
+        {
+          "id": "law-request-hwp",
+          "kind": "hwp",
+          "file": "sources/law-request-hwp.hwp",
+          "bytes": 64000,
+          "sha256": "4ebb4f96816569e1c35b85535f2a46538dd6d75c4e6a5f094584a2e0d749facb",
+          "url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=103804927"
+        }
+      ],
+      "reference": {
+        "id": "law-request-pdf",
+        "file": "sources/law-request-pdf.pdf",
+        "bytes": 65050,
+        "sha256": "5a3ec8b5e6fed87a30b8f4baf72ac4ef27049ec7db4e4b4f48d1d88e95b6f57e",
+        "url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=103804929",
+        "pages": 1
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "law-register",
+      "agency": "행정안전부",
+      "category": "form",
+      "split": "heldOut",
+      "templateFamily": "law-information-2021",
+      "primaryFormat": "hwp",
+      "title": "정보공개 처리대장",
+      "sourcePage": "https://www.law.go.kr/LSW/lsBylInfoP.do?bylSeq=13209947&lsiSeq=233313&efYd=",
+      "originals": [
+        {
+          "id": "law-register-hwp",
+          "kind": "hwp",
+          "file": "sources/law-register-hwp.hwp",
+          "bytes": 15872,
+          "sha256": "ff31141a81d3665b926ca3c3b002bb9e4bc71bb29f1e8987bec1e93cb8637510",
+          "url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=103804951"
+        }
+      ],
+      "reference": {
+        "id": "law-register-pdf",
+        "file": "sources/law-register-pdf.pdf",
+        "bytes": 35628,
+        "sha256": "76c6a21174c53a0d2b8c56a381685908c4b5b45162c33e5dbb39369f373522d2",
+        "url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=103804953",
+        "pages": 2
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    },
+    {
+      "id": "law-operation",
+      "agency": "행정안전부",
+      "category": "form",
+      "split": "heldOut",
+      "templateFamily": "law-information-2021",
+      "primaryFormat": "hwp",
+      "title": "정보공개 운영실태",
+      "sourcePage": "https://www.law.go.kr/LSW/lsBylInfoP.do?bylSeq=13209973&lsiSeq=233313&efYd=",
+      "originals": [
+        {
+          "id": "law-operation-hwp",
+          "kind": "hwp",
+          "file": "sources/law-operation-hwp.hwp",
+          "bytes": 19456,
+          "sha256": "9f1bf45018afb6fa10084fc7e14db90d53049f401c5d444388d233aec39306ef",
+          "url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=103805037"
+        }
+      ],
+      "reference": {
+        "id": "law-operation-pdf",
+        "file": "sources/law-operation-pdf.pdf",
+        "bytes": 47136,
+        "sha256": "7ee24a2af4f1c4f5057d1e75f822a7162b5398f8f63ae0115fe47f649c4605a6",
+        "url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=103805039",
+        "pages": 2
+      },
+      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "microsoftWord": "unmeasured-screen-locked",
+      "notes": []
+    }
+  ],
+  "counts": {
+    "documents": 30,
+    "formats": {
+      "hwpx": 12,
+      "hwp": 18
+    },
+    "splits": {
+      "development": 18,
+      "validation": 6,
+      "heldOut": 6
+    },
+    "categories": {
+      "workplan": 1,
+      "notice": 7,
+      "manual": 3,
+      "statistics": 5,
+      "press": 6,
+      "form": 8
+    },
+    "agencies": {
+      "행정안전부": 6,
+      "중소벤처기업부": 2,
+      "국가데이터처": 1,
+      "금융위원회": 4,
+      "고용노동부": 3,
+      "대전광역시": 1,
+      "경기도교육청": 1,
+      "산업통상부": 3,
+      "한국인터넷진흥원": 1,
+      "기획재정부": 1,
+      "식품의약품안전처": 1,
+      "국민건강보험공단": 2,
+      "한국토지주택공사": 2,
+      "국민연금공단": 2
+    },
+    "hwpHwpxPairs": 5
+  },
+  "quotaGaps": [
+    "유형별5개는 미충족: 업무계획1/매뉴얼3/보도6/양식8/공고7/통계5. 페이지 실패와 표 구조를 우선 확인하되 부족 유형은 추가 후보 조사 후 별도 보완한다.",
+    "큰 원본10MB이상3개/20MB이상1개 미확보. 기존큰파일은별도회귀로참조.",
+    "모든독립PDF판본·전쪽태그·기준점동결·MicrosoftWord실측미완료."
+  ],
+  "auxiliary": [
+    {
+      "id": "busan-rescue",
+      "reason": "원본저장PrvImage와PDF를시각대조:PDF는다른디자인포스터이므로페이지배치정답부적격. C진단으로보존"
+    },
+    {
+      "id": "mois-sop-application-and-prevention",
+      "reason": "같은기관6개상한및템플릿편중을피해보조집합으로분리"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { createRequire } from 'node:module';
+import fs from 'node:fs/promises';
 const fixture = createRequire(import.meta.url)('./hwp-table-caption-fixture.cjs');
 
 for (const format of ['hwp', 'hwpx']) test(`${format}: nested captions retain text, cells and picture bytes through two DOCX saves and editing`, async ({ page }, info) => {
@@ -12,7 +13,7 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: nested captions retain te
     const session = new HwpReaderSession(); let doc;
     try { await session.open(new File([new Uint8Array(bytes)], 'captions.' + format)); doc = importEditableHwp(await session.editable(), 'captions.' + format); }
     finally { session.close(); }
-    const original = structuredClone(doc), states = [];
+    const original = structuredClone(doc), states = [], files = [];
     const digest = async (src: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', await (await fetch(src)).arrayBuffer()))).map(n => n.toString(16).padStart(2, '0')).join('');
     const text = (node: Node): string => node.nodeName === 'BR' ? '\n' : node.nodeType === Node.TEXT_NODE ? node.textContent || '' : [...node.childNodes].map(text).join('');
     for (let save = 0; save < 3; save++) {
@@ -21,10 +22,11 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: nested captions retain te
       states.push({ text: text(root), cells: [...root.querySelectorAll('td, th')].map(text), tables: root.querySelectorAll('table').length,
         images: await Promise.all([...root.querySelectorAll('img')].map(i => digest(i.src))), pages: layout.pages,
         printed: text(layout.element), annotations: html.includes('data-hwp-caption-key') }); layout.dispose();
-      if (save < 2) { const loaded = await importFile(new File([await exportDocx(doc)], 'again.docx')); doc = { ...loaded.document, content: parseDocumentHtml(loaded.html!) }; }
+      if (save < 2) { const blob = await exportDocx(doc); files.push([...new Uint8Array(await blob.arrayBuffer())]); const loaded = await importFile(new File([blob], 'again.docx')); doc = { ...loaded.document, content: parseDocumentHtml(loaded.html!) }; }
     }
-    return { states, original };
+    return { states, original, files };
   }, { bytes: [...bytes], format });
+  for (const [i, bytes] of result.files.entries()) await fs.writeFile(info.outputPath(`hwp-gov-caption-${format}-save${i+1}.docx`), Buffer.from(bytes));
   const first = result.states[0]; expect(first.tables).toBe(4); expect(first.images).toHaveLength(1);
   const captions = ['CAPTION-BEFORE', 'INNER-CAPTION', 'CAPTION-CELL-A', 'CAPTION-CELL-B', 'CAPTION-AFTER', 'SECOND-CAPTION'];
   for (const state of result.states) {
