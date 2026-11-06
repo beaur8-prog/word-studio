@@ -1,5 +1,5 @@
 {
-  "createdUtc": "2026-11-06T12:49:52.843214+00:00",
+  "createdUtc": "2026-11-06T14:11:27.943056+00:00",
   "status": "provisional-30-candidate-set-not-30-verified-references",
   "documents": [
     {
@@ -348,12 +348,19 @@
         "bytes": 867285,
         "sha256": "9bd9ddd9f2de9b4ff691576c44633b689d0f49d49df7eef57d57f2caf1817406",
         "url": "https://www.moel.go.kr/local/mokpo/common/downloadFile.do?file_seq=20241203777&bbs_seq=20241202123&bbs_id=LOCAL1",
-        "pages": 9
+        "pages": 9,
+        "logicalPages": 35,
+        "imposition": {
+          "pagesPerSheet": 4,
+          "physicalSheets": 9,
+          "trailingPaddingSlots": 1
+        }
       },
-      "referenceGrade": "pending-edition-and-layout-crosscheck",
+      "referenceGrade": "B",
       "microsoftWord": "unmeasured-screen-locked",
       "notes": [
-        "공식 PDF는 4-up 9매, 실제 논리쪽 분리 검증 전 총쪽수 정답 채택 보류"
+        "공식 PDF는 4-up 9매, 실제 논리쪽 분리 검증 전 총쪽수 정답 채택 보류",
+        "같은 공식 게시물의 원문과 PDF에서 고유 문단222개를 대조. PDF9매는4-up35논리쪽(마지막33쪽+표지/목차2쪽)이며 끝 칸은 문자·그림0/렌더100%흰색. 작성 앱·글꼴·인쇄 설정 미확인."
       ]
     },
     {
