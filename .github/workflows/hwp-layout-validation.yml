@@ -6,6 +6,10 @@ on:
         description: 'Retry Windows validation after unchanged product passes Linux'
         type: boolean
         default: false
+      validator_only:
+        description: 'Build a temporary macOS OpenXML SDK checker for the local corpus'
+        type: boolean
+        default: false
   pull_request:
     paths:
       - '.github/workflows/hwp-layout-validation.yml'
@@ -85,6 +89,7 @@ permissions:
   contents: read
 jobs:
   windows-layout:
+    if: ${{ !inputs.validator_only }}
     runs-on: windows-latest
     timeout-minutes: 50
     steps:
@@ -118,7 +123,7 @@ jobs:
           name: windows-layout-evidence
           path: test-results/
   linux-navigation:
-    if: ${{ !inputs.windows_only }}
+    if: ${{ !inputs.windows_only && !inputs.validator_only }}
     runs-on: ubuntu-22.04
     timeout-minutes: 50
     steps:
@@ -152,3 +157,23 @@ jobs:
         with:
           name: linux-navigation-evidence
           path: test-results/
+
+  local-openxml-validator:
+    if: ${{ inputs.validator_only }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build untrimmed SDK checker for macOS Apple Silicon
+        run: dotnet publish scripts/word-openxml-validator/Validator.csproj -c Release -r osx-arm64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false -o /tmp/openxml-validator-osx-arm64
+      - name: Preserve executable permissions in a temporary tool archive
+        run: tar -czf /tmp/openxml-validator-osx-arm64.tar.gz -C /tmp/openxml-validator-osx-arm64 .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openxml-validator-osx-arm64
+          path: /tmp/openxml-validator-osx-arm64.tar.gz
+          retention-days: 1
+          compression-level: 0
