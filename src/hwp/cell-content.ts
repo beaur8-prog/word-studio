@@ -7,7 +7,7 @@ import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
 
 export type CellPath = { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
 type Equation = { script: string; fontSize: number; color: number; width: number; height: number };
-export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string; noteId?: string; noteLabel?: string; bookmarkName?: string };
+export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string; noteId?: string; noteLabel?: string; bookmarkName?: string; fieldType?: string; fieldId?: string };
 export type SerializedTablePolicy = { pageBreak: 'NONE' | 'TABLE' | 'CELL'; repeatHeader: boolean; treatAsChar?: boolean };
 type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[]; tabStops?: DocumentTabStop[]; tablePolicies?: (SerializedTablePolicy | undefined)[] };
 type Paragraph = { key: string; tables: number; cell: boolean; offset: number; tabRef: string; width: number; tabCell?: Cell };
@@ -123,6 +123,8 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
         if (name === 'header') control.emptyHeader = true;
         if (name === 'ole') control.binaryItem = attr('binaryItemIDRef');
         if (name === 'bookmark') control.bookmarkName = entities(attr('name'));
+        if (name === 'fieldBegin') { control.fieldType = attr('type'); control.fieldId = attr('id'); if (control.fieldType === 'BOOKMARK') control.bookmarkName = entities(attr('name')); }
+        if (name === 'fieldEnd') control.fieldId = attr('beginIDRef');
         if (name === 'footNote' || name === 'endNote') { control.noteId = `hwp-note-${section}-${note++}`; control.noteLabel = attr('number') || '1'; }
         result.get(parent.paragraph.key)!.controls.push(control); frame.control = control;
       }
@@ -137,6 +139,14 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
     // only after the whole section, rather than using the outer paper width.
     for (const p of pendingTabs.values()) result.get(p.key)!.tabStops = tabs(p.tabRef, spacing, p.tabCell?.width || p.width);
   }
+  // The native control API omits range ends. Only a verified BOOKMARK end
+  // may be excluded from index matching; keep unknown field types explicit.
+  // IDs may be reused in a later section.
+  const bookmarks = new Set([...result].flatMap(([key, value]) => value.controls
+    .filter(c => c.kind === 'fieldBegin' && c.fieldType === 'BOOKMARK' && c.fieldId)
+    .map(c => `${key.split(':')[0]}:${c.fieldId}`)));
+  for (const [key, value] of result) value.controls = value.controls.filter(c =>
+    !(c.kind === 'fieldEnd' && bookmarks.has(`${key.split(':')[0]}:${c.fieldId}`)));
   return result;
 }
 

@@ -345,8 +345,11 @@ test("DOCX export contains formatted text, lists, tables, image, page breaks and
     pageNumbers: true,
     differentFirstPage: false, differentOddEven: false, gutterTop: false,
     gutter: 0, headerDistance: expect.closeTo(7, 1), footerDistance: expect.closeTo(7, 1),
-    firstHeader: '', firstFooter: '', evenHeader: '내 머리글', evenFooter: '내 바닥글', evenPageNumbers: true,
+    firstHeader: '', firstFooter: '',
   });
+  // A disabled global odd/even switch must not invent dormant even stories.
+  for (const key of ['evenHeader', 'evenHeaderHtml', 'evenFooter', 'evenFooterHtml', 'evenPageNumbers'])
+    expect(result.imported.document.page[key]).toBeUndefined();
   expect(result.imported.document.page.headerHtml).toContain('내 머리글');
   expect(result.imported.document.page.footerHtml).toContain('data-page-number="PAGE"');
   expect(result.imported.warnings.length).toBeGreaterThan(0);

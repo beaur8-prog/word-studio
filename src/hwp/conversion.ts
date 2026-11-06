@@ -231,7 +231,14 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     try { return parts = serializedParts(doc); }
     catch { warnings.add('일부 개체의 보조 서식 정보를 읽지 못했습니다. 원본 보기와 비교하세요.'); return parts = {}; }
   };
-  const equationMetadata = () => equations ??= cellContents(doc, serialized());
+  const equationMetadata = () => {
+    if (!equations) {
+      equations = cellContents(doc, serialized());
+      if ([...equations.values()].some(value => value.controls.some(c => c.kind === 'fieldBegin' && c.fieldType === 'BOOKMARK')))
+        warnings.add('범위 책갈피는 시작 위치의 책갈피로 가져옵니다.');
+    }
+    return equations;
+  };
   const captionDefinitions = tableCaptionDefinitions(serialized());
   if (captionDefinitions.length && captionDepth >= 8) throw Error('표 캡션이 너무 깊게 중첩되어 안전하게 변환하지 못했습니다.');
   const captionKeys = new Set(captionDefinitions.map(c => c.key));
@@ -599,6 +606,15 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         if (['secd', 'cold', 'head', 'foot', 'pgnp', 'pgct', 'pghd', 'nwno'].includes(c.ctrlId)) continue;
         const pos = Math.max(cursor, positions[c.controlIndex] ?? cursor);
         appendInline(inline(range(cursor, pos))); cursor = pos;
+        // Field starts have no native ctrlId. Resolve only an exact source
+        // type/position/count match; an unknown drawing stays explicit.
+        if (!c.ctrlId) {
+          const unknown = paragraphControls.filter(control => !control.ctrlId && positions[control.controlIndex] === pos);
+          const fields = equationMetadata().get(`${section}:${para}`)?.controls.filter(control => control.kind === 'fieldBegin' && control.offset === pos) ?? [];
+          const field = unknown.length === fields.length ? fields[unknown.indexOf(c)] : undefined;
+          const bookmark = field?.fieldType === 'BOOKMARK' ? hwpBookmark(field.bookmarkName) : undefined;
+          if (bookmark) { appendInline(bookmark); continue; }
+        }
         if (c.ctrlId === 'bokm') {
           const ordinal = paragraphControls.filter(c => c.ctrlId === 'bokm').indexOf(c);
           const name = equationMetadata().get(`${section}:${para}`)?.controls.filter(c => c.kind === 'bookmark')[ordinal]?.bookmarkName;
