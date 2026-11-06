@@ -1,6 +1,6 @@
-# 정부 HWP → Word 12시간 개선 · 검사 완료·마감 정리 중
+# 정부 HWP → Word 12시간 개선 · 작업 종료
 
-2026-11-06 23:11 UTC 점검. 새 기능 동결은 20:19:06 UTC에 완료했고, 종료 예정은 **23:21:43 UTC / 한국 11월7일 08:21:43**이다. 버전 **1.4.13** 유지. 제품 `999326e`를 Git에 반영했다.
+2026-11-06 23:23 UTC 마감. 새 기능은 20:19:06 UTC에 동결했고, 예정 종료 23:21:43 UTC 뒤 이번 자동화를 PAUSED로 중지했다. 버전 **1.4.13** 유지. 제품 `999326e`와 검증 결과를 Git에 반영했다.
 
 **표·그림·목차와 저장 오류를 수정했지만, 원문과의 페이지 일치 목표는 미달이다. 이번 정부 문서의 실제 Microsoft Word 측정은 0건이다.**
 
@@ -41,7 +41,7 @@
 - 로컬752는320 통과 뒤 대형 trace로 중단했고 나머지434(2개 중복)는433 통과·옛 IO 기대1 실패 후 수정·재검사 통과다. 한 번의 깨끗한 전체752 실행으로 부르지 않는다.
 - 최종 공통 입출력 수정 후 Word10 원본을 다시 두 번 저장했다. 모든 보존·격자 검사가 통과했고 세 상태의 내용·그림·구조·머리말 목록은 이전 후보와 정확히 같다. 새10개 모든 XML/REL도 strict UTF-8/XML 파싱을 통과했다.
 - 저장 PDF29개676쪽·447865글자·367그림 draw의 종이 경계를 검사했다. 완전히 종이 밖인 글자·그림은0, 부분 그림 bbox1개는 실제 PNG로 검토했다. 이 검사가 겹침·셀 내부 잘림·원본 개체 완전 보존을 모두 증명하지는 않는다.
-- [원래 동결 제품의 Windows/Linux CI](https://github.com/beaur8-prog/word-studio/actions/runs/42287311366)는 모두 통과했다. 최종 제품999326e의 [Linux job](https://github.com/beaur8-prog/word-studio/actions/runs/42297201018)은 native48·집중58·넓은 회귀432·SDK110·셀 PDF 순서7/7을 통과했다. 이 run의 Windows는 CSS `ERR_NO_BUFFER_SPACE`로 실패했으므로 run 전체를 성공으로 부르지 않는다. 같은 제품 소스에서 HWP/HWPX 브라우저를 분리한 [Windows 재검증](https://github.com/beaur8-prog/word-studio/actions/runs/42303735271)은23:02:06 UTC에 전체 success: native48·집중58·HWP55·HWPX55·공통 회귀347·셀 PDF 순서7/7을 통과했다. 검사 단언과90초 제한은 유지했다.706fc12는 CI 변경뿐이며 src가999326e와 같음을 Git으로 확인했다. 이전 실패 trace와 재실행 성공 로그를 모두 보존했다.
+- [원래 동결 제품의 Windows/Linux CI](https://github.com/beaur8-prog/word-studio/actions/runs/42287311366)는 모두 통과했다. 최종 제품999326e의 [Linux job](https://github.com/beaur8-prog/word-studio/actions/runs/42297201018)은 native48·집중58·넓은 회귀432·SDK110·셀 PDF 순서7/7을 통과했다. 이 run의 Windows는 CSS `ERR_NO_BUFFER_SPACE`로 실패했으므로 run 전체를 성공으로 부르지 않는다. 같은 제품 소스에서 HWP/HWPX 브라우저를 분리한 [Windows 재검증](https://github.com/beaur8-prog/word-studio/actions/runs/42303735271)은23:02:06 UTC에 전체 success: native48·집중58·HWP55·HWPX55·공통 회귀347·셀 PDF 순서7/7을 통과했다. 검사 단언과90초 제한은 유지했다.706fc12는 CI 변경뿐이며 src가999326e와 같음을 Git으로 확인했다. 이전 실패 trace와 재실행 성공 로그를 모두 보존했다. 셀 PDF 순서는 공백을 제외한 논리 문자열 기준으로 비교하므로 공백·탭·강제 줄바꿈 보존 검사와 구분한다.
 
 ## 남은 핵심
 
@@ -59,4 +59,4 @@
 
 화면 잠금을21:40 UTC와23:10 UTC에도 확인해 일반 앱·웹 Word는 조작하지 않았다. 실제 앱 검사는 격리 숨김 QA이며 사용자 앱·문서·복구·공용 최근 폴더·옛 iCloud 소스를 보존했다. 배포·리토스·버전 변경은 별도 요청 때 진행한다.
 
-로컬 QA와 양 OS의 관련 CI 검사는 완료했다. 남은 시간에는 최종 검사·문서·용량·Git을 정리하고23:21:43 UTC 뒤 이번 이어가기를 중지한다. 상세 로그는 `analysis/hwp-government-12h-2026-11-06/progress.md`다.
+로컬 QA와 양 OS의 관련 CI 검사를 완료하고 문서·용량·Git을 정리했다.23:22 UTC에 `hwp-12-2`를 PAUSED로 중지하고 실제 저장 상태를 확인했다. 기존 지침·주기·대상 대화와 이전 자동화의 PAUSED 상태는 유지했다. 페이지 목표 미달과 미해결·미측정을 포함한 부분 개선으로 이번 시간 작업을 종료했다. 상세 로그는 `analysis/hwp-government-12h-2026-11-06/progress.md`다.
