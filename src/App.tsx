@@ -1,5 +1,6 @@
 import { version as APP_VERSION } from "../package.json";
 import { documentScale } from './document-scale';
+import { visibleEditorPages } from './editor-visible-pages';
 import { layoutFurnitureImages } from './furniture-layout';
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
@@ -491,9 +492,21 @@ export default function App() {
   }, [editor, readOnly]);
   useEffect(() => {
     const el = stackRef.current;
-    const change = (e: Event) => setPages((e as CustomEvent).detail);
+    let frame = 0;
+    const change = (e: Event) => {
+      const requested = (e as CustomEvent<number>).detail;
+      cancelAnimationFrame(frame);
+      // Pagination emits before committing its new decorations. Measure the
+      // painted extent on the next frame, after table fragments have moved.
+      frame = requestAnimationFrame(() => {
+        if (!editor || !el) return;
+        const count = visibleEditorPages(editor.view.dom, Number(el.dataset.pageHeight) || 1122.52, requested);
+        setPages(count);
+        setCurrentPage(current => Math.min(current, count));
+      });
+    };
     el?.addEventListener("pagecount", change);
-    return () => el?.removeEventListener("pagecount", change);
+    return () => { cancelAnimationFrame(frame); el?.removeEventListener("pagecount", change); };
   }, [editor]);
   useEffect(() => {
     const stack = stackRef.current; if (!stack || !editor) return;
@@ -2307,12 +2320,13 @@ export default function App() {
       </div>}
       <footer className="statusbar">
         <button
+          disabled={!!printPreview}
           onClick={() => {
             setNavigation(!navigation);
             setNavTab("제목");
           }}
         >
-          {currentPage}/{pages} 페이지
+          {printPreview ? `${printPreview.pages} 페이지 (인쇄)` : `${currentPage}/${pages} 페이지`}
         </button>
         <span className="status-divider" />
         <button onClick={() => setModal("stats")}>

@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles.css";
+import "./korean-font-fallbacks.css";
 import { initializeRecovery } from './recovery';
 import { initializeOutlineFonts } from './outline-fonts';
 import { initializeWordFontFallbacks } from './word-font-fallbacks';
