@@ -1,3 +1,4 @@
+import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import { wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
 import { rowSplitPolicy } from './row-split-policy';
 import { documentScale } from './document-scale';
@@ -181,7 +182,7 @@ export const Pagination = Extension.create({
         const calculate = () => {
           cancelAnimationFrame(scheduled);
           scheduled = requestAnimationFrame(() => {
-            if (!view.dom.isConnected || view.composing || view.dom.classList.contains('table-row-resizing')) return;
+            if (editorLayoutSuspended() || !view.dom.isConnected || view.composing || view.dom.classList.contains('table-row-resizing')) return;
             const sheet = view.dom.closest<HTMLElement>('.document-stack'); if (!sheet) return;
             // Column prefixes depend on the previous page gaps. Resolve them
             // before measuring; min-height can keep the root's ResizeObserver
@@ -427,9 +428,11 @@ export const Pagination = Extension.create({
             } finally { view.dom.classList.remove('pagination-measuring-cells'); }
           });
         };
-        calculate(); const observer = new ResizeObserver(calculate); observer.observe(view.dom);
+        calculate(); document.addEventListener(editorLayoutResume, calculate);
+        const observer = new ResizeObserver(calculate); observer.observe(view.dom);
         document.fonts.addEventListener('loadingdone', calculate); view.dom.addEventListener('compositionend', calculate);
-        return { update: calculate, destroy() { overlays.remove(); cancelAnimationFrame(scheduled); observer.disconnect(); document.fonts.removeEventListener('loadingdone', calculate); view.dom.removeEventListener('compositionend', calculate); } };
+        return { update: calculate, destroy() { overlays.remove(); cancelAnimationFrame(scheduled); observer.disconnect();
+          document.removeEventListener(editorLayoutResume, calculate); document.fonts.removeEventListener('loadingdone', calculate); view.dom.removeEventListener('compositionend', calculate); } };
       },
     })];
   },

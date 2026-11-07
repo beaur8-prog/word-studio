@@ -1,3 +1,4 @@
+import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import {inlineDrawingAnchor,prepareDrawingGroupAnchors} from './drawing-group';
 import { layoutTextBoxes, textBoxFrame } from './textbox-frame';
 import { Extension } from "@tiptap/core";
@@ -625,7 +626,7 @@ export const FloatingLayout = Extension.create({
             cancelAnimationFrame(frame);
             frame = requestAnimationFrame(() => {
               if (
-                !view.dom.isConnected ||
+                editorLayoutSuspended() || !view.dom.isConnected ||
                 view.composing ||
                 view.dom.classList.contains("table-row-resizing")
               )
@@ -697,6 +698,7 @@ export const FloatingLayout = Extension.create({
               }
             });
           };
+          document.addEventListener(editorLayoutResume, calculate);
           const observer = new ResizeObserver(calculate);
           observer.observe(view.dom);
           view.dom.addEventListener("load", calculate, true);
@@ -708,6 +710,7 @@ export const FloatingLayout = Extension.create({
             destroy() {
               cancelAnimationFrame(frame);
               observer.disconnect();
+              document.removeEventListener(editorLayoutResume, calculate);
               view.dom.removeEventListener("load", calculate, true);
               view.dom.removeEventListener("compositionend", calculate);
               document.fonts.removeEventListener("loadingdone", calculate);
