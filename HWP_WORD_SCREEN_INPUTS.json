@@ -1,7 +1,7 @@
 {
   "startedUtc": "2026-11-06T23:42:20.336029+00:00",
   "sourceHead": "8de8a80",
-  "validatedProduct": "999326e",
+  "validatedProduct": "f976006",
   "version": "1.4.13",
   "request": "Continue actual Word screen comparison after the timeboxed run ended. No new automation or release.",
   "selectionPolicy": "Three development documents only; short merged-cell form, work plan with logos, long notice with split tables. Original/final HWP12 evidence reused; staged DOCX copies total about1.21MiB.",
@@ -9,7 +9,7 @@
   "installedStudioSourceIdentity": "unverified; do not substitute its UI for the validated candidate",
   "desktopMicrosoftWordInstalled": false,
   "actualWordWebSessionObserved": true,
-  "actualNewGovernmentWordMeasurementCount": 0,
+  "actualNewGovernmentWordMeasurementCount": 3,
   "rows": [
     {
       "id": "daejeon-safety",
@@ -20,15 +20,15 @@
       "unchangedCandidateDocx": "analysis/hwp-government-12h-2026-11-06/roundtrip-development/daejeon-safety-hwp-save2.docx",
       "sourcePage": "https://www.daejeon.go.kr/drh/depart/board/boardNormalView.do?boardId=csf_0001&menuSeq=&ntatcSeq=1506187955&pageIndex=1",
       "originalSHA256": "1dedb6e853c2b08b8a452fb1e1d17666c4156dff5ce0321b0239766ead05f511",
-      "primaryComparison": "same-byte actual web Word editor versus actual Studio editor/print; pending",
+      "primaryComparison": "Same frozen DOCX bytes, actual web Word editor and UI PDF versus current Studio editor and UI PDF",
       "strictUtf8XmlPartsPassed": 29,
       "bodyTables": 2,
       "drawingReferences": 0,
       "historicalStudioChrome156PrintPages": 1,
-      "actualStudioCurrentCandidateEditorPages": null,
-      "actualStudioCurrentCandidatePrintPages": null,
-      "actualWordWebEditorPages": null,
-      "actualWordWebPrintPages": null,
+      "actualStudioCurrentCandidateEditorPages": 1,
+      "actualStudioCurrentCandidatePrintPages": 1,
+      "actualWordWebEditorPages": 1,
+      "actualWordWebPrintPages": 1,
       "fixedParagraphAnchors": [
         {
           "id": "daejeon-safety:0",
@@ -45,7 +45,10 @@
           "referencePage": 1
         }
       ],
-      "status": "prepared-not-uploaded"
+      "status": "measured",
+      "actualStudioBaselineEditorPages": 1,
+      "actualStudioBaselinePrintPages": 1,
+      "inputHashVerifiedUnchanged": true
     },
     {
       "id": "mois-workplan",
@@ -56,15 +59,15 @@
       "unchangedCandidateDocx": "analysis/hwp-government-12h-2026-11-06/roundtrip-development/mois-2025-0-save2.docx",
       "sourcePage": "https://www.mois.go.kr/frt/bbs/type001/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000245&nttId=115198",
       "originalSHA256": "554470ecc730102bf6172774c2d80efa92b6ef21b714e8f55a63d78054199c6b",
-      "primaryComparison": "same-byte actual web Word editor versus actual Studio editor/print; pending",
+      "primaryComparison": "Same frozen DOCX bytes, actual web Word editor and UI PDF versus current Studio editor and UI PDF",
       "strictUtf8XmlPartsPassed": 41,
       "bodyTables": 24,
       "drawingReferences": 3,
       "historicalStudioChrome156PrintPages": 21,
-      "actualStudioCurrentCandidateEditorPages": null,
-      "actualStudioCurrentCandidatePrintPages": null,
-      "actualWordWebEditorPages": null,
-      "actualWordWebPrintPages": null,
+      "actualStudioCurrentCandidateEditorPages": 24,
+      "actualStudioCurrentCandidatePrintPages": 23,
+      "actualWordWebEditorPages": 24,
+      "actualWordWebPrintPages": 24,
       "fixedParagraphAnchors": [
         {
           "id": "mois-workplan:0",
@@ -347,7 +350,10 @@
           "referencePage": 19
         }
       ],
-      "status": "prepared-not-uploaded"
+      "status": "measured",
+      "actualStudioBaselineEditorPages": 21,
+      "actualStudioBaselinePrintPages": 20,
+      "inputHashVerifiedUnchanged": true
     },
     {
       "id": "mss-funding-notice",
@@ -358,15 +364,15 @@
       "unchangedCandidateDocx": "analysis/hwp-government-12h-2026-11-06/render-cell-break-gated/mss-funding-2026-0-save2.docx",
       "sourcePage": "https://www.mss.go.kr/site/smba/ex/bbs/View.do?bcIdx=1064253&cbIdx=310",
       "originalSHA256": "5eb2799a74156a5873f4a4d7ca84e410c47771fbfc6251889263843323df5060",
-      "primaryComparison": "same-byte actual web Word editor versus actual Studio editor/print; pending",
+      "primaryComparison": "Same frozen DOCX bytes, actual web Word editor and UI PDF versus current Studio editor and UI PDF",
       "strictUtf8XmlPartsPassed": 41,
       "bodyTables": 143,
       "drawingReferences": 6,
       "historicalStudioChrome156PrintPages": 50,
-      "actualStudioCurrentCandidateEditorPages": null,
-      "actualStudioCurrentCandidatePrintPages": null,
-      "actualWordWebEditorPages": null,
-      "actualWordWebPrintPages": null,
+      "actualStudioCurrentCandidateEditorPages": 55,
+      "actualStudioCurrentCandidatePrintPages": 53,
+      "actualWordWebEditorPages": 57,
+      "actualWordWebPrintPages": 59,
       "fixedParagraphAnchors": [
         {
           "id": "mss-funding-notice:0",
@@ -649,11 +655,31 @@
           "referencePage": 46
         }
       ],
-      "status": "prepared-not-uploaded"
+      "status": "measured",
+      "actualStudioBaselineEditorPages": 51,
+      "actualStudioBaselinePrintPages": 50,
+      "inputHashVerifiedUnchanged": true,
+      "actualStudioEditorPageObservations": [
+        55,
+        56
+      ],
+      "actualWordEditorInitialPages": 55,
+      "actualWordEditorEndPages": 57
     }
   ],
   "budget": "Reuse old source and final evidence. Keep new staging/measurements small; do not copy full old models or runtimes. Signed/account URLs never written here.",
-  "status": "blocked-on-manual-Mac-unlock-and-Chrome-UI-access",
-  "currentWordGovernmentMeasurements": 0,
-  "preparedCurrentStudioBuild": "1.4.13 build passed; isolated launch only, UI inspection blocked by Mac lock; not recorded as measured"
+  "status": "completed-frozen-three-document-pilot-with-remaining-differences",
+  "currentWordGovernmentMeasurements": 3,
+  "preparedCurrentStudioBuild": "1.4.13 source f976006; actual Mac editor and native UI PDF re-export verified in isolated QA profile; installed user app preserved",
+  "updatedUtc": "2026-11-07T06:13:20.258769+00:00",
+  "comparisonCompleteForFrozenPilot": true,
+  "hwpToWordExportPaginationImprovedThisRound": false,
+  "desktopMicrosoftWordMeasured": false,
+  "baselineValidatedProduct": "999326e",
+  "comparisonStartedFromCommit": "4a22c2c",
+  "latestValidationCommit": "5ace43f",
+  "validationRun": 42342913327,
+  "verificationCompletedUtc": "2026-11-07T06:10:38.231619+00:00",
+  "cloudDocxDownloadHashVerified": false,
+  "sameByteProvenance": "Normal upload picker selected the frozen local bytes; cloud DOCX redownload hash was not measured. No repair prompt observed."
 }
