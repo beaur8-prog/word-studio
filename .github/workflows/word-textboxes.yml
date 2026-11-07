@@ -40,6 +40,7 @@ on:
       - 'tests/hwp-navigation.spec.ts'
       - 'tests/hwp-navigation-fixture.cjs'
       - 'tests/docx-control-tabs.spec.ts'
+      - 'tests/docx-bookmark-ranges.spec.ts'
       - 'tests/offpage-floating.spec.ts'
       - 'tests/hwp-cell-profile-capacity.spec.ts'
       - 'tests/hwp-metafile-fixture.cjs'
@@ -120,6 +121,7 @@ on:
       - 'tests/hwp-navigation.spec.ts'
       - 'tests/hwp-navigation-fixture.cjs'
       - 'tests/docx-control-tabs.spec.ts'
+      - 'tests/docx-bookmark-ranges.spec.ts'
       - 'tests/offpage-floating.spec.ts'
       - 'tests/hwp-cell-profile-capacity.spec.ts'
       - 'tests/hwp-metafile-fixture.cjs'
@@ -158,7 +160,7 @@ jobs:
       - name: Verify bundled font bytes, licenses and legacy symbol coverage
         run: node --test tests/symbol-fonts.test.cjs tests/hwp-fixed-spaces.test.cjs tests/hwp-layout-metadata.test.cjs tests/hwp-metafile-preview.test.cjs
       - name: Exercise stories, colors, geometry, editor commands and two real DOCX exports
-        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-list-lines.spec.ts tests/word-list-symbols.spec.ts tests/docx-content-visibility.spec.ts tests/docx-grouped-pictures.spec.ts tests/docx-table-style-paragraphs.spec.ts tests/docx-floating-size.spec.ts tests/layout-flow.spec.ts tests/word-font-fallbacks.spec.ts tests/korean-font-fallbacks.spec.ts tests/preview-page-status.spec.ts tests/editor-visible-pages.spec.ts tests/docx-merge-continuation.spec.ts tests/hwp-fixed-spaces.spec.ts tests/selection-navigation.spec.ts tests/word-short-paragraphs.spec.ts tests/word-row-split-defaults.spec.ts tests/word-paragraph-keeps.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts tests/hwp-change-tracking.spec.ts tests/hwp-metafile-crop.spec.ts tests/hwp-metafile-gdi.spec.ts tests/hwp-crop.spec.ts tests/export-layout-suspension.spec.ts tests/docx-control-tabs.spec.ts tests/hwp-navigation.spec.ts tests/offpage-floating.spec.ts tests/hwp-cell-profile-capacity.spec.ts --trace=off --reporter=line
+        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-list-lines.spec.ts tests/word-list-symbols.spec.ts tests/docx-content-visibility.spec.ts tests/docx-grouped-pictures.spec.ts tests/docx-table-style-paragraphs.spec.ts tests/docx-floating-size.spec.ts tests/layout-flow.spec.ts tests/word-font-fallbacks.spec.ts tests/korean-font-fallbacks.spec.ts tests/preview-page-status.spec.ts tests/editor-visible-pages.spec.ts tests/docx-merge-continuation.spec.ts tests/hwp-fixed-spaces.spec.ts tests/selection-navigation.spec.ts tests/word-short-paragraphs.spec.ts tests/word-row-split-defaults.spec.ts tests/word-paragraph-keeps.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts tests/hwp-change-tracking.spec.ts tests/hwp-metafile-crop.spec.ts tests/hwp-metafile-gdi.spec.ts tests/hwp-crop.spec.ts tests/export-layout-suspension.spec.ts tests/docx-control-tabs.spec.ts tests/docx-bookmark-ranges.spec.ts tests/hwp-navigation.spec.ts tests/offpage-floating.spec.ts tests/hwp-cell-profile-capacity.spec.ts --trace=off --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - name: Repeat asynchronous list typography after edits and late font loading

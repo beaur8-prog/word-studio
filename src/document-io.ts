@@ -696,7 +696,7 @@ export async function importFile(file: File): Promise<ImportResult> {
       if (names) try {
         const pairs = JSON.parse(names.textContent || 'null');
         if (Array.isArray(pairs) && pairs.length <= 2048 && pairs.every(p => Array.isArray(p) && p.length === 2 &&
-          typeof p[0] === 'string' && p[0].length > 0 && p[0].length <= 40 && typeof p[1] === 'string' && p[1].length > 40 && p[1].length <= 1000)) {
+          typeof p[0] === 'string' && p[0].length > 0 && p[0].length <= 40 && typeof p[1] === 'string' && p[1].length > 0 && p[1].length <= 1000)) {
           const restored = new Map<string, string>(pairs);
           for (const element of [...elements(body, 'bookmarkStart'), ...elements(body, 'hyperlink')]) {
             const attribute = element.localName === 'bookmarkStart' ? 'name' : 'anchor';
@@ -1102,7 +1102,10 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   };
   count(document.content);
   const bookmarkName = (name: string) => {
-    if (name.length <= 40) return name;
+    bookmarkNames.add(name);
+    // Word rejects names containing spaces or punctuation, even below40chars.
+    // Keep original Hancom names in our bounded custom-property alias map.
+    if (name.length <= 40 && /^[\p{L}_][\p{L}\p{N}_]*$/u.test(name)) return name;
     if (bookmarkAliases.has(name)) return bookmarkAliases.get(name)!;
     let index = bookmarkAliases.size, alias = `ws_bookmark_${index}`;
     while (bookmarkNames.has(alias)) alias = `ws_bookmark_${++index}`;
@@ -1592,10 +1595,34 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     sections,
   });
   const blob = await Packer.toBlob(docx);
-  if (!document.comments.length && !geometries.size && !textBoxes.length && groups.length === 1) return blob;
+  if (!bookmarkNames.size && !document.comments.length && !geometries.size && !textBoxes.length && groups.length === 1) return blob;
   // docx 9.12 emits resolution metadata only for replies. Standalone comments
   // need the same standard OOXML part; use its generated paragraph IDs.
   const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+  if (bookmarkNames.size) {
+    // Web Word can replace a collapsed named destination with a copy of its
+    // following text, duplicating a heading. Give authored point bookmarks a
+    // real following run as their range; retain their exact start position,
+    // text, formatting and link targets. End-of-paragraph destinations remain
+    // collapsed when there is no following text. Generated textbox carriers
+    // are intentionally excluded: writeTextBoxes needs those exact markers.
+    for (const name of Object.keys(zip.files).filter(name => /^word\/(?:document|header\d+|footer\d+|footnotes|endnotes|comments)\.xml$/.test(name))) {
+      const part = xml(await zip.file(name)!.async('string'));
+      const ends = new Map(elements(part, 'bookmarkEnd').map(end => [attr(end, 'id'), end]));
+      let changed = false;
+      for (const start of elements(part, 'bookmarkStart')) {
+        if (!bookmarkNames.has(attr(start, 'name') || '')) continue;
+        const end = ends.get(attr(start, 'id'));
+        if (!end || start.nextElementSibling !== end || start.parentElement?.localName !== 'p') continue;
+        let next = end.nextElementSibling;
+        while (next && !(['r', 'hyperlink'].includes(next.localName) && elements(next, 't').some(text => text.textContent?.length))) next = next.nextElementSibling;
+        if (!next) continue;
+        next.parentNode!.insertBefore(end, next.nextSibling);
+        changed = true;
+      }
+      if (changed) zip.file(name, new XMLSerializer().serializeToString(part));
+    }
+  }
   if (groups.length > 1) {
     const body = xml(await zip.file('word/document.xml')!.async('string'));
     const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
