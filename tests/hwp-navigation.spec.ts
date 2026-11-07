@@ -53,7 +53,11 @@ for (const format of ['hwp', 'hwpx'] as const) for (const saveAs of ['docx', 'hw
         try {
           const root = layout.element;
           const bookmarks = [...root.querySelectorAll<HTMLElement>('[data-docx-bookmark]')].map(b => { const p = b.closest('p')!, range = document.createRange(); range.selectNodeContents(p); range.setEndBefore(b); return { name: b.dataset.docxBookmark, before: range.toString(), text: p.textContent }; });
-          const paragraphs = [...root.querySelectorAll<HTMLElement>('.print-content p')].filter(p => p.querySelector('[data-docx-tab]'));
+          // Literal default tabs become standard documentTab nodes on DOCX save.
+          // Compare authored custom stops as before, and retain all six logical
+          // tabs (including DEFAULT) separately below.
+          const paragraphs = [...root.querySelectorAll<HTMLElement>('.print-content p')].filter(p =>
+            p.querySelector('[data-docx-tab]') && JSON.parse(p.dataset.tabStops || '[]').length > 0);
           states.push({ pages: layout.pages, text: root.querySelector('.print-content')!.textContent, bookmarks,
             tabs: paragraphs.map(p => { const tab = p.querySelector('[data-docx-tab]')!, range = document.createRange(); range.selectNodeContents(p); range.setStartAfter(tab); const box = range.getBoundingClientRect(); return { text: p.textContent, stops: JSON.parse(p.dataset.tabStops || '[]'), start: box.left - p.getBoundingClientRect().left, end: box.right - p.getBoundingClientRect().left, center: (box.left + box.right) / 2 - p.getBoundingClientRect().left }; }) });
         } finally { layout.dispose(); }
@@ -70,6 +74,8 @@ for (const format of ['hwp', 'hwpx'] as const) for (const saveAs of ['docx', 'hw
     expect(state.pages).toBe(1);
     expect(state.bookmarks.map(b => b.name)).toEqual(['본문 & Bookmark', '셀 & 책갈피', '중첩 책갈피']);
     expect(state.bookmarks.map(b => b.before)).toEqual(['😀', 'CELL\t', 'NEST\t']);
+    expect(state.text).toContain('DEFAULT\tEnd');
+    expect((state.text?.match(/\t/g) || [])).toHaveLength(6);
     expect(state.tabs).toHaveLength(5);
     expect(state.tabs[0].end).toBeCloseTo(360, 0);
     expect(state.tabs[1].center).toBeCloseTo(360, 0);
