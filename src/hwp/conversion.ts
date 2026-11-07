@@ -178,7 +178,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     if (!header && c.rowSpan > 1 && (declaredCellBreak || (cellPages.get(c.index)?.size ?? 0) > 1))
       tag = tag.replace(/>$/, ' data-cell-split="allow">');
     try { paragraphProperties = JSON.parse(doc.getCellParaPropertiesAt(section, para, control, c.index, 0)); paragraphStyle = paragraphCss(paragraphProperties, JSON.parse(doc.getCellCharPropertiesAt(section, para, control, c.index, 0, 0)),
-      c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined, false); }
+      c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined); }
     catch { paragraphStyle = 'line-height:100%;font-size:10pt;'; paragraphProperties = {}; }
     const width = columns.slice(c.col, c.col + c.colSpan).map(n => Math.max(1, Math.round(n)));
     const borders = hwpCellBorders(c);

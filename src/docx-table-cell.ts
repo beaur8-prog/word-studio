@@ -9,6 +9,26 @@ export class PreservedTable extends Table {
   prepForXml(context: Parameters<Table['prepForXml']>[0]) {
     const result = super.prepForXml(context);
     const children = result?.['w:tbl'];
+    // docx creates a bare <w:p/> in each generated vMerge continuation.
+    // Word can give that required placeholder Normal's body leading and space
+    // after, expanding short source rows and pushing a following tall row
+    // onto another page. Only compact the library's empty continuation;
+    // authored empty paragraphs and the merged cell's real content remain.
+    if (Array.isArray(children)) for (const row of children) {
+      if (!Array.isArray(row?.['w:tr'])) continue;
+      for (const cell of row['w:tr']) {
+        const parts = cell?.['w:tc'];
+        if (!Array.isArray(parts)) continue;
+        const properties = parts.find((part: any) => Array.isArray(part?.['w:tcPr']))?.['w:tcPr'];
+        const merge = properties?.find((part: any) => part && 'w:vMerge' in part)?.['w:vMerge'];
+        if (merge?._attr?.['w:val'] !== 'continue') continue;
+        const paragraphs = parts.filter((part: any) => part && 'w:p' in part);
+        if (paragraphs.length !== 1 || !paragraphs[0]['w:p'] || Object.keys(paragraphs[0]['w:p']).length) continue;
+        paragraphs[0]['w:p'] = [{ 'w:pPr': [{ 'w:spacing': [{ _attr: {
+          'w:before': '0', 'w:after': '0', 'w:line': '1', 'w:lineRule': 'exact',
+        } }] }] }];
+      }
+    }
     if (this.anchor && Array.isArray(children)) {
       let attributes = children.find((entry: any) => entry && '_attr' in entry)?.['_attr'];
       if (!attributes) { attributes = {}; children.unshift({ _attr: attributes }); }

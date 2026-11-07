@@ -14,8 +14,9 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // 6 list-marker, 4 header/footer visibility, 2 table-style copies,
 // 12 drawing-group and 4 short-paragraph fixtures with two saved copies each,
 // plus7 row-policy and15 paragraph-keep inputs, each with two saved copies,
-// and3 Korean-serif states (original export and two DOCX round trips).
-let count = 157;
+// and3 Korean-serif states (original export and two DOCX round trips),
+// plus4 merge-continuation and8 HWP paragraph-spacing exports.
+let count = 169;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);
