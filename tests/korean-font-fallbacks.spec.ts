@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-test('missing native Korean serif uses full em bundled glyphs without changing the requested face or point size', async ({ page }) => {
+test('missing native Korean serif uses bundled glyph advances without changing the requested face or point size', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('textbox', { name: '문서 편집 영역', exact: true }).waitFor();
   const result = await page.evaluate(async () => {
@@ -17,12 +17,14 @@ test('missing native Korean serif uses full em bundled glyphs without changing t
       if (!installed) for (const face of [...document.fonts])
         if (face.family.replace(/["']/g, '') === 'Studio Korean Serif') document.fonts.delete(face);
       const range = document.createRange(); range.selectNodeContents(span);
+      const reference = document.createElement('span'); reference.style.cssText = 'font-family:"Noto Serif KR";font-size:15pt;letter-spacing:0;white-space:pre'; reference.textContent = span.textContent; root.append(reference);
+      const referenceRange = document.createRange(); referenceRange.selectNodeContents(reference);
       const control = document.createElement('span'); control.style.fontFamily = 'BatangChe'; root.append(control);
       const authored = document.createElement('span'); authored.style.fontFamily = '휴먼명조, Arial'; root.append(authored);
-      return { installed, width: range.getBoundingClientRect().width, size: getComputedStyle(span).fontSize, source: span.style.fontFamily, control: getComputedStyle(control).fontFamily, authored: getComputedStyle(authored).fontFamily };
+      return { installed, width: range.getBoundingClientRect().width, referenceWidth: referenceRange.getBoundingClientRect().width, size: getComputedStyle(span).fontSize, source: span.style.fontFamily, control: getComputedStyle(control).fontFamily, authored: getComputedStyle(authored).fontFamily };
     } finally { root.remove(); }
   });
-  if (!result.installed) expect(result.width).toBeCloseTo(200, 0);
+  if (!result.installed) expect(result.width).toBeCloseTo(result.referenceWidth, 2);
   expect(result.size).toBe('20px'); expect(result.source).toBe('휴먼명조');
   expect(result.control).toBe('BatangChe'); expect(result.authored).toBe('휴먼명조, Arial');
 });

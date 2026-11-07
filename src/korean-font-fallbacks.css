@@ -10,7 +10,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: 휴먼명조' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "휴먼명조";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "휴먼명조"' i] {
-  font-family: "휴먼명조", "Studio Korean Serif", "Noto Serif KR", serif;
+  font-family: "휴먼명조", "Studio Korean Serif", "Noto Serif KR", serif !important;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:한양신명조;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:한양신명조' i],
@@ -20,7 +20,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: 한양신명조' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "한양신명조";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "한양신명조"' i] {
-  font-family: "한양신명조", "Studio Korean Serif", "Noto Serif KR", serif;
+  font-family: "한양신명조", "Studio Korean Serif", "Noto Serif KR", serif !important;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:함초롬바탕;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:함초롬바탕' i],
@@ -30,7 +30,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: 함초롬바탕' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "함초롬바탕";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "함초롬바탕"' i] {
-  font-family: "함초롬바탕", "Studio Korean Serif", "Noto Serif KR", serif;
+  font-family: "함초롬바탕", "Studio Korean Serif", "Noto Serif KR", serif !important;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:바탕;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:바탕' i],
@@ -40,7 +40,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: 바탕' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "바탕";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "바탕"' i] {
-  font-family: "바탕", "Studio Korean Serif", "Noto Serif KR", serif;
+  font-family: "바탕", "Studio Korean Serif", "Noto Serif KR", serif !important;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:Batang;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:Batang' i],
@@ -50,7 +50,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: Batang' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "Batang";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "Batang"' i] {
-  font-family: "Batang", "Studio Korean Serif", "Noto Serif KR", serif;
+  font-family: "Batang", "Studio Korean Serif", "Noto Serif KR", serif !important;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:HCR Batang;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:HCR Batang' i],
@@ -60,5 +60,5 @@
 :is(.tiptap, .document-furniture) [style$='font-family: HCR Batang' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "HCR Batang";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "HCR Batang"' i] {
-  font-family: "HCR Batang", "Studio Korean Serif", "Noto Serif KR", serif;
+  font-family: "HCR Batang", "Studio Korean Serif", "Noto Serif KR", serif !important;
 }
