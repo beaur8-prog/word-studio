@@ -20,6 +20,7 @@ import { nestedTableGeometry } from './nested-tables';
 import { hwpCellBorders } from './cell-borders';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss, paragraphAutoSpace } from './paragraph-layout';
 import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
+import { restoreHwpFixedSpaces } from './fixed-spaces';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { stageHwpTables } from './export-tables';
@@ -178,7 +179,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     if (!header && c.rowSpan > 1 && (declaredCellBreak || (cellPages.get(c.index)?.size ?? 0) > 1))
       tag = tag.replace(/>$/, ' data-cell-split="allow">');
     try { paragraphProperties = JSON.parse(doc.getCellParaPropertiesAt(section, para, control, c.index, 0)); paragraphStyle = paragraphCss(paragraphProperties, JSON.parse(doc.getCellCharPropertiesAt(section, para, control, c.index, 0, 0)),
-      c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined); }
+      c.rowSpan === 1 ? px(c.height - c.paddingTop - c.paddingBottom) : undefined, false); }
     catch { paragraphStyle = 'line-height:100%;font-size:10pt;'; paragraphProperties = {}; }
     const width = columns.slice(c.col, c.col + c.colSpan).map(n => Math.max(1, Math.round(n)));
     const borders = hwpCellBorders(c);
@@ -577,7 +578,12 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         const withBreaks = restoreHardLineBreaks(html, [...text.matchAll(/\n/g)].map(m => m.index!));
         const runs = sourceFontRuns(doc.getCharShapeRuns(section, para, start, Math.min(end, textLength)), start, text,
           offset => JSON.parse(doc.getCharPropertiesAt(section, para, offset)), fontRuns);
-        return restoreScriptFonts(withBreaks, text, runs);
+        const formatted = restoreScriptFonts(withBreaks, text, runs);
+        if (!text.includes('\u2007')) return formatted;
+        const prefix = start ? doc.getTextRange(section, para, 0, start).length : 0;
+        const fixed = (equationMetadata().get(`${section}:${para}`)?.fixedSpaces ?? [])
+          .filter(offset => offset >= prefix && offset < prefix + text.length).map(offset => offset - prefix);
+        return restoreHwpFixedSpaces(formatted, text, fixed);
       };
       const whole = range(0, 0xffffffff);
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';

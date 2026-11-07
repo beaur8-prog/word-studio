@@ -4,12 +4,13 @@ import { serializedParts } from './serialized-parts';
 import { hwpBookmark, hwpTabAttribute, hwpTabDefinitions } from './text-navigation';
 import type { DocumentTabStop } from '../document-tabs';
 import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
+import { restoreHwpFixedSpaces } from './fixed-spaces';
 
 export type CellPath = { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
 type Equation = { script: string; fontSize: number; color: number; width: number; height: number };
 export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string; noteId?: string; noteLabel?: string; bookmarkName?: string; fieldType?: string; fieldId?: string };
 export type SerializedTablePolicy = { pageBreak: 'NONE' | 'TABLE' | 'CELL'; repeatHeader: boolean; treatAsChar?: boolean };
-type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[]; tabStops?: DocumentTabStop[]; tablePolicies?: (SerializedTablePolicy | undefined)[] };
+type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[]; fixedSpaces?: number[]; tabStops?: DocumentTabStop[]; tablePolicies?: (SerializedTablePolicy | undefined)[] };
 type Paragraph = { key: string; tables: number; cell: boolean; offset: number; tabRef: string; width: number; tabCell?: Cell };
 type Cell = { key: string; paragraphs: number; width?: number };
 type Table = { key: string; cells: number; policy?: SerializedTablePolicy };
@@ -130,6 +131,7 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
       }
       if (parent?.name === 't' && parent.paragraph && ['tab', 'lineBreak', 'hyphen', 'nbSpace', 'fwSpace'].includes(name)) {
         if (name === 'tab') pendingTabs.set(parent.paragraph.key, parent.paragraph);
+        if (name === 'fwSpace') (result.get(parent.paragraph.key)!.fixedSpaces ??= []).push(parent.paragraph.offset);
         if (name === 'lineBreak' && parent.paragraph.cell) result.get(parent.paragraph.key)!.breaks.push(parent.paragraph.offset);
         parent.paragraph.offset++;
       }
@@ -160,7 +162,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
   const breakKeys = [...metadata()].filter(([, value]) => value.breaks.length).map(([key]) => key);
   const hasBreaks = (prefix: string) => breakKeys.some(key => key.startsWith(prefix + '/'));
   const fontCache = new Map<number, readonly string[]>();
-  const scriptFonts = (content: string, path: CellPath) => {
+  const scriptFonts = (content: string, path: CellPath, key: string) => {
     // Do not tokenize inline object payloads or guess text/control offsets.
     if (/<(?:img|table)\b|<!--\s*rhwp:/i.test(content)) return content;
     try {
@@ -168,7 +170,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
       if (!text) return content;
       const runs = sourceFontRuns(doc.getCharShapeRunsInCellByPath(section, para, json, 0, [...text].length), 0, text,
         offset => JSON.parse(doc.getCellCharPropertiesAtByPath(section, para, json, offset)), fontCache);
-      return restoreScriptFonts(content, text, runs);
+      return restoreHwpFixedSpaces(restoreScriptFonts(content, text, runs), text, metadata().get(key)?.fixedSpaces ?? []);
     } catch {
       // Font recovery is optional. An unsupported character shape must not
       // discard controls, fields or pictures already repaired in this table.
@@ -219,7 +221,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
         const formatted = original.replace(/<p\b[^>]*>[\s\S]*?<\/p>/g, content => {
           const index = p++, paragraphKey = `${key}/c${current.index}/p${index}`;
           path[path.length - 1].cellParaIndex = index;
-          const formatted = scriptFonts(content, path);
+          const formatted = scriptFonts(content, path, paragraphKey);
           // Top-level table geometry supplies flat cell tabs separately, but
           // plain nested cells do not visit that callback. Keep their source
           // paragraph stops too, without rebuilding the clipboard contents.
@@ -285,7 +287,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
               if (value[0] === '&') { emit(); output += value; offset += entities(value).length; }
               else for (const char of value) { emit(); output += char; offset += char.length; }
             }
-            parts.push(annotate(scriptFonts(output, path), p, paragraphKey)); continue;
+            parts.push(annotate(scriptFonts(output, path, paragraphKey), p, paragraphKey)); continue;
           }
           let next = 0, eq = 0, nested = 0;
           const tableRanges: [number, number][] = [];
@@ -333,7 +335,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
         // A control-only paragraph can consist solely of a nested table,
         // without an outer P. Carry the source index to following paragraphs
         // so tableGeometry does not shift their formatting by one slot.
-        content = annotate(scriptFonts(content, path), p, paragraphKey);
+        content = annotate(scriptFonts(content, path, paragraphKey), p, paragraphKey);
         parts.push(content.replace(/<img\b(?![^>]*\bdata-inline-image=)/g, '<img data-inline-image="true"'));
       }
       output += source.slice(cursor, start) + parts.join('\n'); cursor = match.index!;

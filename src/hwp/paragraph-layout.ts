@@ -114,8 +114,5 @@ export function cellParagraphCss(properties: Record<string, any>, char: Record<s
       }
     }
   }
-  // Cell paragraphs have their own authored before/after gaps. A measured
-  // line pitch is the distance within a paragraph, not between paragraphs;
-  // omitting these margins packs bullets together and shifts centered cells.
-  return paragraphCss(properties, char, options.cap) + (pitch ? `line-height:${pitch}px;` : '') + policy;
+  return paragraphCss(properties, char, options.cap, false) + (pitch ? `line-height:${pitch}px;` : '') + policy;
 }

@@ -24,6 +24,10 @@ export class PreservedTable extends Table {
         if (merge?._attr?.['w:val'] !== 'continue') continue;
         const paragraphs = parts.filter((part: any) => part && 'w:p' in part);
         if (paragraphs.length !== 1 || !paragraphs[0]['w:p'] || Object.keys(paragraphs[0]['w:p']).length) continue;
+        // End-of-cell markers otherwise retain the default font's minimum
+        // even when the required paragraph has exact one-twip leading.
+        if (Array.isArray(properties) && !properties.some((part: any) => part && 'w:hideMark' in part))
+          properties.push({ 'w:hideMark': {} });
         paragraphs[0]['w:p'] = [{ 'w:pPr': [{ 'w:spacing': [{ _attr: {
           'w:before': '0', 'w:after': '0', 'w:line': '1', 'w:lineRule': 'exact',
         } }] }] }];

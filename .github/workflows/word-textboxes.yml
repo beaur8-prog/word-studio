@@ -28,8 +28,9 @@ on:
       - 'tests/preview-page-status.spec.ts'
       - 'tests/editor-visible-pages.spec.ts'
       - 'tests/docx-merge-continuation.spec.ts'
-      - 'tests/hwp-cell-spacing.spec.ts'
-      - 'tests/hwp-cell-spacing-fixture.cjs'
+      - 'tests/hwp-fixed-spaces.spec.ts'
+      - 'tests/hwp-fixed-spaces-fixture.cjs'
+      - 'tests/hwp-fixed-spaces.test.cjs'
       - 'tests/selection-navigation.spec.ts'
       - 'tests/word-short-paragraphs.spec.ts'
       - 'tests/word-row-split-defaults.spec.ts'
@@ -93,8 +94,9 @@ on:
       - 'tests/preview-page-status.spec.ts'
       - 'tests/editor-visible-pages.spec.ts'
       - 'tests/docx-merge-continuation.spec.ts'
-      - 'tests/hwp-cell-spacing.spec.ts'
-      - 'tests/hwp-cell-spacing-fixture.cjs'
+      - 'tests/hwp-fixed-spaces.spec.ts'
+      - 'tests/hwp-fixed-spaces-fixture.cjs'
+      - 'tests/hwp-fixed-spaces.test.cjs'
       - 'tests/selection-navigation.spec.ts'
       - 'tests/word-short-paragraphs.spec.ts'
       - 'tests/word-row-split-defaults.spec.ts'
@@ -126,9 +128,9 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Verify bundled font bytes, licenses and legacy symbol coverage
-        run: node --test tests/symbol-fonts.test.cjs
+        run: node --test tests/symbol-fonts.test.cjs tests/hwp-fixed-spaces.test.cjs
       - name: Exercise stories, colors, geometry, editor commands and two real DOCX exports
-        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-list-lines.spec.ts tests/word-list-symbols.spec.ts tests/docx-content-visibility.spec.ts tests/docx-grouped-pictures.spec.ts tests/docx-table-style-paragraphs.spec.ts tests/docx-floating-size.spec.ts tests/layout-flow.spec.ts tests/word-font-fallbacks.spec.ts tests/korean-font-fallbacks.spec.ts tests/preview-page-status.spec.ts tests/editor-visible-pages.spec.ts tests/docx-merge-continuation.spec.ts tests/hwp-cell-spacing.spec.ts tests/selection-navigation.spec.ts tests/word-short-paragraphs.spec.ts tests/word-row-split-defaults.spec.ts tests/word-paragraph-keeps.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts --trace=off --reporter=line
+        run: npx playwright test tests/docx-textboxes.spec.ts tests/paragraph-contextual-spacing.spec.ts tests/docx-heading-default-marks.spec.ts tests/list-pagination.spec.ts tests/word-list-lines.spec.ts tests/word-list-symbols.spec.ts tests/docx-content-visibility.spec.ts tests/docx-grouped-pictures.spec.ts tests/docx-table-style-paragraphs.spec.ts tests/docx-floating-size.spec.ts tests/layout-flow.spec.ts tests/word-font-fallbacks.spec.ts tests/korean-font-fallbacks.spec.ts tests/preview-page-status.spec.ts tests/editor-visible-pages.spec.ts tests/docx-merge-continuation.spec.ts tests/hwp-fixed-spaces.spec.ts tests/selection-navigation.spec.ts tests/word-short-paragraphs.spec.ts tests/word-row-split-defaults.spec.ts tests/word-paragraph-keeps.spec.ts tests/word-line-metrics.spec.ts tests/word-line-metrics-capacity.spec.ts --trace=off --reporter=line
         env:
           PLAYWRIGHT_CHANNEL: chromium
       - name: Repeat asynchronous list typography after edits and late font loading

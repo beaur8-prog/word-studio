@@ -33,7 +33,7 @@ for (const nested of [false, true]) test(`${nested ? 'nested' : 'body'} merged-c
       const continuations = [...root.getElementsByTagNameNS(W, 'tc')].filter(tc => [...tc.children].some(p => p.localName === 'tcPr' && [...p.children].some(v => v.localName === 'vMerge' && v.getAttributeNS(W, 'val') === 'continue'))).map(tc => {
         const paragraphs = [...tc.children].filter(p => p.localName === 'p');
         const p = paragraphs[0], spacing = p?.getElementsByTagNameNS(W, 'spacing')[0];
-        return { paragraphs: paragraphs.length, text: p?.textContent, before: spacing?.getAttributeNS(W, 'before'), after: spacing?.getAttributeNS(W, 'after'), line: spacing?.getAttributeNS(W, 'line'), rule: spacing?.getAttributeNS(W, 'lineRule') };
+        return { ignoreCellMarker: !!tc.getElementsByTagNameNS(W, 'hideMark').length, paragraphs: paragraphs.length, text: p?.textContent, before: spacing?.getAttributeNS(W, 'before'), after: spacing?.getAttributeNS(W, 'after'), line: spacing?.getAttributeNS(W, 'line'), rule: spacing?.getAttributeNS(W, 'lineRule') };
       });
       files.push({ bytes: [...bytes], continuations });
       const reopened = await importFile(new File([blob], 'merged.docx')); doc = { ...reopened.document, content: parseDocumentHtml(reopened.html!) };
@@ -44,7 +44,7 @@ for (const nested of [false, true]) test(`${nested ? 'nested' : 'body'} merged-c
   for (const [save, file] of result.files.entries()) {
     await fs.writeFile(info.outputPath(`textbox-save-merge-continuation-${nested}-${save + 1}.docx`), Buffer.from(file.bytes));
     expect(file.continuations).toHaveLength(4);
-    for (const cell of file.continuations) expect(cell).toEqual({ paragraphs: 1, text: '', before: '0', after: '0', line: '1', rule: 'exact' });
+    for (const cell of file.continuations) expect(cell).toEqual({ ignoreCellMarker: true, paragraphs: 1, text: '', before: '0', after: '0', line: '1', rule: 'exact' });
   }
   for (const state of result.states) {
     expect(state.pages).toBe(1);
