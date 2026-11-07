@@ -32,20 +32,6 @@ async function prepareBody(source: EditableHwp, onProgress?: HwpProgressReporter
   signal?.throwIfAborted();
   if (!/data-hwp-(?:svg|object|zero-line|image-crop)=/.test(source.html)) return source;
   const root = document.createElement('template'); root.innerHTML = source.html;
-  for (const image of root.content.querySelectorAll<HTMLImageElement>('img[data-hwp-image-crop]')) {
-    signal?.throwIfAborted();
-    const crop = image.getAttribute('data-hwp-image-crop')!.split(',').map(Number);
-    if (crop.length !== 4 || !crop.every(n => Number.isFinite(n) && n >= 0 && n < 1) || crop[0] + crop[2] >= 1 || crop[1] + crop[3] >= 1 || !RASTER_DATA.test(image.src))
-      throw Error('한글 그림의 자르기 정보가 올바르지 않습니다.');
-    const bitmap = new Image(); bitmap.src = image.src; await bitmap.decode(); signal?.throwIfAborted();
-    const width = Number(image.getAttribute('width')), height = Number(image.getAttribute('height'));
-    if (!(width > 0 && height > 0 && width <= 10000 && height <= 10000)) throw Error('한글 그림의 크기가 올바르지 않습니다.');
-    const scale = Math.min(2, Math.sqrt(4_000_000 / (width * height))), canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.ceil(width * scale)); canvas.height = Math.max(1, Math.ceil(height * scale));
-    canvas.getContext('2d')!.drawImage(bitmap, crop[0] * bitmap.naturalWidth, crop[1] * bitmap.naturalHeight,
-      (1 - crop[0] - crop[2]) * bitmap.naturalWidth, (1 - crop[1] - crop[3]) * bitmap.naturalHeight, 0, 0, canvas.width, canvas.height);
-    image.src = canvas.toDataURL('image/png'); image.removeAttribute('data-hwp-image-crop'); canvas.width = canvas.height = 0;
-  }
   // A zero-advance heading can share its source baseline with a following
   // whitespace paragraph that reserves its height. CSS zero leading instead
   // raises the ink into the previous line. Preserve that reserved space as a
@@ -116,9 +102,11 @@ async function prepareBody(source: EditableHwp, onProgress?: HwpProgressReporter
         canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
         image.src = canvas.toDataURL('image/png'); image.removeAttribute('data-hwp-svg');
         canvas.width = canvas.height = 0;
+        image.removeAttribute('data-hwp-metafile');
       }
     } catch {
       signal?.throwIfAborted();
+      if (image.hasAttribute('data-hwp-metafile')) throw Error('벡터 그림의 모양을 준비하지 못했습니다. 원본 보기에서 확인하세요.');
       const object = image.hasAttribute('data-hwp-object');
       image.replaceWith(document.createTextNode(`[${image.alt || (object ? '도형' : '수식')}]`));
       warnings.add(object ? '일부 도형·글상자를 그림으로 만들지 못해 설명을 표시했습니다. 원본 보기에서 확인하세요.' : '일부 수식을 그림으로 만들지 못해 원문 명령어를 표시했습니다.');
@@ -126,6 +114,20 @@ async function prepareBody(source: EditableHwp, onProgress?: HwpProgressReporter
       onProgress?.({ label: '수식·도형의 원래 모양을 준비하는 중…', completed: ++completed, total: images.length, unit: '개' });
     }
     if (completed % 8 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+  }
+  for (const image of root.content.querySelectorAll<HTMLImageElement>('img[data-hwp-image-crop]')) {
+    signal?.throwIfAborted();
+    const crop = image.getAttribute('data-hwp-image-crop')!.split(',').map(Number);
+    if (crop.length !== 4 || !crop.every(n => Number.isFinite(n) && n >= 0 && n < 1) || crop[0] + crop[2] >= 1 || crop[1] + crop[3] >= 1 || !RASTER_DATA.test(image.src))
+      throw Error('한글 그림의 자르기 정보가 올바르지 않습니다.');
+    const bitmap = new Image(); bitmap.src = image.src; await bitmap.decode(); signal?.throwIfAborted();
+    const width = Number(image.getAttribute('width')), height = Number(image.getAttribute('height'));
+    if (!(width > 0 && height > 0 && width <= 10000 && height <= 10000)) throw Error('한글 그림의 크기가 올바르지 않습니다.');
+    const scale = Math.min(2, Math.sqrt(4_000_000 / (width * height))), canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.ceil(width * scale)); canvas.height = Math.max(1, Math.ceil(height * scale));
+    canvas.getContext('2d')!.drawImage(bitmap, crop[0] * bitmap.naturalWidth, crop[1] * bitmap.naturalHeight,
+      (1 - crop[0] - crop[2]) * bitmap.naturalWidth, (1 - crop[1] - crop[3]) * bitmap.naturalHeight, 0, 0, canvas.width, canvas.height);
+    image.src = canvas.toDataURL('image/png'); image.removeAttribute('data-hwp-image-crop'); canvas.width = canvas.height = 0;
   }
   return { ...source, html: root.innerHTML, warnings: [...warnings] };
 }

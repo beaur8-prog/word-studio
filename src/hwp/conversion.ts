@@ -21,6 +21,7 @@ import { hwpCellBorders } from './cell-borders';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, cellParagraphCss, paragraphAutoSpace } from './paragraph-layout';
 import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
 import { restoreHwpFixedSpaces } from './fixed-spaces';
+import { metafilePreview } from './metafile-preview';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { stageHwpTables } from './export-tables';
@@ -281,7 +282,9 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     margins: Object.fromEntries(['left', 'right', 'top', 'bottom'].map(side => [side, Math.round((props['outerMargin' + side[0].toUpperCase() + side.slice(1)] || 0) * 127)])),
   });
   const overlays = new Map<number, any[]>();
+  const metafilePreviews = new Map<string, string>();
   const croppedPicture = (html: string, props: any) => {
+    html = metafilePreview(html, doc, metafilePreviews);
     const crop = [props.cropLeft / props.originalWidth, props.cropTop / props.originalHeight,
       props.cropRight / props.originalWidth, props.cropBottom / props.originalHeight];
     if (crop.every(n => Number.isFinite(n) && n >= 0 && n < 1) && crop.some(n => n > 0) && crop[0] + crop[2] < 1 && crop[1] + crop[3] < 1)
