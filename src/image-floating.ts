@@ -193,3 +193,20 @@ export function drawingFloating(drawing: Element) {
     }),
   );
 }
+
+/** Keep off-paper drawings and their authored coordinates in the document.
+ * A rectangle wholly outside its sheet has no paper ink or text-wrap budget;
+ * a partly visible or paragraph-relative drawing follows its normal layout. */
+export function imageOutsidePaper(img: HTMLElement): boolean {
+  const g = imageFloating(img.dataset.imageFloating);
+  const sheet = img.closest<HTMLElement>('[data-page-height],.print-page');
+  if (!g || !sheet) return false;
+  const width = Number(img.getAttribute('width')), height = Number(img.getAttribute('height'));
+  const style = getComputedStyle(sheet), paperWidth = parseFloat(style.width);
+  const paperHeight = Number(sheet.dataset.pageHeight) || parseFloat(style.height);
+  if (!(width > 0 && height > 0 && paperWidth > 0 && paperHeight > 0)) return false;
+  const horizontal = g.horizontalPosition, vertical = g.verticalPosition;
+  const x = (horizontal.offset || 0) / 9525, y = (vertical.offset || 0) / 9525;
+  return (horizontal.relative === 'page' && !horizontal.align && (x >= paperWidth || x + width <= 0)) ||
+    (vertical.relative === 'page' && !vertical.align && (y >= paperHeight || y + height <= 0));
+}

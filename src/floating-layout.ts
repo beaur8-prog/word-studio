@@ -4,7 +4,7 @@ import { layoutTextBoxes, textBoxFrame } from './textbox-frame';
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
-import { imageFloating, type ImageFloating } from "./image-floating";
+import { imageOutsidePaper, imageFloating, type ImageFloating } from "./image-floating";
 
 type Boundary = [globalThis.Node, number];
 type Unit = {
@@ -23,6 +23,7 @@ type Widget = {
   height?: number;
 };
 type Picture = {
+  offPage?: boolean;
   index: number;
   left: number;
   top: number;
@@ -155,7 +156,7 @@ function exclusion(picture: Picture, y: number, height: number): [number, number
 }
 /** A Word group excludes text as one drawing, including gaps between children. */
 function groupExclusion(picture: Picture):Picture|undefined {
-  const g=picture.geometry.drawingGroup;if(!g)return;
+  const g=picture.geometry.drawingGroup;if(!g||picture.offPage)return;
   return {index:-100000-picture.index,left:picture.left-((picture.geometry.horizontalPosition.offset||0)/9525-g.x),
     top:picture.top-((picture.geometry.verticalPosition.offset||0)/9525-g.y),width:g.width,height:g.height,cssLeft:0,cssTop:0,
     geometry:{horizontalPosition:{relative:'page',offset:g.x*9525},verticalPosition:{relative:g.vertical,offset:g.y*9525},wrap:g.wrap,
@@ -188,6 +189,7 @@ function imagePosition(
   index: number,
   root: HTMLElement,
 ): Picture | undefined {
+  const offPage=imageOutsidePaper(img);
   const g = imageFloating(img.dataset.imageFloating);
   if (!g) return;
   const p = img.closest<HTMLElement>("p,h1,h2,h3,h4,h5,h6");
@@ -266,12 +268,13 @@ function imagePosition(
         ? vh - height
         : (vertical.offset || 0) / 9525);
   if (
-    g.wrap?.type !== 0 &&
+    !offPage && g.wrap?.type !== 0 &&
     height <= ph - top - bottom &&
     !["paragraph", "line"].includes(vertical.relative || "paragraph")
   )
     y = Math.max(py + top, Math.min(y, py + ph - bottom - height));
   Object.assign(img.style, {
+    display: offPage ? "none" : "",
     position: "absolute",
     float: "none",
     margin: "0",
@@ -281,6 +284,7 @@ function imagePosition(
   });
   return {
     index,
+    offPage,
     left,
     top: y,
     width,
@@ -360,7 +364,7 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       // Its often page-sized bounds must not trigger a manual re-layout of
       // unrelated paragraphs, which changes justification and mixed-font
       // line endings even though every line still has its full width.
-      const flowing = pictures.filter(pic => pic.geometry.wrap?.type !== 0 && !(pic.index<0 && p.closest('.document-textbox')));
+      const flowing = pictures.filter(pic => !pic.offPage && pic.geometry.wrap?.type !== 0 && !(pic.index<0 && p.closest('.document-textbox')));
       const style = getComputedStyle(p),
         box = p.getClientRects()[0] || p.getBoundingClientRect();
       const lh = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3,
@@ -663,7 +667,7 @@ export const FloatingLayout = Extension.create({
                   );
                   if (!token) continue;
                   const g = picture.geometry;
-                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${picture.cssTop}px;z-index:${g.behindDocument ? -1 : 1}`;
+                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${picture.cssTop}px;z-index:${g.behindDocument ? -1 : 1}${picture.offPage ? ";display:none" : ""}`;
                   decorations.push(
                     Decoration.node(position + 1 + token.from, position + 1 + token.to, { style }),
                   );

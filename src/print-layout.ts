@@ -13,7 +13,7 @@ import { layoutHwpBodyLines } from './hwp-body-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns, columnGroupFits } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
-import { imageFloating } from './image-floating';
+import { imageOutsidePaper, imageFloating } from './image-floating';
 import { layoutFurnitureImages } from './furniture-layout';
 import { layoutTableAnchors, tableAnchor } from './table-anchor';
 import { paragraphFitBottom } from './paragraph-fit';
@@ -146,7 +146,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       // Behind/in-front objects do not consume text flow. A page decoration
       // extending into the margin must not push its anchor onto another page.
       && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img =>
-        imageFloating(img.dataset.imageFloating)?.wrap?.type === 0 || img.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)
+        imageOutsidePaper(img) || imageFloating(img.dataset.imageFloating)?.wrap?.type === 0 || img.getBoundingClientRect().bottom <= content.getBoundingClientRect().bottom + .5)
       // Page-relative floating pictures can extend past a column box without
       // overflowing its text. scrollWidth includes those absolute descendants
       // and would move otherwise fitting columns onto another sheet.

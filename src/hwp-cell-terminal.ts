@@ -2,7 +2,11 @@
  * preceding lines retain full advance; the final line reserves only ink/em.
  * No text, hard break, stored margin, or row minimum is removed. */
 export interface CellTerminalLayout { node: Node; offset: number; shift: number }
+const sharedProfileLimit = 8192;
 const profiles = new Map<string, number | null>();
+// Retain one profile per live paragraph even when another document fills the
+// shared cache. Weak keys release old editor and print fragments naturally.
+let paragraphProfiles = new WeakMap<HTMLElement, { key: string; value: number | null }>();
 const excluded = 'img:not(.ProseMirror-separator),svg,table,sup,sub,mark,u,s,del,[data-note-reference],[data-word-overlap],[data-page-number],[data-docx-tab],[data-docx-bookmark],[data-symbol-font]';
 const widgets = '.pagination-gap,.pagination-cell-gap,[data-flow-widget]';
 
@@ -21,15 +25,21 @@ function fontKey(style: CSSStyleDeclaration) {
 }
 function prefixShift(p: HTMLElement, run: HTMLElement, font: number, advance: number, end: number, text: string): number | null {
   const paragraphStyle = getComputedStyle(p), style = getComputedStyle(run);
-  const key = `${fontKey(paragraphStyle)}|${fontKey(style)}|${font}|${advance}|${end}|${[...text][0]}`;
-  if (profiles.has(key)) return profiles.get(key)!;
+  // Sixteen UTF-16 units contain the first eight complete code points.
+  const sample = [...text.slice(0, 16)].slice(0, 8).join('') || 'Hg';
+  const key = `${fontKey(paragraphStyle)}|${fontKey(style)}|${font}|${advance}|${end}|${sample}`;
+  const own = paragraphProfiles.get(p);
+  if (own?.key === key) return own.value;
+  if (profiles.has(key)) {
+    const value = profiles.get(key)!; paragraphProfiles.set(p, { key, value }); return value;
+  }
   const probe = document.createElement('p'), prefix = document.createElement('span'), glyph = document.createElement('span');
   probe.style.cssText = 'position:fixed;left:-100000px;top:0;width:500px;visibility:hidden;pointer-events:none;margin:0;padding:0;border:0;white-space:pre;';
   for (const property of ['font-family','font-weight','font-style','font-stretch','font-variant-caps']) probe.style.setProperty(property, paragraphStyle.getPropertyValue(property));
   probe.style.fontSize = `${font}px`; probe.style.lineHeight = `${end}px`;
   for (const property of ['font-family','font-weight','font-style','font-stretch','font-variant-caps','font-size']) glyph.style.setProperty(property, style.getPropertyValue(property));
   prefix.style.fontSize = `${font}px`; prefix.style.lineHeight = `${end}px`;
-  glyph.style.lineHeight = `${Math.min(parseFloat(style.fontSize), end)}px`; glyph.textContent = [...text].slice(0, 8).join('') || 'Hg';
+  glyph.style.lineHeight = `${Math.min(parseFloat(style.fontSize), end)}px`; glyph.textContent = sample;
   prefix.append(glyph); probe.append(prefix); document.body.append(probe);
   let shift: number | null = null;
   try {
@@ -40,9 +50,10 @@ function prefixShift(p: HTMLElement, run: HTMLElement, font: number, advance: nu
     const full = range.getBoundingClientRect().top - probe.getBoundingClientRect().top;
     if (Math.abs(compactHeight - end) <= .5 && Math.abs(probe.getBoundingClientRect().height - advance) <= .5) shift = compact - full;
   } finally { probe.remove(); }
-  if (profiles.size > 512) profiles.clear(); profiles.set(key, shift); return shift;
+  if (profiles.size >= sharedProfileLimit) profiles.delete(profiles.keys().next().value!);
+  profiles.set(key, shift); paragraphProfiles.set(p, { key, value: shift }); return shift;
 }
-const invalidate = () => profiles.clear();
+const invalidate = () => { profiles.clear(); paragraphProfiles = new WeakMap(); };
 if (typeof document !== 'undefined') document.fonts.addEventListener('loadingdone', invalidate);
 
 function previousLeaf(node: Node, root: Node): Node | null {
