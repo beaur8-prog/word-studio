@@ -1103,7 +1103,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   count(document.content);
   const bookmarkName = (name: string) => {
     bookmarkNames.add(name);
-    // Word rejects names containing spaces or punctuation, even below40chars.
+    // Word rejects names containing spaces or punctuation, even when shorter than 40 characters.
     // Keep original Hancom names in our bounded custom-property alias map.
     if (name.length <= 40 && /^[\p{L}_][\p{L}\p{N}_]*$/u.test(name)) return name;
     if (bookmarkAliases.has(name)) return bookmarkAliases.get(name)!;
@@ -1615,8 +1615,15 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         const end = ends.get(attr(start, 'id'));
         if (!end || start.nextElementSibling !== end || start.parentElement?.localName !== 'p') continue;
         let next = end.nextElementSibling;
-        while (next && !(['r', 'hyperlink'].includes(next.localName) && elements(next, 't').some(text => text.textContent?.length))) next = next.nextElementSibling;
-        if (!next) continue;
+        while (next && ['bookmarkStart', 'bookmarkEnd', 'commentRangeStart', 'commentRangeEnd'].includes(next.localName)) next = next.nextElementSibling;
+        if (!next || !['r', 'hyperlink'].includes(next.localName)) continue;
+        const textRuns = next.localName === 'r' ? [next] : Array.from(next.children);
+        // Never enlarge a destination over pictures, fields, tabs or breaks.
+        // A later caption is not the point's following text run when a real
+        // object/control stands between them. Mixed hyperlink runs count too.
+        if (!textRuns.length || !textRuns.every(run => run.localName === 'r' &&
+          Array.from(run.children).every(child => ['rPr', 't'].includes(child.localName))) ||
+          !textRuns.some(run => elements(run, 't').some(text => text.textContent?.trim().length))) continue;
         next.parentNode!.insertBefore(end, next.nextSibling);
         changed = true;
       }
