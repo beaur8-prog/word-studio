@@ -1,0 +1,1248 @@
+{
+  "recordedUtc": "2026-11-07T13:45:10.074406+00:00",
+  "state": "final-local-validation",
+  "branch": "codex/hwp-format-three-hours",
+  "baselineCommit": "b156544",
+  "testedProductCommit": "41465dbb370630f2a1136b625a8507855bf3a9a5",
+  "version": "1.4.13",
+  "sourceTreeSHA": "fa1a24864f2813639b004c17e8495b08dcbb64d8",
+  "method": "Fresh same original HWP/HWPX -> two actual DOCX exports/reopens -> same app startup and print CSS. No new Microsoft Word measurement. No original text/binary document contents in this summary.",
+  "localChecks": {
+    "playwright": {
+      "passed": 773,
+      "failed": 0,
+      "durationMinutes": 20.9
+    },
+    "native": {
+      "passed": 164,
+      "failed": 0
+    },
+    "build": "passed",
+    "normalHeadlessUIEditUndoRedoTwoSaves": {
+      "passed": 2,
+      "errors": 0
+    }
+  },
+  "crossPlatformCI": {
+    "runId": 42374433859,
+    "url": "https://github.com/beaur8-prog/word-studio/actions/runs/42374433859",
+    "sourceCommit": "41465dbb370630f2a1136b625a8507855bf3a9a5",
+    "jobs": [
+      {
+        "os": "Windows",
+        "jobId": 128409020305,
+        "passed": 150,
+        "skipped": 1,
+        "asyncRepeatsPassed": 3,
+        "officialSDKDocuments": 173,
+        "schemaErrors": 0,
+        "conclusion": "success"
+      },
+      {
+        "os": "Linux",
+        "jobId": 128409020145,
+        "passed": 150,
+        "skipped": 1,
+        "asyncRepeatsPassed": 3,
+        "officialSDKDocuments": 173,
+        "schemaErrors": 0,
+        "conclusion": "success"
+      }
+    ],
+    "scope": "Generated exported DOCX fixtures, Playwright Chromium, not installed Windows Word or all government DOCX files"
+  },
+  "governmentOriginalInputs": [
+    {
+      "id": "mois-2025-0",
+      "sha256": "554470ecc730102bf6172774c2d80efa92b6ef21b714e8f55a63d78054199c6b"
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "sha256": "5eb2799a74156a5873f4a4d7ca84e410c47771fbfc6251889263843323df5060"
+    },
+    {
+      "id": "daejeon-safety-hwp",
+      "sha256": "1dedb6e853c2b08b8a452fb1e1d17666c4156dff5ce0321b0239766ead05f511"
+    }
+  ],
+  "governmentBeforePDF": [
+    {
+      "id": "mois-2025-0",
+      "sha256": "987b85b7624405def178f592706b7c4f8b4a59dc6b522e03a80f59c90caec3bb",
+      "originalInputSHA256": "554470ecc730102bf6172774c2d80efa92b6ef21b714e8f55a63d78054199c6b",
+      "pages": 23,
+      "warnings": [],
+      "imagePlacements": 3,
+      "pdfSHA256": "4e4a6400fa6e43749c4451f85ee0d6c75ba379624bdfb5dd0847253667d1c105"
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "sha256": "3b5a1466f36ebd4b14f0211bf65025e2b4b5db3e5f1920a4bdc7658eb0f30284",
+      "originalInputSHA256": "5eb2799a74156a5873f4a4d7ca84e410c47771fbfc6251889263843323df5060",
+      "pages": 53,
+      "warnings": [],
+      "imagePlacements": 6,
+      "pdfSHA256": "793ff99a6692c900eb8c50eaec95b11f7f24fa4bdbd5d08c2533d06bcce3b5f1"
+    },
+    {
+      "id": "daejeon-safety-hwp",
+      "sha256": "5d8edcbb2dabc5edddb4324be13a0022fe4b747dc7f8f79cb8f308917b218abb",
+      "originalInputSHA256": "1dedb6e853c2b08b8a452fb1e1d17666c4156dff5ce0321b0239766ead05f511",
+      "pages": 1,
+      "warnings": [],
+      "imagePlacements": 0,
+      "pdfSHA256": "0694f190b9627187765d254ed37891fddb7dd5a3cecc09d346d9603dcea906c0"
+    }
+  ],
+  "governmentSelectedPDF": [
+    {
+      "id": "mois-2025-0",
+      "sha256": "16e49ce5a84ed6a5b5964ee23f2d255b6de85a90b4070f5395bcb44880083d51",
+      "originalInputSHA256": "554470ecc730102bf6172774c2d80efa92b6ef21b714e8f55a63d78054199c6b",
+      "pages": 23,
+      "warnings": [],
+      "imagePlacements": 3,
+      "pdfSHA256": "e923607f7a7bc4b289bea2705f81efc37a504750522082901b41caecf4e43f33"
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "sha256": "79ba52b103316aa0e96b001dd11f793385fc7191f0fa1f8f63e1cb4dd25032c2",
+      "originalInputSHA256": "5eb2799a74156a5873f4a4d7ca84e410c47771fbfc6251889263843323df5060",
+      "pages": 52,
+      "warnings": [],
+      "imagePlacements": 6,
+      "pdfSHA256": "efdc0cd44bf8831258c7dbadff20cffe66d2b8fa69f81608088daf28adb91636"
+    },
+    {
+      "id": "daejeon-safety-hwp",
+      "sha256": "9403fa1af87ed40672a1fe17a63b5bf0cb17b9c2bba330d48652a7b5a1a53b17",
+      "originalInputSHA256": "1dedb6e853c2b08b8a452fb1e1d17666c4156dff5ce0321b0239766ead05f511",
+      "pages": 1,
+      "warnings": [],
+      "imagePlacements": 0,
+      "pdfSHA256": "a373121c1e93853b897ba4a376ecdbb9368dabe95ab448577e0dac9be3dc186a"
+    }
+  ],
+  "fixedGovernment40": {
+    "anchorSetSHA256": "460eddc899ce52d354976fa934dc544aaaa212703130512e5567055547a7761b",
+    "documents": [
+      {
+        "id": "mois-workplan",
+        "pages": {
+          "reference": 19,
+          "baseline": 23,
+          "selected": 23
+        },
+        "metrics": {
+          "baseline": {
+            "requested": 20,
+            "matchedBoth": 20,
+            "missingOrAmbiguous": 0,
+            "pageMismatchesToFrozenReference": 14,
+            "absoluteStartPageErrorToFrozenReference": 39,
+            "referenceCoordinatesActuallyMatched": 20
+          },
+          "selected": {
+            "requested": 20,
+            "matchedBoth": 20,
+            "missingOrAmbiguous": 0,
+            "pageMismatchesToFrozenReference": 14,
+            "absoluteStartPageErrorToFrozenReference": 39,
+            "referenceCoordinatesActuallyMatched": 20
+          }
+        }
+      },
+      {
+        "id": "mss-funding-notice",
+        "pages": {
+          "reference": 46,
+          "baseline": 53,
+          "selected": 52
+        },
+        "metrics": {
+          "baseline": {
+            "requested": 20,
+            "matchedBoth": 20,
+            "missingOrAmbiguous": 0,
+            "pageMismatchesToFrozenReference": 19,
+            "absoluteStartPageErrorToFrozenReference": 76,
+            "referenceCoordinatesActuallyMatched": 20
+          },
+          "selected": {
+            "requested": 20,
+            "matchedBoth": 20,
+            "missingOrAmbiguous": 0,
+            "pageMismatchesToFrozenReference": 19,
+            "absoluteStartPageErrorToFrozenReference": 74,
+            "referenceCoordinatesActuallyMatched": 20
+          }
+        }
+      }
+    ]
+  },
+  "governmentRoundtrip": {
+    "documents": 3,
+    "strictPassed": 3,
+    "errors": [],
+    "rows": [
+      {
+        "id": "mois-2025-0",
+        "inputSHA256": "554470ecc730102bf6172774c2d80efa92b6ef21b714e8f55a63d78054199c6b",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-selected/mois-2025-0-save2.docx",
+          "sha256": "16e49ce5a84ed6a5b5964ee23f2d255b6de85a90b4070f5395bcb44880083d51",
+          "bytes": 1077823,
+          "retained": true
+        }
+      },
+      {
+        "id": "mss-funding-2026-0",
+        "inputSHA256": "5eb2799a74156a5873f4a4d7ca84e410c47771fbfc6251889263843323df5060",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-selected/mss-funding-2026-0-save2.docx",
+          "sha256": "79ba52b103316aa0e96b001dd11f793385fc7191f0fa1f8f63e1cb4dd25032c2",
+          "bytes": 147440,
+          "retained": true
+        }
+      },
+      {
+        "id": "daejeon-safety-hwp",
+        "inputSHA256": "1dedb6e853c2b08b8a452fb1e1d17666c4156dff5ce0321b0239766ead05f511",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-selected/daejeon-safety-hwp-save2.docx",
+          "sha256": "9403fa1af87ed40672a1fe17a63b5bf0cb17b9c2bba330d48652a7b5a1a53b17",
+          "bytes": 15367,
+          "retained": true
+        }
+      }
+    ]
+  },
+  "wordOriginal10Roundtrip": {
+    "documents": 10,
+    "strictPassed": 10,
+    "errors": [],
+    "rows": [
+      {
+        "id": "01-body",
+        "inputSHA256": "5bd1e50381c1c1d18b7855789bf579662cbc7e171fa117781d9c4a67967e75a8",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/01-body-save2.docx",
+          "sha256": "524221c381c66f30dee5322a06f3358ccccccc6dafe3d4751fc91823d195550e",
+          "bytes": 14909,
+          "retained": true
+        }
+      },
+      {
+        "id": "02-tables",
+        "inputSHA256": "f724ffb96b922a9d72ef56f175cb09d8de806ffaee7cfa58ed3e9180f3578ed3",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/02-tables-save2.docx",
+          "sha256": "b9b3ad0827ffcded9911266d83121a8121b60c308998e6f6b030afd8bf028749",
+          "bytes": 24832,
+          "retained": true
+        }
+      },
+      {
+        "id": "03-floating",
+        "inputSHA256": "c0bed46c4da5e88f8809e1ef8c4fa0c3d0e3f07094e1429fa39697586195d8c2",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/03-floating-save2.docx",
+          "sha256": "55497fd105ecd43deb5408402ce687a3ca98370aee4fd02e9a406b37aab2317b",
+          "bytes": 17470,
+          "retained": true
+        }
+      },
+      {
+        "id": "04-nested",
+        "inputSHA256": "15fa3e772dbb7b5a12179dff85b40a4568b55ab317d4dbac789e15af71caa3d2",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/04-nested-save2.docx",
+          "sha256": "39753956af1ebc09def62619ae088efb899299ce9aa675bb0e7ec3e28106f9cf",
+          "bytes": 15090,
+          "retained": true
+        }
+      },
+      {
+        "id": "05-styles",
+        "inputSHA256": "beb0875c1247b4171f1eca5ea7e850aece6e326cb373867a5e0550da5c6f8ba7",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/05-styles-save2.docx",
+          "sha256": "33a2d9235bd7a178733ed2c2d7474d34177c736c49e2d0bc366ba5374bfff6c4",
+          "bytes": 61908,
+          "retained": true
+        }
+      },
+      {
+        "id": "06-long-body",
+        "inputSHA256": "f28bea7272ec9438d4d688e555a2912b655bb50d0e5a63ffe54f82c4d460651a",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/06-long-body-save2.docx",
+          "sha256": "317f34c173eecf6ae89851495ffb70e0c55b2852c620d49a6fd9bb6dbb565150",
+          "bytes": 24333,
+          "retained": true
+        }
+      },
+      {
+        "id": "07-characters",
+        "inputSHA256": "b76a0d8042a2b1bfd828e3dc7951caaa159ce40f43df10a72d75d07b42e6b699",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/07-characters-save2.docx",
+          "sha256": "eb31f8adf9bd69b969c4691a43c2f1bdef87575736e6b516d3b6534c242a6de9",
+          "bytes": 17973,
+          "retained": true
+        }
+      },
+      {
+        "id": "08-small-table",
+        "inputSHA256": "7bd01eb80a18462c1d14ee17273085285db566c448948fac3acc816b7cf46c2c",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/08-small-table-save2.docx",
+          "sha256": "db56cb776c9d3fda252a8c0f44e17900872705e1e5424143521a2c9351403a6a",
+          "bytes": 15167,
+          "retained": true
+        }
+      },
+      {
+        "id": "09-theme",
+        "inputSHA256": "596b0d7ff68f3dc6b11722be53f1cf410162860a3fc2c45d27c436a464c1ef32",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/09-theme-save2.docx",
+          "sha256": "b9bb767232fbca5d1be57197b415d4b7a7b53a324f7f024e32e39e612b11ac9d",
+          "bytes": 63285,
+          "retained": true
+        }
+      },
+      {
+        "id": "10-references",
+        "inputSHA256": "6ae6688971eac742a198f6a66433770105d3713b0e4c220ce30955394a3ea594",
+        "strictPassed": true,
+        "gridStableAfterFirstSave": true,
+        "save2": {
+          "save": 2,
+          "file": "roundtrip-word-selected/10-references-save2.docx",
+          "sha256": "5baadd99a8b4ed7910264a6e826a27a83b96f9faa8955690498bac254c7200ec",
+          "bytes": 59275,
+          "retained": true
+        }
+      }
+    ]
+  },
+  "legacy10Roundtrip": {
+    "utc": "2026-11-07T13:35:58.441900+00:00",
+    "method": "Keep original strict check results. Separately classify invariant text/cell spans/images vs pre-existing raw header-role/section/column/story/index and first-save grid representation changes. No relaxed pass replaces the strict result. Source fwSpace canonicalization is documented separately.",
+    "rows": [
+      {
+        "id": "01-employment-contract",
+        "inputSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+        "strictBefore": true,
+        "strictSelected": true,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 0,
+        "existingRawRepresentationDifferences": [],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      },
+      {
+        "id": "02-work-rules",
+        "inputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+        "strictBefore": false,
+        "strictSelected": false,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 2,
+        "existingRawRepresentationDifferences": [
+          "core",
+          "stories"
+        ],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      },
+      {
+        "id": "03-health-table",
+        "inputSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+        "strictBefore": true,
+        "strictSelected": true,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 0,
+        "existingRawRepresentationDifferences": [],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      },
+      {
+        "id": "04-language-plan",
+        "inputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+        "strictBefore": true,
+        "strictSelected": true,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 4,
+        "existingRawRepresentationDifferences": [
+          "gridsSHA256"
+        ],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      },
+      {
+        "id": "05-return-form",
+        "inputSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+        "strictBefore": true,
+        "strictSelected": true,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 3,
+        "existingRawRepresentationDifferences": [
+          "gridsSHA256"
+        ],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      },
+      {
+        "id": "06-mixed-document",
+        "inputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+        "strictBefore": false,
+        "strictSelected": false,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 44,
+        "existingRawRepresentationDifferences": [
+          "core",
+          "gridsSHA256"
+        ],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      },
+      {
+        "id": "07-english-exam",
+        "inputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+        "strictBefore": false,
+        "strictSelected": false,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 16,
+        "existingRawRepresentationDifferences": [
+          "core",
+          "stories"
+        ],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      },
+      {
+        "id": "08-math-exam",
+        "inputSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+        "strictBefore": false,
+        "strictSelected": false,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 543,
+        "existingRawRepresentationDifferences": [
+          "core",
+          "stories",
+          "gridsSHA256"
+        ],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      },
+      {
+        "id": "09-korean-exam",
+        "inputSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+        "strictBefore": false,
+        "strictSelected": false,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 23,
+        "existingRawRepresentationDifferences": [
+          "core"
+        ],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      },
+      {
+        "id": "10-lh-plan",
+        "inputSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+        "strictBefore": true,
+        "strictSelected": true,
+        "textPreservedAcrossBothSaves": true,
+        "cellTextSpansPreservedAcrossBothSaves": true,
+        "imageBytesAndOrderPreservedAcrossBothSaves": true,
+        "images": 3,
+        "existingRawRepresentationDifferences": [
+          "gridsSHA256"
+        ],
+        "sameNontextInventoriesAcrossCandidateStages": true,
+        "gridStableAfterFirstSave": true
+      }
+    ]
+  },
+  "legacyActualSavedDOCXFixedSets": [
+    {
+      "stage": "baseline",
+      "method": "actual-second-saved-DOCX/frozen-native-reference-keys-v1",
+      "pages": {
+        "02-work-rules": 160,
+        "04-language-plan": 38,
+        "06-mixed-document": 37,
+        "07-english-exam": 8
+      },
+      "scores": {
+        "fixed160": {
+          "total": 160,
+          "found": 160,
+          "missing": 0,
+          "mismatched": 82,
+          "absolutePageError": 139
+        },
+        "fixed3007": {
+          "total": 3007,
+          "found": 3007,
+          "missing": 0,
+          "mismatched": 1804,
+          "absolutePageError": 3341
+        }
+      },
+      "fixedSetProofs": {
+        "02-work-rules": {
+          "inputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+          "cohortSHA256": "1394cbe4964414ce99d13df4152421b5e4071e4bafe17e47784e6fcb25a5f231",
+          "cohortCount": 714,
+          "anchorsSHA256": "d19dc8952aa26e6450d2e2790dee99fcb74cc4a4a106145f424a1d477ee55e8d",
+          "anchorCount": 40
+        },
+        "04-language-plan": {
+          "inputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+          "cohortSHA256": "22fb78ba6d584eb338a4be1243f7aa85ec891cd3c906e9036afed098391c3650",
+          "cohortCount": 878,
+          "anchorsSHA256": "99030ce83da028e15a89d69299f46c0e40fc3f05e2ef2ca29242f119b0a8d0b5",
+          "anchorCount": 40
+        },
+        "06-mixed-document": {
+          "inputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+          "cohortSHA256": "c924cadda8437f209f3ef67d9c634410c0747d46dc565541520abe5bbb2f2141",
+          "cohortCount": 1108,
+          "anchorsSHA256": "7cf4c53c0dcb3f3c059716a06c90e9a55dedde4cd0acbea86a1678a33232230a",
+          "anchorCount": 40
+        },
+        "07-english-exam": {
+          "inputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+          "cohortSHA256": "7695b49e097debf4dd806c996aeec6a63cb0cb77b5ae5c3f93d801254cfcaa74",
+          "cohortCount": 307,
+          "anchorsSHA256": "10ab4e8aee7aba86abee9e2b5beb7d3843f0fc5a2b528d188b079e1aeaa32c55",
+          "anchorCount": 40
+        }
+      }
+    },
+    {
+      "stage": "selected",
+      "method": "actual-second-saved-DOCX/frozen-native-reference-keys-v1",
+      "pages": {
+        "02-work-rules": 160,
+        "04-language-plan": 38,
+        "06-mixed-document": 37,
+        "07-english-exam": 8
+      },
+      "scores": {
+        "fixed160": {
+          "total": 160,
+          "found": 160,
+          "missing": 0,
+          "mismatched": 82,
+          "absolutePageError": 139
+        },
+        "fixed3007": {
+          "total": 3007,
+          "found": 3007,
+          "missing": 0,
+          "mismatched": 1804,
+          "absolutePageError": 3341
+        }
+      },
+      "fixedSetProofs": {
+        "02-work-rules": {
+          "inputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+          "cohortSHA256": "1394cbe4964414ce99d13df4152421b5e4071e4bafe17e47784e6fcb25a5f231",
+          "cohortCount": 714,
+          "anchorsSHA256": "d19dc8952aa26e6450d2e2790dee99fcb74cc4a4a106145f424a1d477ee55e8d",
+          "anchorCount": 40
+        },
+        "04-language-plan": {
+          "inputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+          "cohortSHA256": "22fb78ba6d584eb338a4be1243f7aa85ec891cd3c906e9036afed098391c3650",
+          "cohortCount": 878,
+          "anchorsSHA256": "99030ce83da028e15a89d69299f46c0e40fc3f05e2ef2ca29242f119b0a8d0b5",
+          "anchorCount": 40
+        },
+        "06-mixed-document": {
+          "inputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+          "cohortSHA256": "c924cadda8437f209f3ef67d9c634410c0747d46dc565541520abe5bbb2f2141",
+          "cohortCount": 1108,
+          "anchorsSHA256": "7cf4c53c0dcb3f3c059716a06c90e9a55dedde4cd0acbea86a1678a33232230a",
+          "anchorCount": 40
+        },
+        "07-english-exam": {
+          "inputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+          "cohortSHA256": "7695b49e097debf4dd806c996aeec6a63cb0cb77b5ae5c3f93d801254cfcaa74",
+          "cohortCount": 307,
+          "anchorsSHA256": "10ab4e8aee7aba86abee9e2b5beb7d3843f0fc5a2b528d188b079e1aeaa32c55",
+          "anchorCount": 40
+        }
+      }
+    }
+  ],
+  "legacyBeforePDF": [
+    {
+      "id": "01-employment-contract",
+      "sha256": "5997896443ab578e8dd7051e12c01c475b049eddf4131bfcff23ea8888215548",
+      "originalInputSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "pages": 7,
+      "warnings": [],
+      "imagePlacements": 0,
+      "pdfSHA256": "8bb6f50d7253c1b8b07c71258b4e167f7722ffbf2f31fea657262fca3faa7e49"
+    },
+    {
+      "id": "02-work-rules",
+      "sha256": "2674723322fa256b1da7e4d388b529740ce71085a34f1bd295ddc8dfb5c1089f",
+      "originalInputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "pages": 160,
+      "warnings": [],
+      "imagePlacements": 2,
+      "pdfSHA256": "7798860643f752aef4d5233c9212cf9f918b57b6a3da299ebeee416912174db4"
+    },
+    {
+      "id": "03-health-table",
+      "sha256": "20e3c8e4bb531b320a8c21a1b85aca04c4f6a9962c5194c3e294adb487bbc530",
+      "originalInputSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+      "pages": 4,
+      "warnings": [],
+      "imagePlacements": 0,
+      "pdfSHA256": "b52c375083935589a9aac6bd558fcf2ff523581f0dc5aebede26660beb3e677a"
+    },
+    {
+      "id": "04-language-plan",
+      "sha256": "02a04e16413180269ae93fab426939f1ce729984e125299ed06c3efd9ec377c4",
+      "originalInputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+      "pages": 38,
+      "warnings": [],
+      "imagePlacements": 4,
+      "pdfSHA256": "557f41774ec0ed54f118135c0c0b1f4482414a15d94ffd89994f9c08a2e62479"
+    },
+    {
+      "id": "05-return-form",
+      "sha256": "58fee39704cf35060f2937070879366b0e29dd1285444fd40b186bdd4905d695",
+      "originalInputSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+      "pages": 1,
+      "warnings": [],
+      "imagePlacements": 3,
+      "pdfSHA256": "ae651dd3ee26dc38c80d13a9e81b2e7938b492f97d7d13b167493497e70991a2"
+    },
+    {
+      "id": "06-mixed-document",
+      "sha256": "2bf795e02a6ebf019ab5045646f8e87c818eebabd00984f38bd366804b73d650",
+      "originalInputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "pages": 37,
+      "warnings": [],
+      "imagePlacements": 44,
+      "pdfSHA256": "1b78a786f3ae46b62937feb735a30acdac63a5ef62b0780c6e614d473c48a55d"
+    },
+    {
+      "id": "07-english-exam",
+      "sha256": "fd9b3a27c534a7b49bc22d060864612c6a518477d758d94f11adb68fdc529483",
+      "originalInputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+      "pages": 8,
+      "warnings": [],
+      "imagePlacements": 16,
+      "pdfSHA256": "9e8e6e0dd8a182b124591b21eac161db5a6bd9d0abf12c13980085effe6c8469"
+    },
+    {
+      "id": "08-math-exam",
+      "sha256": "2a5eb02a55fe940bfc7723f7f1cc3b273157f14658c69a7ac29828e2224788ee",
+      "originalInputSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "pages": 20,
+      "warnings": [],
+      "imagePlacements": 543,
+      "pdfSHA256": "a38866870f93dfd8db14676979e26f97f7c4409a7d836387b4bbc179aefb70e6"
+    },
+    {
+      "id": "09-korean-exam",
+      "sha256": "2864d451d431f98d94dc88647ca9dedb0948b26f26028e32390cd13d07d147d7",
+      "originalInputSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+      "pages": 15,
+      "warnings": [],
+      "imagePlacements": 23,
+      "pdfSHA256": "c2aab78bd3e39e9173c3039ddbab4c1a3df829834f2360f349707bd4d9824378"
+    },
+    {
+      "id": "10-lh-plan",
+      "sha256": "b8debd9d9ade7cde4a3c25180db15aec697f3c2932d9f1a0eb86b0e181393c13",
+      "originalInputSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+      "pages": 5,
+      "warnings": [],
+      "imagePlacements": 3,
+      "pdfSHA256": "dd8950681a0ca2bff4e041a657dfd54cb214a373abb914704e23ed68595ef790"
+    }
+  ],
+  "legacySelectedPDF": [
+    {
+      "id": "01-employment-contract",
+      "sha256": "f0bb1e2d1a7bee81422d1fa16d9e940c1bd6b44b1d1ec3b244055a6c879083a9",
+      "originalInputSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "pages": 7,
+      "warnings": [],
+      "imagePlacements": 0,
+      "pdfSHA256": "e890309d5e644248b5031e6c8e887333de31281b755abd5a2ed20719aaf0b4b9"
+    },
+    {
+      "id": "02-work-rules",
+      "sha256": "adc330c2635a1afbb113ec516e2c67b878adf7ceed1d41431d41ef904e33d784",
+      "originalInputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "pages": 160,
+      "warnings": [],
+      "imagePlacements": 2,
+      "pdfSHA256": "854415b4e149411b6485c608828c09f61325b096cb79b979e2f60962a0285cec"
+    },
+    {
+      "id": "03-health-table",
+      "sha256": "fb5d25820f4394ddbe7efc43e80f0603bce25ad4f3c536074aa037fa04d6e22c",
+      "originalInputSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+      "pages": 4,
+      "warnings": [],
+      "imagePlacements": 0,
+      "pdfSHA256": "370904196f62483cced61238c1399da591d29f31e3bbd3f5d31803252889d7a5"
+    },
+    {
+      "id": "04-language-plan",
+      "sha256": "e4b801315bd1edabfd614dfc38890dcb98ff1792cbf688c98a7813114b2011fa",
+      "originalInputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+      "pages": 38,
+      "warnings": [],
+      "imagePlacements": 4,
+      "pdfSHA256": "c422a598b2f8e70850ef1b2e89504ec0a778d63620a505a53d764f0d7e95b5d6"
+    },
+    {
+      "id": "05-return-form",
+      "sha256": "5bd41927ee0acc94a556c36bfcbab792822dc7f74ac096d10adb0b4a13350f94",
+      "originalInputSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+      "pages": 1,
+      "warnings": [],
+      "imagePlacements": 3,
+      "pdfSHA256": "c2d935cade3af026cc48c0c5025e96c0094f17f2fec6dee8af6a524734630973"
+    },
+    {
+      "id": "06-mixed-document",
+      "sha256": "069efbe8ad2bfcd4d9031be088f64970396c3274ecf5c0dc7555fa41cfb4a35d",
+      "originalInputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "pages": 37,
+      "warnings": [],
+      "imagePlacements": 44,
+      "pdfSHA256": "434f813a28a08c388189b534637c92bd3126d5ad41b1047b6fa1829b89b50d0e"
+    },
+    {
+      "id": "07-english-exam",
+      "sha256": "77ed6f66db3b9f9d542765bcfb2cf9547e593a7cbc9e8f1e1c49b476c2e67a45",
+      "originalInputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+      "pages": 8,
+      "warnings": [],
+      "imagePlacements": 16,
+      "pdfSHA256": "4c02491d48d7a8472910f8ff6955b2009a39137bb83d2f606277ea3be9c6dcf1"
+    },
+    {
+      "id": "08-math-exam",
+      "sha256": "8992e486535e996f1cbc2d0250a993ea8f65dd35121540fcc5dee2cd429c246a",
+      "originalInputSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "pages": 20,
+      "warnings": [],
+      "imagePlacements": 543,
+      "pdfSHA256": "175e6d66ca608f678e695ea324840b8f364ede9831d97f9706db52628f7ed3e4"
+    },
+    {
+      "id": "09-korean-exam",
+      "sha256": "3a3c8a8bd2113817dbd853f778cf7a4ca2555710e560c011e78b387ed7d5a7cd",
+      "originalInputSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+      "pages": 15,
+      "warnings": [],
+      "imagePlacements": 23,
+      "pdfSHA256": "94d4e0bc8dcf484cf9494138de90544a25428ac5cb17ecf982babe59fd74a3d8"
+    },
+    {
+      "id": "10-lh-plan",
+      "sha256": "25459e79ead09c3b404b196ba9efe181c8cc309f72aab1bb462231d961a0db42",
+      "originalInputSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+      "pages": 5,
+      "warnings": [],
+      "imagePlacements": 3,
+      "pdfSHA256": "a4e1c7f5c42804e107f3c3f88f66242a02aff577bfdf7d02209751d245ba5fe1"
+    }
+  ],
+  "pdfPaintChecks": [
+    {
+      "set": "pdf-visible-check.json",
+      "documents": [
+        {
+          "id": "mois-2025-0",
+          "pagesBefore": 23,
+          "pagesSelected": 23,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            3,
+            3
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            21,
+            21
+          ]
+        },
+        {
+          "id": "mss-funding-2026-0",
+          "pagesBefore": 53,
+          "pagesSelected": 52,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            6,
+            6
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            10,
+            10
+          ]
+        },
+        {
+          "id": "daejeon-safety-hwp",
+          "pagesBefore": 1,
+          "pagesSelected": 1,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            0,
+            0
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            0,
+            0
+          ]
+        }
+      ]
+    },
+    {
+      "set": "pdf-legacy-visible-check.json",
+      "documents": [
+        {
+          "id": "01-employment-contract",
+          "pagesBefore": 7,
+          "pagesSelected": 7,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            0,
+            0
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            0,
+            0
+          ]
+        },
+        {
+          "id": "02-work-rules",
+          "pagesBefore": 160,
+          "pagesSelected": 160,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            2,
+            2
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            0,
+            0
+          ]
+        },
+        {
+          "id": "03-health-table",
+          "pagesBefore": 4,
+          "pagesSelected": 4,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            0,
+            0
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            0,
+            0
+          ]
+        },
+        {
+          "id": "04-language-plan",
+          "pagesBefore": 38,
+          "pagesSelected": 38,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            4,
+            4
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            7,
+            7
+          ]
+        },
+        {
+          "id": "05-return-form",
+          "pagesBefore": 1,
+          "pagesSelected": 1,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            3,
+            3
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            0,
+            0
+          ]
+        },
+        {
+          "id": "06-mixed-document",
+          "pagesBefore": 37,
+          "pagesSelected": 37,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            44,
+            44
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            22,
+            22
+          ]
+        },
+        {
+          "id": "07-english-exam",
+          "pagesBefore": 8,
+          "pagesSelected": 8,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            16,
+            16
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            1,
+            1
+          ]
+        },
+        {
+          "id": "08-math-exam",
+          "pagesBefore": 20,
+          "pagesSelected": 20,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            559,
+            559
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            1,
+            1
+          ],
+          "unmappedPDFGlyphs": [
+            0,
+            0
+          ]
+        },
+        {
+          "id": "09-korean-exam",
+          "pagesBefore": 15,
+          "pagesSelected": 15,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            23,
+            23
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            0,
+            0
+          ]
+        },
+        {
+          "id": "10-lh-plan",
+          "pagesBefore": 5,
+          "pagesSelected": 5,
+          "sameNonspaceReadOrder": true,
+          "characterDelta": {},
+          "sameDecodedImageBytesAndOrder": true,
+          "imagePaints": [
+            3,
+            3
+          ],
+          "paperOutsideNonspaceGlyphs": [
+            0,
+            0
+          ],
+          "unmappedPDFGlyphs": [
+            9,
+            9
+          ]
+        }
+      ]
+    }
+  ],
+  "sourceNormalization": {
+    "method": "Exact full editable HTML/page/warnings comparison after only the documented quarter-em/figure-space control normalization; source control mapping not raw Unicode byte preservation",
+    "rows": [
+      {
+        "group": "government",
+        "id": "mois-2025-0",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 28,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "deac77e16278745462acf7fcda5dd997d468903d95efdcc5964959ffb2f4da6e",
+        "normalizedAfterSHA256": "deac77e16278745462acf7fcda5dd997d468903d95efdcc5964959ffb2f4da6e"
+      },
+      {
+        "group": "government",
+        "id": "mss-funding-2026-0",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 385,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "90c8e1e98a9094ed6e724c3d66431d3cfcb81233881ec50b9bf793124d35974c",
+        "normalizedAfterSHA256": "90c8e1e98a9094ed6e724c3d66431d3cfcb81233881ec50b9bf793124d35974c"
+      },
+      {
+        "group": "government",
+        "id": "daejeon-safety-hwp",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 0,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "90c18cd12e7a3b5ca05648a71c1520a3c2ace3a1c8a1307bbe54d80a30c89525",
+        "normalizedAfterSHA256": "90c18cd12e7a3b5ca05648a71c1520a3c2ace3a1c8a1307bbe54d80a30c89525"
+      },
+      {
+        "group": "legacy",
+        "id": "04-language-plan",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 1,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "6bd92e702c00d4a7965586472c9890247f08484ed096514b091ac8a80cd2c55b",
+        "normalizedAfterSHA256": "6bd92e702c00d4a7965586472c9890247f08484ed096514b091ac8a80cd2c55b"
+      },
+      {
+        "group": "legacy",
+        "id": "07-english-exam",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 125,
+        "remainingFigureSpaces": 4,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "208f7ab4aae49b9b70cc174ee61622161ad3728a9dbe7de927a8171a6438a185",
+        "normalizedAfterSHA256": "208f7ab4aae49b9b70cc174ee61622161ad3728a9dbe7de927a8171a6438a185"
+      },
+      {
+        "group": "legacy",
+        "id": "06-mixed-document",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 29,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "0d6c1e235eb470c2b805c5a97999f8d2907d41633fdd86cfebd7bc9448bf926e",
+        "normalizedAfterSHA256": "0d6c1e235eb470c2b805c5a97999f8d2907d41633fdd86cfebd7bc9448bf926e"
+      },
+      {
+        "group": "legacy",
+        "id": "08-math-exam",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 19,
+        "remainingFigureSpaces": 16,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "f23ca0f44ea2c60e22a3f45b2a17ee5b320337174b98739a3c0d3d0aeb8d5cde",
+        "normalizedAfterSHA256": "f23ca0f44ea2c60e22a3f45b2a17ee5b320337174b98739a3c0d3d0aeb8d5cde"
+      },
+      {
+        "group": "legacy",
+        "id": "05-return-form",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 0,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "e9f87886cfda05860c44ab393f0b18aa0127540eb03d253bb287744b7f752716",
+        "normalizedAfterSHA256": "e9f87886cfda05860c44ab393f0b18aa0127540eb03d253bb287744b7f752716"
+      },
+      {
+        "group": "legacy",
+        "id": "02-work-rules",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 123,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "a1347103acd0e97182b8d65f601e00e0ed57ec890105abd2f3ea00965f2a1ab9",
+        "normalizedAfterSHA256": "a1347103acd0e97182b8d65f601e00e0ed57ec890105abd2f3ea00965f2a1ab9"
+      },
+      {
+        "group": "legacy",
+        "id": "10-lh-plan",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 9,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "00d34390050721a0395398721d99e65d54cf8c18e0ac61ac9f6450f77e4a9508",
+        "normalizedAfterSHA256": "00d34390050721a0395398721d99e65d54cf8c18e0ac61ac9f6450f77e4a9508"
+      },
+      {
+        "group": "legacy",
+        "id": "03-health-table",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 0,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "2b2e8448efed232ddab186c5c1d8edda926d7952007e13cadc1a2b9c92c36578",
+        "normalizedAfterSHA256": "2b2e8448efed232ddab186c5c1d8edda926d7952007e13cadc1a2b9c92c36578"
+      },
+      {
+        "group": "legacy",
+        "id": "01-employment-contract",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 0,
+        "remainingFigureSpaces": 0,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "97c7af51dd5cf3a7355f5bad796b6dc628e86406729ba868db9ec59029323001",
+        "normalizedAfterSHA256": "97c7af51dd5cf3a7355f5bad796b6dc628e86406729ba868db9ec59029323001"
+      },
+      {
+        "group": "legacy",
+        "id": "09-korean-exam",
+        "sourceHasOriginalQuarterSpaces": 0,
+        "mappedFwControls": 16,
+        "remainingFigureSpaces": 5,
+        "allOtherEditableHtmlAndPageSettingsExact": true,
+        "normalizedBeforeSHA256": "269ff68970327de169f21be171e6a4fca0c9b9dad6c171ddc7e213af2da6d4da",
+        "normalizedAfterSHA256": "269ff68970327de169f21be171e6a4fca0c9b9dad6c171ddc7e213af2da6d4da"
+      }
+    ]
+  },
+  "additionalArtifactSDKUpload": {
+    "status": "not-executed",
+    "reason": "Automatic approval review rejected transmission: export authorization and ownership/sensitivity not independently established. No retry/workaround and no document uploaded. Existing 173-fixture SDK checks remain valid."
+  },
+  "notMeasured": [
+    "Microsoft Word new candidate render/edit/reopen",
+    "Full official SDK checks on all three actual government DOCX files"
+  ],
+  "deferred": [
+    "Cell paragraph gaps: source spacing reproduced, workplan 23->24 regression; candidate d95649e retained",
+    "Hancom PUA glyph display and font fallback",
+    "Pre-existing raw header-role/section/column/story representation differences in five legacy documents",
+    "One pre-existing math page-number glyph outside page bounds; before/after unchanged"
+  ],
+  "automation": {
+    "id": "hwp-3",
+    "status": "PAUSED",
+    "verifiedSavedState": true
+  },
+  "localWorkCompletedUtc": "2026-11-07T13:48:47.127801+00:00"
+}
