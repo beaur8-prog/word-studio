@@ -31,9 +31,11 @@ test('missing native Korean serif uses bundled glyph advances without changing t
 
 test('Korean serif fallback survives editing, undo, redo, cold print and two DOCX saves with original font names', async ({ page }) => {
   await page.goto('/');
-  await page.locator('input[type=file]').first().setInputFiles({ name: 'serif.html', mimeType: 'text/html', buffer: Buffer.from('<p style="font-family:휴먼명조;font-size:15pt;line-height:20pt">정부 문서의 본문과 표 내용 123</p>') });
+  await page.locator('input[type=file]').first().setInputFiles({ name: 'serif.html', mimeType: 'text/html', buffer: Buffer.from('<p style="font-family:휴먼명조;font-size:15pt;line-height:20pt">정부 문서의 ‘본문’과 “표” 내용·123</p>') });
   const p = page.getByRole('textbox', { name: '문서 편집 영역', exact: true }).locator('p').first();
-  await p.click(); await page.keyboard.press('End'); await page.keyboard.type(' EDIT');
+  await p.click();
+  const documentEnd = await page.evaluate(() => navigator.platform.startsWith('Mac') ? 'Meta+ArrowDown' : 'Control+End');
+  await page.keyboard.press(documentEnd); await page.keyboard.type(' EDIT');
   await page.keyboard.press('ControlOrMeta+z'); await expect(p).not.toContainText('EDIT');
   await page.keyboard.press('ControlOrMeta+Shift+z'); await expect(p).toContainText('EDIT');
   const states = await page.evaluate(async () => {
@@ -56,8 +58,39 @@ test('Korean serif fallback survives editing, undo, redo, cold print and two DOC
   await mkdir('test-results/korean-font-schema', { recursive: true });
   for (const [index, row] of states.entries()) {
     await writeFile(`test-results/korean-font-schema/textbox-save-korean-serif-${index}.docx`, Buffer.from(row.bytes));
-    expect(row.text).toBe('정부 문서의 본문과 표 내용 123 EDIT'); expect(row.pages).toBe(1);
+    expect(row.text).toBe('정부 문서의 ‘본문’과 “표” 내용·123 EDIT'); expect(row.pages).toBe(1);
     expect(row.family).toContain('휴먼명조'); expect(row.source).not.toContain('Noto Serif');
-    expect(row.xml).toContain('휴먼명조'); expect(row.xml).not.toMatch(/Noto Serif|AppleMyungjo|Studio Korean Serif/);
+    expect(row.xml).toContain('휴먼명조'); expect(row.xml).not.toMatch(/Noto Serif|AppleMyungjo|Times New Roman|Studio Korean Serif/);
   }
+});
+
+
+test('native Korean serif fallback keeps real Batang and proportional Mac punctuation without changing Hangul advances', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('textbox', { name: '문서 편집 영역', exact: true }).waitFor();
+  const result = await page.evaluate(async () => {
+    const available = async (name: string) => {
+      try { await new FontFace('Native serif availability', `local(${JSON.stringify(name)})`).load(); return true; }
+      catch { return false; }
+    };
+    const batang = await available('Batang') || await available('바탕');
+    const apple = await available('AppleMyungjo'), times = await available('Times New Roman');
+    await document.fonts.load('20px "Studio Korean Serif"', '가나다‘’“”·');
+    const faces = [...document.fonts].filter(face => face.family.replace(/["']/g, '') === 'Studio Korean Serif');
+    const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d')!;
+    const width = (family: string, text: string) => { ctx.font = `20px "${family}"`; return ctx.measureText(text).width; };
+    return { batang, apple, times, ranges: faces.map(f => f.unicodeRange),
+      hangul: width('Studio Korean Serif', '가나다'), appleHangul: width('AppleMyungjo', '가나다'),
+      punctuation: width('Studio Korean Serif', '‘’“”·'), timesPunctuation: width('Times New Roman', '‘’“”·'),
+      batangPunctuation: width('Batang', '‘’“”·') };
+  });
+  if (result.batang) {
+    expect(result.ranges).toEqual(['U+0-10FFFF']);
+    expect(result.punctuation).toBeCloseTo(result.batangPunctuation, 2);
+  } else if (result.apple && result.times) {
+    expect(result.ranges).toHaveLength(2);
+    expect(result.hangul).toBeCloseTo(result.appleHangul, 2);
+    expect(result.punctuation).toBeCloseTo(result.timesPunctuation, 2);
+    expect(result.punctuation).toBeLessThan(60); // Full-em Apple punctuation is100px.
+  } else if (!result.apple) expect(result.ranges).toHaveLength(0);
 });

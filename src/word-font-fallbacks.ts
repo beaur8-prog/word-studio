@@ -109,10 +109,33 @@ export async function initializeRegularFontFallback(profile: RegularFontFallback
 // platform fontconfig alias. A local-only face probe admits actual installed
 // Korean serif faces; Linux otherwise reaches the bundled Noto face directly.
 async function initializeNativeKoreanSerif(changed: () => void) {
+  // Batang has proportional Latin punctuation. Preserve its real installed
+  // face on Windows before considering any Apple-only substitution.
   try {
-    const face = new FontFace('Studio Korean Serif', 'local("Batang"),local("바탕"),local("AppleMyungjo")');
-    await face.load(); document.fonts.add(face); changed();
-  } catch { /* No native serif: the CSS chain uses bundled Noto Serif KR. */ }
+    const native = new FontFace('Studio Korean Serif', 'local("Batang"),local("바탕")');
+    await native.load(); document.fonts.add(native); changed(); return;
+  } catch { /* Probe the Mac face separately; Linux keeps the bundled Noto. */ }
+  try {
+    // AppleMyungjo gives these five punctuation characters a full-em advance;
+    // real Word Batang uses proportional serif advances. A 15pt curly quote
+    // measures14.985pt vs4.38pt in the retained same-DOCX PDFs. This can add
+    // whole lines and pages. Keep every CJK glyph and authored font/size, and
+    // use the installed proportional serif only for the measured characters.
+    const body = new FontFace('Studio Korean Serif', 'local("AppleMyungjo")', {
+      unicodeRange: 'U+0-B6,U+B8-2017,U+201A-201B,U+201E-10FFFF',
+    });
+    const punctuation = new FontFace('Studio Korean Serif', 'local("Times New Roman")', {
+      unicodeRange: 'U+B7,U+2018-2019,U+201C-201D',
+    });
+    await Promise.all([body.load(), punctuation.load()]);
+    // Register atomically: a missing punctuation face must never leave holes.
+    document.fonts.add(body); document.fonts.add(punctuation); changed();
+  } catch {
+    try {
+      const complete = new FontFace('Studio Korean Serif', 'local("AppleMyungjo")');
+      await complete.load(); document.fonts.add(complete); changed();
+    } catch { /* No native serif: the CSS chain uses bundled Noto Serif KR. */ }
+  }
 }
 
 export async function initializeWordFontFallbacks(profiles: readonly FontFallbackFamily[] = families) {
