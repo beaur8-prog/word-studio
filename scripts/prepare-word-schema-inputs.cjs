@@ -15,8 +15,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // 12 drawing-group and 4 short-paragraph fixtures with two saved copies each,
 // plus7 row-policy and15 paragraph-keep inputs, each with two saved copies,
 // and3 Korean-serif states (original export and two DOCX round trips),
-// plus4 merge-continuation and12 fwSpace exports.
-let count = 173;
+// plus4 merge-continuation,12 fwSpace and8 off-paper drawing exports.
+let count = 181;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);
