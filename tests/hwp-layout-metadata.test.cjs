@@ -98,3 +98,16 @@ test('tracking is an explicit conversion restriction even if optional layout par
     assert.equal(result.warnings.length, 1, 'optional layout failure must not erase the restriction');
   }
 });
+
+
+test('tracking flags use the case-insensitive root FileHeader, not a nested decoy', async () => {
+  const CFB = require('cfb'), { readHwpLayoutMetadata } = await setup;
+  for (const name of ['FileHeader', 'fileheader', 'FILEHEADER']) {
+    const cfb = CFB.utils.cfb_new(), tracked = Buffer.alloc(256), ordinary = Buffer.alloc(256);
+    tracked.writeUInt32LE(0x4000, 36);
+    CFB.utils.cfb_add(cfb, 'Preview/FileHeader', ordinary);
+    CFB.utils.cfb_add(cfb, '/' + name, tracked);
+    const result = await readHwpLayoutMetadata(CFB.write(cfb, { type: 'buffer' }));
+    assert.match(result.conversionBlock, /변경 내용 추적/);
+  }
+});

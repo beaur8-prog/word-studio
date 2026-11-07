@@ -136,7 +136,8 @@ export async function readHwpLayoutMetadata(bytes: Uint8Array, hwpx = false): Pr
       }
     } else {
       const cfb = CFB.read(bytes, { type: 'array' });
-      const header = cfb.FileIndex[cfb.FullPaths.findIndex(p => p.endsWith('/FileHeader'))]?.content;
+      const headerPath = (cfb.FullPaths[0] + 'FileHeader').toLowerCase();
+      const header = cfb.FileIndex[cfb.FullPaths.findIndex(p => p.toLowerCase() === headerPath)]?.content;
       if (!header || header.length < 40) throw new Error('Missing HWP file header');
       // Tracking ViewText can contain deleted and current text together. The
       // native selection/export APIs omit those revision ranges, so accepting
