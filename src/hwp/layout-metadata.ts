@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 import { Inflate } from 'fflate';
 
 export type HwpParagraphLayout = { pageBreak: boolean; columnBreak: boolean; columns?: { count: number; space: number; balance?: boolean }; lineSpacings?: number[] };
-export type HwpLayoutMetadata = { paragraphs: Record<string, HwpParagraphLayout>; warnings: string[] };
+export type HwpLayoutMetadata = { paragraphs: Record<string, HwpParagraphLayout>; warnings: string[]; conversionBlock?: string };
 const LIMIT = 32 * 1024 * 1024;
 const columns = (count: number, gap: number) => count >= 1 && count <= 12 && gap >= 0 && gap <= 75000
   ? { count, space: Math.round(gap / 75 * 100) / 100 } : undefined;
@@ -138,6 +138,11 @@ export async function readHwpLayoutMetadata(bytes: Uint8Array, hwpx = false): Pr
       const cfb = CFB.read(bytes, { type: 'array' });
       const header = cfb.FileIndex[cfb.FullPaths.findIndex(p => p.endsWith('/FileHeader'))]?.content;
       if (!header || header.length < 40) throw new Error('Missing HWP file header');
+      // Tracking ViewText can contain deleted and current text together. The
+      // native selection/export APIs omit those revision ranges, so accepting
+      // either stream here would silently change numbers (for example 7 + 4).
+      // Keep both original streams intact until revision semantics are supported.
+      if (header[37] & 0x40) output.conversionBlock = '이 문서에는 변경 내용 추적 정보가 있습니다. 삭제 전·후의 숫자나 문장이 함께 표시될 수 있어 Word 편집본을 만들 수 없습니다. 한글에서 변경 내용을 모두 적용하고 추적을 끈 사본을 저장한 뒤 다시 여세요.';
       const compressed = !!(header[36] & 1);
       for (let i = 0; i < cfb.FullPaths.length; i++) {
         const match = cfb.FullPaths[i].match(/\/BodyText\/Section(\d+)$/); if (!match) continue;

@@ -55,7 +55,7 @@ scope.onmessage = async ({ data }) => {
         progress({ label: '원본 쪽 정보를 확인하는 중…', completed: number + 1, total: count, unit: '쪽' });
         return { width, height };
       });
-      result = { count, pages, fonts: info.fontsUsed ?? [], version: info.version, warnings: JSON.parse(document.getValidationWarnings()).count ?? 0 };
+      result = { count, pages, fonts: info.fontsUsed ?? [], version: info.version, warnings: JSON.parse(document.getValidationWarnings()).count ?? 0, conversionBlock: layoutMetadata.conversionBlock };
     } else if (action === 'export') {
       if (!(data.htmlBytes instanceof ArrayBuffer) || data.htmlBytes.byteLength > documentLimits.hwpEditableHtmlBytes) throw new Error('편집용 변환 데이터의 크기가 올바르지 않습니다.');
       const output = serializeHwp(HwpDocument, new TextDecoder().decode(data.htmlBytes), data.page, data.format, progress);

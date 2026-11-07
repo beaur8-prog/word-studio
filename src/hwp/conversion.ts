@@ -221,6 +221,7 @@ function pageSettings(doc: HwpDocument, section: number, warnings: Set<string>):
 /** The engine's selection HTML intentionally omits controls. Interleave their
  * HTML at the raw paragraph offsets instead of losing tables and pictures. */
 export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, metadata?: HwpLayoutMetadata, noteStory = false, captionDepth = 0): EditableHwp {
+  if (metadata?.conversionBlock) throw new Error(metadata.conversionBlock);
   onProgress?.({ label: '문서의 표·그림 구조를 확인하는 중…' });
   const warnings = new Set<string>(metadata?.warnings);
   const controls: Control[] = JSON.parse(doc.getControls());

@@ -7,7 +7,7 @@ import type { HwpProgressReporter } from './progress';
 import { prepareEditableHwp } from './svg-images';
 
 export interface HwpPageSize { width: number; height: number }
-export interface HwpInfo { count: number; fonts: string[]; version: string; warnings: number; pages: HwpPageSize[] }
+export interface HwpInfo { count: number; fonts: string[]; version: string; warnings: number; pages: HwpPageSize[]; conversionBlock?: string }
 export interface HwpPage { svg: string; text: string; width: number; height: number }
 
 /** Only inert SVG paint from the local parser reaches the document. */

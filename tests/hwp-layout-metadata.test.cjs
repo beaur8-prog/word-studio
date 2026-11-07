@@ -84,3 +84,17 @@ test('HWP and HWPX preserve signed line leading without reading nested cell line
   assert.deepEqual(xml['0:0'].lineSpacings, [12, -2]);
   assert.throws(() => parseHwpSection(Buffer.concat([record(66, 0, Buffer.alloc(12)), record(69, 1, Buffer.alloc(37))]), 0), /line segments/);
 });
+
+test('tracking is an explicit conversion restriction even if optional layout parsing fails; other FileHeader bits do not trigger it', async () => {
+  const CFB = require('cfb'), { readHwpLayoutMetadata } = await setup;
+  for (const flags of [1, 0x41, 0x4001]) {
+    const cfb = CFB.utils.cfb_new(), header = Buffer.alloc(256);
+    header.writeUInt32LE(flags, 36);
+    CFB.utils.cfb_add(cfb, 'FileHeader', header);
+    CFB.utils.cfb_add(cfb, 'BodyText/Section0', Buffer.from([1, 2, 3]));
+    const result = await readHwpLayoutMetadata(CFB.write(cfb, { type: 'buffer' }));
+    assert.equal(!!result.conversionBlock, flags === 0x4001);
+    if (result.conversionBlock) assert.match(result.conversionBlock, /변경 내용 추적/);
+    assert.equal(result.warnings.length, 1, 'optional layout failure must not erase the restriction');
+  }
+});

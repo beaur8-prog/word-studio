@@ -166,7 +166,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     }}>
     <div className="hwp-windowbar" aria-hidden="true" />
     <header className="hwp-toolbar"><div><strong>{file.name}</strong><span>HWP/HWPX 원본 보기 · Word Studio</span></div>
-      <button onClick={() => void prepareEditing()} disabled={!info || converting || exporting}>Word 화면에서 편집</button>
+      <button onClick={() => void prepareEditing()} disabled={!info || !!info.conversionBlock || converting || exporting}>Word 화면에서 편집</button>
       <button onClick={onOpen} disabled={exporting}>다른 파일 열기</button>
       <button onClick={copyText} disabled={!info || exporting || converting}>텍스트 복사</button>
       <button onClick={() => print(true)} disabled={!info || loading || exporting || converting}>PDF 저장</button>
@@ -187,6 +187,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     </div>
     <p className="hwp-notice">현재는 원본 보기입니다. ‘Word 화면에서 편집’을 누르면 본문·표·그림을 기존 편집 화면으로 가져옵니다. 설치 글꼴과 지원 범위에 따라 원본 뷰어와 배치가 다를 수 있습니다.
       {info?.warnings ? ` 원본 구조 주의 항목 ${info.warnings}개.` : ''}</p>
+    {info?.conversionBlock && <p className="hwp-notice hwp-source-warning" role="alert">{info.conversionBlock}</p>}
     {operation && <HwpProgressPanel operation={operation} />}
     {editable && <section className="hwp-conversion-panel" aria-label="한글 편집 변환 안내">
       <h2>Word 편집본 만들기</h2><p>{HWP_CONVERSION_NOTICE}</p>

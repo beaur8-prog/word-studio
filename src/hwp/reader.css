@@ -51,3 +51,5 @@
 @media (prefers-reduced-motion: reduce) { .hwp-hourglass { animation: none; will-change: auto; } }
 .busy-indicator.hwp-progress-floating { width: min(520px, 90vw); padding: 0; border-radius: 8px; overflow: hidden; }
 .hwp-progress-floating .hwp-progress-panel { border: 0; }
+
+.hwp-source-warning { color: var(--chrome-text); border-block: 1px solid var(--chrome-border); background: var(--chrome-field); font-weight: 600; }
