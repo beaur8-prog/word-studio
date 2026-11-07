@@ -86,8 +86,23 @@ async function prepareBody(source: EditableHwp, onProgress?: HwpProgressReporter
           FORBID_TAGS: ['style', 'script', 'foreignObject', 'use', 'a', 'animate', 'set'] });
         const xml = new DOMParser().parseFromString(clean, 'image/svg+xml');
         if (xml.documentElement.localName !== 'svg' || xml.querySelector('parsererror')) throw new Error('Invalid equation SVG');
-        for (const element of xml.querySelectorAll('*')) for (const attr of [...element.attributes])
-          if ((/href$/i.test(attr.name) && !(element.localName === 'image' && RASTER_DATA.test(attr.value))) || /url\s*\(/i.test(attr.value)) element.removeAttributeNode(attr);
+        // Native EMFs use local clip paths and brush patterns. Removing every
+        // url() loses their clipping or turns patterned cells solid black.
+        // Admit only an existing, unique same-SVG target of the expected kind;
+        // external references, missing IDs and other URL attributes stay out.
+        const ids = new Map<string, Element|null>();
+        if (image.hasAttribute('data-hwp-metafile')) for (const element of xml.querySelectorAll('[id]')) {
+          const id = element.id; ids.set(id, ids.has(id) ? null : element);
+        }
+        for (const element of xml.querySelectorAll('*')) for (const attr of [...element.attributes]) {
+          if (/href$/i.test(attr.name) && !(element.localName === 'image' && RASTER_DATA.test(attr.value))) element.removeAttributeNode(attr);
+          else if (/url\s*\(/i.test(attr.value)) {
+            const local = attr.value.match(/^url\(\s*["']?#([A-Za-z_][A-Za-z0-9_.:-]*)["']?\s*\)$/);
+            const target = local && ids.get(local[1]);
+            if (!target || !(attr.name === 'clip-path' && target.localName === 'clipPath' ||
+              ['fill', 'stroke'].includes(attr.name) && target.localName === 'pattern')) element.removeAttributeNode(attr);
+          }
+        }
         const width = Number(image.width), height = Number(image.height);
         if (![width, height].every(n => Number.isFinite(n) && n > 0 && n <= 10000)) throw new Error('Invalid equation size');
         const scale = Math.min(2, Math.sqrt(4_000_000 / (width * height)));

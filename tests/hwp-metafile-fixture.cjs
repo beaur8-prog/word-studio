@@ -6,9 +6,9 @@ function emfBytes(){
  const records=[rec(39,[1,0,0x000000ff,0]),rec(39,[2,0,0x00ff0000,0]),rec(37,[0x80000008]),rec(37,[1]),rec(43,[0,0,100,80]),rec(37,[2]),rec(43,[100,0,200,80]),rec(14,[0,0,20])];
  const h=Buffer.alloc(88);h.writeUInt32LE(1);h.writeUInt32LE(88,4);h.writeInt32LE(200,16);h.writeInt32LE(80,20);h.writeInt32LE(5292,32);h.writeInt32LE(2117,36);h.writeUInt32LE(0x464d4520,40);h.writeUInt32LE(0x10000,44);h.writeUInt32LE(88+records.reduce((s,b)=>s+b.length,0),48);h.writeUInt32LE(records.length+1,52);h.writeUInt16LE(3,56);h.writeInt32LE(960,72);h.writeInt32LE(384,76);h.writeInt32LE(254,80);h.writeInt32LE(102,84);return Buffer.concat([h,...records]);
 }
-async function fixture(directory){
+async function fixture(directory,asset){
  const {unzipSync,zipSync,strFromU8,strToU8}=require('fflate');
- const original=await require('./hwp-crop-fixture.cjs')(directory),entries=unzipSync(await fs.readFile(original.hwpx)),emf=emfBytes(),updated={};
+ const original=await require('./hwp-crop-fixture.cjs')(directory),entries=unzipSync(await fs.readFile(original.hwpx)),emf=asset||emfBytes(),updated={};
  // Retain the independent native crop fixture's body/cell structure and
  // replace only its known two-colour asset with the equivalent EMF asset.
  for(const[name,bytes]of Object.entries(entries)){
@@ -22,3 +22,15 @@ async function fixture(directory){
  }finally{d.free();}
 }
 module.exports={fixture,emfBytes};
+
+// Plain GDI form asset: PATCOPY grey header, TA_TOP text at y5, row rule at40.
+// This independently exercises real records rather than a pre-authored SVG.
+function formEmfBytes(){
+ const rec=(type,values)=>{const b=Buffer.alloc(8+values.length*4);b.writeUInt32LE(type);b.writeUInt32LE(b.length,4);values.forEach((v,i)=>b.writeUInt32LE(v>>>0,8+i*4));return b;};
+ const fill=Buffer.alloc(100);fill.writeUInt32LE(76);fill.writeUInt32LE(100,4);fill.writeInt32LE(200,32);fill.writeInt32LE(40,36);fill.writeUInt32LE(0xf00021,40);
+ const font=Buffer.alloc(332);font.writeUInt32LE(82);font.writeUInt32LE(332,4);font.writeUInt32LE(2,8);font.writeInt32LE(-18,12);font.writeInt32LE(400,28);font.write('Arial',40,'utf16le');
+ const text=Buffer.from('TOPTEXT','utf16le'),output=Buffer.alloc(76+Math.ceil(text.length/4)*4);output.writeUInt32LE(84);output.writeUInt32LE(output.length,4);output.writeUInt32LE(1,24);output.writeFloatLE(1,28);output.writeFloatLE(1,32);output.writeInt32LE(5,36);output.writeInt32LE(5,40);output.writeUInt32LE(7,44);output.writeUInt32LE(76,48);text.copy(output,76);
+ const rs=[rec(39,[1,0,0xc0c0c0,0]),rec(37,[1]),fill,font,rec(37,[2]),rec(22,[0]),output,rec(27,[0,40]),rec(54,[200,40]),rec(14,[0,0,20])];
+ const h=Buffer.from(emfBytes().subarray(0,88));h.writeUInt32LE(88+rs.reduce((s,b)=>s+b.length,0),48);h.writeUInt32LE(rs.length+1,52);return Buffer.concat([h,...rs]);
+}
+module.exports.formEmfBytes=formEmfBytes;

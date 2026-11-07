@@ -1,3 +1,4 @@
+import { restoreMetafileGdi } from './metafile-gdi';
 import type { HwpDocument } from '@rhwp/core';
 
 const blank = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
@@ -31,6 +32,7 @@ export function metafilePreview(html: string, source: HwpDocument, cache: Map<st
         if (!embedded || embedded[1].length > Math.ceil(limit / 3) * 4) throw Error('벡터 그림의 모양을 변환하지 못했습니다.');
         svg = new TextDecoder().decode(Uint8Array.from(atob(embedded[1]), c => c.charCodeAt(0)));
         if (!/^<svg\b/.test(svg)) throw Error('벡터 그림의 모양을 변환하지 못했습니다.');
+        svg = restoreMetafileGdi(svg, bytes);
         if (cache.size >= 128) throw Error('벡터 그림이 너무 많습니다.');
         cache.set(encoded[1], svg);
       } finally { isolated.free(); }
