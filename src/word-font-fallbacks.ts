@@ -105,6 +105,16 @@ export async function initializeRegularFontFallback(profile: RegularFontFallback
   return 'fallback';
 }
 
+// CSS family lookup can resolve an unavailable Windows name through a
+// platform fontconfig alias. A local-only face probe admits actual installed
+// Korean serif faces; Linux otherwise reaches the bundled Noto face directly.
+async function initializeNativeKoreanSerif(changed: () => void) {
+  try {
+    const face = new FontFace('Studio Korean Serif', 'local("Batang"),local("바탕"),local("AppleMyungjo")');
+    await face.load(); document.fonts.add(face); changed();
+  } catch { /* No native serif: the CSS chain uses bundled Noto Serif KR. */ }
+}
+
 export async function initializeWordFontFallbacks(profiles: readonly FontFallbackFamily[] = families) {
   let released = false;
   const changed = () => { if (released) document.dispatchEvent(new Event(wordFontMetricsChanged)); };
@@ -132,7 +142,7 @@ export async function initializeWordFontFallbacks(profiles: readonly FontFallbac
         document.fonts.add(fallback); changed();
       } catch { /* An optional font cannot prevent opening or recovering documents. */ }
     }
-  })), ...(profiles === families ? regularFamilies.map(profile => initializeRegularFontFallback(profile, changed)) : [])]);
+  })), ...(profiles === families ? [initializeNativeKoreanSerif(changed), ...regularFamilies.map(profile => initializeRegularFontFallback(profile, changed))] : [])]);
   // A stalled optional local-font probe must not leave the startup window
   // blank. Late results still register and notify the measurement owners.
   let timer: ReturnType<typeof setTimeout> | undefined;

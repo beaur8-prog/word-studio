@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-test('missing Korean serif glyphs keep full em advances without changing the requested face or point size', async ({ page }) => {
+test('missing native Korean serif uses full em bundled glyphs without changing the requested face or point size', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('textbox', { name: '문서 편집 영역', exact: true }).waitFor();
   const result = await page.evaluate(async () => {
@@ -12,6 +12,10 @@ test('missing Korean serif glyphs keep full em advances without changing the req
       const span = document.createElement('span'); span.style.cssText = 'font-family:휴먼명조;font-size:15pt;letter-spacing:0;white-space:pre'; span.textContent = '가나다라마바사아자차'; root.append(span);
       await document.fonts.load('15pt "Noto Serif KR"', span.textContent);
       await document.fonts.ready;
+      // Exercise the portable no-native-face branch, including on a Mac or
+      // Windows runner where the optional verified native alias is present.
+      if (!installed) for (const face of [...document.fonts])
+        if (face.family.replace(/["']/g, '') === 'Studio Korean Serif') document.fonts.delete(face);
       const range = document.createRange(); range.selectNodeContents(span);
       const control = document.createElement('span'); control.style.fontFamily = 'BatangChe'; root.append(control);
       const authored = document.createElement('span'); authored.style.fontFamily = '휴먼명조, Arial'; root.append(authored);
@@ -52,6 +56,6 @@ test('Korean serif fallback survives editing, undo, redo, cold print and two DOC
     await writeFile(`test-results/korean-font-schema/serif-save${index}.docx`, Buffer.from(row.bytes));
     expect(row.text).toBe('정부 문서의 본문과 표 내용 123 EDIT'); expect(row.pages).toBe(1);
     expect(row.family).toContain('휴먼명조'); expect(row.source).not.toContain('Noto Serif');
-    expect(row.xml).toContain('휴먼명조'); expect(row.xml).not.toMatch(/Noto Serif|AppleMyungjo/);
+    expect(row.xml).toContain('휴먼명조'); expect(row.xml).not.toMatch(/Noto Serif|AppleMyungjo|Studio Korean Serif/);
   }
 });

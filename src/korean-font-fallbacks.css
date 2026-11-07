@@ -1,5 +1,5 @@
 /* View-only fallback for a single requested Korean serif family. Installed
- * originals win; another installed serif precedes the bundled cross-platform
+ * originals win; a verified local serif precedes the bundled cross-platform
  * fallback. Keep requested names, point sizes and DOCX untouched. Exact CSS
  * declaration boundaries leave authored fallback lists and BatangChe alone. */
 :is(.tiptap, .document-furniture) [style*='font-family:휴먼명조;' i],
@@ -10,7 +10,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: 휴먼명조' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "휴먼명조";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "휴먼명조"' i] {
-  font-family: "휴먼명조", "Batang", "바탕", "AppleMyungjo", "Noto Serif KR", serif !important;
+  font-family: "휴먼명조", "Studio Korean Serif", "Noto Serif KR", serif;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:한양신명조;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:한양신명조' i],
@@ -20,7 +20,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: 한양신명조' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "한양신명조";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "한양신명조"' i] {
-  font-family: "한양신명조", "Batang", "바탕", "AppleMyungjo", "Noto Serif KR", serif !important;
+  font-family: "한양신명조", "Studio Korean Serif", "Noto Serif KR", serif;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:함초롬바탕;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:함초롬바탕' i],
@@ -30,7 +30,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: 함초롬바탕' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "함초롬바탕";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "함초롬바탕"' i] {
-  font-family: "함초롬바탕", "Batang", "바탕", "AppleMyungjo", "Noto Serif KR", serif !important;
+  font-family: "함초롬바탕", "Studio Korean Serif", "Noto Serif KR", serif;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:바탕;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:바탕' i],
@@ -40,7 +40,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: 바탕' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "바탕";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "바탕"' i] {
-  font-family: "바탕", "Batang", "AppleMyungjo", "Noto Serif KR", serif !important;
+  font-family: "바탕", "Studio Korean Serif", "Noto Serif KR", serif;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:Batang;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:Batang' i],
@@ -50,7 +50,7 @@
 :is(.tiptap, .document-furniture) [style$='font-family: Batang' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "Batang";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "Batang"' i] {
-  font-family: "Batang", "바탕", "AppleMyungjo", "Noto Serif KR", serif !important;
+  font-family: "Batang", "Studio Korean Serif", "Noto Serif KR", serif;
 }
 :is(.tiptap, .document-furniture) [style*='font-family:HCR Batang;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:HCR Batang' i],
@@ -60,5 +60,5 @@
 :is(.tiptap, .document-furniture) [style$='font-family: HCR Batang' i],
 :is(.tiptap, .document-furniture) [style*='font-family: "HCR Batang";' i],
 :is(.tiptap, .document-furniture) [style$='font-family: "HCR Batang"' i] {
-  font-family: "HCR Batang", "Batang", "바탕", "AppleMyungjo", "Noto Serif KR", serif !important;
+  font-family: "HCR Batang", "Studio Korean Serif", "Noto Serif KR", serif;
 }
