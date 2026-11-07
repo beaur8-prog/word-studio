@@ -55,7 +55,7 @@ test('Korean serif fallback survives editing, undo, redo, cold print and two DOC
   });
   await mkdir('test-results/korean-font-schema', { recursive: true });
   for (const [index, row] of states.entries()) {
-    await writeFile(`test-results/korean-font-schema/serif-save${index}.docx`, Buffer.from(row.bytes));
+    await writeFile(`test-results/korean-font-schema/textbox-save-korean-serif-${index}.docx`, Buffer.from(row.bytes));
     expect(row.text).toBe('정부 문서의 본문과 표 내용 123 EDIT'); expect(row.pages).toBe(1);
     expect(row.family).toContain('휴먼명조'); expect(row.source).not.toContain('Noto Serif');
     expect(row.xml).toContain('휴먼명조'); expect(row.xml).not.toMatch(/Noto Serif|AppleMyungjo|Studio Korean Serif/);

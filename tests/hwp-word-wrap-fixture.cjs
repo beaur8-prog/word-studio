@@ -19,7 +19,10 @@ module.exports = async function createFixture(directory) {
         `<table style="width:180px"><tr><td style="width:180px;padding:0;border:none"><p>OUTER</p>${table}</td></tr></table>`;
       source.pasteHtml(0, 0, 0, '<p></p>' + html);
       if (!source.getParagraphLength(0, 0)) source.deleteParagraph(0, 0);
-      source.setPageDef(0, JSON.stringify({ width: 18500, height: 50000, marginLeft: 1000, marginRight: 1000,
+      // At220px the Mac font can coincidentally fit exactly two whole words,
+      // so normal and keep-all look identical.200px forces an internal word
+      // break for the character-level control without changing font size.
+      source.setPageDef(0, JSON.stringify({ width: 17000, height: 50000, marginLeft: 1000, marginRight: 1000,
         marginTop: 1000, marginBottom: 1000, marginHeader: 0, marginFooter: 0 }));
       if (context === 'body') source.applyCharFormat(0, 0, 0, 0xffffffff, JSON.stringify({ fontSize: 1200, fontFamily: 'Noto Sans KR' }));
       for (const unit of [0, 1]) {

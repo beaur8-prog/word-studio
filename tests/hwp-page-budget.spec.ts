@@ -106,12 +106,15 @@ for (const edge of ['Page', 'Paper']) for (const format of ['hwp', 'hwpx']) {
       expect(Math.abs(state.bodyGap)).toBeLessThan(1);
     }
     await page.locator('input[type=file]').first().setInputFiles({ name: 'bottom.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(result.original)) });
-    const table = page.getByRole('textbox', { name: '문서 편집 영역' }).locator('table').filter({ hasText: 'BOTTOM OVERLAY' });
+    const editor = page.getByRole('textbox', { name: '문서 편집 영역' });
+    const tableIndex = await editor.locator('table').filter({ hasText: 'BOTTOM OVERLAY' }).evaluate(table => [...table.closest('.tiptap')!.querySelectorAll('table')].indexOf(table));
+    // Editing must not invalidate the locator when a caret lands inside the label.
+    const table = editor.locator('table').nth(tableIndex);
     for (const zoom of [100, 50, 125, 200, 100]) {
       const slider = page.getByRole('slider', { name: '확대 축소' }); await slider.fill(String(zoom)); await slider.dispatchEvent('input'); await slider.dispatchEvent('change');
       await expect(table).toHaveClass(/table-overlay-active/);
     }
-    const p = table.locator('p'); await p.click(); await page.keyboard.press('End'); await page.keyboard.type(' EDIT');
+    const p = table.locator('p'); await p.click(); await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowRight' : 'End'); await page.keyboard.type(' EDIT');
     await expect(p).toContainText('EDIT'); await page.keyboard.press('ControlOrMeta+z'); await expect(p).toHaveText('BOTTOM OVERLAY');
     await page.keyboard.press('ControlOrMeta+Shift+z'); await expect(p).toContainText('EDIT');
   });
