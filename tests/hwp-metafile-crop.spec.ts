@@ -31,7 +31,9 @@ for (const format of ['hwp','hwpx']) test(`${format}: cropped EMF body/cell pict
   },{bytes:[...await fs.readFile(files[format])],format});
   for(const state of states){
     expect(state.pages).toBe(1);expect(state.paragraphs).toBe(3);expect(state.text).toContain('END');expect(state.text).not.toContain('수식');expect(state.text).not.toContain('변환하지 못한');expect(state.colors).toHaveLength(2);expect(state.centerError, JSON.stringify({save:state.save,paragraph:state.paragraph})).toBeLessThan(1);
-    for(const pixels of state.colors)for(let i=0;i<pixels.length;i+=4){expect(pixels[i]).toBeGreaterThan(245);expect(pixels[i+2]).toBeLessThan(10);expect(pixels[i+3]).toBe(255);}
+    // SVG edge resampling differs by one alpha quantum across Skia builds.
+    // Require the same red crop with at least 254/255 opacity on every sample.
+    for(const pixels of state.colors)for(let i=0;i<pixels.length;i+=4){expect(pixels[i]).toBeGreaterThan(245);expect(pixels[i+2]).toBeLessThan(10);expect(pixels[i+3]).toBeGreaterThanOrEqual(254);}
   }
 });
 
