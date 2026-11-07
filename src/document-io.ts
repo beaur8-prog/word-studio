@@ -481,8 +481,8 @@ function textOf(node: Element | XMLDocument): string {
         )
           skipPageField = true;
         if (!skipPageField)
-          result += elements(run, "t")
-            .map((t) => t.textContent || "")
+          result += elements(run, "*")
+            .map(n => n.localName === 't' ? n.textContent || '' : n.localName === 'tab' ? '\t' : n.localName === 'br' ? '\n' : '')
             .join("");
         if (
           elements(run, "fldChar").some(
@@ -819,6 +819,15 @@ function inheritCellText(nodes: JSONContent[], attrs: Record<string, unknown> = 
     return node.content ? { ...node, content: inheritCellText(node.content, inherited) } : node;
   });
 }
+/** Word may discard a whitespace-only literal tab inside w:t on save.
+ * Emit each authored tab as the standard run control, retaining run marks. */
+function documentTextRun(options: IRunOptions): TextRun {
+  if (!options.text?.includes('\t')) return new TextRun(options);
+  const { text, ...properties } = options;
+  return new TextRun({ ...properties, children: text.split('\t').flatMap((part, i) => [
+    ...(i ? [new Tab()] : []), ...(part ? [part] : []),
+  ]) });
+}
 function runOptions(node: JSONContent): IRunOptions {
   const options: { -readonly [K in keyof IRunOptions]: IRunOptions[K] } = {
     text: node.text ?? "",
@@ -1088,7 +1097,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   const anchored = (node: JSONContent): string[] => (node.marks?.find(m => m.type === 'commentAnchor')?.attrs?.ids || '').split(' ').filter((id: string) => commentIds.has(id));
   const count = (node: JSONContent) => {
     if (node.type === 'documentBookmark') bookmarkNames.add(String(node.attrs?.name || ''));
-    if (node.type === 'text') for (const id of anchored(node)) remaining.set(id, (remaining.get(id) ?? 0) + 1);
+    if (node.type === 'text' || node.type === 'documentTab') for (const id of anchored(node)) remaining.set(id, (remaining.get(id) ?? 0) + 1);
     node.content?.forEach(count);
   };
   count(document.content);
@@ -1109,13 +1118,13 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         runs.push(new CommentRangeStart(numeric), new CommentRangeEnd(numeric), new TextRun({ children: [new CommentReference(numeric)] }));
     }
     for (const node of nodes) {
-      if (node.type === "text") {
+      if (node.type === "text" || node.type === "documentTab") {
         const ids = anchored(node);
         for (const id of ids) if (!opened.has(id)) { runs.push(new CommentRangeStart(commentIds.get(id)!)); opened.add(id); }
         // Paragraph rPr formats the paragraph mark in OOXML, not every text
         // run. Materialize inherited CSS font/size/color on otherwise plain
         // text, while retaining each run's explicit overrides.
-        const run = new TextRun({ ...defaults, ...runOptions(node) });
+        const run = documentTextRun({ ...defaults, ...runOptions(node), ...(node.type === 'documentTab' ? { text: '\t' } : {}) });
         const link = node.marks?.find((m) => m.type === "link");
         if (
           link &&
@@ -1135,7 +1144,6 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         runs.push(new TextRun({ ...defaults, break: 1 }));
       // The actual picture run below becomes the one standard inline group.
       else if(node.type==='documentDrawingAnchor')continue;
-      else if (node.type === 'documentTab') runs.push(new TextRun({ ...defaults, children: [new Tab()] }));
       else if (node.type === 'documentBookmark') runs.push(new Bookmark({ id: bookmarkName(String(node.attrs?.name || '')), children: [] }));
       else if (node.type === 'documentField') runs.push(new TextRun({ ...defaults, children: [node.attrs?.kind === 'NUMPAGES' ? PageNumber.TOTAL_PAGES : PageNumber.CURRENT] }));
       else if (node.type === 'documentSymbol') runs.push(new SymbolRun({ ...defaults, ...runOptions(node), symbolfont: String(node.attrs?.font || 'Symbol'), char: Number(node.attrs?.code).toString(16).padStart(4, '0') }));
@@ -1511,11 +1519,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   // without reserving a normal text line at the header/footer distance.
   const emptyFurniture = () => new Paragraph({ run: { size: 2 }, spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } });
   const footer = async (text: string, numbers: boolean, html?: string, headerHtml?: string) => new Footer({ children: [
-    ...(html ? await richBlocks(html) : text ? [new Paragraph({ ...plainFurniture, text, alignment: AlignmentType.CENTER })] : !numbers ? [emptyFurniture()] : []),
+    ...(html ? await richBlocks(html) : text ? [new Paragraph({ ...plainFurniture, children: [documentTextRun({ text })], alignment: AlignmentType.CENTER })] : !numbers ? [emptyFurniture()] : []),
     ...(numbers && !/data-page-number/.test((html || '') + (headerHtml || '')) ? [new Paragraph({ ...plainFurniture, alignment: AlignmentType.CENTER,
       children: [new TextRun({ children: [PageNumber.CURRENT], size: 18, color: '697386' })] })] : []),
   ] });
-  const header = async (text: string, html?: string) => new Header({ children: html ? await richBlocks(html) : [text ? new Paragraph({ ...plainFurniture, text }) : emptyFurniture()] });
+  const header = async (text: string, html?: string) => new Header({ children: html ? await richBlocks(html) : [text ? new Paragraph({ ...plainFurniture, children: [documentTextRun({ text })] }) : emptyFurniture()] });
   const baseMargins = basePageMargins(page);
   sections.push(
       {
@@ -1560,7 +1568,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
   );
   }
   const comments = await Promise.all(document.comments.map(async (comment, id) => ({ id, durableId: (id + 1).toString(16).padStart(8, '0').toUpperCase(), author: comment.author ?? 'Word Studio', initials: comment.initials, date: new Date(comment.createdAt),
-    resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph(text)) })));
+    resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph({ children: [documentTextRun({ text })] })) })));
   const docx = new DocxDocument({
     title: document.title,
     creator: 'Word Studio',

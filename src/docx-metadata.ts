@@ -64,7 +64,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     const date = val(el, 'date');
     const lastParagraph = all(el, 'p').at(-1);
     const paraId = lastParagraph && Array.from(lastParagraph.attributes).find(a => a.localName === 'paraId')?.value;
-    comments.push({ id, quote: '', text: all(el, 'p').map(p => all(p, 't').map(t => t.textContent).join('')).join('\n'),
+    comments.push({ id, quote: '', text: all(el, 'p').map(p => Array.from(p.getElementsByTagNameNS(W, '*')).map(n =>
+      n.localName === 't' ? n.textContent : n.localName === 'tab' ? '\t' : n.localName === 'br' ? '\n' : '').join('')).join('\n'),
       createdAt: Number.isFinite(Date.parse(date)) ? new Date(date).toISOString() : new Date().toISOString(),
       resolved: Boolean(paraId && resolved.has(paraId)), author: val(el, 'author'), initials: val(el, 'initials') });
   }
@@ -464,6 +465,10 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           if (marker.kind === 'tab') {
             const tab = document.createElement('span'); tab.setAttribute('data-docx-tab', 'true'); tab.textContent = '\t';
             if (activeStyle) tab.style.cssText = activeStyle;
+            if (active.size) {
+              tab.setAttribute('data-comment-ids', [...active].join(' '));
+              for (const id of active) { const comment = comments.find(c => c.id === id); if (comment) comment.quote += '\t'; }
+            }
             item.replaceWith(tab); continue;
           }
           if (marker.kind === 'start') active.add(marker.id!);
