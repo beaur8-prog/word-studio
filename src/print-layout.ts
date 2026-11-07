@@ -217,15 +217,20 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         const tail = splitElement(group[0], content.getBoundingClientRect().bottom);
         if (tail) rows.splice(end, 0, tail as HTMLTableRowElement);
       };
-      if (!fits()) split();
-      if (!fits() && (bodyRows > 0 || content.children.length > 1)) {
+      // A successful fit already laid out this unchanged row group. Repeating
+      // every normalizer three times made large-table DOCX saves stall. A
+      // split or a move changes geometry and always needs a new measurement.
+      let groupFits = fits();
+      if (!groupFits) { split(); groupFits = fits(); }
+      if (!groupFits && (bodyRows > 0 || content.children.length > 1)) {
         group.forEach(row => row.remove());
         if (!bodyRows) part.table.remove();
         newPage(); part = shell(i > 0); bodyRows = 0;
         group.forEach(row => part.body.append(row));
-        if (!fits()) split();
+        groupFits = fits();
+        if (!groupFits) { split(); groupFits = fits(); }
       }
-      if (!fits()) scaleOversized(part.table);
+      if (!groupFits) scaleOversized(part.table);
       bodyRows += group.length; i = end;
     }
   }
