@@ -17,6 +17,9 @@ import { HwpReader } from '../hwp/HwpReader';
 import type { EditableHwp } from '../hwp/conversion';
 import { Sheet } from './Sheet';
 import { TableTools } from './TableTools';
+import { EditorRibbon } from './EditorRibbon';
+import { ModeSwitch } from './ModeSwitch';
+import { ArrowLeft, MoreHorizontal } from 'lucide-react';
 import { EditorCanvas } from './EditorCanvas';
 import { PagePresentation } from './PagePresentation';
 import { immersiveSession } from './immersive';
@@ -157,6 +160,7 @@ export default function AndroidApp() {
     const prepared = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), snapshot().page, reportLayout(signal), signal));
     if (signal.aborted) { prepared.dispose(); return; }
     layout.current?.layout.dispose(); layout.current = paperDocument(prepared); setPapers(layout.current); setEditing(false); setPanel(nextPanel); setPresentation(present);
+    setPage(Math.min(page, prepared.pages - 1));
     setNavigation(value => ({ page: Math.min(page, prepared.pages - 1), id: value.id + 1 }));
   });
   const requestImmersive = async () => {
@@ -164,8 +168,13 @@ export default function AndroidApp() {
     setFullscreenNotice(mode === 'unavailable' ? '이 환경에서는 시스템 상태 표시줄을 숨길 수 없습니다.' : '');
     return mode !== 'unavailable';
   };
+  const enterEditing = () => {
+    if (running.current || sharePending.current || composing) return;
+    setPresentation(false); setEditing(true); setPanel(null);
+  };
   const startPresentation = () => {
-    if (running.current || composing) return;
+    if (running.current || sharePending.current || composing) return;
+    editor?.commands.blur();
     void requestImmersive();
     if (editing) void showReading(null, true); else { setPanel(null); setPresentation(true); }
   };
@@ -265,32 +274,24 @@ export default function AndroidApp() {
   useEffect(() => { setPreparedShare(null); }, [contentRevision, documentState, original]);
   const results = papers && query.trim() ? papers.text.flatMap((text, i) => text.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) ? [i] : []) : [];
   const go = (number: number) => { if (!Number.isInteger(number) || !papers || number < 0 || number >= papers.sheets.length) return; setPage(number); setNavigation(value => ({ page: number, id: value.id + 1 })); };
-  const command = (action: () => void) => { if (!composing && !running.current) { action(); setRevision(value => value + 1); } };
   if (!editor) return <div className="android-start" role="status">문서 기능을 준비하는 중…</div>;
-  const button = (label: string, action: () => void, active = false) => <button disabled={!!operation || composing} aria-pressed={active} onMouseDown={event => event.preventDefault()} onClick={() => command(action)}>{label}</button>;
   return <div className="android-shell" data-mode={editing ? 'edit' : 'read'} data-presentation={presentation}>
     <input ref={input} type="file" hidden accept=".docx,.hwp,.hwpx,.wordstudio,.html,.htm,.txt"
       onChange={event => { pickerPending.current = false; const file = event.target.files?.[0]; event.target.value = ''; if (file) protect(() => void readFile(file)); }} />
-    <header className="android-topbar"><button aria-label="뒤로" disabled={!!operation || !opened} onClick={back}>‹</button>
+    <header className="android-topbar"><button aria-label="뒤로" disabled={!!operation || !opened} onClick={back}><ArrowLeft size={22} aria-hidden="true" /></button>
       <div><strong>{opened ? documentState.title : 'Word Studio'}</strong><small>{opened ? editing ? 'Word 편집본' : dirty ? '편집본 읽기' : '읽기' : '문서 열기 · 원본 보기'}</small></div>
-      {opened && <button aria-label="전체 화면 뷰어" disabled={!!operation || composing} onClick={startPresentation}>뷰어</button>}
-      <button aria-label="문서 메뉴" disabled={!!operation} onClick={() => setPanel('menu')}>더보기</button></header>
+      <button aria-label="문서 메뉴" disabled={!!operation} onClick={() => setPanel('menu')}><MoreHorizontal size={23} aria-hidden="true" /></button>
+      {opened && <ModeSwitch editing={editing} disabled={!!operation || composing || sharing} onEdit={enterEditing} onView={startPresentation} />}</header>
     {!opened && <main className="android-start"><h1>문서를 열어보세요</h1><p>DOCX · HWP · HWPX</p><button onClick={openFile}>파일 열기</button>
       <button onClick={newDocument}>새 문서</button>
       <button onClick={() => setPanel('recent')}>최근 문서·복구본</button></main>}
     {opened && !editing && !presentation && papers && <PaperViewer document={papers} highlight={query} zoom={zoom} navigation={navigation} onPage={setPage} onWidth={setWidth} />}
     {opened && !editing && presentation && papers && <PagePresentation source={papers} sizes={papers.sizes} index={Math.min(page, papers.sheets.length - 1)}
       loadPage={async number => papers.sheets[number].cloneNode(true) as HTMLElement} onPage={go} onExit={() => setPresentation(false)}
-      onEdit={() => { setPresentation(false); setEditing(true); }} notice={fullscreenNotice} />}
+      onEdit={enterEditing} notice={fullscreenNotice} />}
     {opened && editing && <>
-      <div className="android-edit-tools" role="toolbar" aria-label="기본 편집 도구">
-        {button('실행 취소', () => editor.chain().focus().undo().run())}{button('다시 실행', () => editor.chain().focus().redo().run())}
-        {button('굵게', () => editor.chain().focus().toggleBold().run(), editor.isActive('bold'))}
-        {button('기울임', () => editor.chain().focus().toggleItalic().run(), editor.isActive('italic'))}
-        {button('밑줄', () => editor.chain().focus().toggleUnderline().run(), editor.isActive('underline'))}
-        {button('왼쪽 정렬', () => editor.chain().focus().setTextAlign('left').run())}{button('가운데 정렬', () => editor.chain().focus().setTextAlign('center').run())}
-        {button('표 도구', () => { if (touchedCell.current?.isConnected) selectContextCell(editor, touchedCell.current); setPanel('table'); })}
-      </div>
+      <EditorRibbon editor={editor} disabled={!!operation || composing || sharing} onChange={() => setRevision(value => value + 1)} onSave={() => void save()}
+        onTable={() => { if (touchedCell.current?.isConnected) selectContextCell(editor, touchedCell.current); setPanel('table'); }} />
       <EditorCanvas key={documentState.id} settings={documentState.page} initialPage={page} onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}>
         <div onPointerDownCapture={event => {
           touchedCell.current = (event.target as Element).closest<HTMLElement>('td,th');

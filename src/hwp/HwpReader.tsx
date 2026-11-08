@@ -220,7 +220,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
     </section>}
     {error ? <main className="hwp-viewport"><div className="hwp-error" role="alert"><strong>HWP 파일을 열지 못했습니다</strong><p>{error}</p><button onClick={onClose}>편집 문서로 돌아가기</button></div></main>
        : info ? android && presentation ? <PagePresentation source={info} sizes={info.pages} index={index} onPage={goToPage} onExit={() => setPresentation(false)}
-        onEdit={() => { setPresentation(false); void prepareEditing(); }} notice={fullscreenNotice} loadPage={async number => {
+        onEdit={info.conversionBlock ? undefined : () => { setPresentation(false); void prepareEditing(); }} notice={fullscreenNotice} loadPage={async number => {
           keepPages([number]); const item = await getPage(number); const element = document.createElement('div'); element.className = 'hwp-sheet';
           element.style.width = `${item.width}px`; element.style.height = `${item.height}px`; element.innerHTML = item.svg; return element;
         }} /> : <HwpViewport info={info} zoom={zoom} navigation={navigation} paused={converting || exporting} getPage={getPage} keepPages={keepPages} onPageChange={setIndex} onLoadingChange={setLoading} />

@@ -1,6 +1,8 @@
 import { useEffect, useState, type RefObject } from 'react';
 import type { HwpInfo } from '../hwp/reader';
 import { Sheet } from './Sheet';
+import { ModeSwitch } from './ModeSwitch';
+import { MoreHorizontal } from 'lucide-react';
 import { shareAndroidFile } from './platform';
 
 export function HwpReaderTools({ file, info, index, zoom, disabled, conversionBlocked, query, searching, searchInput, searchControl, onQuery, onFind, onPage, onZoom, onFit, onClose, onOpen, onCopy, onEdit, onPresent }: {
@@ -12,8 +14,8 @@ export function HwpReaderTools({ file, info, index, zoom, disabled, conversionBl
   useEffect(() => { searchControl.current = () => setPanel('search'); return () => { searchControl.current = null; }; }, [searchControl]);
   return <>
     <header className="android-topbar"><button aria-label="한글 원본 보기 닫기" disabled={disabled} onClick={onClose}>‹</button><div><strong>{file.name}</strong><small>한글 원본 보기</small></div>
-      <button disabled={!info || disabled} aria-label="한글 전체 화면 뷰어" onClick={onPresent}>뷰어</button>
-      <button disabled={disabled} aria-label="한글 문서 메뉴" onClick={() => setPanel('menu')}>더보기</button></header>
+      <button disabled={disabled} aria-label="한글 문서 메뉴" onClick={() => setPanel('menu')}><MoreHorizontal size={23} aria-hidden="true" /></button>
+      <ModeSwitch editing={false} disabled={!info || disabled} editDisabled={conversionBlocked} onEdit={onEdit} onView={onPresent} viewLabel="한글 전체 화면 뷰어" /></header>
     <nav className="android-reader-tools android-hwp-tools" aria-label="한글 문서 도구">
       <button disabled={!info || disabled} onClick={() => setPanel('search')}>찾기</button>
       <button disabled={!info || disabled} onClick={() => setPanel('page')}>쪽 {index + 1}/{info?.count ?? '…'}</button>

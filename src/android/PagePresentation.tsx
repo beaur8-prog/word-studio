@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ModeSwitch } from './ModeSwitch';
 
 type Size = { width: number; height: number };
 type Drag = { x: number; y: number; left: number; top: number; at: number; moved: boolean; multi: boolean; leftEdge: boolean; rightEdge: boolean; topEdge: boolean; bottomEdge: boolean };
@@ -19,7 +20,7 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
   const points = useRef(new Map<number, { x: number; y: number }>()), drag = useRef<Drag | null>(null), pinch = useRef<Pinch | null>(null);
   const anchor = useRef<{ x: number; y: number; cx: number; cy: number } | null>(null);
   const lastTap = useRef({ at: 0, x: 0, y: 0 });
-  const callbacks = useRef({ loadPage, onPage, onExit }); callbacks.current = { loadPage, onPage, onExit };
+  const callbacks = useRef({ loadPage, onPage, onExit, onEdit }); callbacks.current = { loadPage, onPage, onExit, onEdit };
   const size = sizes[index] ?? sizes[0] ?? { width: 794, height: 1123 };
   const base = box.width / size.width, scale = base * factor;
   const width = size.width * scale, height = size.height * scale;
@@ -74,7 +75,7 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
       if ((event.target as HTMLElement).closest('input,textarea,select')) return;
       const actions: Record<string, () => void> = { ArrowRight: () => go(index + 1), ArrowDown: () => go(index + 1), PageDown: () => go(index + 1),
         ArrowLeft: () => go(index - 1), ArrowUp: () => go(index - 1), PageUp: () => go(index - 1), Home: () => go(0), End: () => go(sizes.length - 1),
-        '+': () => zoom(factor * 1.25), '-': () => zoom(factor / 1.25), Escape: () => callbacks.current.onExit() };
+        '+': () => zoom(factor * 1.25), '-': () => zoom(factor / 1.25), Escape: () => (callbacks.current.onEdit ?? callbacks.current.onExit)() };
       if (actions[event.key]) { event.preventDefault(); event.stopPropagation(); actions[event.key](); }
     };
     window.addEventListener('keydown', key, true); return () => window.removeEventListener('keydown', key, true);
@@ -125,8 +126,11 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
       </div>
     </div>
     <button className="android-presentation-exit" aria-label="뷰어 닫기" onClick={onExit}>‹</button>
+    <div className="android-presentation-modebar">
+      <span className="android-presentation-page-number" role="status">{index + 1} / {sizes.length}</span>
+      <ModeSwitch editing={false} onEdit={onEdit} onView={showControls} />
+    </div>
     <div className="android-presentation-controls" hidden={!controls}>
-      <div className="android-presentation-top"><span role="status">{index + 1} / {sizes.length}</span>{onEdit && <button onClick={onEdit}>편집</button>}</div>
       <footer><button aria-label="이전 페이지" disabled={index === 0} onClick={() => go(index - 1)}>‹</button>
         <button aria-label="뷰어 축소" onClick={() => { zoom(factor / 1.25); showControls(); }}>−</button>
         <button aria-label="뷰어 폭 맞춤" onClick={() => { zoom(1); showControls(); }}>{Math.round(scale * 100)}%</button>

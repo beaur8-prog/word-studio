@@ -2,7 +2,7 @@
    print measurements and the desktop shell retain their original rules. */
 :root[data-android="true"] { color-scheme: dark; }
 .android-shell { height: var(--android-height, 100dvh); display: flex; flex-direction: column; min-width: 0; overflow: hidden; color: var(--chrome-text); background: var(--chrome-canvas); font-size: 16px; }
-.android-topbar { display: flex; align-items: center; gap: 8px; padding: calc(4px + var(--office-cutout-top, env(safe-area-inset-top, 0px))) 8px 4px; flex: 0 0 auto; background: var(--chrome-title); border-bottom: 1px solid var(--chrome-border); }
+.android-topbar { display: flex; align-items: center; gap: 4px; padding: calc(4px + var(--office-cutout-top, env(safe-area-inset-top, 0px))) 8px 4px; flex: 0 0 auto; background: var(--chrome-title); border-bottom: 1px solid var(--chrome-border); }
 .android-topbar > div { flex: 1; min-width: 0; }
 .android-topbar strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
 .android-topbar small { display: block; font-size: 12px; color: var(--chrome-secondary); }
@@ -34,9 +34,6 @@
 .android-sheet-body form { display: grid; gap: 12px; }
 .android-action-row { display: flex; gap: 8px; }
 .android-action-row > button { flex: 1; background: var(--chrome-field); }
-.android-edit-tools { flex: 0 0 auto; display: flex; overflow-x: auto; padding: 4px; border-bottom: 1px solid var(--chrome-border); }
-.android-edit-tools button { flex: 0 0 auto; white-space: nowrap; }
-.android-edit-tools button[aria-pressed="true"] { background: var(--accent-light); }
 .android-editor-scroll { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
 .android-editor-scroll > .document-stack { margin: 0 auto; background: white; color: #242932; }
 .hwp-reader[data-android="true"] { width: 100%; height: var(--android-height, 100dvh); font-size: 16px; }
@@ -51,7 +48,6 @@
   .android-sheet { inset: 12px 12px 12px auto; width: 380px; max-height: calc(var(--android-height, 100dvh) - 24px); border-radius: 12px; }
   .android-reader-tools { justify-content: center; }
   .android-reader-tools button { max-width: 180px; }
-  .android-edit-tools { justify-content: center; }
 }
 @media (max-height: 479px) {
   .android-topbar { padding-block: 0; }
@@ -77,8 +73,6 @@
 .android-presentation-controls { position: absolute; inset: 0; pointer-events: none; }
 .android-presentation-controls[hidden] { display: none; }
 .android-presentation-controls button { pointer-events: auto; min-width: 48px; min-height: 48px; color: white; background: #20232bd9; border: 1px solid #ffffff35; }
-.android-presentation-top { position: absolute; top: max(4px, var(--office-cutout-top, env(safe-area-inset-top, 0px))); right: max(4px, var(--office-cutout-right, env(safe-area-inset-right, 0px))); display: flex; align-items: center; gap: 8px; }
-.android-presentation-top > span { border-radius: 8px; padding: 12px; background: #20232bd9; font-variant-numeric: tabular-nums; }
 .android-presentation-controls > footer { position: absolute; bottom: calc(44px + var(--office-cutout-bottom, env(safe-area-inset-bottom, 0px))); left: 50%; transform: translateX(-50%); display: flex; gap: 4px; max-width: 100%; }
 .android-presentation-controls > footer button { flex-shrink: 0; }
 .android-presentation-options { position: absolute; bottom: max(0px, var(--office-cutout-bottom, env(safe-area-inset-bottom, 0px))); left: 50%; transform: translateX(-50%); width: max-content; max-width: 100%; display: flex; align-items: center; gap: 8px; font-size: 11px; }
@@ -89,3 +83,40 @@
 @media (max-height: 479px) {
   .android-presentation-options span { display: none; }
 }
+
+/* Shared top-right edit/view controls, including when viewer tools auto-hide. */
+.android-mode-switch { display: flex; flex: 0 0 auto; align-items: stretch; border: 1px solid var(--chrome-border); border-radius: 9px; overflow: hidden; }
+.android-mode-switch button { width: 52px; min-width: 48px; min-height: 50px; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; border-radius: 0; color: var(--chrome-secondary); background: transparent; }
+.android-mode-switch button span { font-size: 11px; }
+.android-mode-switch button[aria-pressed="true"] { color: var(--accent); background: var(--accent-light); box-shadow: inset 0 -2px currentColor; }
+.android-mode-switch button:disabled { opacity: .45; }
+.android-topbar > .android-mode-switch { flex: 0 0 auto; }
+.android-presentation-modebar { position: absolute; z-index: 2; top: max(4px, var(--office-cutout-top, env(safe-area-inset-top, 0px))); right: max(4px, var(--office-cutout-right, env(safe-area-inset-right, 0px))); display: flex; align-items: center; gap: 8px; }
+.android-presentation-modebar .android-mode-switch { background: #20232be8; border-color: #ffffff45; }
+.android-presentation-modebar .android-mode-switch button { color: #fff; }
+.android-presentation-modebar .android-mode-switch button[aria-pressed="true"] { background: #2868b1; }
+.android-presentation-page-number { padding: 10px; border-radius: 8px; background: #20232be8; color: #fff; font-size: 13px; font-variant-numeric: tabular-nums; }
+/* A familiar ribbon uses the desktop commands; only the Android shell owns it. */
+.android-editor-ribbon { flex: 0 0 auto; min-width: 0; background: var(--chrome-ribbon, var(--chrome-surface)); border-bottom: 1px solid var(--chrome-border); }
+.android-ribbon-tab-row { display: flex; align-items: stretch; min-width: 0; padding-inline: 4px; border-bottom: 1px solid var(--chrome-border); }
+.android-quick-tools { display: flex; flex: 0 0 auto; align-items: center; border-right: 1px solid var(--chrome-border); }
+.android-editor-ribbon button { display: inline-flex; align-items: center; justify-content: center; padding: 6px; flex-shrink: 0; background: transparent; border: 0; color: var(--chrome-text); }
+.android-editor-ribbon button:disabled { opacity: .4; }
+.android-editor-ribbon button[aria-pressed="true"] { background: var(--accent-light); color: var(--accent); }
+.android-ribbon-tabs { flex: 1; display: flex; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.android-ribbon-tabs > button { flex: 1 0 48px; border-radius: 0; white-space: nowrap; }
+.android-ribbon-tabs > button[aria-selected="true"] { color: var(--accent); box-shadow: inset 0 -3px var(--accent); font-weight: 650; }
+.android-ribbon-content { display: flex; overflow: auto; max-height: min(144px, calc(var(--android-height, 100dvh) * .28)); padding: 4px 8px; gap: 8px; }
+.android-ribbon-content[hidden] { display: none; }
+.android-ribbon-group { flex: 0 0 auto; display: flex; flex-direction: column; min-width: 0; padding-right: 8px; border-right: 1px solid var(--chrome-border); }
+.android-ribbon-group:last-child { border-right: 0; }
+.android-ribbon-group-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.android-ribbon-group > small { text-align: center; color: var(--chrome-secondary); font-size: 10px; padding: 2px 0; }
+.android-ribbon-row { display: flex; align-items: center; gap: 2px; }
+.android-ribbon-row select, .android-ribbon-row input { min-height: 48px; min-width: 48px; font-size: 14px; padding: 6px; color: var(--chrome-text); background: var(--chrome-field); border: 1px solid var(--chrome-border); border-radius: 5px; }
+.android-ribbon-row select { width: 138px; }
+.android-ribbon-row input { width: 58px; }
+.android-ribbon-caption-button { flex-direction: column; min-height: 96px !important; max-width: 96px; gap: 8px; }
+.android-ribbon-caption-button span { font-size: 12px; }
+@media (min-width: 840px) { .android-ribbon-tabs { flex: 0 1 240px; } .android-ribbon-collapse { margin-left: auto; } }
+@media (max-height: 479px) { .android-ribbon-content { max-height: 96px; } }
