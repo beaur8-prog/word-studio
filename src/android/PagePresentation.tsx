@@ -40,7 +40,7 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
   const tap = useRef({ at: 0, x: 0, y: 0 });
   const show = () => { setControls(true); clearTimeout(timer.current); timer.current = setTimeout(() => setControls(false), 2200); };
   useEffect(() => { show(); return () => clearTimeout(timer.current); }, []);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const node = root.current!, exit = () => callbacks.current.onExit(), edit = () => (callbacks.current.onEdit ?? callbacks.current.onExit)();
     node.addEventListener('studio-presentation-close', exit); node.addEventListener('studio-presentation-escape', exit); node.addEventListener('studio-presentation-edit', edit);
     return () => { node.removeEventListener('studio-presentation-close', exit); node.removeEventListener('studio-presentation-escape', exit); node.removeEventListener('studio-presentation-edit', edit); };

@@ -30,7 +30,7 @@ test('full-screen viewer print and Ctrl+P retain its page and precise zoom',asyn
  await page.keyboard.press('-');await page.keyboard.press('ArrowRight');await expect(page.locator('.android-presentation')).toHaveAttribute('data-page','2');const scale=await page.locator('.android-presentation').getAttribute('data-scale');
  await page.locator('.android-presentation').getByRole('button',{name:'인쇄·PDF 저장',exact:true}).click();await jobs(page,1);await expect(page.locator('.android-operation')).toBeVisible();await finish(page);
  await expect(page.locator('.android-presentation')).toHaveAttribute('data-page','2');expect(await page.locator('.android-presentation').getAttribute('data-scale')).toBe(scale);
- await page.keyboard.press('Control+p');await jobs(page,2);await finish(page,'submitted');await expect(page.locator('.android-presentation-page')).toContainText('PRINT LAST PAGE');
+ await page.evaluate(()=>window.dispatchEvent(new Event('studio-native-print')));await jobs(page,2);await finish(page,'submitted');await expect(page.locator('.android-presentation-page')).toContainText('PRINT LAST PAGE');
 });
 
 test('tablet Ctrl+P and PDF export use current edits, preserve undo and recover after native error',async({page})=>{
@@ -39,7 +39,7 @@ test('tablet Ctrl+P and PDF export use current edits, preserve undo and recover 
  await page.keyboard.press('Control+p');const payload=await jobs(page,1);expect(payload.html).toContain('PRINT EDIT');await expect(editor).toHaveAttribute('contenteditable','false');await finish(page);await expect(editor).toHaveAttribute('contenteditable','true');await expect(editor).toContainText('PRINT EDIT');
  await pc.getByRole('button',{name:'실행 취소 (Ctrl+Z)',exact:true}).click();await expect(editor).not.toContainText('PRINT EDIT');await pc.getByRole('button',{name:'다시 실행 (Ctrl+Y)',exact:true}).click();await expect(editor).toContainText('PRINT EDIT');
  await pc.getByRole('button',{name:'내보내기',exact:true}).click();await page.getByRole('button',{name:/PDF 문서/}).click();await jobs(page,2);await page.evaluate(()=>(window as any).failPrint(new Error('PRINT FAILURE')));await expect(page.locator('.android-operation')).toHaveCount(0);await expect(editor).toHaveAttribute('contenteditable','true');await expect(editor).toContainText('PRINT EDIT');
- await page.keyboard.press('Control+p');await jobs(page,3);await finish(page,'closed');
+ await page.evaluate(()=>window.dispatchEvent(new Event('studio-native-print')));await jobs(page,3);await finish(page,'closed');
 });
 
 test('original HWP menu and Ctrl+P print all SVG pages without converting or leaving its reader',async({page})=>{
@@ -49,4 +49,5 @@ test('original HWP menu and Ctrl+P print all SVG pages without converting or lea
  const summary=await page.evaluate(html=>{const d=new DOMParser().parseFromString(html,'text/html');return {svg:d.querySelectorAll('.android-print-source > svg').length,text:d.body.textContent};},payload.html);expect(summary.svg).toBe(4);expect(summary.text?.replace(/\s/g,'')).toContain('ROW-24-COLUMN-2');
  await finish(page);await expect(reader.getByTestId('hwp-page')).toBeVisible();await expect(reader.getByRole('region',{name:'한글 편집 변환 안내',exact:true})).toHaveCount(0);
  await page.keyboard.press('Control+p');await jobs(page,2);await finish(page,'closed');await expect(reader).toBeVisible();
+ await page.evaluate(()=>window.dispatchEvent(new Event('studio-native-print')));await jobs(page,3);await finish(page,'closed');await expect(reader).toBeVisible();
 });

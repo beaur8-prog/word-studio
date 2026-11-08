@@ -275,6 +275,16 @@ export default function AndroidApp() {
       const incoming = pendingIncoming.current; pendingIncoming.current = null; if (incoming) setTimeout(() => callbacks.current.incoming(incoming), 0);
     }
   };
+  const nativePrint = useRef(print); nativePrint.current = print;
+  useEffect(() => {
+    const printFromKeyboard = () => {
+      const hwpDialog = document.querySelector<HTMLDialogElement>('.hwp-reader[open]');
+      if (hwpDialog) hwpDialog.dispatchEvent(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true, bubbles: true, cancelable: true }));
+      else if (!document.querySelector('dialog[open]')) nativePrint.current();
+    };
+    window.addEventListener('studio-native-print', printFromKeyboard);
+    return () => window.removeEventListener('studio-native-print', printFromKeyboard);
+  }, []);
   const back = (native = false) => {
     if (running.current || sharePending.current || tabletFileBusy.current || (native && performance.now() < navigationGuard.current)) return;
     const viewer = document.querySelector<HTMLElement>('.android-presentation');
