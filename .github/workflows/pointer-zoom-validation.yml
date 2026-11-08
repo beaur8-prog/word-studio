@@ -46,6 +46,6 @@ jobs:
           retention-days: 3
           path: |
             test-results/pointer-zoom/
-            .cache/zoom-desktop-*/result.json
+            .cache/zoom-desktop-*/*.json
             .cache/zoom-desktop-*/*.png
             .cache/zoom-desktop-*/*.pdf
