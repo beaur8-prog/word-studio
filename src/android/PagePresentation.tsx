@@ -30,8 +30,10 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
   const showControls = () => { setControls(true); clearTimeout(timer.current); timer.current = setTimeout(() => setControls(false), 2200); };
   useEffect(() => {
     const element = root.current!; const close = () => callbacks.current.onExit();
+    const edit = () => (callbacks.current.onEdit ?? callbacks.current.onExit)();
     element.addEventListener('studio-presentation-close', close);
-    return () => element.removeEventListener('studio-presentation-close', close);
+    element.addEventListener('studio-presentation-edit', edit);
+    return () => { element.removeEventListener('studio-presentation-close', close); element.removeEventListener('studio-presentation-edit', edit); };
   }, []);
   useEffect(() => { showControls(); return () => clearTimeout(timer.current); }, []);
   useLayoutEffect(() => {

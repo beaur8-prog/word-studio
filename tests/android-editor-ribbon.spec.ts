@@ -28,7 +28,9 @@ test('persistent top icons and Escape return to editing without losing text or u
     await expect(viewer.getByRole('button', { name: '전체 화면 뷰어', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(viewer.locator('.android-presentation-controls')).toBeHidden({ timeout: 5000 });
     await expect(viewer.getByRole('button', { name: '편집 모드', exact: true })).toBeVisible();
-    if (round === 1) await viewer.getByRole('button', { name: '편집 모드', exact: true }).click(); else await page.keyboard.press('Escape');
+    if (round === 1) await viewer.getByRole('button', { name: '편집 모드', exact: true }).click();
+    else if (round === 2) await viewer.dispatchEvent('studio-presentation-edit');
+    else await page.keyboard.press('Escape');
     await expect(viewer).toHaveCount(0); await expect(editor).toBeVisible();
     await expect(editor).toHaveAttribute('contenteditable', 'true'); await expect(editor).toContainText('KEEP EDIT');
     await expect(editor).toBeFocused();
