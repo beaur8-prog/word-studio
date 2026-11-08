@@ -157,3 +157,32 @@ test('a 768px native tablet keeps PC controls visible and unlocks after native s
   await page.evaluate(()=>(window as any).finishTabletSave());
   await expect(pc.getByRole('button',{name:'전체 화면 뷰어',exact:true})).toBeEnabled();await expect(editor).toHaveAttribute('contenteditable','true');await expect(editor).toContainText('SAVE CANCEL SAFE');
 });
+
+
+test('tablet touch can edit a small scaled table cell without starting mouse row resizing',async({page})=>{
+  await page.setViewportSize({width:1066,height:1100});await open(page);
+  if(await page.getByRole('button',{name:'알림 닫기',exact:true}).count())await page.getByRole('button',{name:'알림 닫기',exact:true}).click();
+  await page.locator('.android-topbar').getByRole('button',{name:'편집 모드',exact:true}).click();
+  const pc=page.locator('.office-shell[data-android-desktop=true]'),editor=pc.getByLabel('문서 편집 영역');await expect(editor).toContainText('CELL LEFT');
+  await pc.getByLabel('확대 축소',{exact:true}).fill('25');
+  const cell=editor.locator('td').filter({hasText:'CELL LEFT'});await cell.tap();await page.keyboard.type(' TABLET TOUCH');
+  await expect(cell).toContainText('TABLET TOUCH');await expect(editor).not.toHaveClass(/table-row-resizing/);
+  await pc.getByRole('button',{name:'실행 취소 (Ctrl+Z)',exact:true}).click();await expect(cell).not.toContainText('TABLET TOUCH');
+  await pc.getByRole('button',{name:'다시 실행 (Ctrl+Y)',exact:true}).click();await expect(cell).toContainText('TABLET TOUCH');
+});
+
+
+test('a slow vertical drag turns a fully fitted tablet page and preserves scale',async({page})=>{
+  await page.setViewportSize({width:1280,height:900});await open(page);await viewer(page);
+  await page.getByRole('button',{name:'쪽 전체',exact:true}).click();
+  const scale=Number(await page.locator('.android-presentation').getAttribute('data-scale'));
+  const c=await page.context().newCDPSession(page);
+  await c.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:640,y:675,id:1}]});
+  for(let n=1;n<=3;n++){
+    await c.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:640,y:675-150*n,id:1}]});
+    await page.waitForTimeout(300);
+  }
+  await c.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await c.detach();
+  await expect(page.locator('.android-presentation')).toHaveAttribute('data-page','2');
+  expect(Number(await page.locator('.android-presentation').getAttribute('data-scale'))).toBeCloseTo(scale,6);
+});

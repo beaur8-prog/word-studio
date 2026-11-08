@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ModeSwitch } from './ModeSwitch';
 
 type Size = { width: number; height: number };
-type Drag = { x: number; y: number; left: number; top: number; at: number; moved: boolean; multi: boolean; leftEdge: boolean; rightEdge: boolean };
+type Drag = { x: number; y: number; left: number; top: number; moved: boolean; multi: boolean; leftEdge: boolean; rightEdge: boolean };
 function Sheet({ number, size, scale, top, left, current, loadPage }: { number: number; size: Size; scale: number; top: number; left: number; current: boolean; loadPage(index: number): Promise<HTMLElement> }) {
   const host = useRef<HTMLDivElement>(null), loader = useRef(loadPage); loader.current = loadPage;
   const [error, setError] = useState(''), [ready, setReady] = useState(false), [retry, setRetry] = useState(0);
@@ -89,7 +89,7 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
       if (e.pointerType === 'mouse') return;
       e.currentTarget.setPointerCapture(e.pointerId); points.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const v = viewport.current!;
-      if (points.current.size === 1) drag.current = { x: e.clientX, y: e.clientY, left: v.scrollLeft, top: v.scrollTop, at: performance.now(), moved: false, multi: false, leftEdge: v.scrollLeft <= 2, rightEdge: v.scrollLeft >= v.scrollWidth - v.clientWidth - 2 };
+      if (points.current.size === 1) drag.current = { x: e.clientX, y: e.clientY, left: v.scrollLeft, top: v.scrollTop, moved: false, multi: false, leftEdge: v.scrollLeft <= 2, rightEdge: v.scrollLeft >= v.scrollWidth - v.clientWidth - 2 };
       else { const [a, b] = [...points.current.values()], c = local((a.x + b.x) / 2, (a.y + b.y) / 2); pinch.current = { distance: Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)), scale, x: (v.scrollLeft + c.x - left) / scale, y: (v.scrollTop + c.y) / scale }; if (drag.current) drag.current.multi = true; }
     }} onPointerMove={e => {
       if (!points.current.has(e.pointerId)) return; points.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -100,10 +100,11 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
       const active = points.current.has(e.pointerId), d = drag.current; points.current.delete(e.pointerId); if (!active || !d || points.current.size) return;
       if (!d.multi) {
         const dx = e.clientX - d.x, dy = e.clientY - d.y;
-        if (d.moved && performance.now() - d.at < 750) {
+        if (d.moved) {
           if (Math.abs(dx) > Math.abs(dy) * 1.2 && Math.abs(dx) >= 56 && (dx < 0 ? d.rightEdge : d.leftEdge)) go(index + (dx < 0 ? 1 : -1));
           else if (Math.abs(dy) > Math.abs(dx) * 1.2 && Math.abs(dy) >= 56) {
             const start = currentAt(d.top), finish = currentAt(viewport.current!.scrollTop);
+            // A deliberate drag also turns a fitted page; a larger page keeps panning.
             if (sizes[start].height * scale <= box.height + 2) go(dy < 0 ? Math.max(start + 1, finish) : Math.min(start - 1, finish));
           }
         } else if (!d.moved) { const now = performance.now(); if (now - tap.current.at < 320 && Math.hypot(tap.current.x - e.clientX, tap.current.y - e.clientY) < 28) { const c = local(e.clientX, e.clientY); zoom(scale > box.width / widest * 1.1 ? box.width / widest : box.width / widest * 2, c.x, c.y); tap.current.at = 0; show(); } else { tap.current = { at: now, x: e.clientX, y: e.clientY }; if (controls) { setControls(false); clearTimeout(timer.current); } else show(); } }
