@@ -8,17 +8,26 @@ import './reader.css';
 import { HWP_CONVERSION_NOTICE, hwpHtmlBytes, type EditableHwp } from './conversion';
 import { sanitizeImportedHtml } from '../document-html';
 import { previewEditableHwp } from './editing';
+import { HwpReaderTools } from '../android/HwpReaderTools';
 import { HwpViewport } from './HwpViewport';
 import documentLimits from '../../electron/document-limits.json';
 import { HwpProgressPanel } from './ProgressPanel';
 import { paintHwpProgress, type HwpOperation, type HwpProgressReporter } from './progress';
 
-export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClose(): void; onOpen(): void; onEdit(source: EditableHwp, signal?: AbortSignal): Promise<void> }) {
+export function HwpReader({ file, onClose, onOpen, onEdit, android = false }: { android?: boolean; file: File; onClose(): void; onOpen(): void; onEdit(source: EditableHwp, signal?: AbortSignal): Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null), session = useRef<HwpReaderSession | null>(null);
   const currentRequest = useRef(0), cache = useRef(new Map<number, HwpPage>());
   const inFlight = useRef(new Map<number, Promise<HwpPage>>());
   const [info, setInfo] = useState<HwpInfo>();
   const [index, setIndex] = useState(0), [zoom, setZoom] = useState(85);
+  const [fitWidth, setFitWidth] = useState(android);
+  useEffect(() => {
+    if (!android || !info || !fitWidth) return;
+    const viewport = dialog.current?.querySelector<HTMLElement>('.hwp-viewport'); if (!viewport) return;
+    const fit = () => setZoom(Math.max(10, Math.min(200, Math.floor((viewport.clientWidth - 24) / Math.max(...info.pages.map(page => page.width)) * 100))));
+    const observer = new ResizeObserver(fit); observer.observe(viewport); fit();
+    return () => observer.disconnect();
+  }, [android, info, fitWidth]);
   const [navigation, setNavigation] = useState({ page: 0, id: 0 });
   const [loading, setLoading] = useState(true), [exporting, setExporting] = useState(false);
   const [error, setError] = useState(''), [status, setStatus] = useState('');
@@ -27,6 +36,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
   const conversionAbort = useRef<AbortController | null>(null);
   const [query, setQuery] = useState(''), [searching, setSearching] = useState(false);
   const searchInput = useRef<HTMLInputElement>(null);
+  const androidSearch = useRef<(() => void) | null>(null);
   const exportingRef = useRef(false);
   const getPage = useCallback(async (number: number, purpose: 'view' | 'print' = 'view') => {
     const cached = cache.current.get(number);
@@ -50,6 +60,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
   }, []);
   const keepPages = useCallback((indices: number[]) => session.current?.discardQueuedPages(new Set(indices)), []);
   const goToPage = (number: number) => {
+    if (android && !Number.isInteger(number)) return;
     if (!info || number < 0 || number >= info.count) return;
     setIndex(number); setNavigation(value => ({ page: number, id: value.id + 1 }));
   };
@@ -151,20 +162,23 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     else if (action === 'export-pdf') void print(true);
     else setStatus('HWP는 읽기 전용입니다. 편집 문서로 돌아가려면 읽기 화면을 닫으세요.');
   }), [info, file, converting]);
-  return <dialog ref={dialog} className="hwp-reader" data-desktop-platform={window.wordDesktop?.platform} aria-label="HWP 읽기" onCancel={event => { event.preventDefault(); if (!exporting) onClose(); }}
+  return <dialog ref={dialog} className="hwp-reader" data-android={android ? "true" : undefined} data-desktop-platform={window.wordDesktop?.platform} aria-label="HWP 읽기" onCancel={event => { event.preventDefault(); if (!exporting) onClose(); }}
     onKeyDown={event => {
       if (!(event.ctrlKey || event.metaKey) || event.nativeEvent.isComposing) return;
       const key = event.key.toLowerCase();
       if (['s', 'o', 'n', 'p', 'f'].includes(key)) {
         event.preventDefault(); event.stopPropagation();
         if (exporting) return;
-        if (key === 'f') searchInput.current?.focus();
+        if (key === 'f') { if (android) androidSearch.current?.(); else searchInput.current?.focus(); }
         else if (key === 'o') onOpen();
-        else if (key === 'p') void print(false);
+        else if (key === 'p') { if (android) setStatus('PDF·인쇄는 Android 출력 연결 후 제공됩니다.'); else void print(false); }
         else setStatus('HWP는 읽기 전용입니다. 원본 파일은 변경되지 않습니다.');
       }
     }}>
     <div className="hwp-windowbar" aria-hidden="true" />
+    {android ? <HwpReaderTools file={file} info={info} index={index} zoom={zoom} disabled={converting || exporting} conversionBlocked={!!info?.conversionBlock}
+      query={query} searching={searching} searchInput={searchInput} searchControl={androidSearch} onQuery={setQuery} onFind={() => void findNext()} onPage={goToPage}
+      onZoom={value => { setFitWidth(false); setZoom(value); setNavigation(current => ({ page: index, id: current.id + 1 })); }} onFit={() => setFitWidth(true)} onClose={onClose} onOpen={onOpen} onCopy={() => void copyText()} onEdit={() => void prepareEditing()} /> : <>
     <header className="hwp-toolbar"><div><strong>{file.name}</strong><span>HWP/HWPX 원본 보기 · Word Studio</span></div>
       <button onClick={() => void prepareEditing()} disabled={!info || !!info.conversionBlock || converting || exporting}>Word 화면에서 편집</button>
       <button onClick={onOpen} disabled={exporting}>다른 파일 열기</button>
@@ -187,8 +201,10 @@ export function HwpReader({ file, onClose, onOpen, onEdit }: { file: File; onClo
     </div>
     <p className="hwp-notice">현재는 원본 보기입니다. ‘Word 화면에서 편집’을 누르면 본문·표·그림을 기존 편집 화면으로 가져옵니다. 설치 글꼴과 지원 범위에 따라 원본 뷰어와 배치가 다를 수 있습니다.
       {info?.warnings ? ` 원본 구조 주의 항목 ${info.warnings}개.` : ''}</p>
+    </>}
     {info?.conversionBlock && <p className="hwp-notice hwp-source-warning" role="alert">{info.conversionBlock}</p>}
     {operation && <HwpProgressPanel operation={operation} />}
+    {android && operation && <button className="android-hwp-cancel" onClick={onClose}>작업 취소·원본 보기 닫기</button>}
     {editable && <section className="hwp-conversion-panel" aria-label="한글 편집 변환 안내">
       <h2>Word 편집본 만들기</h2><p>{HWP_CONVERSION_NOTICE}</p>
       <p><strong>쪽 수 비교: 원본 보기 {info?.count}쪽 → Word 인쇄 {editable.editorPages}쪽</strong>{info?.count !== editable.editorPages ? ' · 쪽 배치가 달라집니다. 정확한 쪽 참조가 필요한 문서는 원본을 함께 확인하세요.' : ' · 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'}</p>

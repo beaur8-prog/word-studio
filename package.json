@@ -22,7 +22,8 @@
     "test:linux-package": "node scripts/test-linux-package.cjs",
     "test:hwp-samples": "node scripts/validate-hwp-samples.cjs",
     "test:hwp-native": "node scripts/hwp-desktop-smoke.cjs",
-    "test:hwp-editing-native": "node scripts/hwp-editing-desktop-smoke.cjs"
+    "test:hwp-editing-native": "node scripts/hwp-editing-desktop-smoke.cjs",
+    "test:android-ui": "playwright test --config playwright.android.config.ts"
   },
   "dependencies": {
     "@fontsource/noto-sans-kr": "5.3.1",
