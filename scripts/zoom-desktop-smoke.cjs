@@ -4,6 +4,7 @@ const { _electron: electron, expect } = require('@playwright/test');
 const { Document, Packer, Paragraph, Table, TableRow, TableCell } = require('docx');
 const root = path.resolve(__dirname, '..');
 async function run() {
+  await fs.mkdir(path.join(root, '.cache'), { recursive: true });
   const directory = process.env.WORD_ZOOM_QA_OUTPUT ? path.resolve(process.env.WORD_ZOOM_QA_OUTPUT) : await fs.mkdtemp(path.join(root, '.cache', 'zoom-desktop-'));
   await fs.mkdir(directory, { recursive: true });
   // Keep the QA app hidden even on a locked Mac. Only this disposable process
