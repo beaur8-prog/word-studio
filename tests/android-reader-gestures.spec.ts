@@ -48,6 +48,9 @@ async function reveal(page: Page) {
 test('fullscreen viewer uses the screen, hides toolbars and turns pages in four swipe directions', async ({ page }, testInfo) => {
   await openPages(page);
   const viewer = page.locator('.android-presentation');
+  await page.evaluate(() => document.documentElement.style.setProperty('--office-cutout-top', '24px'));
+  expect((await page.getByRole('button', { name: '뷰어 닫기', exact: true }).boundingBox())!.y).toBeGreaterThanOrEqual(24);
+  expect((await page.locator('.android-presentation-viewport').boundingBox())!.y).toBe(0);
   await expect(page.locator('.android-topbar')).not.toBeVisible();
   const rect = await viewer.boundingBox(); expect(rect?.width).toBe(412); expect(rect?.height).toBeGreaterThanOrEqual(800);
   await swipe(page, [330, 400], [70, 400]); await expect(viewer).toHaveAttribute('data-page', '2');
