@@ -6,8 +6,8 @@
 .android-topbar > div { flex: 1; min-width: 0; }
 .android-topbar strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
 .android-topbar small { display: block; font-size: 12px; color: var(--chrome-secondary); }
-.android-shell button, .android-sheet button, .hwp-reader[data-android="true"] button { min-width: 48px; min-height: 48px; padding: 10px 12px; border-radius: 8px; touch-action: manipulation; font-size: 14px; line-height: 1.4; }
-.android-shell button:focus-visible, .android-sheet button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.android-shell :where(button):not(:where(.office-shell *)), .android-sheet button, .hwp-reader[data-android="true"] button { min-width: 48px; min-height: 48px; padding: 10px 12px; border-radius: 8px; touch-action: manipulation; font-size: 14px; line-height: 1.4; }
+.android-shell :where(button):not(:where(.office-shell *)):focus-visible, .android-sheet button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .android-start { flex: 1; min-height: 0; overflow: auto; padding: 32px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
 .android-start h1 { font-size: 24px; margin: 20px 0 0; }
 .android-start button { width: min(360px, 100%); background: var(--chrome-field); border: 1px solid var(--chrome-border); }
@@ -120,3 +120,35 @@
 .android-ribbon-caption-button span { font-size: 12px; }
 @media (min-width: 840px) { .android-ribbon-tabs { flex: 0 1 240px; } .android-ribbon-collapse { margin-left: auto; } }
 @media (max-height: 479px) { .android-ribbon-content { max-height: 96px; } }
+
+/* Continuous viewer pages keep one physical display scale across the document. */
+.android-presentation-sheet { position: absolute; left: 0; top: 0; transform-origin: top left; background: white; color: #242932; }
+.android-presentation-sheet > .print-page, .android-presentation-sheet > .hwp-sheet { margin: 0; box-shadow: none; }
+.android-page-loading { position: absolute; inset: 20% 10%; display: grid; place-content: center; background: #20232be8; color: white; border-radius: 8px; }
+.android-editor-pane { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.android-editor-pane .android-editor-scroll { touch-action: pan-x pan-y; overflow-anchor: none; }
+.android-editor-pane .android-editor-stage > .document-stack { background: transparent; }
+.android-editor-zoom { flex: 0 0 auto; display: flex; justify-content: flex-end; align-items: center; gap: 4px; padding-inline: 8px; background: var(--chrome-surface); border-top: 1px solid var(--chrome-border); }
+.android-editor-zoom > span { margin-right: auto; font-size: 12px; }
+.android-shell { position: relative; }
+.android-tablet-editor { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
+.android-tablet-editor[data-active="false"] { position: absolute; inset: 0; visibility: hidden; pointer-events: none; z-index: -1; }
+.android-shell[data-tablet-editor="true"] > .android-topbar,
+.android-shell[data-tablet-editor="true"] > .android-reader-tools,
+.android-shell[data-tablet-editor="true"] > .android-status { display: none; }
+.android-tablet-editor .office-shell { min-width: 0; height: 100%; }
+.android-tablet-editor .office-shell > .topbar { height: auto; min-height: 56px; padding-top: var(--office-cutout-top, env(safe-area-inset-top, 0px)); }
+.android-tablet-editor .document-workspace { touch-action: pan-x pan-y; overflow-anchor: none; }
+.android-tablet-editor .statusbar { padding-bottom: var(--office-cutout-bottom, env(safe-area-inset-bottom, 0px)); }
+
+@media (max-height: 479px) { .android-shell[data-mode="edit"] > .android-reader-tools { display: none; } }
+
+.android-shell[data-mode="edit"] > .android-message { bottom: calc(160px + var(--office-cutout-bottom, env(safe-area-inset-bottom, 0px))); max-height: 25vh; overflow: auto; }
+@media (max-height: 479px) { .android-shell[data-mode="edit"] > .android-message { bottom: 56px; } }
+
+.android-tablet-editor .tabs, .android-tablet-editor .ribbon { overflow-x: auto; }
+@media (max-width: 839px) {
+  .android-tablet-editor .topbar { gap: 8px; }
+  .android-tablet-editor .command-trigger { display: none; }
+  .android-tablet-editor .document-title { min-width: 60px; }
+}

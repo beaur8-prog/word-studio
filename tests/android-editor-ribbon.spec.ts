@@ -100,14 +100,14 @@ test('desktop-like tabs insert page breaks and tables; folding tools preserves a
   expect((await page.locator('.android-editor-scroll').boundingBox())!.height).toBeGreaterThan(70);
 });
 
-test('viewer page is retained across Escape and another icon switch; HWP Escape keeps conversion explicit', async ({ page }) => {
+test('viewer page is retained across Escape; Escape only leaves fullscreen including HWP', async ({ page }) => {
   await page.goto('/');
   const buffer = await Packer.toBuffer(new Document({ sections: [{ children: [1, 2, 3].map(i => new Paragraph({ text: `MODE PAGE ${i}`, pageBreakBefore: i > 1 })) }] }));
   await page.locator('input[type=file]').setInputFiles({ name: 'modes.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer });
   await modes(page).getByRole('button', { name: '전체 화면 뷰어', exact: true }).click();
   await page.getByRole('button', { name: '다음 페이지', exact: true }).click();
   await expect(page.locator('.android-presentation-page')).toContainText('MODE PAGE 2');
-  await page.keyboard.press('Escape'); await expect(page.getByLabel('Android 문서 편집 영역')).toBeVisible();
+  await page.keyboard.press('Escape'); await expect(page.locator('.android-paper-viewport')).toBeVisible();
   await modes(page).getByRole('button', { name: '전체 화면 뷰어', exact: true }).click();
   await expect(page.locator('.android-presentation')).toHaveAttribute('data-page', '2');
   await page.getByRole('button', { name: '뷰어 닫기', exact: true }).click();
@@ -118,6 +118,7 @@ test('viewer page is retained across Escape and another icon switch; HWP Escape 
   await expect(reader.locator('.android-presentation-page svg')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(reader.locator('.android-presentation')).toHaveCount(0);
-  await expect(reader.getByRole('region', { name: '한글 편집 변환 안내', exact: true })).toBeVisible();
+  await expect(reader.getByRole('region', { name: '한글 편집 변환 안내', exact: true })).toHaveCount(0);
+  await expect(reader.getByTestId('hwp-page')).toBeVisible();
   await expect(page.locator('[contenteditable=true]')).toHaveCount(0);
 });

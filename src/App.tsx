@@ -3,6 +3,7 @@ import { documentScale } from './document-scale';
 import { visibleEditorPages } from './editor-visible-pages';
 import { layoutFurnitureImages } from './furniture-layout';
 import { useEffect, useRef, useState } from "react";
+import { useDocumentZoom } from "./document-zoom-gesture";
 import type { CSSProperties, ReactNode } from "react";
 const escapeHtml = (text: string) => { const el = document.createElement('span'); el.textContent = text; return el.innerHTML; };
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -314,8 +315,15 @@ function download(blob: Blob, name: string) {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-export default function App() {
-  const [initial] = useState(() => blank()),
+export type AndroidEditorAPI = { getDocument(): StudioDocument; focus(): void; back(): boolean };
+export type AndroidEditorSession = {
+  initial: StudioDocument; active: boolean; modes: ReactNode | ((locked: boolean) => ReactNode);
+  onReady(api: AndroidEditorAPI | null): void; onDocument(doc: StudioDocument, changed: boolean): void;
+  onOpen(): void; onViewer(): void; onSaved(): void; onBusy?(value: boolean): void; onComposing(value: boolean): void;
+};
+export default function App({ androidSession }: { androidSession?: AndroidEditorSession } = {}) {
+  const session = useRef(androidSession); session.current = androidSession;
+  const [initial] = useState(() => androidSession?.initial ?? blank()),
     [documentId, setDocumentId] = useState(initial.id || crypto.randomUUID()),
     [title, setTitle] = useState(initial.title),
     [page, setPage] = useState<PageSettings>(initial.page),
@@ -379,6 +387,7 @@ export default function App() {
   const fileInput = useRef<HTMLInputElement>(null),
     imageInput = useRef<HTMLInputElement>(null),
     stackRef = useRef<HTMLDivElement>(null),
+    scaledRef = useRef<HTMLDivElement>(null),
     workspaceRef = useRef<HTMLDivElement>(null),
     currentRef = useRef<StudioDocument>(initial),
     toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -386,6 +395,7 @@ export default function App() {
   const startupTouched = useRef(false);
   const commentRange = useRef<{ from: number; to: number } | null>(null);
   const editor = useEditor({
+    immediatelyRender: androidSession ? false : undefined,
     extensions: [...editorExtensions, DocumentHistory],
     content: initial.content,
     onUpdate({ editor }) {
@@ -422,6 +432,12 @@ export default function App() {
       transformPastedHTML: (html) => sanitizeImportedHtml(html).html,
     },
   });
+  const gestureZoom = useDocumentZoom(workspaceRef, scaledRef, zoom / 100, value => setZoom(value * 100), !!androidSession?.active && !!editor);
+  const changeZoom = (value: number | ((current: number) => number)) => {
+    if (!androidSession) { setZoom(value); return; }
+    const next = typeof value === 'function' ? value(zoom) : value;
+    gestureZoom(next / 100);
+  };
   const notify = (message: string) => {
     setToast(message);
     clearTimeout(toastTimer.current);
@@ -437,6 +453,36 @@ export default function App() {
     comments,
     updatedAt: new Date().toISOString(),
   };
+  const lastSessionDocument = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (!editor || !session.current) return;
+    const doc = currentRef.current, signature = JSON.stringify([doc.id, doc.title, doc.page, doc.comments, doc.content]);
+    if (lastSessionDocument.current === signature) return;
+    const changed = lastSessionDocument.current !== undefined;
+    lastSessionDocument.current = signature; session.current.onDocument(structuredClone(doc), changed);
+  }, [editor, documentId, title, page, comments, revision]);
+  const overlays = useRef({ modal, command, fileMenu }); overlays.current = { modal, command, fileMenu };
+  useEffect(() => {
+    if (!editor || !session.current) return;
+    const api: AndroidEditorAPI = {
+      getDocument: () => structuredClone(currentRef.current),
+      focus: () => { editor.commands.focus(undefined, { scrollIntoView: false }); },
+      back: () => {
+        const dialog = document.querySelector<HTMLDialogElement>('.android-tablet-editor dialog[open]');
+        if (dialog) { dialog.dispatchEvent(new Event('cancel', { cancelable: true })); return true; }
+        const state = overlays.current;
+        if (!state.modal && !state.command && !state.fileMenu) return false;
+        setModal(null); setCommand(false); setFileMenu(false); return true;
+      },
+    };
+    session.current.onReady(api);
+    return () => session.current?.onReady(null);
+  }, [editor]);
+  useEffect(() => {
+    if (!editor || !androidSession?.active) return;
+    const frame = requestAnimationFrame(() => editor.commands.focus(undefined, { scrollIntoView: false }));
+    return () => cancelAnimationFrame(frame);
+  }, [editor, androidSession?.active]);
   const unusedStartupDocument = (doc: StudioDocument) => !startupTouched.current && doc.id === initial.id &&
     doc.title === initial.title && JSON.stringify(doc.page) === JSON.stringify(initial.page) &&
     JSON.stringify(doc.comments) === JSON.stringify(initial.comments) &&
@@ -459,7 +505,7 @@ export default function App() {
       void saveRecovery(snapshot).then(() => {
         if (epoch === recoveryEpoch.current) {
           pendingRecovery.current = false;
-          setSaved("이 PC에 저장됨");
+          setSaved(session.current ? "기기에 저장됨" : "이 PC에 저장됨");
         }
       }).catch(() => {
         if (epoch === recoveryEpoch.current) setSaved("자동 저장 실패 · 파일로 저장하세요");
@@ -488,8 +534,8 @@ export default function App() {
     document.title = `${title} — Word Studio`;
   }, [title]);
   useEffect(() => {
-    editor?.setEditable(!readOnly);
-  }, [editor, readOnly]);
+    editor?.setEditable(!readOnly && (!androidSession || (androidSession.active && !busy)));
+  }, [editor, readOnly, androidSession?.active, androidSession ? busy : undefined]);
   useEffect(() => {
     const el = stackRef.current;
     let frame = 0;
@@ -661,6 +707,7 @@ export default function App() {
   };
   const open = async () => {
     if (fileActionPending.current || nativeFileOperation.current) return;
+    if (session.current) { session.current.onOpen(); return; }
     setFileMenu(false);
     if (window.wordDesktop) {
       fileActionPending.current = true;
@@ -702,10 +749,11 @@ export default function App() {
     if (fileMenu) editor?.commands.focus();
   };
   const save = async (
-    extension: "wordstudio" | "docx" | "html" | "txt" | "hwp" | "hwpx" = "wordstudio",
+    extension: "wordstudio" | "docx" | "html" | "txt" | "hwp" | "hwpx" = androidSession ? "docx" : "wordstudio",
   ): Promise<boolean> => {
     if (!editor || fileActionPending.current || nativeFileOperation.current) return false;
     fileActionPending.current = true;
+    session.current?.onBusy?.(true);
     const startedAt = Date.now();
     const report: HwpProgressReporter = progress => setHwpOperation({ progress, startedAt });
     setBusy(true);
@@ -749,6 +797,11 @@ export default function App() {
           }))
         )
           return false;
+      } else if (session.current) {
+        const { saveAndroidFile } = await import('./android/platform');
+        const result = await saveAndroidFile(new File([blob], name, { type: blob.type }));
+        if (result !== 'completed') { notify(result === 'cancelled' ? '저장을 취소했습니다' : '다운로드를 요청했습니다. 완료 여부를 확인하세요.'); return false; }
+        session.current.onSaved();
       } else download(blob, name);
       if (unusedStartupDocument(doc)) {
         startupTouched.current = true;
@@ -766,11 +819,13 @@ export default function App() {
       return false;
     } finally {
       fileActionPending.current = false;
+      session.current?.onBusy?.(false);
       if (extension === 'hwp' || extension === 'hwpx') setHwpOperation(undefined);
       setBusy(false);
     }
   };
   const preview = async () => {
+    if (session.current) { setFileMenu(false); session.current.onViewer(); return; }
     outputLayout.current?.dispose();
     const layout = await createPrintLayout(editor!.getHTML(), currentRef.current.page);
     outputLayout.current = layout;
@@ -785,6 +840,7 @@ export default function App() {
     document.body.classList.remove('studio-printing'); setPrintPreview(null);
   };
   const print = async (pdf = false) => {
+    if (session.current) { notify('Android PDF·인쇄 연결은 준비 중입니다. DOCX 사본 저장을 사용해 주세요.'); return; }
     if (fileActionPending.current || nativeFileOperation.current) return;
     fileActionPending.current = true;
     setFileMenu(false);
@@ -846,6 +902,7 @@ export default function App() {
   actionRef.current = actions;
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
+      if (session.current && !session.current.active) return;
       if (e.isComposing || e.keyCode === 229) return;
       if (document.querySelector('.update-dialog[open]')) return;
       if (document.querySelector('.hwp-reader[open]')) return;
@@ -1003,7 +1060,7 @@ export default function App() {
   void selectionVersion;
   const fit = () => {
     if (workspaceRef.current)
-      setZoom(
+      changeZoom(
         Math.max(
           40,
           Math.min(
@@ -1015,11 +1072,17 @@ export default function App() {
         ),
       );
   };
+  const chooseReadMode = (read: boolean) => {
+    if (read && session.current) session.current.onViewer(); else setReadOnly(read);
+  };
   const history = readHistory();
   const margins = pageMargins(page);
   return (
     <div
       className={`office-shell ${window.wordDesktop ? "desktop-windows" : ""} ${readOnly ? "read-mode" : ""}`}
+      data-android-desktop={androidSession ? "true" : undefined}
+      onCompositionStart={androidSession ? () => session.current?.onComposing(true) : undefined}
+      onCompositionEnd={androidSession ? () => session.current?.onComposing(false) : undefined}
     >
       <style>{`@page {size:${page.size} ${page.orientation};margin:${margins.top}mm ${margins.right}mm ${margins.bottom}mm ${margins.left}mm;}`}</style>
       <header className="topbar">
@@ -1032,7 +1095,7 @@ export default function App() {
           </span>
         </div>
         <div className="quick-actions">
-          <IconButton label="편집본 저장 (.wordstudio, Ctrl+S)" onClick={() => save()}>
+          <IconButton label={androidSession ? "Word 문서 사본 저장 (.docx)" : "편집본 저장 (.wordstudio, Ctrl+S)"} onClick={() => save()}>
             <Save size={16} />
           </IconButton>
           <IconButton
@@ -1070,7 +1133,7 @@ export default function App() {
           <span>어떤 작업을 원하시나요?</span>
           <kbd>Ctrl Shift K</kbd>
         </button>
-        <div className="suite-badge">STUDIO OFFICE</div>
+        {androidSession ? (typeof androidSession.modes === "function" ? androidSession.modes(busy) : androidSession.modes) : <div className="suite-badge">STUDIO OFFICE</div>}
         <IconButton
           label="화면 테마 전환"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -1114,7 +1177,7 @@ export default function App() {
           <MenuItem onClick={() => setReadOnly(false)}>
             편집 · 문서 수정
           </MenuItem>
-          <MenuItem onClick={() => setReadOnly(true)}>
+          <MenuItem onClick={() => chooseReadMode(true)}>
             읽기 · 문서 살펴보기
           </MenuItem>
         </Dropdown>
@@ -1837,7 +1900,7 @@ export default function App() {
                   label={readOnly ? "편집 모드" : "읽기 모드"}
                   icon={<BookOpen size={26} />}
                   active={readOnly}
-                  onClick={() => setReadOnly(!readOnly)}
+                  onClick={() => chooseReadMode(!readOnly)}
                 />
               </Group>
               <div className="ribbon-note">
@@ -1874,7 +1937,7 @@ export default function App() {
                 <Tool
                   label="100%"
                   icon={<ZoomIn size={26} />}
-                  onClick={() => setZoom(100)}
+                  onClick={() => changeZoom(100)}
                 />
                 <Tool
                   label="페이지 너비"
@@ -1885,7 +1948,7 @@ export default function App() {
                   label="한 페이지"
                   icon={<FileText size={26} />}
                   onClick={() =>
-                    setZoom(
+                    changeZoom(
                       Math.max(
                         40,
                         Math.floor(
@@ -1903,7 +1966,7 @@ export default function App() {
                   label="읽기 모드"
                   icon={<BookOpen size={26} />}
                   active={readOnly}
-                  onClick={() => setReadOnly(!readOnly)}
+                  onClick={() => chooseReadMode(!readOnly)}
                 />
                 <Tool
                   label="페이지 색 전환"
@@ -2151,6 +2214,7 @@ export default function App() {
           >
             <div
               className="scaled-document"
+              ref={scaledRef}
               style={{ width: pageWidth, transform: `scale(${zoom / 100})` }}
             >
               {ruler && (
@@ -2343,7 +2407,7 @@ export default function App() {
         <IconButton
           label="읽기 모드 전환"
           active={readOnly}
-          onClick={() => setReadOnly(!readOnly)}
+          onClick={() => chooseReadMode(!readOnly)}
         >
           <BookOpen size={15} />
         </IconButton>
@@ -2357,26 +2421,26 @@ export default function App() {
         <span className="status-divider" />
         <IconButton
           label="축소"
-          onClick={() => setZoom((z) => Math.max(40, z - 10))}
+          onClick={() => changeZoom((z) => Math.max(androidSession ? 10 : 40, z - 10))}
         >
           <Minus size={14} />
         </IconButton>
         <input
           aria-label="확대 축소"
           type="range"
-          min="40"
-          max="200"
+          min={androidSession ? 10 : 40}
+          max={androidSession ? 400 : 200}
           step="5"
           value={zoom}
-          onChange={(e) => setZoom(Number(e.target.value))}
+          onChange={(e) => changeZoom(Number(e.target.value))}
         />
         <IconButton
           label="확대"
-          onClick={() => setZoom((z) => Math.min(200, z + 10))}
+          onClick={() => changeZoom((z) => Math.min(androidSession ? 400 : 200, z + 10))}
         >
           <Plus size={14} />
         </IconButton>
-        <button className="zoom-value" onClick={() => setZoom(100)}>
+        <button className="zoom-value" onClick={() => changeZoom(100)}>
           {zoom}%
         </button>
       </footer>
@@ -2844,6 +2908,9 @@ export default function App() {
         if (window.wordDesktop) {
           const saved = await window.wordDesktop.saveFile({ name: file.name, extension: file.extension, data: new Uint8Array(await file.blob.arrayBuffer()) });
           if (!saved) return false;
+        } else if (session.current) {
+          const { saveAndroidFile } = await import('./android/platform');
+          if (await saveAndroidFile(new File([file.blob], file.name, { type: file.blob.type })) !== 'completed') return false;
         } else download(file.blob, file.name);
         notify(`${file.extension.toUpperCase()} 파일을 저장했습니다.`);
         return true;

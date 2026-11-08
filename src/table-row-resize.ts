@@ -164,6 +164,8 @@ export const TableRowResize = Extension.create({
           },
           mouseleave() { if (!drag) hide(); return false; },
           mousedown(current, event) {
+            if (current.dom.ownerDocument.documentElement.dataset.android === 'true' &&
+              (event as MouseEvent & { sourceCapabilities?: { firesTouchEvents?: boolean } }).sourceCapabilities?.firesTouchEvents) return false;
             if (event.button !== 0) return false;
             const hit = hitAt(current, event);
             if (!hit) return false;

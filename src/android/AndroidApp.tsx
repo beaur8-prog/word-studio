@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import type { AndroidEditorAPI } from '../App';
+const TabletEditor = lazy(() => import('../App'));
 import { EditorContent, useEditor } from '@tiptap/react';
 import { generateHTML, generateJSON } from '@tiptap/core';
 import { EditorState } from '@tiptap/pm/state';
@@ -39,6 +41,15 @@ type Panel = 'menu' | 'find' | 'pages' | 'view' | 'share' | 'table' | 'recent' |
 
 export default function AndroidApp() {
   const [documentState, setDocumentState] = useState(blank);
+  const tabletAPI = useRef<AndroidEditorAPI | null>(null), tabletFileBusy = useRef(false), tabletSessionId = useRef<string | null>(null);
+  const [tabletSource, setTabletSource] = useState<StudioDocument | null>(null);
+  const [tablet, setTablet] = useState(() => !!(window as any).__studioHostConfig?.tablet || window.matchMedia('(min-width: 840px)').matches);
+  const returnToEditor = useRef(false), navigationGuard = useRef(0);
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 840px)'), update = () => setTablet(!!(window as any).__studioHostConfig?.tablet || media.matches);
+    media.addEventListener('change', update); window.addEventListener('studio-host-config', update); update();
+    return () => { media.removeEventListener('change', update); window.removeEventListener('studio-host-config', update); };
+  }, []);
   const [opened, setOpened] = useState(false), [editing, setEditing] = useState(false), [dirty, setDirty] = useState(false);
   const [original, setOriginal] = useState<File | null>(null), [hwp, setHwp] = useState<File | null>(null);
   const [papers, setPapers] = useState<PaperDocument | null>(null), [panel, setPanel] = useState<Panel>(null);
@@ -66,10 +77,10 @@ export default function AndroidApp() {
     onUpdate({ transaction }) { if (installed.current && state.current.editing && transaction.docChanged) { setDirty(true); setContentRevision(value => value + 1); setRevision(value => value + 1); } },
     onSelectionUpdate() { setRevision(value => value + 1); },
   });
-  const snapshot = () => validateDocument({ ...state.current.documentState, content: editor?.getJSON() ?? state.current.documentState.content, updatedAt: new Date().toISOString() });
-  useEffect(() => { editor?.setEditable(editing && !operation, false); }, [editor, editing, operation]);
+  const snapshot = () => validateDocument(tabletAPI.current?.getDocument() ?? { ...state.current.documentState, content: editor?.getJSON() ?? state.current.documentState.content, updatedAt: new Date().toISOString() });
+  useEffect(() => { editor?.setEditable(editing && !operation && !tabletSource, false); }, [editor, editing, operation, tabletSource]);
   useEffect(() => {
-    if (!editor || !editing || operation || !focusOnEdit.current) return;
+    if (!editor || !editing || operation || tabletSource || !focusOnEdit.current) return;
     focusOnEdit.current = false;
     const frame = requestAnimationFrame(() => editor.commands.focus(undefined, { scrollIntoView: false }));
     return () => cancelAnimationFrame(frame);
@@ -105,7 +116,7 @@ export default function AndroidApp() {
     return () => window.removeEventListener('beforeunload', before);
   }, [editor]);
   const run = async (label: string, work: (signal: AbortSignal) => Promise<void>, cancellable = true) => {
-    if (running.current || sharePending.current) return;
+    if (running.current || sharePending.current || tabletFileBusy.current) return;
     const controller = new AbortController(); running.current = controller; setOperation({ label, controller, cancellable }); setMessage('');
     try { await new Promise(resolve => setTimeout(resolve, 0)); controller.signal.throwIfAborted(); await work(controller.signal); }
     catch (error) { if (!controller.signal.aborted) setMessage(error instanceof Error ? error.message : String(error)); }
@@ -118,7 +129,7 @@ export default function AndroidApp() {
     const incoming = pendingIncoming.current; pendingIncoming.current = null; if (incoming) setTimeout(() => callbacks.current.incoming(incoming), 0);
   };
   const protect = (next: () => void) => {
-    if (running.current || sharePending.current || composing) return;
+    if (running.current || sharePending.current || tabletFileBusy.current || composing) return;
     if (state.current.dirty) { continuation.current = next; setPanel('leave'); }
     else { setPanel(null); next(); }
   };
@@ -128,8 +139,10 @@ export default function AndroidApp() {
   const install = async (candidate: StudioDocument, file: File | null, signal: AbortSignal, edit = false) => {
     if (!editor) return;
     const next = validateDocument(candidate), node = editor.schema.nodeFromJSON(next.content); node.check();
+    next.id ||= crypto.randomUUID();
     const prepared = edit ? null : await withoutEditorReflow(() => createPrintLayout(generateHTML(next.content, editorExtensions), next.page, reportLayout(signal), signal));
     if (signal.aborted) { prepared?.dispose(); signal.throwIfAborted(); }
+    tabletAPI.current = null; tabletSessionId.current = edit && tablet ? next.id : null; setTabletSource(edit && tablet ? next : null);
     installed.current = false;
     editor.view.updateState(EditorState.create({ schema: editor.schema, doc: node, plugins: editor.state.plugins }));
     installed.current = true; ++recoveryEpoch.current;
@@ -144,7 +157,7 @@ export default function AndroidApp() {
     if (result.warnings.length) setMessage(result.warnings.join(' '));
   });
   const openFile = () => {
-    if (running.current || sharePending.current || composing) return;
+    if (running.current || sharePending.current || tabletFileBusy.current || composing) return;
     void immersive.enter();
     protect(() => {
     if (pickerPending.current) return;
@@ -163,7 +176,7 @@ export default function AndroidApp() {
     });
   };
   const showReading = (nextPanel: Panel = null, present = false) => run('읽기 화면의 쪽 배치를 준비하는 중…', async signal => {
-    const prepared = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), snapshot().page, reportLayout(signal), signal));
+    const prepared = await withoutEditorReflow(() => createPrintLayout(generateHTML(snapshot().content, editorExtensions), snapshot().page, reportLayout(signal), signal));
     if (signal.aborted) { prepared.dispose(); return; }
     layout.current?.layout.dispose(); layout.current = paperDocument(prepared); setPapers(layout.current); setEditing(false); setPanel(nextPanel); setPresentation(present);
     setPage(Math.min(page, prepared.pages - 1));
@@ -175,16 +188,23 @@ export default function AndroidApp() {
     return mode !== 'unavailable';
   };
   const enterEditing = () => {
-    if (running.current || sharePending.current || composing) return;
-    if (state.current.editing) { editor?.commands.focus(undefined, { scrollIntoView: false }); return; }
+    if (running.current || sharePending.current || tabletFileBusy.current || composing) return;
+    if (tablet && !tabletSource) { const seed = snapshot(); seed.id ||= crypto.randomUUID(); tabletSessionId.current = seed.id; setTabletSource(seed); }
+    if (state.current.editing) { if (tabletAPI.current) tabletAPI.current.focus(); else editor?.commands.focus(undefined, { scrollIntoView: false }); return; }
     focusOnEdit.current = true;
     setPresentation(false); setEditing(true); setPanel(null);
   };
   const startPresentation = () => {
-    if (running.current || sharePending.current || composing) return;
+    if (running.current || sharePending.current || tabletFileBusy.current || composing) return;
+    returnToEditor.current = editing;
     editor?.commands.blur();
     void requestImmersive();
     if (editing) void showReading(null, true); else { setPanel(null); setPresentation(true); }
+  };
+  const leavePresentation = () => {
+    navigationGuard.current = performance.now() + 400;
+    setPresentation(false); setPanel(null);
+    if (returnToEditor.current) { focusOnEdit.current = true; setEditing(true); }
   };
   const newDocument = () => {
     if (running.current || composing) return;
@@ -232,7 +252,7 @@ export default function AndroidApp() {
   };
   const [preparedShare, setPreparedShare] = useState<File | null>(null);
   const runShare = async (file: File) => {
-    if (running.current || sharePending.current) return;
+    if (running.current || sharePending.current || tabletFileBusy.current) return;
     sharePending.current = true; setSharing(true);
     try { const result = await shareAndroidFile(file); setMessage(result === 'completed' ? '공유창에 파일을 전달했습니다' : '공유를 취소했습니다'); }
     catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
@@ -240,35 +260,51 @@ export default function AndroidApp() {
       const incoming = pendingIncoming.current; pendingIncoming.current = null; if (incoming) setTimeout(() => callbacks.current.incoming(incoming), 0);
     }
   };
-  const back = () => {
-    if (running.current || sharePending.current) return;
+  const back = (native = false) => {
+    if (running.current || sharePending.current || tabletFileBusy.current || (native && performance.now() < navigationGuard.current)) return;
     const viewer = document.querySelector<HTMLElement>('.android-presentation');
     if (viewer) { viewer.dispatchEvent(new Event('studio-presentation-close')); return; }
     const sheet = document.querySelector<HTMLDialogElement>('.android-sheet[open]');
     if (sheet) { sheet.dispatchEvent(new Event('cancel', { cancelable: true })); return; }
     if (state.current.panel) { setPanel(null); return; }
     if (state.current.hwp) { setHwp(null); return; }
+    if (tabletAPI.current?.back()) return;
     if (state.current.editing) { void showReading(); return; }
     if (!state.current.opened) { androidServices()?.close?.(); return; }
-    protect(() => { void immersive.exit(); setOpened(false); setEditing(false); setOriginal(null); layout.current?.layout.dispose(); layout.current = null; setPapers(null); setMessage(''); });
+    protect(() => { void immersive.exit(); tabletAPI.current = null; tabletSessionId.current = null; setTabletSource(null); setOpened(false); setEditing(false); setOriginal(null); layout.current?.layout.dispose(); layout.current = null; setPapers(null); setMessage(''); });
   };
+  useEffect(() => {
+    const escape = (event: Event) => {
+      event.preventDefault();
+      const hwpDialog = document.querySelector<HTMLDialogElement>('.hwp-reader[open]');
+      const viewer = hwpDialog ? hwpDialog.querySelector<HTMLElement>('.android-presentation') : [...document.querySelectorAll<HTMLElement>('.android-presentation')].at(-1);
+      if (viewer) { viewer.dispatchEvent(new Event('studio-presentation-escape')); return; }
+      const sheet = document.querySelector<HTMLDialogElement>('.android-sheet[open]');
+      if (sheet) { sheet.dispatchEvent(new Event('cancel', { cancelable: true })); return; }
+      if (hwpDialog) { hwpDialog.dispatchEvent(new Event('cancel', { cancelable: true })); return; }
+      tabletAPI.current?.back();
+    };
+    window.addEventListener('studio-native-escape', escape);
+    return () => window.removeEventListener('studio-native-escape', escape);
+  }, []);
   const callbacks = useRef({ back, incoming: (file: AndroidFile) => protect(() => void readFile(new File([new Uint8Array(file.data)], file.name, { type: file.type }))) });
   callbacks.current = { back, incoming: file => {
-    if (running.current || sharePending.current) {
+    if (running.current || sharePending.current || tabletFileBusy.current) {
       if (pendingIncoming.current) setMessage('이미 열기 대기 중인 파일이 있습니다. 다음 파일은 메뉴에서 다시 열어 주세요.');
       else pendingIncoming.current = file;
       return;
     }
     protect(() => void readFile(new File([new Uint8Array(file.data)], file.name, { type: file.type })));
   } };
-  useEffect(() => { const services = androidServices(); const offOpen = services?.onOpenFile?.(file => callbacks.current.incoming(file)); const offBack = services?.onBack?.(() => callbacks.current.back()); return () => { offOpen?.(); offBack?.(); }; }, []);
+  useEffect(() => { const services = androidServices(); const offOpen = services?.onOpenFile?.(file => callbacks.current.incoming(file)); const offBack = services?.onBack?.(() => callbacks.current.back(true)); return () => { offOpen?.(); offBack?.(); }; }, []);
   const shortcuts = useRef<(event: KeyboardEvent) => void>(() => {});
   shortcuts.current = event => {
+    if (tabletAPI.current && editing) return;
     if (!(event.ctrlKey || event.metaKey) || event.isComposing || composing || document.querySelector('dialog[open]') || presentation) return;
     const key = event.key.toLowerCase();
     if (!['s', 'o', 'n', 'f', 'p'].includes(key)) return;
     event.preventDefault();
-    if (running.current || sharePending.current) return;
+    if (running.current || sharePending.current || tabletFileBusy.current) return;
     if (key === 's' && opened) void save();
     else if (key === 'o') openFile();
     else if (key === 'n') protect(() => void run('새 문서를 준비하는 중…', signal => install(blank(), null, signal, true)));
@@ -283,10 +319,10 @@ export default function AndroidApp() {
   const results = papers && query.trim() ? papers.text.flatMap((text, i) => text.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()) ? [i] : []) : [];
   const go = (number: number) => { if (!Number.isInteger(number) || !papers || number < 0 || number >= papers.sheets.length) return; setPage(number); setNavigation(value => ({ page: number, id: value.id + 1 })); };
   if (!editor) return <div className="android-start" role="status">문서 기능을 준비하는 중…</div>;
-  return <div className="android-shell" data-mode={editing ? 'edit' : 'read'} data-presentation={presentation}>
+  return <div className="android-shell" data-mode={editing ? 'edit' : 'read'} data-presentation={presentation} data-tablet-editor={!!tabletSource && editing && !presentation && !hwp}>
     <input ref={input} type="file" hidden accept=".docx,.hwp,.hwpx,.wordstudio,.html,.htm,.txt"
       onChange={event => { pickerPending.current = false; const file = event.target.files?.[0]; event.target.value = ''; if (file) protect(() => void readFile(file)); }} />
-    <header className="android-topbar"><button aria-label="뒤로" disabled={!!operation || !opened} onClick={back}><ArrowLeft size={22} aria-hidden="true" /></button>
+    <header className="android-topbar"><button aria-label="뒤로" disabled={!!operation || !opened} onClick={() => back()}><ArrowLeft size={22} aria-hidden="true" /></button>
       <div><strong>{opened ? documentState.title : 'Word Studio'}</strong><small>{opened ? editing ? 'Word 편집본' : dirty ? '편집본 읽기' : '읽기' : '문서 열기 · 원본 보기'}</small></div>
       <button aria-label="문서 메뉴" disabled={!!operation} onClick={() => setPanel('menu')}><MoreHorizontal size={23} aria-hidden="true" /></button>
       {opened && <ModeSwitch editing={editing} disabled={!!operation || composing || sharing} onEdit={enterEditing} onView={startPresentation} />}</header>
@@ -295,9 +331,9 @@ export default function AndroidApp() {
       <button onClick={() => setPanel('recent')}>최근 문서·복구본</button></main>}
     {opened && !editing && !presentation && papers && <PaperViewer document={papers} highlight={query} zoom={zoom} navigation={navigation} onPage={setPage} onWidth={setWidth} />}
     {opened && !editing && presentation && papers && <PagePresentation source={papers} sizes={papers.sizes} index={Math.min(page, papers.sheets.length - 1)}
-      loadPage={async number => papers.sheets[number].cloneNode(true) as HTMLElement} onPage={go} onExit={() => setPresentation(false)}
+      loadPage={async number => papers.sheets[number].cloneNode(true) as HTMLElement} onPage={go} onExit={leavePresentation}
       onEdit={enterEditing} notice={fullscreenNotice} />}
-    {opened && editing && <>
+    {opened && editing && !tabletSource && <>
       <EditorRibbon editor={editor} disabled={!!operation || composing || sharing} onChange={() => setRevision(value => value + 1)} onSave={() => void save()}
         onTable={() => { if (touchedCell.current?.isConnected) selectContextCell(editor, touchedCell.current); setPanel('table'); }} />
       <EditorCanvas key={documentState.id} settings={documentState.page} initialPage={page} onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}>
@@ -306,6 +342,18 @@ export default function AndroidApp() {
         }}><EditorContent editor={editor} /></div>
       </EditorCanvas>
     </>}
+    {tabletSource && <div className="android-tablet-editor" data-active={editing && !presentation && !hwp} inert={!editing || presentation || !!hwp}>
+      <Suspense fallback={<div role="status">PC 편집 화면을 준비하는 중…</div>}><TabletEditor key={tabletSource.id} androidSession={{
+        initial: tabletSource, active: editing && !presentation && !hwp && !operation && !panel,
+        modes: locked => <><button aria-label="문서 메뉴" disabled={locked} onClick={() => setPanel('menu')}><MoreHorizontal size={20} /></button><ModeSwitch editing disabled={locked || !!operation || composing || sharing} onEdit={enterEditing} onView={startPresentation} /></>,
+        onReady: api => { if (tabletSessionId.current === tabletSource.id) tabletAPI.current = api; }, onDocument: (doc, changed) => {
+          if (tabletSessionId.current !== tabletSource.id) return;
+          if (doc.id !== state.current.documentState.id) { setOriginal(null); setPage(0); }
+          setDocumentState(doc); if (changed) { setDirty(true); setContentRevision(x => x + 1); setRevision(x => x + 1); }
+        },
+        onOpen: openFile, onViewer: startPresentation, onSaved: () => setDirty(false), onComposing: setComposing, onBusy: value => { tabletFileBusy.current = value; if (!value) { const incoming = pendingIncoming.current; pendingIncoming.current = null; if (incoming) setTimeout(() => callbacks.current.incoming(incoming), 0); } },
+      }} /></Suspense>
+    </div>}
     {opened && <footer className="android-reader-tools" aria-label="문서 도구">
       <button disabled={!!operation} onClick={() => { if (editing) void showReading('find'); else setPanel('find'); }}>찾기</button>
       <button disabled={!!operation || editing} onClick={() => setPanel('pages')}>{editing ? '편집 중' : `쪽 ${page + 1}/${papers?.sheets.length ?? '…'}`}</button>

@@ -81,6 +81,10 @@ test('pinch, pan and button zoom stay on the current page; zoomed content pans b
   await swipe(page, [300, 400], [150, 400]);
   await expect(viewer).toHaveAttribute('data-page', '1');
   expect(await viewport.evaluate(el => el.scrollLeft)).toBeGreaterThan(oldScroll);
+  const oldTop = await viewport.evaluate(el => el.scrollTop);
+  await swipe(page, [205, 600], [205, 420]);
+  await expect(viewer).toHaveAttribute('data-page', '1');
+  expect(await viewport.evaluate(el => el.scrollTop)).toBeGreaterThan(oldTop);
   await reveal(page); await page.getByRole('button', { name: '뷰어 폭 맞춤', exact: true }).click();
   await expect.poll(async () => (await paper.boundingBox())!.width).toBeCloseTo(before, 0);
   await page.getByRole('button', { name: '뷰어 확대', exact: true }).click(); await expect.poll(async () => (await paper.boundingBox())!.width).toBeGreaterThan(before);
