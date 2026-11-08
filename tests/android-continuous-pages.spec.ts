@@ -87,6 +87,7 @@ test('tablet uses the actual PC ribbon and retains its editor history, multiple-
   const scaleBefore=await pc.locator('.scaled-document').evaluate(el=>el.getBoundingClientRect().width);
   await pinch(page,'.android-tablet-editor .document-workspace');
   await expect.poll(()=>pc.locator('.scaled-document').evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(scaleBefore*1.6);
+  await expect(pc.locator('.zoom-value')).toHaveText(/^\d+%$/);
   await pc.getByRole('button',{name:'전체 화면 뷰어',exact:true}).click(); await expect(page.locator('.android-presentation-page')).toContainText('TABLET EDIT');
   await page.keyboard.press('Escape'); await expect(pc).toBeVisible(); await expect(editor).toHaveAttribute('contenteditable','true');
   await pc.getByRole('button',{name:'실행 취소 (Ctrl+Z)',exact:true}).click(); await expect(editor).not.toContainText('TABLET EDIT');

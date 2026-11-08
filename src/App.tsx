@@ -2441,7 +2441,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
           <Plus size={14} />
         </IconButton>
         <button className="zoom-value" onClick={() => changeZoom(100)}>
-          {zoom}%
+          {androidSession ? Math.round(zoom) : zoom}%
         </button>
       </footer>
       <input
