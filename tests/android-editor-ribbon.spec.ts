@@ -31,10 +31,12 @@ test('persistent top icons and Escape return to editing without losing text or u
     if (round === 1) await viewer.getByRole('button', { name: '편집 모드', exact: true }).click(); else await page.keyboard.press('Escape');
     await expect(viewer).toHaveCount(0); await expect(editor).toBeVisible();
     await expect(editor).toHaveAttribute('contenteditable', 'true'); await expect(editor).toContainText('KEEP EDIT');
+    await expect(editor).toBeFocused();
   }
+  await page.keyboard.type(' AFTER ESC'); await expect(editor).toContainText('AFTER ESC');
   await page.getByRole('button', { name: '실행 취소', exact: true }).click();
-  await expect(editor).not.toContainText('KEEP EDIT');
-  await page.getByRole('button', { name: '다시 실행', exact: true }).click(); await expect(editor).toContainText('KEEP EDIT');
+  await expect(editor).not.toContainText('AFTER ESC');
+  await page.getByRole('button', { name: '다시 실행', exact: true }).click(); await expect(editor).toContainText('AFTER ESC');
   await editor.dispatchEvent('compositionstart', { data: '한' });
   await expect(modes(page).getByRole('button', { name: '전체 화면 뷰어', exact: true })).toBeDisabled();
   await editor.dispatchEvent('compositionend', { data: '한' });

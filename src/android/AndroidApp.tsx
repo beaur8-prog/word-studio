@@ -54,7 +54,7 @@ export default function AndroidApp() {
   const [sharing, setSharing] = useState(false);
   const sharePending = useRef(false);
   const [composing, setComposing] = useState(false);
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLInputElement>(null), focusOnEdit = useRef(false);
   const running = useRef<AbortController | null>(null), layout = useRef<PaperDocument | null>(null);
   const state = useRef({ documentState, dirty, opened, original, editing, panel, hwp, presentation }); state.current = { documentState, dirty, opened, original, editing, panel, hwp, presentation };
   const touchedCell = useRef<HTMLElement | null>(null);
@@ -68,6 +68,12 @@ export default function AndroidApp() {
   });
   const snapshot = () => validateDocument({ ...state.current.documentState, content: editor?.getJSON() ?? state.current.documentState.content, updatedAt: new Date().toISOString() });
   useEffect(() => { editor?.setEditable(editing && !operation, false); }, [editor, editing, operation]);
+  useEffect(() => {
+    if (!editor || !editing || operation || !focusOnEdit.current) return;
+    focusOnEdit.current = false;
+    const frame = requestAnimationFrame(() => editor.commands.focus(undefined, { scrollIntoView: false }));
+    return () => cancelAnimationFrame(frame);
+  }, [editor, editing, operation]);
   useEffect(() => {
     document.documentElement.dataset.android = 'true';
     const viewport = window.visualViewport;
@@ -170,6 +176,8 @@ export default function AndroidApp() {
   };
   const enterEditing = () => {
     if (running.current || sharePending.current || composing) return;
+    if (state.current.editing) { editor?.commands.focus(undefined, { scrollIntoView: false }); return; }
+    focusOnEdit.current = true;
     setPresentation(false); setEditing(true); setPanel(null);
   };
   const startPresentation = () => {
