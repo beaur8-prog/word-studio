@@ -25,6 +25,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
+      - name: Install the pinned Electron runtime
+        run: node node_modules/electron/install.js
       - if: runner.os == 'Linux'
         run: npx playwright install --with-deps chromium
       - if: runner.os == 'Windows'

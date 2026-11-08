@@ -25,7 +25,13 @@ for (const tablet of [false, true]) test(`${tablet ? 'tablet' : 'phone'} documen
   await page.keyboard.press('Escape'); await expect(page.locator('.android-presentation')).toHaveCount(0);
   await page.locator('.android-shell > input[type=file]').setInputFiles(path.resolve('tests/fixtures/hwp/landscape-pagination.hwp'));
   const hwp = page.getByRole('dialog', { name: 'HWP 읽기', exact: true }); await expect(hwp.getByTestId('hwp-page')).toBeVisible();
-  await assertInputs(page, hwp.locator('.hwp-viewport'));
+  const hwpView = hwp.locator('.hwp-viewport'), hwpPaper = hwp.locator('[data-hwp-page="2"] .hwp-sheet');
+  await hwpView.evaluate(el => { const slot = el.querySelector<HTMLElement>('[data-hwp-page="2"]')!, r = slot.getBoundingClientRect(), v = el.getBoundingClientRect(); el.scrollTop += r.top + r.height / 2 - v.top - v.height / 2; });
+  await expect(hwpPaper).toBeVisible(); const hwpPoint = await pointOnPage(hwpView, hwpPaper), hwpBase = await zoomScale(hwpView);
+  await wheel(page, hwpView); await expect.poll(() => zoomScale(hwpView)).toBeGreaterThan(hwpBase * 1.1);
+  const hwpAfter = await pointOnPage(hwpView, hwpPaper);
+  expect(Math.abs(hwpAfter.y - hwpPoint.y) * await zoomScale(hwpView)).toBeLessThan(2);
+  await assertInputs(page, hwpView);
   await hwp.getByRole('button', { name: '한글 전체 화면 뷰어', exact: true }).click(); await expect(full).toBeVisible();
   await assertInputs(page, full); await page.keyboard.press('Escape'); await expect(hwp.getByTestId('hwp-page')).toBeVisible();
 });
