@@ -319,7 +319,7 @@ export type AndroidEditorAPI = { getDocument(): StudioDocument; focus(): void; b
 export type AndroidEditorSession = {
   initial: StudioDocument; active: boolean; modes: ReactNode | ((locked: boolean) => ReactNode);
   onReady(api: AndroidEditorAPI | null): void; onDocument(doc: StudioDocument, changed: boolean): void;
-  onOpen(): void; onViewer(): void; onSaved(): void; onBusy?(value: boolean): void; onComposing(value: boolean): void;
+  onOpen(): void; onViewer(): void; onPrint(pdf?: boolean): void; onSaved(): void; onBusy?(value: boolean): void; onComposing(value: boolean): void;
 };
 export default function App({ androidSession }: { androidSession?: AndroidEditorSession } = {}) {
   const session = useRef(androidSession); session.current = androidSession;
@@ -840,7 +840,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     document.body.classList.remove('studio-printing'); setPrintPreview(null);
   };
   const print = async (pdf = false) => {
-    if (session.current) { notify('Android PDF·인쇄 연결은 준비 중입니다. DOCX 사본 저장을 사용해 주세요.'); return; }
+    if (session.current) { setFileMenu(false); setModal(null); session.current.onPrint(pdf); return; }
     if (fileActionPending.current || nativeFileOperation.current) return;
     fileActionPending.current = true;
     setFileMenu(false);

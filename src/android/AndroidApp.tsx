@@ -27,6 +27,7 @@ import { PagePresentation } from './PagePresentation';
 import { immersiveSession } from './immersive';
 import { PaperViewer, paperDocument, type PaperDocument } from './PaperViewer';
 import { androidServices, saveAndroidFile, shareAndroidFile, type AndroidFile } from './platform';
+import { ANDROID_PRINT_HELP, androidPrintMessage, prepareAndroidPrintDocument, printAndroidPrepared } from './printing';
 import './android.css';
 
 const blank = (): StudioDocument => ({ id: crypto.randomUUID(), format: 'word-studio', version: 1, title: '문서1',
@@ -237,6 +238,20 @@ export default function AndroidApp() {
     else if (result === 'download-requested') setMessage('DOCX 다운로드를 요청했습니다. 다운로드 완료 여부를 확인하세요.');
     else setMessage('저장을 취소했습니다');
   });
+  const print = (pdf = false) => {
+    if (composing || !state.current.opened) return;
+    setPanel(null);
+    void run('인쇄할 문서를 준비하는 중…', async signal => {
+      const prepared = await prepareAndroidPrintDocument(snapshot(), signal, reportLayout(signal)); signal.throwIfAborted();
+      setOperation(current => current ? { ...current, cancellable: false, label: pdf ? '인쇄창에서 PDF로 저장을 선택하세요…' : '인쇄 데이터를 보내고 시스템 인쇄창을 여는 중…' } : current);
+      try { setStatus(androidPrintMessage(await printAndroidPrepared(prepared))); }
+      finally { requestAnimationFrame(() => {
+        if (state.current.presentation) document.querySelector<HTMLElement>('.android-presentation-viewport')?.focus({ preventScroll: true });
+        else if (state.current.editing) { if (tabletAPI.current) tabletAPI.current.focus(); else editor?.commands.focus(undefined, { scrollIntoView: false }); }
+        else document.querySelector<HTMLElement>('.android-topbar button')?.focus({ preventScroll: true });
+      }); }
+    });
+  };
   const share = (source: boolean) => {
     // Invoke native/browser share in the user gesture when the original is
     // available; do not hide it behind unrelated asynchronous conversion.
@@ -299,9 +314,10 @@ export default function AndroidApp() {
   useEffect(() => { const services = androidServices(); const offOpen = services?.onOpenFile?.(file => callbacks.current.incoming(file)); const offBack = services?.onBack?.(() => callbacks.current.back(true)); return () => { offOpen?.(); offBack?.(); }; }, []);
   const shortcuts = useRef<(event: KeyboardEvent) => void>(() => {});
   shortcuts.current = event => {
-    if (tabletAPI.current && editing) return;
-    if (!(event.ctrlKey || event.metaKey) || event.isComposing || composing || document.querySelector('dialog[open]') || presentation) return;
+    if (tabletAPI.current && editing && !presentation) return;
+    if (!(event.ctrlKey || event.metaKey) || event.isComposing || composing || document.querySelector('dialog[open]')) return;
     const key = event.key.toLowerCase();
+    if (presentation && key !== 'p') return;
     if (!['s', 'o', 'n', 'f', 'p'].includes(key)) return;
     event.preventDefault();
     if (running.current || sharePending.current || tabletFileBusy.current) return;
@@ -309,7 +325,7 @@ export default function AndroidApp() {
     else if (key === 'o') openFile();
     else if (key === 'n') protect(() => void run('새 문서를 준비하는 중…', signal => install(blank(), null, signal, true)));
     else if (key === 'f' && opened) { if (editing) void showReading('find'); else setPanel('find'); }
-    else if (key === 'p') setMessage('PDF·인쇄는 Android 출력 연결 후 제공됩니다.');
+    else if (key === 'p' && opened) print();
   };
   useEffect(() => { const key = (event: KeyboardEvent) => shortcuts.current(event); window.addEventListener('keydown', key); return () => window.removeEventListener('keydown', key); }, []);
   const sizes = papers?.sizes ?? [];
@@ -332,7 +348,7 @@ export default function AndroidApp() {
     {opened && !editing && !presentation && papers && <PaperViewer document={papers} highlight={query} zoom={zoom} navigation={navigation} onPage={setPage} onWidth={setWidth} />}
     {opened && !editing && presentation && papers && <PagePresentation source={papers} sizes={papers.sizes} index={Math.min(page, papers.sheets.length - 1)}
       loadPage={async number => papers.sheets[number].cloneNode(true) as HTMLElement} onPage={go} onExit={leavePresentation}
-      onEdit={enterEditing} notice={fullscreenNotice} />}
+      onEdit={enterEditing} onPrint={() => print()} notice={fullscreenNotice} />}
     {opened && editing && !tabletSource && <>
       <EditorRibbon editor={editor} disabled={!!operation || composing || sharing} onChange={() => setRevision(value => value + 1)} onSave={() => void save()}
         onTable={() => { if (touchedCell.current?.isConnected) selectContextCell(editor, touchedCell.current); setPanel('table'); }} />
@@ -351,7 +367,7 @@ export default function AndroidApp() {
           if (doc.id !== state.current.documentState.id) { setOriginal(null); setPage(0); }
           setDocumentState(doc); if (changed) { setDirty(true); setContentRevision(x => x + 1); setRevision(x => x + 1); }
         },
-        onOpen: openFile, onViewer: startPresentation, onSaved: () => setDirty(false), onComposing: setComposing, onBusy: value => { tabletFileBusy.current = value; if (!value) { const incoming = pendingIncoming.current; pendingIncoming.current = null; if (incoming) setTimeout(() => callbacks.current.incoming(incoming), 0); } },
+        onOpen: openFile, onViewer: startPresentation, onPrint: print, onSaved: () => setDirty(false), onComposing: setComposing, onBusy: value => { tabletFileBusy.current = value; if (!value) { const incoming = pendingIncoming.current; pendingIncoming.current = null; if (incoming) setTimeout(() => callbacks.current.incoming(incoming), 0); } },
       }} /></Suspense>
     </div>}
     {opened && <footer className="android-reader-tools" aria-label="문서 도구">
@@ -368,7 +384,7 @@ export default function AndroidApp() {
       {message && <p role="status">{message}</p>}
       {panel === 'menu' && <><button onClick={openFile}>다른 파일 열기</button><button onClick={newDocument}>새 문서</button>
         <button onClick={() => setPanel('recent')}>최근 문서·복구본</button>
-        {original && /\.(hwp|hwpx)$/i.test(original.name) && <button onClick={() => { setPanel(null); setHwp(original); }}>한글 원본 보기</button>}{opened && <><button onClick={startPresentation}>전체 화면 뷰어</button><button onClick={() => setPanel('share')}>공유·사본 저장</button></>}
+        {original && /\.(hwp|hwpx)$/i.test(original.name) && <button onClick={() => { setPanel(null); setHwp(original); }}>한글 원본 보기</button>}{opened && <><button onClick={startPresentation}>전체 화면 뷰어</button><button onClick={() => setPanel('share')}>공유·사본 저장</button><button onClick={() => print()}>인쇄·PDF 저장</button></>}
         {opened && <label>문서 제목<input aria-label="문서 제목" value={documentState.title} onChange={event => { setDocumentState(doc => ({ ...doc, title: event.target.value })); setDirty(true); }} /></label>}
         <p>Word Studio {version} · Android</p><p>이 버전은 문서를 기기에서 처리합니다. 공유는 직접 선택한 파일만 전달합니다.</p></>}
       {panel === 'view' && <><button onClick={() => { setFit(true); setZoom(Math.max(10, Math.min(200, Math.floor((width - 24) / widest * 100)))); }}>폭에 맞추기</button>
@@ -383,7 +399,7 @@ export default function AndroidApp() {
       {panel === 'share' && <><button disabled={!original || !!operation || sharing} onClick={() => share(true)}>원본 파일 공유</button>
         <button disabled={!!operation} onClick={() => share(false)}>Word 편집본 사본 준비</button>{preparedShare && <button disabled={sharing} onClick={() => void runShare(preparedShare)}>준비된 사본 공유</button>}
         <button disabled={!!operation} onClick={() => void save()}>Word 문서 사본 저장 (.docx)</button>
-        <p>원본은 덮어쓰지 않습니다. PDF·인쇄는 Android 출력 연결 후 제공됩니다.</p></>}
+        <button disabled={!!operation || composing} onClick={() => print()}>인쇄·PDF 저장</button><p>원본은 덮어쓰지 않습니다. {ANDROID_PRINT_HELP}</p></>}
       {panel === 'recent' && <>{readHistory().length ? readHistory().map(doc => <button key={doc.id} onClick={() => protect(() => void run('복구본을 읽는 중…', signal => install(doc, null, signal)))}>{doc.title} · {new Date(doc.updatedAt).toLocaleString()}</button>) : <p>보관된 복구본이 없습니다.</p>}</>}
       {panel === 'leave' && <><p>변경한 내용을 파일 사본이나 기기의 복구본에 보관한 뒤 이동할 수 있습니다.</p><button onClick={() => { continuation.current = null; setPanel(null); }}>계속 편집</button>
         <button onClick={() => void save()}>Word 문서 사본 저장</button><button onClick={() => void run('복구본을 보관하는 중…', async signal => {

@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ModeSwitch } from './ModeSwitch';
+import { Printer } from 'lucide-react';
 
 type Size = { width: number; height: number };
 type Drag = { x: number; y: number; left: number; top: number; moved: boolean; multi: boolean; leftEdge: boolean; rightEdge: boolean };
@@ -19,9 +20,9 @@ function Sheet({ number, size, scale, top, left, current, loadPage }: { number: 
   </section>;
 }
 /** A continuous virtual page stack: scale belongs to the document, never to a page. */
-export function PagePresentation({ source, sizes, index, loadPage, onPage, onExit, onEdit, notice = '' }: {
+export function PagePresentation({ source, sizes, index, loadPage, onPage, onExit, onEdit, onPrint, notice = '' }: {
   source: object; sizes: Size[]; index: number; loadPage(index: number): Promise<HTMLElement>;
-  onPage(index: number): void; onExit(): void; onEdit?(): void; notice?: string;
+  onPage(index: number): void; onExit(): void; onEdit?(): void; onPrint?(): void; notice?: string;
 }) {
   const root = useRef<HTMLElement>(null), viewport = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ width: 1, height: 1 }), [manualScale, setManualScale] = useState<number | null>(null);
@@ -116,7 +117,7 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
       </div>
     </div>
     <button className="android-presentation-exit" aria-label="뷰어 닫기" onClick={onExit}>‹</button>
-    <div className="android-presentation-modebar"><span className="android-presentation-page-number" role="status">{index + 1} / {sizes.length}</span><ModeSwitch editing={false} onEdit={onEdit} onView={show} /></div>
+    <div className="android-presentation-modebar"><span className="android-presentation-page-number" role="status">{index + 1} / {sizes.length}</span><>{onPrint && <button aria-label="인쇄·PDF 저장" onClick={onPrint}><Printer size={20} aria-hidden="true" /></button>}</><ModeSwitch editing={false} onEdit={onEdit} onView={show} /></div>
     <div className="android-presentation-controls" hidden={!controls}>
       <footer><button aria-label="이전 페이지" disabled={!index} onClick={() => go(index - 1)}>‹</button><button aria-label="뷰어 축소" onClick={() => { zoom(scale / 1.25); show(); }}>−</button><button aria-label="뷰어 폭 맞춤" onClick={() => { zoom(box.width / widest); show(); }}>{Math.round(scale * 100)}%</button><button aria-label="뷰어 확대" onClick={() => { zoom(scale * 1.25); show(); }}>＋</button><button aria-label="다음 페이지" disabled={index + 1 === sizes.length} onClick={() => go(index + 1)}>›</button></footer>
       <div className="android-presentation-options"><button onClick={() => { zoom(Math.min(box.width / widest, box.height / size.height)); show(); }}>쪽 전체</button><span>좌우로 넘기기 · 상하로 스크롤</span></div>{notice && <p role="status">{notice}</p>}

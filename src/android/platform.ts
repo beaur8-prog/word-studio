@@ -8,6 +8,8 @@ export function isAndroidRuntime() {
 
 export type AndroidFile = { name: string; data: Uint8Array; type?: string };
 export type AndroidResult = 'completed' | 'cancelled';
+export type AndroidPrintResult = 'submitted' | 'cancelled' | 'closed';
+export type AndroidPrintDocument = AndroidFile & { pageWidthMils: number; pageHeightMils: number; pages: number };
 /** Optional native contract. No Electron API or unrestricted disk path crosses
  * this boundary. The host owns content:// grants, atomic writes and insets. */
 export interface AndroidServices {
@@ -17,6 +19,7 @@ export interface AndroidServices {
   onOpenFile?(receive: (file: AndroidFile) => void): () => void;
   onBack?(back: () => void): () => void;
   close?(): void;
+  printDocument?(document: AndroidPrintDocument): Promise<AndroidPrintResult>;
   setImmersiveMode?(enabled: boolean): Promise<void>;
 }
 declare global { interface Window { wordAndroid?: AndroidServices } }

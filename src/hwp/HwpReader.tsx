@@ -10,6 +10,7 @@ import { sanitizeImportedHtml } from '../document-html';
 import { previewEditableHwp } from './editing';
 import { PagePresentation } from '../android/PagePresentation';
 import { HwpReaderTools } from '../android/HwpReaderTools';
+import { androidPrintMessage, prepareAndroidPrintPages, printAndroidPrepared } from '../android/printing';
 import { HwpViewport } from './HwpViewport';
 import documentLimits from '../../electron/document-limits.json';
 import { HwpProgressPanel } from './ProgressPanel';
@@ -147,6 +148,12 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
         sheet.style.cssText = `width:${item.width}px;height:${item.height}px;page:hwp-${number}`;
         sheet.innerHTML = safeHwpSvg(item.svg).svg; root.append(sheet);
         style.textContent += `@page hwp-${number}{size:${item.width}px ${item.height}px;margin:0;}`;
+        if (android) { setStatus(`인쇄할 쪽을 준비하는 중… ${number + 1}/${info.count}`); await paintHwpProgress(); }
+      }
+      if (android) {
+        const prepared = await prepareAndroidPrintPages([...root.querySelectorAll<HTMLElement>(':scope > .print-page')], file.name.replace(/\.(hwp|hwpx)$/i, ''));
+        setStatus('인쇄 데이터를 보내고 시스템 인쇄창을 여는 중…');
+        setStatus(androidPrintMessage(await printAndroidPrepared(prepared))); return;
       }
       root.append(style); document.body.append(root); document.body.classList.add('studio-printing');
       await document.fonts.ready;
@@ -155,7 +162,10 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
         setStatus(saved ? (pdf ? 'PDF를 저장했습니다.' : '인쇄를 요청했습니다.') : '출력을 취소했습니다.');
       } else { window.print(); setStatus('인쇄 창에서 PDF로 저장할 수 있습니다.'); }
     } catch (reason) { setStatus(`출력 실패: ${String(reason)}`); }
-    finally { root.remove(); document.body.classList.remove('studio-printing'); exportingRef.current = false; setExporting(false); }
+    finally {
+      root.remove(); if (!android) document.body.classList.remove('studio-printing'); exportingRef.current = false; setExporting(false);
+      if (android) requestAnimationFrame(() => dialog.current?.querySelector<HTMLElement>('button:not(:disabled)')?.focus({ preventScroll: true }));
+    }
   };
   useEffect(() => window.wordDesktop?.onMenu(action => {
     if (exportingRef.current || converting) return;
@@ -173,14 +183,14 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
         if (exporting) return;
         if (key === 'f') { if (android) androidSearch.current?.(); else searchInput.current?.focus(); }
         else if (key === 'o') onOpen();
-        else if (key === 'p') { if (android) setStatus('PDF·인쇄는 Android 출력 연결 후 제공됩니다.'); else void print(false); }
+        else if (key === 'p') void print(false);
         else setStatus('HWP는 읽기 전용입니다. 원본 파일은 변경되지 않습니다.');
       }
     }}>
     <div className="hwp-windowbar" aria-hidden="true" />
     {android ? !presentation && <HwpReaderTools file={file} info={info} index={index} zoom={zoom} disabled={converting || exporting} conversionBlocked={!!info?.conversionBlock}
       query={query} searching={searching} searchInput={searchInput} searchControl={androidSearch} onQuery={setQuery} onFind={() => void findNext()} onPage={goToPage}
-      onZoom={value => { setFitWidth(false); setZoom(value); setNavigation(current => ({ page: index, id: current.id + 1 })); }} onFit={() => setFitWidth(true)} onClose={onClose} onOpen={onOpen} onCopy={() => void copyText()} onEdit={() => void prepareEditing()} onPresent={() => {
+      onZoom={value => { setFitWidth(false); setZoom(value); setNavigation(current => ({ page: index, id: current.id + 1 })); }} onFit={() => setFitWidth(true)} onClose={onClose} onOpen={onOpen} onCopy={() => void copyText()} onPrint={() => void print(false)} onEdit={() => void prepareEditing()} onPresent={() => {
         void onImmersive?.().then(allowed => setFullscreenNotice(allowed ? '' : '이 환경에서는 시스템 상태 표시줄을 숨길 수 없습니다.'));
         setPresentation(true);
       }} /> : <>
@@ -208,6 +218,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
       {info?.warnings ? ` 원본 구조 주의 항목 ${info.warnings}개.` : ''}</p>
     </>}
     {info?.conversionBlock && <p className="hwp-notice hwp-source-warning" role="alert">{info.conversionBlock}</p>}
+    {android && exporting && <div className="android-operation" role="status"><progress aria-label="인쇄 준비" /><span>{status}</span><p>시스템 인쇄창에서 인쇄하거나 취소해 주세요.</p></div>}
     {operation && <HwpProgressPanel operation={operation} />}
     {android && operation && <button className="android-hwp-cancel" onClick={onClose}>작업 취소·원본 보기 닫기</button>}
     {editable && <section className="hwp-conversion-panel" aria-label="한글 편집 변환 안내">
@@ -220,7 +231,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
     </section>}
     {error ? <main className="hwp-viewport"><div className="hwp-error" role="alert"><strong>HWP 파일을 열지 못했습니다</strong><p>{error}</p><button onClick={onClose}>편집 문서로 돌아가기</button></div></main>
        : info ? android && presentation ? <PagePresentation source={info} sizes={info.pages} index={index} onPage={goToPage} onExit={() => setPresentation(false)}
-        onEdit={info.conversionBlock ? undefined : () => { setPresentation(false); void prepareEditing(); }} notice={fullscreenNotice} loadPage={async number => {
+        onEdit={info.conversionBlock ? undefined : () => { setPresentation(false); void prepareEditing(); }} onPrint={() => void print(false)} notice={fullscreenNotice} loadPage={async number => {
           keepPages([number]); const item = await getPage(number); const element = document.createElement('div'); element.className = 'hwp-sheet';
           element.style.width = `${item.width}px`; element.style.height = `${item.height}px`; element.innerHTML = item.svg; return element;
         }} /> : <HwpViewport info={info} zoom={zoom} navigation={navigation} paused={converting || exporting} getPage={getPage} keepPages={keepPages} onPageChange={setIndex} onLoadingChange={setLoading} />

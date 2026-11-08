@@ -152,3 +152,8 @@
   .android-tablet-editor .command-trigger { display: none; }
   .android-tablet-editor .document-title { min-width: 60px; }
 }
+
+/* Print preparation must remain visible above the full-screen viewer. */
+.android-operation { z-index: 900; }
+.android-presentation-modebar > button { color: white; background: #20232be8; border: 1px solid #ffffff45; }
+.hwp-reader[data-android="true"] .android-operation { z-index: 900; }
