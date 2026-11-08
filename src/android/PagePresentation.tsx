@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ModeSwitch } from './ModeSwitch';
 import { Printer } from 'lucide-react';
+import { useZoomInput } from '../zoom-input';
 
 type Size = { width: number; height: number };
 type Drag = { x: number; y: number; left: number; top: number; moved: boolean; multi: boolean; leftEdge: boolean; rightEdge: boolean };
@@ -74,6 +75,7 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
     const v = viewport.current!; anchor.current = { x: fixed?.x ?? (v.scrollLeft + cx - left) / scale, y: fixed?.y ?? (v.scrollTop + cy) / scale, cx, cy };
     setManualScale(Math.min(8, Math.max(.1, next)));
   };
+  useZoomInput(viewport, scale, (next, x, y) => zoom(next, x, y), true, { max: 8, touchActive: () => points.current.size >= 2 || pinch.current !== null });
   const go = (next: number) => { if (next < 0 || next >= sizes.length) return; reported.current = next; viewport.current!.scrollTop = offsets[next] * scale; callbacks.current.onPage(next); show(); };
   const local = (x: number, y: number) => { const r = viewport.current!.getBoundingClientRect(); return { x: x - r.left, y: y - r.top }; };
   useEffect(() => {
@@ -86,7 +88,7 @@ export function PagePresentation({ source, sizes, index, loadPage, onPage, onExi
     window.addEventListener('keydown', key, true); return () => window.removeEventListener('keydown', key, true);
   }, [index, scale, box, sizes]);
   return <section ref={root} className="android-presentation" aria-label="전체 화면 문서 뷰어" data-page={index + 1} data-controls={controls} data-scale={scale}>
-    <div ref={viewport} className="android-presentation-viewport" tabIndex={0} aria-label="연속 문서 뷰어" onPointerDown={e => {
+    <div ref={viewport} className="android-presentation-viewport" data-scale={scale} tabIndex={0} aria-label="연속 문서 뷰어" onPointerDown={e => {
       if (e.pointerType === 'mouse') return;
       e.currentTarget.setPointerCapture(e.pointerId); points.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
       const v = viewport.current!;

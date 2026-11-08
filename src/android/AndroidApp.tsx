@@ -355,7 +355,7 @@ export default function AndroidApp() {
     {!opened && <main className="android-start"><h1>문서를 열어보세요</h1><p>DOCX · HWP · HWPX</p><button onClick={openFile}>파일 열기</button>
       <button onClick={newDocument}>새 문서</button>
       <button onClick={() => setPanel('recent')}>최근 문서·복구본</button></main>}
-    {opened && !editing && !presentation && papers && <PaperViewer document={papers} highlight={query} zoom={zoom} navigation={navigation} onPage={setPage} onWidth={setWidth} />}
+    {opened && !editing && !presentation && papers && <PaperViewer document={papers} highlight={query} zoom={zoom} navigation={navigation} onPage={setPage} onWidth={setWidth} onZoom={value => { setFit(false); setZoom(value); }} />}
     {opened && !editing && presentation && papers && <PagePresentation source={papers} sizes={papers.sizes} index={Math.min(page, papers.sheets.length - 1)}
       loadPage={async number => papers.sheets[number].cloneNode(true) as HTMLElement} onPage={go} onExit={leavePresentation}
       onEdit={enterEditing} onPrint={() => print()} notice={fullscreenNotice} />}
@@ -398,8 +398,8 @@ export default function AndroidApp() {
         {opened && <label>문서 제목<input aria-label="문서 제목" value={documentState.title} onChange={event => { setDocumentState(doc => ({ ...doc, title: event.target.value })); setDirty(true); }} /></label>}
         <p>Word Studio {version} · Android</p><p>이 버전은 문서를 기기에서 처리합니다. 공유는 직접 선택한 파일만 전달합니다.</p></>}
       {panel === 'view' && <><button onClick={() => { setFit(true); setZoom(Math.max(10, Math.min(200, Math.floor((width - 24) / widest * 100)))); }}>폭에 맞추기</button>
-        <label>문서 확대 <input aria-label="문서 확대" type="range" min="10" max="300" step="1" value={zoom} onChange={event => { setFit(false); setZoom(Number(event.target.value)); }} /><output>{zoom}%</output></label>
-        <button onClick={() => { setFit(false); setZoom(value => Math.max(10, value - 10)); }}>축소 −</button><button onClick={() => { setFit(false); setZoom(value => Math.min(300, value + 10)); }}>확대 +</button>
+        <label>문서 확대 <input aria-label="문서 확대" type="range" min="10" max="400" step="1" value={zoom} onChange={event => { setFit(false); setZoom(Number(event.target.value)); }} /><output>{Math.round(zoom)}%</output></label>
+        <button onClick={() => { setFit(false); setZoom(value => Math.max(10, value - 10)); }}>축소 −</button><button onClick={() => { setFit(false); setZoom(value => Math.min(400, value + 10)); }}>확대 +</button>
         <p>용지·표·그림 배치는 그대로 두고 표시 배율만 바꿉니다. 두 손가락 확대는 기기의 기본 확대 동작을 사용합니다.</p></>}
       {panel === 'pages' && <><label>쪽 번호<input aria-label="쪽 번호" type="number" min="1" max={papers?.sheets.length} value={page + 1} onChange={event => go(Number(event.target.value) - 1)} /></label>
         <div className="android-action-row"><button disabled={page <= 0} onClick={() => go(page - 1)}>이전 쪽</button><button disabled={page + 1 >= (papers?.sheets.length ?? 0)} onClick={() => go(page + 1)}>다음 쪽</button></div><button onClick={() => setPanel(null)}>문서로 돌아가기</button></>}

@@ -30,7 +30,7 @@ export function HwpReaderTools({ file, info, index, zoom, disabled, conversionBl
       {panel === 'search' && <form onSubmit={event => { event.preventDefault(); onFind(); setPanel(null); }}><label>찾을 내용<input autoFocus ref={searchInput} aria-label="HWP 문서에서 찾기" value={query} onChange={event => onQuery(event.target.value)} /></label><button disabled={searching || !query.trim()}>다음 찾기</button></form>}
       {panel === 'page' && <><label>쪽 번호<input type="number" aria-label="HWP 쪽 번호" min="1" max={info?.count} value={index + 1} onChange={event => onPage(Number(event.target.value) - 1)} /></label>
         <div className="android-action-row"><button disabled={index <= 0} onClick={() => onPage(index - 1)}>이전 쪽</button><button disabled={!info || index + 1 >= info.count} onClick={() => onPage(index + 1)}>다음 쪽</button></div><button onClick={() => setPanel(null)}>원본으로 돌아가기</button></>}
-      {panel === 'zoom' && <><button onClick={onFit}>폭에 맞추기</button><label>확대<input aria-label="HWP 확대" type="range" min="10" max="300" value={zoom} onChange={event => onZoom(Number(event.target.value))} /><output>{zoom}%</output></label><p>표·직인·그림의 원래 배치를 유지합니다.</p></>}
+      {panel === 'zoom' && <><button onClick={onFit}>폭에 맞추기</button><label>확대<input aria-label="HWP 확대" type="range" min="10" max="400" value={zoom} onChange={event => onZoom(Number(event.target.value))} /><output>{Math.round(zoom)}%</output></label><p>표·직인·그림의 원래 배치를 유지합니다.</p></>}
     </Sheet>}
   </>;
 }

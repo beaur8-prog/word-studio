@@ -22,6 +22,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
   const inFlight = useRef(new Map<number, Promise<HwpPage>>());
   const [info, setInfo] = useState<HwpInfo>();
   const [index, setIndex] = useState(0), [zoom, setZoom] = useState(85);
+  const manualZoom = (value: number) => { setFitWidth(false); setZoom(value); };
   const [presentation, setPresentation] = useState(false), [fullscreenNotice, setFullscreenNotice] = useState('');
   const [fitWidth, setFitWidth] = useState(android);
   useEffect(() => {
@@ -190,7 +191,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
     <div className="hwp-windowbar" aria-hidden="true" />
     {android ? !presentation && <HwpReaderTools file={file} info={info} index={index} zoom={zoom} disabled={converting || exporting} conversionBlocked={!!info?.conversionBlock}
       query={query} searching={searching} searchInput={searchInput} searchControl={androidSearch} onQuery={setQuery} onFind={() => void findNext()} onPage={goToPage}
-      onZoom={value => { setFitWidth(false); setZoom(value); setNavigation(current => ({ page: index, id: current.id + 1 })); }} onFit={() => setFitWidth(true)} onClose={onClose} onOpen={onOpen} onCopy={() => void copyText()} onPrint={() => void print(false)} onEdit={() => void prepareEditing()} onPresent={() => {
+      onZoom={manualZoom} onFit={() => setFitWidth(true)} onClose={onClose} onOpen={onOpen} onCopy={() => void copyText()} onPrint={() => void print(false)} onEdit={() => void prepareEditing()} onPresent={() => {
         void onImmersive?.().then(allowed => setFullscreenNotice(allowed ? '' : '이 환경에서는 시스템 상태 표시줄을 숨길 수 없습니다.'));
         setPresentation(true);
       }} /> : <>
@@ -208,8 +209,9 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
         onChange={event => { const number = Number(event.target.value); if (info && Number.isInteger(number) && number >= 1 && number <= info.count) goToPage(number - 1); }} /></label>
       <span data-testid="hwp-page-count">/ {info?.count ?? '…'}</span>
       <button aria-label="다음 쪽" onClick={() => goToPage(index + 1)} disabled={!info || index + 1 >= info.count || exporting || searching}>›</button>
-      <label>확대 <select aria-label="HWP 확대" value={zoom} onChange={event => setZoom(Number(event.target.value))}>
-        {[50, 65, 75, 85, 100, 125, 150, 200].map(value => <option key={value} value={value}>{value}%</option>)}
+      <label>확대 <select aria-label="HWP 확대" value={zoom} onChange={event => manualZoom(Number(event.target.value))}>
+        {![10, 25, 50, 65, 75, 85, 100, 125, 150, 200, 300, 400].includes(zoom) && <option value={zoom}>{Math.round(zoom)}%</option>}
+        {[10, 25, 50, 65, 75, 85, 100, 125, 150, 200, 300, 400].map(value => <option key={value} value={value}>{value}%</option>)}
       </select></label>
       <form onSubmit={event => { event.preventDefault(); void findNext(); }}><input ref={searchInput} aria-label="HWP 문서에서 찾기" value={query} onChange={event => setQuery(event.target.value)} placeholder="문서에서 찾기" />
         <button disabled={!info || exporting || searching || !query.trim()}>다음 찾기</button></form>
@@ -234,7 +236,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onIm
         onEdit={info.conversionBlock ? undefined : () => { setPresentation(false); void prepareEditing(); }} onPrint={() => void print(false)} notice={fullscreenNotice} loadPage={async number => {
           keepPages([number]); const item = await getPage(number); const element = document.createElement('div'); element.className = 'hwp-sheet';
           element.style.width = `${item.width}px`; element.style.height = `${item.height}px`; element.innerHTML = item.svg; return element;
-        }} /> : <HwpViewport info={info} zoom={zoom} navigation={navigation} paused={converting || exporting} getPage={getPage} keepPages={keepPages} onPageChange={setIndex} onLoadingChange={setLoading} />
+        }} /> : <HwpViewport info={info} zoom={zoom} onZoom={manualZoom} navigation={navigation} paused={converting || exporting} getPage={getPage} keepPages={keepPages} onPageChange={setIndex} onLoadingChange={setLoading} />
       : <main className="hwp-viewport" aria-busy="true"><p className="hwp-loading" role="status">HWP 문서를 읽는 중…</p></main>}
     <footer className="hwp-status" role="status">{exporting ? '출력할 쪽을 준비하고 있습니다…' : status || (info ? `${info.count}쪽 · HWP ${info.version} · 글꼴 ${info.fonts.length}종` : '원본을 읽고 있습니다.')}</footer>
   </dialog>;

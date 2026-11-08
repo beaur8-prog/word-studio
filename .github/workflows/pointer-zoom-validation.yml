@@ -1,0 +1,49 @@
+name: Pointer zoom validation
+on:
+  push:
+    branches: [codex/android-page-viewer]
+    paths:
+      - 'src/*zoom*.ts'
+      - tests/document-zoom.spec.ts
+      - scripts/zoom-desktop-smoke.cjs
+      - .github/workflows/pointer-zoom-validation.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pointer-zoom:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+      - if: runner.os == 'Windows'
+        run: npx playwright install chromium
+      - run: npm run build
+      - run: npx playwright test tests/document-zoom.spec.ts --output=test-results/pointer-zoom
+        env:
+          PLAYWRIGHT_CHANNEL: chromium
+      - if: runner.os == 'Linux'
+        run: xvfb-run -a node scripts/zoom-desktop-smoke.cjs
+      - if: runner.os == 'Windows'
+        run: node scripts/zoom-desktop-smoke.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pointer-zoom-${{ runner.os }}
+          retention-days: 3
+          path: |
+            test-results/pointer-zoom/
+            .cache/zoom-desktop-*/result.json
+            .cache/zoom-desktop-*/*.png
+            .cache/zoom-desktop-*/*.pdf

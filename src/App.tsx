@@ -4,6 +4,7 @@ import { visibleEditorPages } from './editor-visible-pages';
 import { layoutFurnitureImages } from './furniture-layout';
 import { useEffect, useRef, useState } from "react";
 import { useDocumentZoom } from "./document-zoom-gesture";
+import { usePrintPreviewZoom } from "./print-preview-zoom";
 import type { CSSProperties, ReactNode } from "react";
 const escapeHtml = (text: string) => { const el = document.createElement('span'); el.textContent = text; return el.innerHTML; };
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -432,12 +433,12 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       transformPastedHTML: (html) => sanitizeImportedHtml(html).html,
     },
   });
-  const gestureZoom = useDocumentZoom(workspaceRef, scaledRef, zoom / 100, value => setZoom(value * 100), !!androidSession?.active && !!editor);
+  const gestureZoom = useDocumentZoom(workspaceRef, scaledRef, zoom / 100, value => setZoom(value * 100), !!editor && (!androidSession || androidSession.active) && !printPreview && !hwpFile);
   const changeZoom = (value: number | ((current: number) => number)) => {
-    if (!androidSession) { setZoom(value); return; }
     const next = typeof value === 'function' ? value(zoom) : value;
     gestureZoom(next / 100);
   };
+  const previewZoom = usePrintPreviewZoom(printPreview);
   const notify = (message: string) => {
     setToast(message);
     clearTimeout(toastTimer.current);
@@ -2377,6 +2378,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       </main>
       {printPreview && <div className="print-preview-controls" role="toolbar" aria-label="인쇄 미리보기">
         <strong>인쇄 미리보기 · {printPreview.pages}쪽</strong>
+        <button aria-label="인쇄 미리보기 배율 초기화" onClick={previewZoom.reset}>{Math.round(previewZoom.scale * 100)}%</button>
         <span className="preview-warning">{printPreview.warnings.join(' ') || '이 페이지 배치로 PDF와 인쇄를 출력합니다.'}</span>
         <button onClick={() => print(true)}>PDF 저장</button>
         <button onClick={() => print()}>인쇄</button>
@@ -2421,27 +2423,27 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
         <span className="status-divider" />
         <IconButton
           label="축소"
-          onClick={() => changeZoom((z) => Math.max(androidSession ? 10 : 40, z - 10))}
+          onClick={() => changeZoom((z) => Math.max(10, z - 10))}
         >
           <Minus size={14} />
         </IconButton>
         <input
           aria-label="확대 축소"
           type="range"
-          min={androidSession ? 10 : 40}
-          max={androidSession ? 400 : 200}
+          min="10"
+          max="400"
           step="5"
           value={zoom}
           onChange={(e) => changeZoom(Number(e.target.value))}
         />
         <IconButton
           label="확대"
-          onClick={() => changeZoom((z) => Math.min(androidSession ? 400 : 200, z + 10))}
+          onClick={() => changeZoom((z) => Math.min(400, z + 10))}
         >
           <Plus size={14} />
         </IconButton>
         <button className="zoom-value" onClick={() => changeZoom(100)}>
-          {androidSession ? Math.round(zoom) : zoom}%
+          {Math.round(zoom)}%
         </button>
       </footer>
       <input

@@ -86,8 +86,9 @@ test('merged and final-row borders resize at 200% while column handles and read 
   await expect(page.locator('.tiptap')).not.toHaveClass(/row-resize-cursor/);
   await page.mouse.down(); await page.mouse.move(box.x + box.width + 30, box.y + 15, { steps: 4 }); await page.mouse.up();
   await expect(cells.first()).toHaveAttribute('colwidth', /\d+/);
-  await page.getByRole('slider', { name: '확대 축소' }).focus(); await page.keyboard.press('End');
+  await page.getByRole('slider', { name: '확대 축소' }).fill('200');
   await expect(page.getByRole('slider', { name: '확대 축소' })).toHaveValue('200');
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await cells.first().scrollIntoViewIfNeeded();
   const oldFirst = await height(rows.first()), oldSecond = await height(rows.nth(1));
   await drag(page, cells.first(), 100);

@@ -64,7 +64,7 @@
 .android-shell[data-presentation="true"] > .android-reader-tools,
 .android-shell[data-presentation="true"] > .android-status { display: none; }
 .android-presentation { position: fixed; inset: 0; z-index: 700; width: 100%; height: var(--android-height, 100dvh); background: #14161b; color: white; font-size: 16px; overflow: hidden; }
-.android-presentation-viewport { position: absolute; inset: 0; overflow: auto; overscroll-behavior: none; touch-action: none; scrollbar-width: none; user-select: none; }
+.android-presentation-viewport { overflow-anchor: none; position: absolute; inset: 0; overflow: auto; overscroll-behavior: none; touch-action: none; scrollbar-width: none; user-select: none; }
 .android-presentation-viewport::-webkit-scrollbar { display: none; }
 .android-presentation-canvas { position: relative; margin: 0; padding: 0; }
 .android-presentation-page { position: absolute; transform-origin: top left; background: white; color: #242932; }

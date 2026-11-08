@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { usePagedDocumentZoom } from '../paged-document-zoom';
 import type { PrintLayout } from '../print-layout';
 import { hwpViewportLayout, hwpVisiblePages } from '../hwp/viewport-layout';
 
@@ -8,13 +9,15 @@ export function paperDocument(layout: PrintLayout): PaperDocument {
   return { layout, sheets, sizes: sheets.map(sheet => ({ width: parseFloat(sheet.style.width), height: parseFloat(sheet.style.height) })),
     text: sheets.map(sheet => sheet.textContent || '') };
 }
-export function PaperViewer({ document: doc, zoom, highlight = '', navigation, onPage, onWidth }: {
-  document: PaperDocument; zoom: number; highlight?: string; navigation: { page: number; id: number }; onPage(page: number): void; onWidth(width: number): void;
+export function PaperViewer({ document: doc, zoom, highlight = '', navigation, onPage, onWidth, onZoom }: {
+  document: PaperDocument; zoom: number; highlight?: string; navigation: { page: number; id: number }; onPage(page: number): void; onWidth(width: number): void; onZoom(value: number): void;
 }) {
   const viewport = useRef<HTMLDivElement>(null), previous = useRef({ doc, zoom, top: 0 });
+  const hostRef = useRef(doc.layout.element); hostRef.current = doc.layout.element;
+  const restoreZoom = usePagedDocumentZoom(viewport, hostRef, doc.sizes, zoom / 100, value => onZoom(value * 100));
   const search = useRef(highlight); search.current = highlight;
   const callbacks = useRef({ onPage, onWidth }); callbacks.current = { onPage, onWidth };
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = viewport.current!, host = doc.layout.element, scale = zoom / 100;
     const layout = hwpViewportLayout(doc.sizes, scale);
     const old = previous.current;
@@ -50,7 +53,7 @@ export function PaperViewer({ document: doc, zoom, highlight = '', navigation, o
     };
     let frame = 0;
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(refresh); };
-    root.scrollTop = targetTop;
+    root.scrollTop = targetTop; restoreZoom();
     root.addEventListener('scroll', schedule, { passive: true });
     const observer = new ResizeObserver(schedule); observer.observe(root); refresh();
     return () => { previous.current = { doc, zoom, top: root.scrollTop }; cancelAnimationFrame(frame); observer.disconnect(); root.removeEventListener('scroll', schedule); slots.forEach(slot => slot.remove()); host.remove(); };
@@ -61,7 +64,7 @@ export function PaperViewer({ document: doc, zoom, highlight = '', navigation, o
     if (viewport.current) viewport.current.scrollTop = 12 + (layout.offsets[navigation.page] || 0);
     // A scroll-originated page change never rewrites the navigation request.
   }, [doc, navigation.id]);
-  return <main ref={viewport} className="android-paper-viewport" tabIndex={0} aria-label="문서 읽기 영역" />;
+  return <main ref={viewport} className="android-paper-viewport" data-scale={zoom / 100} tabIndex={0} aria-label="문서 읽기 영역" />;
 }
 
 // CSS highlights paint the original text ranges without inserting DOM wrappers,
