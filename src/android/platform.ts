@@ -17,6 +17,7 @@ export interface AndroidServices {
   onOpenFile?(receive: (file: AndroidFile) => void): () => void;
   onBack?(back: () => void): () => void;
   close?(): void;
+  setImmersiveMode?(enabled: boolean): Promise<void>;
 }
 declare global { interface Window { wordAndroid?: AndroidServices } }
 export const androidServices = () => isAndroidRuntime() ? window.wordAndroid : undefined;

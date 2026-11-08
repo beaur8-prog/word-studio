@@ -8,26 +8,28 @@ import './reader.css';
 import { HWP_CONVERSION_NOTICE, hwpHtmlBytes, type EditableHwp } from './conversion';
 import { sanitizeImportedHtml } from '../document-html';
 import { previewEditableHwp } from './editing';
+import { PagePresentation } from '../android/PagePresentation';
 import { HwpReaderTools } from '../android/HwpReaderTools';
 import { HwpViewport } from './HwpViewport';
 import documentLimits from '../../electron/document-limits.json';
 import { HwpProgressPanel } from './ProgressPanel';
 import { paintHwpProgress, type HwpOperation, type HwpProgressReporter } from './progress';
 
-export function HwpReader({ file, onClose, onOpen, onEdit, android = false }: { android?: boolean; file: File; onClose(): void; onOpen(): void; onEdit(source: EditableHwp, signal?: AbortSignal): Promise<void> }) {
+export function HwpReader({ file, onClose, onOpen, onEdit, android = false, onImmersive }: { android?: boolean; onImmersive?(): Promise<boolean>; file: File; onClose(): void; onOpen(): void; onEdit(source: EditableHwp, signal?: AbortSignal): Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null), session = useRef<HwpReaderSession | null>(null);
   const currentRequest = useRef(0), cache = useRef(new Map<number, HwpPage>());
   const inFlight = useRef(new Map<number, Promise<HwpPage>>());
   const [info, setInfo] = useState<HwpInfo>();
   const [index, setIndex] = useState(0), [zoom, setZoom] = useState(85);
+  const [presentation, setPresentation] = useState(false), [fullscreenNotice, setFullscreenNotice] = useState('');
   const [fitWidth, setFitWidth] = useState(android);
   useEffect(() => {
-    if (!android || !info || !fitWidth) return;
+    if (!android || !info || !fitWidth || presentation) return;
     const viewport = dialog.current?.querySelector<HTMLElement>('.hwp-viewport'); if (!viewport) return;
     const fit = () => setZoom(Math.max(10, Math.min(200, Math.floor((viewport.clientWidth - 24) / Math.max(...info.pages.map(page => page.width)) * 100))));
     const observer = new ResizeObserver(fit); observer.observe(viewport); fit();
     return () => observer.disconnect();
-  }, [android, info, fitWidth]);
+  }, [android, info, fitWidth, presentation]);
   const [navigation, setNavigation] = useState({ page: 0, id: 0 });
   const [loading, setLoading] = useState(true), [exporting, setExporting] = useState(false);
   const [error, setError] = useState(''), [status, setStatus] = useState('');
@@ -162,7 +164,7 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false }: { 
     else if (action === 'export-pdf') void print(true);
     else setStatus('HWP는 읽기 전용입니다. 편집 문서로 돌아가려면 읽기 화면을 닫으세요.');
   }), [info, file, converting]);
-  return <dialog ref={dialog} className="hwp-reader" data-android={android ? "true" : undefined} data-desktop-platform={window.wordDesktop?.platform} aria-label="HWP 읽기" onCancel={event => { event.preventDefault(); if (!exporting) onClose(); }}
+  return <dialog ref={dialog} className="hwp-reader" data-android={android ? "true" : undefined} data-presentation={android && presentation ? "true" : undefined} data-desktop-platform={window.wordDesktop?.platform} aria-label="HWP 읽기" onCancel={event => { event.preventDefault(); if (!exporting) onClose(); }}
     onKeyDown={event => {
       if (!(event.ctrlKey || event.metaKey) || event.nativeEvent.isComposing) return;
       const key = event.key.toLowerCase();
@@ -176,9 +178,12 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false }: { 
       }
     }}>
     <div className="hwp-windowbar" aria-hidden="true" />
-    {android ? <HwpReaderTools file={file} info={info} index={index} zoom={zoom} disabled={converting || exporting} conversionBlocked={!!info?.conversionBlock}
+    {android ? !presentation && <HwpReaderTools file={file} info={info} index={index} zoom={zoom} disabled={converting || exporting} conversionBlocked={!!info?.conversionBlock}
       query={query} searching={searching} searchInput={searchInput} searchControl={androidSearch} onQuery={setQuery} onFind={() => void findNext()} onPage={goToPage}
-      onZoom={value => { setFitWidth(false); setZoom(value); setNavigation(current => ({ page: index, id: current.id + 1 })); }} onFit={() => setFitWidth(true)} onClose={onClose} onOpen={onOpen} onCopy={() => void copyText()} onEdit={() => void prepareEditing()} /> : <>
+      onZoom={value => { setFitWidth(false); setZoom(value); setNavigation(current => ({ page: index, id: current.id + 1 })); }} onFit={() => setFitWidth(true)} onClose={onClose} onOpen={onOpen} onCopy={() => void copyText()} onEdit={() => void prepareEditing()} onPresent={() => {
+        void onImmersive?.().then(allowed => setFullscreenNotice(allowed ? '' : '이 환경에서는 시스템 상태 표시줄을 숨길 수 없습니다.'));
+        setPresentation(true);
+      }} /> : <>
     <header className="hwp-toolbar"><div><strong>{file.name}</strong><span>HWP/HWPX 원본 보기 · Word Studio</span></div>
       <button onClick={() => void prepareEditing()} disabled={!info || !!info.conversionBlock || converting || exporting}>Word 화면에서 편집</button>
       <button onClick={onOpen} disabled={exporting}>다른 파일 열기</button>
@@ -214,7 +219,11 @@ export function HwpReader({ file, onClose, onOpen, onEdit, android = false }: { 
       <button disabled={converting || exporting} onClick={() => { setEditable(undefined); setStatus('원본 보기를 계속합니다.'); }}>원본 보기로 돌아가기</button>
     </section>}
     {error ? <main className="hwp-viewport"><div className="hwp-error" role="alert"><strong>HWP 파일을 열지 못했습니다</strong><p>{error}</p><button onClick={onClose}>편집 문서로 돌아가기</button></div></main>
-      : info ? <HwpViewport info={info} zoom={zoom} navigation={navigation} paused={converting || exporting} getPage={getPage} keepPages={keepPages} onPageChange={setIndex} onLoadingChange={setLoading} />
+       : info ? android && presentation ? <PagePresentation source={info} sizes={info.pages} index={index} onPage={goToPage} onExit={() => setPresentation(false)}
+        onEdit={() => { setPresentation(false); void prepareEditing(); }} notice={fullscreenNotice} loadPage={async number => {
+          keepPages([number]); const item = await getPage(number); const element = document.createElement('div'); element.className = 'hwp-sheet';
+          element.style.width = `${item.width}px`; element.style.height = `${item.height}px`; element.innerHTML = item.svg; return element;
+        }} /> : <HwpViewport info={info} zoom={zoom} navigation={navigation} paused={converting || exporting} getPage={getPage} keepPages={keepPages} onPageChange={setIndex} onLoadingChange={setLoading} />
       : <main className="hwp-viewport" aria-busy="true"><p className="hwp-loading" role="status">HWP 문서를 읽는 중…</p></main>}
     <footer className="hwp-status" role="status">{exporting ? '출력할 쪽을 준비하고 있습니다…' : status || (info ? `${info.count}쪽 · HWP ${info.version} · 글꼴 ${info.fonts.length}종` : '원본을 읽고 있습니다.')}</footer>
   </dialog>;

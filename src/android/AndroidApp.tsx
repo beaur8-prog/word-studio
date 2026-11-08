@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import { generateHTML, generateJSON } from '@tiptap/core';
 import { EditorState } from '@tiptap/pm/state';
 import { version } from '../../package.json';
 import { editorExtensions, parseDocumentHtml } from '../extensions';
+import { TableRowResize } from '../table-row-resize';
+import { selectContextCell } from '../table-format';
 import { DocumentHistory } from '../document-history';
 import { importFile, exportDocx, validateDocument, sanitizeImportedHtml, documentFileLimit } from '../document-io';
-import { defaultPage, pageMargins, paperDimensions, type StudioDocument } from '../types';
+import { defaultPage, type StudioDocument } from '../types';
 import { createPrintLayout, type PrintLayoutProgress } from '../print-layout';
 import { withoutEditorReflow } from '../editor-layout-task';
 import { readHistory, saveRecovery } from '../recovery';
@@ -15,12 +17,21 @@ import { HwpReader } from '../hwp/HwpReader';
 import type { EditableHwp } from '../hwp/conversion';
 import { Sheet } from './Sheet';
 import { TableTools } from './TableTools';
+import { EditorCanvas } from './EditorCanvas';
+import { PagePresentation } from './PagePresentation';
+import { immersiveSession } from './immersive';
 import { PaperViewer, paperDocument, type PaperDocument } from './PaperViewer';
 import { androidServices, saveAndroidFile, shareAndroidFile, type AndroidFile } from './platform';
 import './android.css';
 
 const blank = (): StudioDocument => ({ id: crypto.randomUUID(), format: 'word-studio', version: 1, title: '문서1',
   page: { ...defaultPage }, comments: [], content: generateJSON('<p></p>', editorExtensions), updatedAt: new Date().toISOString() });
+// Desktop's 5px mouse row-resize hit area can cover an entire row after
+// fitting an A4 page to a phone. Keep its row-height schema/serialization,
+// and use the large numerical row tools instead of its mouse-only plugin.
+const androidEditorExtensions = editorExtensions.map(extension => extension.name === 'tableRowResize'
+  ? TableRowResize.extend({ addProseMirrorPlugins() { return []; } }) : extension);
+
 type Panel = 'menu' | 'find' | 'pages' | 'view' | 'share' | 'table' | 'recent' | 'leave' | null;
 
 export default function AndroidApp() {
@@ -35,15 +46,18 @@ export default function AndroidApp() {
   const [operation, setOperation] = useState<{ label: string; controller: AbortController; cancellable: boolean } | null>(null);
   const pickerPending = useRef(false);
   const pendingIncoming = useRef<AndroidFile | null>(null);
+  const [presentation, setPresentation] = useState(false), [fullscreenNotice, setFullscreenNotice] = useState('');
+  const [immersive] = useState(immersiveSession);
   const [sharing, setSharing] = useState(false);
   const sharePending = useRef(false);
   const [composing, setComposing] = useState(false);
-  const input = useRef<HTMLInputElement>(null), editorScroll = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLInputElement>(null);
   const running = useRef<AbortController | null>(null), layout = useRef<PaperDocument | null>(null);
-  const state = useRef({ documentState, dirty, opened, original, editing, panel, hwp }); state.current = { documentState, dirty, opened, original, editing, panel, hwp };
+  const state = useRef({ documentState, dirty, opened, original, editing, panel, hwp, presentation }); state.current = { documentState, dirty, opened, original, editing, panel, hwp, presentation };
+  const touchedCell = useRef<HTMLElement | null>(null);
   const continuation = useRef<(() => void) | null>(null);
   const installed = useRef(false), recoveryEpoch = useRef(0);
-  const editor = useEditor({ extensions: [...editorExtensions, DocumentHistory], content: documentState.content, editable: false,
+  const editor = useEditor({ extensions: [...androidEditorExtensions, DocumentHistory], content: documentState.content, editable: false,
     editorProps: { attributes: { 'aria-label': 'Android 문서 편집 영역', spellcheck: 'false' },
       transformPastedHTML: html => sanitizeImportedHtml(html).html },
     onUpdate({ transaction }) { if (installed.current && state.current.editing && transaction.docChanged) { setDirty(true); setContentRevision(value => value + 1); setRevision(value => value + 1); } },
@@ -56,8 +70,9 @@ export default function AndroidApp() {
     const viewport = window.visualViewport;
     const resize = () => { document.documentElement.style.setProperty('--android-height', `${viewport && viewport.scale === 1 ? viewport.height : window.innerHeight}px`); };
     resize(); viewport?.addEventListener('resize', resize);
+    void immersive.enter(true);
 
-    return () => { delete document.documentElement.dataset.android; document.documentElement.style.removeProperty('--android-height'); viewport?.removeEventListener('resize', resize); layout.current?.layout.dispose(); running.current?.abort(); };
+    return () => { delete document.documentElement.dataset.android; document.documentElement.style.removeProperty('--android-height'); viewport?.removeEventListener('resize', resize); layout.current?.layout.dispose(); running.current?.abort(); void immersive.exit(); };
   }, []);
   useEffect(() => {
     const picker = input.current;
@@ -110,7 +125,7 @@ export default function AndroidApp() {
     editor.view.updateState(EditorState.create({ schema: editor.schema, doc: node, plugins: editor.state.plugins }));
     installed.current = true; ++recoveryEpoch.current;
     layout.current?.layout.dispose(); layout.current = prepared ? paperDocument(prepared) : null;
-    setPapers(layout.current); setDocumentState(next); setOriginal(file); setHwp(null); setOpened(true); setEditing(edit); setDirty(false);
+    setPapers(layout.current); setPresentation(false); setDocumentState(next); setOriginal(file); setHwp(null); setOpened(true); setEditing(edit); setDirty(false);
     setPage(0); setNavigation(value => ({ page: 0, id: value.id + 1 })); setFit(true); setPanel(null); setQuery(''); setStatus(file ? '原本'.replace('原本', '原본 파일을 읽고 있습니다') : '새 문서');
   };
   const readFile = (file: File) => run('문서를 읽고 쪽 배치를 준비하는 중…', async signal => {
@@ -119,7 +134,10 @@ export default function AndroidApp() {
     await install({ ...result.document, content: result.html === undefined ? result.document.content : parseDocumentHtml(result.html) }, file, signal);
     if (result.warnings.length) setMessage(result.warnings.join(' '));
   });
-  const openFile = () => protect(() => {
+  const openFile = () => {
+    if (running.current || sharePending.current || composing) return;
+    void immersive.enter();
+    protect(() => {
     if (pickerPending.current) return;
     if (androidServices()?.openFile) void run('파일 선택창을 기다리는 중…', async signal => {
       const file = await androidServices()!.openFile!(); signal.throwIfAborted();
@@ -133,13 +151,29 @@ export default function AndroidApp() {
       if (result.warnings.length) setMessage(result.warnings.join(' '));
     }, false);
     else { pickerPending.current = true; input.current?.click(); }
-  });
-  const showReading = (nextPanel: Panel = null) => run('읽기 화면의 쪽 배치를 준비하는 중…', async signal => {
+    });
+  };
+  const showReading = (nextPanel: Panel = null, present = false) => run('읽기 화면의 쪽 배치를 준비하는 중…', async signal => {
     const prepared = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), snapshot().page, reportLayout(signal), signal));
     if (signal.aborted) { prepared.dispose(); return; }
-    layout.current?.layout.dispose(); layout.current = paperDocument(prepared); setPapers(layout.current); setEditing(false); setPanel(nextPanel);
+    layout.current?.layout.dispose(); layout.current = paperDocument(prepared); setPapers(layout.current); setEditing(false); setPanel(nextPanel); setPresentation(present);
     setNavigation(value => ({ page: Math.min(page, prepared.pages - 1), id: value.id + 1 }));
   });
+  const requestImmersive = async () => {
+    const mode = await immersive.enter();
+    setFullscreenNotice(mode === 'unavailable' ? '이 환경에서는 시스템 상태 표시줄을 숨길 수 없습니다.' : '');
+    return mode !== 'unavailable';
+  };
+  const startPresentation = () => {
+    if (running.current || composing) return;
+    void requestImmersive();
+    if (editing) void showReading(null, true); else { setPanel(null); setPresentation(true); }
+  };
+  const newDocument = () => {
+    if (running.current || composing) return;
+    void immersive.enter();
+    protect(() => void run('새 문서를 준비하는 중…', signal => install(blank(), null, signal, true)));
+  };
   const editHwp = async (source: EditableHwp, signal?: AbortSignal) => {
     const file = state.current.hwp; if (!file || !editor) return;
     const ownSignal = signal ?? new AbortController().signal;
@@ -191,13 +225,15 @@ export default function AndroidApp() {
   };
   const back = () => {
     if (running.current || sharePending.current) return;
+    const viewer = document.querySelector<HTMLElement>('.android-presentation');
+    if (viewer) { viewer.dispatchEvent(new Event('studio-presentation-close')); return; }
     const sheet = document.querySelector<HTMLDialogElement>('.android-sheet[open]');
     if (sheet) { sheet.dispatchEvent(new Event('cancel', { cancelable: true })); return; }
     if (state.current.panel) { setPanel(null); return; }
     if (state.current.hwp) { setHwp(null); return; }
     if (state.current.editing) { void showReading(); return; }
     if (!state.current.opened) { androidServices()?.close?.(); return; }
-    protect(() => { setOpened(false); setEditing(false); setOriginal(null); layout.current?.layout.dispose(); layout.current = null; setPapers(null); setMessage(''); });
+    protect(() => { void immersive.exit(); setOpened(false); setEditing(false); setOriginal(null); layout.current?.layout.dispose(); layout.current = null; setPapers(null); setMessage(''); });
   };
   const callbacks = useRef({ back, incoming: (file: AndroidFile) => protect(() => void readFile(new File([new Uint8Array(file.data)], file.name, { type: file.type }))) });
   callbacks.current = { back, incoming: file => {
@@ -209,16 +245,9 @@ export default function AndroidApp() {
     protect(() => void readFile(new File([new Uint8Array(file.data)], file.name, { type: file.type })));
   } };
   useEffect(() => { const services = androidServices(); const offOpen = services?.onOpenFile?.(file => callbacks.current.incoming(file)); const offBack = services?.onBack?.(() => callbacks.current.back()); return () => { offOpen?.(); offBack?.(); }; }, []);
-  useEffect(() => {
-    if (editing && editorScroll.current) {
-      const dims = paperDimensions(documentState.page);
-      const height = documentState.page.orientation === 'portrait' ? dims[1] : dims[0];
-      editorScroll.current.scrollTop = page * (height + 24);
-    }
-  }, [editing]);
   const shortcuts = useRef<(event: KeyboardEvent) => void>(() => {});
   shortcuts.current = event => {
-    if (!(event.ctrlKey || event.metaKey) || event.isComposing || composing || document.querySelector('dialog[open]')) return;
+    if (!(event.ctrlKey || event.metaKey) || event.isComposing || composing || document.querySelector('dialog[open]') || presentation) return;
     const key = event.key.toLowerCase();
     if (!['s', 'o', 'n', 'f', 'p'].includes(key)) return;
     event.preventDefault();
@@ -238,20 +267,21 @@ export default function AndroidApp() {
   const go = (number: number) => { if (!Number.isInteger(number) || !papers || number < 0 || number >= papers.sheets.length) return; setPage(number); setNavigation(value => ({ page: number, id: value.id + 1 })); };
   const command = (action: () => void) => { if (!composing && !running.current) { action(); setRevision(value => value + 1); } };
   if (!editor) return <div className="android-start" role="status">문서 기능을 준비하는 중…</div>;
-  const pageSettings = documentState.page, margins = pageMargins(pageSettings), dimensions = paperDimensions(pageSettings);
-  const paperWidth = pageSettings.orientation === 'portrait' ? dimensions[0] : dimensions[1];
-  const paperHeight = pageSettings.orientation === 'portrait' ? dimensions[1] : dimensions[0];
   const button = (label: string, action: () => void, active = false) => <button disabled={!!operation || composing} aria-pressed={active} onMouseDown={event => event.preventDefault()} onClick={() => command(action)}>{label}</button>;
-  return <div className="android-shell" data-mode={editing ? 'edit' : 'read'}>
+  return <div className="android-shell" data-mode={editing ? 'edit' : 'read'} data-presentation={presentation}>
     <input ref={input} type="file" hidden accept=".docx,.hwp,.hwpx,.wordstudio,.html,.htm,.txt"
       onChange={event => { pickerPending.current = false; const file = event.target.files?.[0]; event.target.value = ''; if (file) protect(() => void readFile(file)); }} />
     <header className="android-topbar"><button aria-label="뒤로" disabled={!!operation || !opened} onClick={back}>‹</button>
       <div><strong>{opened ? documentState.title : 'Word Studio'}</strong><small>{opened ? editing ? 'Word 편집본' : dirty ? '편집본 읽기' : '읽기' : '문서 열기 · 원본 보기'}</small></div>
+      {opened && <button aria-label="전체 화면 뷰어" disabled={!!operation || composing} onClick={startPresentation}>뷰어</button>}
       <button aria-label="문서 메뉴" disabled={!!operation} onClick={() => setPanel('menu')}>더보기</button></header>
     {!opened && <main className="android-start"><h1>문서를 열어보세요</h1><p>DOCX · HWP · HWPX</p><button onClick={openFile}>파일 열기</button>
-      <button onClick={() => protect(() => void run('새 문서를 준비하는 중…', signal => install(blank(), null, signal, true)))}>새 문서</button>
+      <button onClick={newDocument}>새 문서</button>
       <button onClick={() => setPanel('recent')}>최근 문서·복구본</button></main>}
-    {opened && !editing && papers && <PaperViewer document={papers} highlight={query} zoom={zoom} navigation={navigation} onPage={setPage} onWidth={setWidth} />}
+    {opened && !editing && !presentation && papers && <PaperViewer document={papers} highlight={query} zoom={zoom} navigation={navigation} onPage={setPage} onWidth={setWidth} />}
+    {opened && !editing && presentation && papers && <PagePresentation source={papers} sizes={papers.sizes} index={Math.min(page, papers.sheets.length - 1)}
+      loadPage={async number => papers.sheets[number].cloneNode(true) as HTMLElement} onPage={go} onExit={() => setPresentation(false)}
+      onEdit={() => { setPresentation(false); setEditing(true); }} notice={fullscreenNotice} />}
     {opened && editing && <>
       <div className="android-edit-tools" role="toolbar" aria-label="기본 편집 도구">
         {button('실행 취소', () => editor.chain().focus().undo().run())}{button('다시 실행', () => editor.chain().focus().redo().run())}
@@ -259,15 +289,13 @@ export default function AndroidApp() {
         {button('기울임', () => editor.chain().focus().toggleItalic().run(), editor.isActive('italic'))}
         {button('밑줄', () => editor.chain().focus().toggleUnderline().run(), editor.isActive('underline'))}
         {button('왼쪽 정렬', () => editor.chain().focus().setTextAlign('left').run())}{button('가운데 정렬', () => editor.chain().focus().setTextAlign('center').run())}
-        {button('표 도구', () => setPanel('table'))}
+        {button('표 도구', () => { if (touchedCell.current?.isConnected) selectContextCell(editor, touchedCell.current); setPanel('table'); })}
       </div>
-      <div className="android-editor-scroll" ref={editorScroll} onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}>
-        <div className="document-stack" data-page-height={paperHeight} data-margin={margins.top * 96 / 25.4} data-bottom-margin={margins.bottom * 96 / 25.4}
-          style={{ width: paperWidth, minHeight: paperHeight, '--page-width': `${paperWidth}px`, '--page-height': `${paperHeight}px`, '--page-margin': `${margins.top * 96 / 25.4}px`,
-            '--page-padding': `${margins.top * 96 / 25.4}px ${margins.right * 96 / 25.4}px ${margins.bottom * 96 / 25.4}px ${margins.left * 96 / 25.4}px` } as CSSProperties}>
-          <EditorContent editor={editor} />
-        </div>
-      </div>
+      <EditorCanvas key={documentState.id} settings={documentState.page} initialPage={page} onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}>
+        <div onPointerDownCapture={event => {
+          touchedCell.current = (event.target as Element).closest<HTMLElement>('td,th');
+        }}><EditorContent editor={editor} /></div>
+      </EditorCanvas>
     </>}
     {opened && <footer className="android-reader-tools" aria-label="문서 도구">
       <button disabled={!!operation} onClick={() => { if (editing) void showReading('find'); else setPanel('find'); }}>찾기</button>
@@ -281,9 +309,9 @@ export default function AndroidApp() {
     {operation && <div className="android-operation" role="status"><progress aria-label={operation.label} /><span>{operation.label}</span>{operation.cancellable ? <button onClick={cancel}>취소</button> : <p>시스템 선택창에서 작업을 완료하거나 취소해 주세요.</p>}</div>}
     {panel && <Sheet title={panel === 'menu' ? '문서 메뉴' : panel === 'find' ? '문서에서 찾기' : panel === 'pages' ? '쪽 이동' : panel === 'view' ? '보기 설정' : panel === 'share' ? '공유·사본 저장' : panel === 'table' ? '표 도구' : panel === 'recent' ? '최근 문서·복구본' : '변경 내용 보관'} onClose={() => setPanel(null)}>
       {message && <p role="status">{message}</p>}
-      {panel === 'menu' && <><button onClick={openFile}>다른 파일 열기</button><button onClick={() => protect(() => void run('새 문서를 준비하는 중…', signal => install(blank(), null, signal, true)))}>새 문서</button>
+      {panel === 'menu' && <><button onClick={openFile}>다른 파일 열기</button><button onClick={newDocument}>새 문서</button>
         <button onClick={() => setPanel('recent')}>최근 문서·복구본</button>
-        {original && /\.(hwp|hwpx)$/i.test(original.name) && <button onClick={() => { setPanel(null); setHwp(original); }}>한글 원본 보기</button>}{opened && <button onClick={() => setPanel('share')}>공유·사본 저장</button>}
+        {original && /\.(hwp|hwpx)$/i.test(original.name) && <button onClick={() => { setPanel(null); setHwp(original); }}>한글 원본 보기</button>}{opened && <><button onClick={startPresentation}>전체 화면 뷰어</button><button onClick={() => setPanel('share')}>공유·사본 저장</button></>}
         {opened && <label>문서 제목<input aria-label="문서 제목" value={documentState.title} onChange={event => { setDocumentState(doc => ({ ...doc, title: event.target.value })); setDirty(true); }} /></label>}
         <p>Word Studio {version} · Android</p><p>이 버전은 문서를 기기에서 처리합니다. 공유는 직접 선택한 파일만 전달합니다.</p></>}
       {panel === 'view' && <><button onClick={() => { setFit(true); setZoom(Math.max(10, Math.min(200, Math.floor((width - 24) / widest * 100)))); }}>폭에 맞추기</button>
@@ -309,6 +337,6 @@ export default function AndroidApp() {
         })}>복구본 보관 후 계속</button></>}
       {panel === 'table' && <><TableTools editor={editor} disabled={!!operation || composing} onChange={() => setRevision(value => value + 1)} /><button onClick={() => setPanel(null)}>편집으로 돌아가기</button></>}
     </Sheet>}
-    {hwp && <HwpReader key={`${hwp.name}:${hwp.lastModified}:${hwp.size}`} file={hwp} android onClose={() => setHwp(null)} onOpen={openFile} onEdit={editHwp} />}
+    {hwp && <HwpReader key={`${hwp.name}:${hwp.lastModified}:${hwp.size}`} file={hwp} android onImmersive={requestImmersive} onClose={() => setHwp(null)} onOpen={openFile} onEdit={editHwp} />}
   </div>;
 }

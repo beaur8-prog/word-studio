@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
-  testDir: './tests', testMatch: 'android-ui.spec.ts', timeout: 60000, workers: 1,
+  testDir: './tests', testMatch: 'android-*.spec.ts', timeout: 60000, workers: 1,
   outputDir: 'test-results/android',
   use: { baseURL: 'http://127.0.0.1:5194', browserName: 'chromium', channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome',
     viewport: { width: 412, height: 840 }, hasTouch: true,
