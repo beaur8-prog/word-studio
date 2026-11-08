@@ -442,3 +442,27 @@ Android 문서 메뉴·공유 메뉴와 전체 화면 뷰어의 **인쇄·PDF �
 미측정 범위는 실물 프린터·Samsung One UI·Bluetooth 무선 전송, 프린터 플러그인별 차이·사용자 지정 용지·선택 쪽 범위·대형 문서의 네이티브 출력이다. 별도 HWPX의 시스템 PDF 저장 샘플은 후속 검사로 남는다.
 
 최종 제품은 Word `b3e6263`(기본 인쇄 `6b38929` 포함), 네이티브 셸 `cb1abd9`(기본 인쇄 `90ff8cb` 포함)이며 최종 APK 검사/source-lock은 `e965f82`다. 문서 기록 커밋은 제품 source-lock을 변경하지 않는다. 공개 APK·GitHub Release·리토스·앱 버전 변경은 별도의 배포 요청 때 진행한다.
+
+
+## 20. 2026-11-08 PC·Android 공통 터치패드/휠 확대
+
+사용자의 ‘모두 적용’ 요청에 따라 Mac·Windows·Linux·Android의 문서 화면에 **터치패드 두 손가락 핀치와 Ctrl+마우스 휠**을 연결했다. Mac의 Meta+휠도 같은 문서 배율로 처리한다. 적용 화면은 PC 편집·읽기·인쇄 미리보기, Android 휴대폰/태블릿 편집·일반 읽기·전체 화면 뷰어, HWP/HWPX 원본 읽기다.
+
+- 문서 영역에서 입력을 처리한다. 일반 휠·터치패드 스크롤을 유지하고 확대는 표시 배율에 적용한다. 본문 글자 크기·용지·여백·표 크기·저장 모델·인쇄 조판은 그대로 사용한다.
+- [Chromium의 Ctrl+wheel 확대 입력](https://developer.mozilla.org/en-US/docs/Web/API/Element/wheel_event)과 [WebKit gesture 이벤트](https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/HandlingEvents/HandlingEvents.html)를 공통 처리한다. 작은 핀치 입력의 감도를 맞추고 큰 휠 한 번의 급격한 확대를 제한한다. 픽셀·글줄·페이지 단위 휠 값을 정규화한다.
+- 편집·일반 읽기는 10–400%, 기존 전체 화면 뷰어는 10–800% 범위를 유지한다. 내부 배율은 정밀하게 유지하며 표시 숫자는 정수 퍼센트로 읽는다. HWP 선택창에도 현재 연속 배율을 표시한다.
+- 포인터 아래의 쪽·문서 좌표를 기준으로 스크롤을 보정한다. 브라우저 자동 스크롤 앵커와의 충돌을 제거하고, 가상 쪽 사이 간격 및 HWP 고정 화면 여백을 실제 쪽 좌표에 반영했다. HWP의 같은 입력에서 중심점 오차 2.79px를 재현한 뒤 보정했다.
+- 인쇄 미리보기 배율은 화면 미디어 CSS에만 적용한다. 미리보기 배율을 바꾸어도 원래 출력 쪽과 PDF의 용지·글자 좌표는 유지한다. 미리보기 상단의 배율 버튼은 100%로 되돌린다.
+- Android는 [일반 입력 리스너](https://developer.android.com/reference/android/view/View.OnGenericMotionListener)에서 수정키 휠을 문서 입력으로 전달한다. WebView의 기본 확대와 문서 확대가 섞이지 않도록 한다. 입력기가 Esc를 먼저 소비하는 경우도 확인해 키를 입력기 전 단계에서 처리하고, 뷰어 한 번 종료·동일 Activity 유지·편집 복귀를 검증했다.
+
+로컬 Android **38/38**, PC 관련 고유 회귀 **34/34**, 공통 Node **172/172**, 브리지 **5/5**, 타입 검사·빌드가 통과했다. PC 고유 집합은 초기 33개 통과 후, 최대 배율을 가정하던 기존 200% 표 조절 검사를 명시적 200% 선택으로 갱신해 전체 표 조절 4개를 다시 통과한 결과다. 마지막 HWP 여백 보정 후 HWP·확대 20개와 Android 전체 38개도 다시 통과했다. 브라우저는 신뢰된 DevTools 마우스 핀치 입력과 실제 수정키 휠, WebKit 이벤트 폴백을 구분해 검사한다. 문서 JSON·쪽 수·실행 취소/다시 실행·일반 스크롤·인쇄 미디어 크기를 확인한다.
+
+[Windows·Linux 최종 검증](https://github.com/beaur8-prog/word-studio/actions/runs/42484681638): 각 OS에서 브라우저 확대 **4/4**와 실제 Electron 앱의 편집 Ctrl+휠·마우스 핀치·HWP 확대·PDF 검사가 통과했다. 실제 Mac 앱도 별도 프로필로 통과했다. Mac은 화면이 잠겨 있어 사용자 앱을 띄우지 않고 숨긴 검사 인스턴스로 확인했다. CI 가상 데스크톱은 전용 검사 창을 표시한다.
+
+[Android 최종 APK 검증](https://github.com/beaur8-prog/office-studio/actions/runs/42483725612): **Android 15(API35) 휴대폰 6/6, Android 16(API36) 태블릿 6/6**. 실제 OS hover/scroll 입력을 주입해 DOCX 읽기·편집·전체 화면과 HWP 원본·전체 화면을 검사했다. 기존 외장 키보드 Esc의 누름/반복/뗌·입력기 표시/숨김, 터치·배율·시스템 인쇄 취소/재시도/PDF 저장도 포함한다.
+
+Mac·Windows·Linux에서 각각 확대 전후 PDF **3쪽**의 본문·한글·표와 모든 글자 좌표를 비교했다. 쪽 수와 글자 좌표가 동일하며 최대 오차는 **0.0pt**다. 확대 후 PDF 총 9쪽을 렌더링해 확인했다. Android의 DOCX/HWP 출력 총 14쪽도 기존 인쇄 검증 결과와 본문·용지·렌더링 픽셀이 모두 동일했다. 각 플랫폼 내부의 전후 비교이며 운영체제 사이의 글꼴·픽셀 일치를 주장하지 않는다.
+
+실물 터치패드·Bluetooth 무선 전송·Samsung One UI 제조사 드라이버 매핑과 실제 Safari 하드웨어는 별도 확인 대상이다. 에뮬레이터의 OS 입력 주입, 브라우저 프로토콜 입력, WebKit 이벤트 검사는 각각의 범위로 기록한다. 원본 검증 자료와 수정 전 실패 근거는 `analysis/all-zoom-2026-11-08/results.json` 및 같은 폴더에 보관한다. 임시 앱 프로필은 정리하고 큰 기기 로그는 압축했다.
+
+제품 소스는 Word `4255b12`(공통 기능 `b6391c3` 포함), 네이티브 호스트 `4348290`이며 APK source-lock은 이 Word 커밋을 고정한다. PC 검증 환경·증거 보존 보완은 `450ffcb`까지 반영했다. 공개 배포·앱 버전·리토스는 변경하지 않았다.
