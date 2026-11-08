@@ -357,7 +357,7 @@ APK 셸은 Word 저장소의 `release/android-1.0.0` 안내를 통해 별도 **o
 
 - Android 브라우저 시나리오 **19/19 통과**. 첫 A4의 실제/표시 크기와 가로 입력, 셀 터치 입력, 네 방향 스와이프, 핀치·확대 후 이동, DOCX/HWP 뷰어 왕복을 포함한다.
 - PC 편집·시작·HWP 뷰어 **26/26**, 기존 네이티브 검사 **172/172**, Word/Slide/Sheet 브리지 경계 검사 **3/3** 통과. 타입 검사와 빌드 통과.
-- 실제 **Android 35 WebView**에서 휴대폰(Pixel 6)·태블릿(1600×2560, density 240) 에뮬레이터 **각 2/2 통과**. 새 A4 가로 입력·상태 표시줄 숨김·실제 OS 터치 주입을 통한 DOCX/HWP 스와이프·두 손가락 핀치를 검사했다. [최종 APK 빌드·검증 CI](https://github.com/beaur8-prog/office-studio/actions/runs/42446272797)는 성공했으며, release Java 컴파일과 격리 debug APK 빌드를 포함한다. 화면 캡처에서 밝은 카메라 여백 띠와 시스템 바가 사라지고, HWP 표가 표시되는 것도 확인했다. 최종 결과·스크린샷·해시는 `analysis/android-viewer-2026-11-08/results.json`에 보관한다.
+- 실제 **Android 15(API35) WebView**에서 휴대폰(Pixel 6)·태블릿(1600×2560, density 240) 에뮬레이터 **각 2/2 통과**. 새 A4 가로 입력·상태 표시줄 숨김·실제 OS 터치 주입을 통한 DOCX/HWP 스와이프·두 손가락 핀치를 검사했다. [최종 APK 빌드·검증 CI](https://github.com/beaur8-prog/office-studio/actions/runs/42446272797)는 성공했으며, release Java 컴파일과 격리 debug APK 빌드를 포함한다. 화면 캡처에서 밝은 카메라 여백 띠와 시스템 바가 사라지고, HWP 표가 표시되는 것도 확인했다. 최종 결과·스크린샷·해시는 `analysis/android-viewer-2026-11-08/results.json`에 보관한다.
 - PC의 App.tsx·styles.css·문서 I/O·인쇄 조판·복구·Electron 파일은 이전 기준과 동일하다. Android UI와 Android 조건의 HWP 도구만 수정했다.
 - 공개 APK·GitHub Release·리토스는 갱신하지 않았다. 설치된 1.0.0 APK에 소스 수정이 자동 적용되는 것은 아니며, 공개 업데이트는 별도 배포 요청 시 Android 전용 버전·기존 서명을 적용해 진행한다.
 
@@ -378,7 +378,7 @@ Android의 편집/뷰어 구분을 유지하며 편집 도구를 데스크톱처
 
 검증: Android 브라우저 **23/23**, PC 편집·시작·HWP 뷰어 **26/26**, 타입 검사·빌드 통과. 새 시나리오는 반복 모드 전환과 Esc, undo/redo, 글꼴·크기·정렬의 DOCX 저장, 표·쪽 나누기 삽입, 360/412/1280 폭 및 가로 화면에서의 리본 접기를 확인한다. 별도 시각 검수에서 회전 직후 이전 뷰포트 높이를 측정하던 검사 경쟁 상태를 확인했으며, 실제 visualViewport 높이 갱신과 두 렌더 프레임을 기다린 뒤 같은 시나리오가 통과했다.
 
-최종 [APK CI 검증](https://github.com/beaur8-prog/office-studio/actions/runs/42450281740)은 **Android 35 휴대폰·태블릿 각각 2/2 통과**. 실제 WebView에서 Android Esc 키로 편집 화면에 복귀한 뒤 X 키가 본문에 입력되는 것까지 확인했다. 뷰어의 아이콘 유지와 새 리본, 키보드가 떠도 남는 문서 영역을 화면 캡처로 검수했다. 기본 release Java 컴파일과 격리 debug APK 빌드, 공통 브리지 경계 3개 검사도 통과했다. 에뮬레이터 검사이며 실물 기기·외장 키보드·한국어 IME 검수와 구분한다. 공개 배포·리토스·버전 변경은 별도 요청 시 진행한다.
+최종 [APK CI 검증](https://github.com/beaur8-prog/office-studio/actions/runs/42450281740)은 **Android 15(API35) 휴대폰·태블릿 각각 2/2 통과**. 실제 WebView에서 Android Esc 키로 편집 화면에 복귀한 뒤 X 키가 본문에 입력되는 것까지 확인했다. 뷰어의 아이콘 유지와 새 리본, 키보드가 떠도 남는 문서 영역을 화면 캡처로 검수했다. 기본 release Java 컴파일과 격리 debug APK 빌드, 공통 브리지 경계 3개 검사도 통과했다. 에뮬레이터 검사이며 실물 기기·외장 키보드·한국어 IME 검수와 구분한다. 공개 배포·리토스·버전 변경은 별도 요청 시 진행한다.
 
 APK 재현에서는 `KEYCODE_ESCAPE`를 보내도 WebView의 DOM keydown이 실행되지 않아 뷰어에 머무는 경우를 확인했다. Word APK 셸의 Escape key-up을 현재 뷰어에 전달하고 네이티브 WebView 입력 포커스를 복원한다. 뷰어가 없으면 기존 Android/WebView 키 처리를 계속한다. 실패 화면·로그와 최종 동일 시나리오 재검증은 로컬 분석 폴더에 보관한다.
 
@@ -400,10 +400,23 @@ APK 재현에서는 `KEYCODE_ESCAPE`를 보내도 WebView의 DOM keydown이 실�
 
 통합 중 지연 로딩에 앞서 편집기를 만들던 TipTap 수명주기 오류를 재현해 태블릿에서 DOM 연결 후 생성하도록 수정했다. 편집 배율 버튼을 덮던 안내 알림도 도구 위로 이동했다. 그림 3개로 보이던 DOM 검사에서는 실제 그림 1개와 ProseMirror 커서용 구분자 이미지 2개를 분리해 확인했으며, DOCX의 실제 drawing 참조가 한 개임을 검증한다.
 
-최종 [APK CI 검증](https://github.com/beaur8-prog/office-studio/actions/runs/42466966280)은 **Android 35 휴대폰(Pixel 6)·태블릿(Pixel C, 2560×1800, density 320) 각각 2/2 통과**했다. 실제 OS Esc 키와 손가락 터치 주입으로 뷰어/편집 핀치, 연속 페이지, 넘김 시 배율 유지, PC 태블릿 UI와 배율 숫자를 확인했다. 기본 release Java 컴파일·격리 debug APK 빌드·공통 브리지 경계 3개 검사도 통과했다. 새 하드웨어 AVD를 기기별로 분리해 검사한다. 실물 기기·외장 키보드·한국어 IME·TalkBack 측정과는 구분한다. 결과·화면·해시는 `analysis/android-continuous-2026-11-08/results.json`에 보관한다.
+최종 [APK CI 검증](https://github.com/beaur8-prog/office-studio/actions/runs/42466966280)은 **Android 15(API35) 휴대폰(Pixel 6)·태블릿(Pixel C, 2560×1800, density 320) 각각 2/2 통과**했다. 실제 OS Esc 키와 손가락 터치 주입으로 뷰어/편집 핀치, 연속 페이지, 넘김 시 배율 유지, PC 태블릿 UI와 배율 숫자를 확인했다. 기본 release Java 컴파일·격리 debug APK 빌드·공통 브리지 경계 3개 검사도 통과했다. 새 하드웨어 AVD를 기기별로 분리해 검사한다. 실물 기기·외장 키보드·한국어 IME·TalkBack 측정과는 구분한다. 결과·화면·해시는 `analysis/android-continuous-2026-11-08/results.json`에 보관한다.
 
 실제 가로 태블릿 검수에서 세로 넘김 후 두 쪽 사이에 멈추는 문제를 발견했다. 전체 용지가 보이는 상태에서 0.75초 이상 끌면 페이지 넘김을 무시하던 조건을 로컬에서도 재현했다. 시간 제한을 제거해 천천히 끌어도 다음 쪽으로 정렬하며, 확대되어 한 화면을 넘는 용지는 계속 내부 스크롤을 우선한다. 수정 전 실패 근거와 수정 후 전체 Android 32개 통과를 함께 보존한다.
 
 핀치 확대의 내부 배율은 정밀하게 유지하고 태블릿 상태 표시줄의 숫자는 정수 퍼센트로 표시한다. 네이티브 화면에서 긴 소수점이 버튼 밖으로 넘치던 것을 확인해 수정했으며 관련 태블릿 2개 시나리오와 타입 검사·빌드를 다시 통과했다(고유 검사 수에는 중복 합산하지 않음).
 
 최종 제품 소스는 Word `48044fc`, Word 네이티브 Escape/태블릿 셸 `9bae920`이다. 최종 source-lock·APK 검사는 셸 `20c6b05`에서 실행했다. 문서 기록 커밋은 제품 source-lock을 바꾸지 않는다. 공개 APK·GitHub Release·리토스·앱 버전은 별도 배포 요청 때 진행한다.
+
+
+## 18. 2026-11-08 Android 16·일반 태블릿·외장 키보드 Esc 재확인
+
+사용자 기기는 Galaxy Tab S8+·Android 16·One UI 8·일반 태블릿 모드(DeX 아님)·Bluetooth 키보드 연결이다. 사용자는 Word의 증상과 설치 버전을 아직 확인하지 않았으며, 앞서 제시한 1.05는 다른 앱의 버전이라고 정정했다. 해당 값을 Word 버전으로 사용하지 않는다.
+
+기존 검증의 API35는 Android 15다. Android 16(API36)과 구분하도록 기존 표기를 바로잡았다. [공식 SDK 기준](https://developer.android.com/tools/releases/platforms)
+
+기존 Word 제품 소스 `48044fc`와 네이티브 Esc 처리 코드를 유지하고, 검사를 외장 키보드가 켜진 Android 15 휴대폰과 Android 16 태블릿으로 확장했다. 등록된 `qwerty2` 알파벳 키보드와 QWERTY 구성을 확인하고 `SOURCE_KEYBOARD`로 키를 주입한다. 일반 창·비다중창·비PiP·비데스크톱 모드를 확인한다. 입력기 표시/숨김을 실제 inset으로 측정한 뒤 뷰어에 진입해 Esc 누름·반복 누름·뗌을 검사한다.
+
+[최종 APK 재검증](https://github.com/beaur8-prog/office-studio/actions/runs/42468452837): **Android 16(API36) 태블릿 3/3, Android 15(API35) 휴대폰 3/3 통과**. 뷰어가 한 번만 닫히고 동일 Activity가 RESUMED 상태로 유지되며 문서가 남는다. 복귀 후 하드웨어 X 키가 입력되고, 편집 화면에서 다시 Esc를 눌러도 앱이 종료되지 않는다. 기존 DOCX/HWP 넘김·배율·편집 핀치 검사와 release Java 컴파일·격리 debug APK 빌드·브리지 경계 3개 검사도 통과했다. 현재 제품 코드에서 해당 종료 증상을 새로 재현하지 않아 제품 코드를 추가 변경하지 않았다. 검사 커밋은 Android 셸 `f06f81d`다.
+
+실제 Samsung One UI·Bluetooth 무선 전송·키보드 제조사 매핑은 측정하지 않았다. 일반 Android 에뮬레이터의 하드웨어 키 이벤트 검증과 구분한다. 설치된 Word APK의 수정 포함 여부는 버전 미확인 상태다. 원본 결과·입력 장치 정보·화면·해시는 `analysis/android-escape-keyboard-2026-11-08/results.json`에 보관한다. 공개 배포·앱 버전·리토스는 변경하지 않는다.
