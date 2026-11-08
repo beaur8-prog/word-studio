@@ -44,6 +44,7 @@ jobs:
         with:
           name: pointer-zoom-${{ runner.os }}
           retention-days: 3
+          include-hidden-files: true
           path: |
             test-results/pointer-zoom/
             .cache/zoom-desktop-*/*.json
