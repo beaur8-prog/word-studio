@@ -15,3 +15,9 @@ export function exportedRowCantSplit(attrs: Record<string, unknown> | null | und
   if (attrs?.wordRowSplit === 'avoid') return true;
   return !continuingMerge;
 }
+
+/** cantSplit moves a fitting row intact. A row taller than an entire body must
+ * still continue at its original font size; an exact-height row stays exact. */
+export function rowCanContinue(attrs: Record<string, unknown> | null | undefined, height: number, bodyHeight: number): boolean {
+  return attrs?.wordRowRule !== 'exact' && (rowSplitPolicy(attrs) === 'allow' || height > bodyHeight + .5);
+}

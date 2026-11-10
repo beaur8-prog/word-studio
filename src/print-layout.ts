@@ -142,7 +142,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     applyFloatingLayout(content);
     layoutTextBoxes(content);
     const last = content.lastElementChild as HTMLElement | null;
-    return !hasDeferredNote(content) && (!last || paragraphFitBottom(last) <= content.getBoundingClientRect().bottom + 0.5)
+    return !hasDeferredNote(content) && (!last || paragraphFitBottom(last, settings.suppressBottomSpacing !== false) <= content.getBoundingClientRect().bottom + 0.5)
       // Behind/in-front objects do not consume text flow. A page decoration
       // extending into the margin must not push its anchor onto another page.
       && [...content.querySelectorAll<HTMLElement>('img[data-image-floating]')].every(img =>
@@ -221,6 +221,15 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       // every normalizer three times made large-table DOCX saves stall. A
       // split or a move changes geometry and always needs a new measurement.
       let groupFits = fits();
+      // cantSplit also governs oversized rows: move their start to a fresh
+      // body before continuing them, rather than shrinking or filling a tail.
+      if (!groupFits && group.length === 1 && rowSplitPolicy(group[0].dataset) === 'avoid' &&
+        (bodyRows > 0 || content.children.length > 1)) {
+        group.forEach(row => row.remove());
+        if (!bodyRows) part.table.remove();
+        newPage(); part = shell(i > 0); bodyRows = 0;
+        group.forEach(row => part.body.append(row)); groupFits = fits();
+      }
       if (!groupFits) { split(); groupFits = fits(); }
       if (!groupFits && (bodyRows > 0 || content.children.length > 1)) {
         group.forEach(row => row.remove());

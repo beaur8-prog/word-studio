@@ -1,0 +1,101 @@
+{
+  "baseline": "5cb4246",
+  "comparison": "same prepared HWP models, old product and candidate",
+  "rows": [
+    {
+      "id": "02-work-rules",
+      "beforeStrictPassed": false,
+      "afterStrictPassed": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "06-mixed-document",
+      "beforeStrictPassed": false,
+      "afterStrictPassed": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "07-english-exam",
+      "beforeStrictPassed": false,
+      "afterStrictPassed": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "08-math-exam",
+      "beforeStrictPassed": false,
+      "afterStrictPassed": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "09-korean-exam",
+      "beforeStrictPassed": false,
+      "afterStrictPassed": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    }
+  ]
+}

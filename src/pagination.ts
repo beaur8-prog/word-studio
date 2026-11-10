@@ -1,6 +1,6 @@
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import { wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
-import { rowSplitPolicy } from './row-split-policy';
+import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { documentScale } from './document-scale';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -128,22 +128,27 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const first = rect(rows[i].dom), last = rect(rows[end - 1].dom);
       const height = last.top + last.height - first.top;
       const row = rows[i];
-      if (i === 0 && headerEnd && height > usableHeight && rowSplitPolicy(rows[headerEnd]?.node.attrs) === 'allow') {
+      if (i === 0 && headerEnd && height > usableHeight && rows[headerEnd] && rowCanContinue(rows[headerEnd].node.attrs, rect(rows[headerEnd].dom).height, usableHeight)) {
         const headers = rect(rows[headerEnd - 1].dom);
         const paragraph = rows[headerEnd].dom.querySelector('p');
         const line = paragraph ? parseFloat(getComputedStyle(paragraph).lineHeight) || 24 : 24;
         let columns = 0; row.node.forEach(cell => { columns += Number(cell.attrs.colspan || 1); });
-        result.push({ pos: row.pos, end: rows[headerEnd - 1].pos + rows[headerEnd - 1].node.nodeSize, top: first.top, height: headers.top + headers.height - first.top + line, columns });
+        const headerHeight = headers.top + headers.height - first.top;
+        // Keep the repeated headers with the start of an oversized protected
+        // row. This is a fit budget; it never changes the header's real height.
+        const budget = rowSplitPolicy(rows[headerEnd].node.attrs) === 'avoid' ? usableHeight : headerHeight + line;
+        result.push({ pos: row.pos, end: rows[headerEnd - 1].pos + rows[headerEnd - 1].node.nodeSize, top: first.top, height: budget, columns });
         i = headerEnd; continue;
       }
       let containsTable = false;
       if (row.node.childCount === 1) row.node.firstChild!.forEach(block => { if (block.type.name === 'table') containsTable = true; });
-      if ((height > usableHeight || containsTable) && end === i + 1 && row.node.childCount === 1 && rowSplitPolicy(row.node.attrs) !== 'allow') {
+      const continues = rowCanContinue(row.node.attrs, height, usableHeight);
+      if ((height > usableHeight || containsTable) && end === i + 1 && row.node.childCount === 1 && !continues) {
         const cell = row.node.firstChild!;
         cell.forEach((block, offset) => walk(block, row.pos + 2 + offset));
       } else {
         let columns = 0; row.node.forEach(cell => { columns += Number(cell.attrs.colspan || 1); });
-        const cellRow = end === i + 1 && rowSplitPolicy(row.node.attrs) === 'allow' && row.node.attrs.wordRowRule !== 'exact' && row.node.content.content.every(c => Number(c.attrs.rowspan || 1) === 1)
+        const cellRow = end === i + 1 && continues && row.node.content.content.every(c => Number(c.attrs.rowspan || 1) === 1)
           ? row.dom as HTMLTableRowElement : undefined;
         result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns, cellRow, header: i >= headerEnd ? headerFor(row.dom as HTMLTableRowElement) : undefined, tableTop: rect(rows[0].dom).top, mergedRows: end > i + 1 ? rows.slice(i, end).map(r => r.dom as HTMLTableRowElement) : undefined });
       }
@@ -210,6 +215,7 @@ export const Pagination = Extension.create({
               const top = Number(context.sheet.dataset.margin ?? sheet.dataset.margin ?? 96);
               const bottom = Number(context.sheet.dataset.bottomMargin ?? sheet.dataset.bottomMargin ?? top), stride = h + 24, usable = h - top - bottom;
               const hideEmptyLines = (context.sheet.dataset.hideEmptyLines ?? sheet.dataset.hideEmptyLines) === 'true';
+              const suppressBottomSpacing = (context.sheet.dataset.suppressBottomSpacing ?? sheet.dataset.suppressBottomSpacing) !== 'false';
               const hiddenEmptyLines = new Map<number, number>();
               const origin = context.dom.getBoundingClientRect().top, scale = documentScale(context.dom);
               const removed = [...context.dom.querySelectorAll<HTMLElement>('.pagination-gap,.page-break,.column-break,.section-break')].map(el => {
@@ -353,7 +359,7 @@ export const Pagination = Extension.create({
                 let fitHeight = piece.height;
                 if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
-                  if (paragraph instanceof HTMLElement) fitHeight -= Math.max(0, paragraph.getBoundingClientRect().bottom - paragraphFitBottom(paragraph)) / scale;
+                  if (paragraph instanceof HTMLElement) fitHeight -= Math.max(0, paragraph.getBoundingClientRect().bottom - paragraphFitBottom(paragraph, suppressBottomSpacing)) / scale;
                 }
                 if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);

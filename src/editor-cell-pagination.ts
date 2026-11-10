@@ -1,4 +1,4 @@
-import { rowSplitPolicy } from './row-split-policy';
+import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import type { EditorView } from '@tiptap/pm/view';
 import { Decoration } from '@tiptap/pm/view';
 
@@ -46,6 +46,27 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
       signatures.push(`${pos}:${gap}`);
     };
     const flowRow = (current: HTMLTableRowElement, pos: number, offset: number, outerBefore = 0, outerAfter = 0): number | null => {
+      let prefix = 0;
+      const bodyHeight = g.height - g.top - g.bottom;
+      if (rowSplitPolicy(current.dataset) === 'avoid' && current.getBoundingClientRect().height / g.scale > bodyHeight + .5) {
+        const table = current.closest('table')!;
+        // A collapsed border puts the first row inside the table's outer edge.
+        // Do not mistake that inset for preceding body content on an empty page.
+        const rows = [...table.rows].filter(row => !row.classList.contains('ProseMirror-widget'));
+        const inset = Math.max(0, naturalY(rows[0].getBoundingClientRect().top) - naturalY(table.getBoundingClientRect().top));
+        let headerEnd = 0;
+        while (headerEnd < rows.length && rows[headerEnd].cells.length && [...rows[headerEnd].cells].every(cell => cell.tagName === 'TH')) headerEnd++;
+        const headerHeight = headerEnd && rows.indexOf(current) >= headerEnd
+          ? (rows[headerEnd - 1].getBoundingClientRect().bottom - rows[0].getBoundingClientRect().top) / g.scale : 0;
+        const top = naturalY(current.getBoundingClientRect().top) - inset + g.extra + offset;
+        const page = Math.max(0, Math.floor((top - g.top + .5) / stride));
+        const start = page * stride + g.top + Math.max(headerHeight, g.repeatAt?.(page) ?? 0) + outerBefore;
+        if (top > start + .5) {
+          prefix = Math.max(0, (page + 1) * stride + g.top + Math.max(headerHeight, g.repeatAt?.(page + 1) ?? 0) + outerBefore - top);
+          addGap(pos, prefix, [...current.cells].reduce((sum, cell) => sum + cell.colSpan, 0));
+          offset += prefix;
+        }
+      }
       let flowedContentBottom = 0, physicalGaps = 0;
       for (const cell of [...current.cells]) {
         let extra = 0, cellGaps = 0;
@@ -68,6 +89,24 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
             let headerEnd = 0;
             while (headerEnd < rows.length && rows[headerEnd].cells.length && [...rows[headerEnd].cells].every(c => c.tagName === 'TH')) headerEnd++;
             for (let i = 0; i < rows.length;) {
+              const firstBody = rows[headerEnd];
+              if (i === 0 && headerEnd && firstBody && [...firstBody.cells].every(cell => cell.rowSpan === 1) &&
+                rowCanContinue(firstBody.dataset, firstBody.getBoundingClientRect().height / g.scale, bodyHeight)) {
+                const top = naturalY(rows[0].getBoundingClientRect().top);
+                const headerHeight = (rows[headerEnd - 1].getBoundingClientRect().bottom - rows[0].getBoundingClientRect().top) / g.scale;
+                const firstParagraph = firstBody.querySelector('p,h1,h2,h3,h4,h5,h6');
+                const line = firstParagraph ? parseFloat(getComputedStyle(firstParagraph).lineHeight) || 24 : 24;
+                const budget = rowSplitPolicy(firstBody.dataset) === 'avoid'
+                  ? Math.max(headerHeight, bodyHeight - nestedBefore - nestedAfter) : headerHeight + line;
+                const gap = gapFor(top, top + budget, offset + extra, nestedBefore, nestedAfter);
+                if (gap) {
+                  const page = Math.max(0, Math.floor((top + g.extra + offset + extra - g.top + .5) / stride));
+                  const gutter = g.top + g.bottom + 24 + reserve(page) + (g.repeatAt?.(page + 1) ?? 0);
+                  addGap(view.posAtDOM(rows[0], 0) - 1, gap, [...rows[0].cells].reduce((sum, cell) => sum + cell.colSpan, 0));
+                  extra += gap; cellGaps += Math.min(gap, gutter);
+                }
+                i = headerEnd; continue;
+              }
               let end = i === 0 ? Math.max(1, Math.min(rows.length, headerEnd + 1)) : i + 1;
               for (let j = i; j < end; j++) for (const c of rows[j].cells) end = Math.min(rows.length, Math.max(end, j + c.rowSpan));
               const first = rows[i], top = naturalY(first.getBoundingClientRect().top), bottom = naturalY(rows[end - 1].getBoundingClientRect().bottom);
@@ -78,8 +117,8 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
                 // Print can continue a single-cell row inside a multi-row form
                 // at its paragraph/line boundaries. Moving the whole nested row
                 // here leaves an extra blank area and shifts all later rows.
-                if (!wholeForm && end === i + 1 && rowSplitPolicy(first.dataset) !== 'avoid' && first.dataset.wordRowRule !== 'exact' &&
-                  (rowSplitPolicy(first.dataset) === 'allow' || first.cells.length === 1)) {
+                if (!wholeForm && end === i + 1 && first.dataset.wordRowRule !== 'exact' &&
+                  (rowCanContinue(first.dataset, bottom - top, bodyHeight) || rowSplitPolicy(first.dataset) !== 'avoid' && first.cells.length === 1)) {
                   const more = flowRow(first, view.posAtDOM(first, 0) - 1, offset + extra, nestedBefore, nestedAfter);
                   if (more === null) return false;
                   extra += more; cellGaps += more;
@@ -134,7 +173,7 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
         class: 'pagination-split-row', style: `--pagination-row-height:${height}px;--pagination-source-row-height:${current.style.height || 'auto'}`,
       }));
       signatures.push(`row:${pos}:${height}`);
-      return extra;
+      return prefix + extra;
     };
     const extra = flowRow(row, rowPos, 0);
     return extra === null ? null : { decorations, signatures, extra, references: references() };

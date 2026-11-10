@@ -35,7 +35,7 @@ export function EditorCanvas({ settings, initialPage, onCompositionStart, onComp
   }, [viewWidth, initialPage, pageHeight, scale]);
   return <section className="android-editor-pane"><div ref={viewport} className="android-editor-scroll" data-scale={scale} onCompositionStart={onCompositionStart} onCompositionEnd={onCompositionEnd}>
     <div className="android-editor-stage" style={{ width: width * scale, height: Math.max(pageHeight, height) * scale }}>
-      <div ref={paper} className="document-stack" data-page-height={pageHeight} data-margin={margins.top * PX_PER_MM} data-bottom-margin={margins.bottom * PX_PER_MM}
+      <div ref={paper} className="document-stack" data-page-height={pageHeight} data-margin={margins.top * PX_PER_MM} data-bottom-margin={margins.bottom * PX_PER_MM} data-suppress-bottom-spacing={settings.suppressBottomSpacing !== false}
         style={{ width, minHeight: pages * (pageHeight + 24) - 24, transform: `scale(${scale})`, '--page-width': `${width}px`, '--page-height': `${pageHeight}px`, '--page-margin': `${margins.top * PX_PER_MM}px`,
           '--page-padding': `${margins.top * PX_PER_MM}px ${margins.right * PX_PER_MM}px ${margins.bottom * PX_PER_MM}px ${margins.left * PX_PER_MM}px` } as CSSProperties}>
         <div className="paper-backgrounds" aria-hidden="true">{Array.from({ length: pages }, (_, n) => <div key={n} className="paper" style={{ top: n * (pageHeight + 24), height: pageHeight }} />)}</div>

@@ -1,4 +1,4 @@
-import { rowSplitPolicy } from './row-split-policy';
+import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { paragraphLineOffsets, paragraphTextWalker, splitText, textUnitLength } from './paragraph-fragments';
 
@@ -8,6 +8,28 @@ interface FragmentContext { bodyHeight(): number; hasDeferredNote(element: HTMLE
 export function tableFragmenter(context: FragmentContext) {
   // Split editable form rows at paragraph or nested-table row boundaries. A
   // large single cell must not shrink all its text just to fit one sheet.
+  function hasEarlierBodyContent(row: HTMLTableRowElement) {
+    const body = row.closest<HTMLElement>('.print-content');
+    if (!body) return false;
+    let start = body.getBoundingClientRect().top;
+    for (let node: HTMLElement | null = row; node && node !== body; node = node.parentElement) {
+      const css = getComputedStyle(node);
+      if (node.matches('td,th')) {
+        const collapsed = getComputedStyle(node.closest('table')!).borderCollapse === 'collapse';
+        start += (parseFloat(css.paddingTop) || 0) + (parseFloat(css.borderTopWidth) || 0) / (collapsed ? 2 : 1);
+      }
+      if (node instanceof HTMLTableElement && node.rows.length) {
+        start += (parseFloat(css.marginTop) || 0) + Math.max(0, node.rows[0].getBoundingClientRect().top - node.getBoundingClientRect().top);
+        let headerEnd = 0;
+        while (headerEnd < node.rows.length && node.rows[headerEnd].cells.length && [...node.rows[headerEnd].cells].every(cell => cell.tagName === 'TH')) headerEnd++;
+        // Repeated headers and enclosing cell padding belong at the top of
+        // every fragment; they are not preceding body text to move again.
+        if (headerEnd && ![...node.rows].slice(0, headerEnd).some(header => header.contains(row)))
+          start += node.rows[headerEnd - 1].getBoundingClientRect().bottom - node.rows[0].getBoundingClientRect().top;
+      }
+    }
+    return row.getBoundingClientRect().top > start + .5;
+  }
   function splitElement(element: HTMLElement, boundary: number, depth = 0): HTMLElement | null {
     if (depth > 30) return null;
     if (element.matches('p,h1,h2,h3,h4,h5,h6') && ((element.textContent?.length ?? 0) > 1 || element.querySelector('br'))) {
@@ -39,10 +61,14 @@ export function tableFragmenter(context: FragmentContext) {
       layoutHwpCellLines(element); return tail;
     }
     if (element.matches('tr')) {
-      if (rowSplitPolicy(element.dataset) === 'avoid' || element.dataset.wordRowRule === 'exact') return null;
+      const canContinue = rowCanContinue(element.dataset, element.getBoundingClientRect().height, context.bodyHeight());
+      if (element.dataset.wordRowRule === 'exact' || rowSplitPolicy(element.dataset) === 'avoid' && !canContinue) return null;
       const row = element as HTMLTableRowElement;
+      // A nested oversized cantSplit row must also begin on a fresh body.
+      // Returning it intact lets the enclosing cell move it into its tail.
+      if (rowSplitPolicy(row.dataset) === 'avoid' && canContinue && hasEarlierBodyContent(row)) return null;
       if (row.cells.length) {
-        if (row.cells.length > 1 && rowSplitPolicy(row.dataset) !== 'allow' || [...row.cells].some(c => c.rowSpan > 1)) return null;
+        if (row.cells.length > 1 && !canContinue || [...row.cells].some(c => c.rowSpan > 1)) return null;
         const original = row.cloneNode(true) as HTMLTableRowElement, height = row.getBoundingClientRect().height;
         const available = boundary - row.getBoundingClientRect().top;
         if (available <= .5) return null;

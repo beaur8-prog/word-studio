@@ -2239,6 +2239,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
                 data-margin={margin}
                 data-bottom-margin={margins.bottom * 96 / 25.4}
                 data-hide-empty-lines={page.hideEmptyLines === true}
+                data-suppress-bottom-spacing={page.suppressBottomSpacing !== false}
                 ref={stackRef}
                 style={
                   {

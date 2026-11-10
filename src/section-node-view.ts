@@ -36,6 +36,7 @@ export class SectionNodeView {
     this.dom.style.width = `${width}px`; this.dom.dataset.sectionContent = this.node.attrs.page;
     this.dom.dataset.pageHeight = String(height);
     this.dom.dataset.hideEmptyLines = String(page.hideEmptyLines === true);
+    this.dom.dataset.suppressBottomSpacing = String(page.suppressBottomSpacing !== false);
     const signature = `${this.node.attrs.page}:${count}`;
     if (signature !== this.signature) {
       this.signature = signature; this.backgrounds.replaceChildren();

@@ -26,6 +26,9 @@ export interface PageSettings {
   columns?: { count: number; space: number; widths?: number[]; balance?: boolean };
   /** Imported Hancom section policy; preserve the paragraphs in the model. */
   hideEmptyLines?: boolean;
+  /** OOXML document compatibility: allow the final exact line's empty leading
+   * below the body edge. Unset retains native Studio/HWP layout. */
+  suppressBottomSpacing?: boolean;
   headerHtml?: string;
   footerHtml?: string;
   firstHeaderHtml?: string;

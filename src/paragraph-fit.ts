@@ -5,8 +5,11 @@ let context: CanvasRenderingContext2D | null | undefined;
 /** The final line's empty leading can cross the body edge while every painted
  * glyph still fits. Keep its full flow box for following paragraphs, but use
  * the text's paint bounds when deciding whether this paragraph must move. */
-export function paragraphFitBottom(paragraph: HTMLElement): number {
+export function paragraphFitBottom(paragraph: HTMLElement, suppressBottomSpacing = true): number {
   const box = paragraph.getBoundingClientRect(), fallback = box.bottom;
+  // Standard Word spacing reserves the entire exact line. Trimming its empty
+  // leading is an opt-in document compatibility policy, not a universal fit.
+  if (!suppressBottomSpacing || paragraph.dataset.wordLineRule && paragraph.dataset.wordLineRule !== 'exact') return fallback;
   if (!paragraph.matches('p,h1,h2,h3,h4,h5,h6') || paragraph.hasAttribute('data-print-paragraph-fragment') || !/(?:px|pt)$/.test(paragraph.style.lineHeight) ||
     !paragraph.textContent?.trim() || paragraph.querySelector('img,svg,table,br,mark,u,s,del,sub,sup,[data-note-reference],[style*="background"],[style*="text-decoration"]') ||
     paragraph.closest('[data-column-count]:not([data-column-count="1"])')) return fallback;

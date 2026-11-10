@@ -167,7 +167,7 @@ export function validateDocument(input: unknown): StudioDocument {
     page,
     ["size", "width", "height", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
       'differentFirstPage', 'differentOddEven', 'firstHeader', 'firstFooter', 'evenHeader', 'evenFooter',
-      'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop', 'breakType', 'columns', 'hideEmptyLines',
+      'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop', 'breakType', 'columns', 'hideEmptyLines', 'suppressBottomSpacing',
       'headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'],
     "용지 설정",
   );
@@ -187,7 +187,7 @@ export function validateDocument(input: unknown): StudioDocument {
     keysOnly(page.margins, ['top', 'right', 'bottom', 'left'], '방향별 여백');
     if (['top', 'right', 'bottom', 'left'].some(k => !finite((page.margins as Record<string, unknown>)[k], 0, 75))) fail('방향별 여백이 올바르지 않습니다.');
   }
-  for (const key of ['differentFirstPage', 'differentOddEven', 'firstPageNumbers', 'evenPageNumbers', 'gutterTop', 'hideEmptyLines'])
+  for (const key of ['differentFirstPage', 'differentOddEven', 'firstPageNumbers', 'evenPageNumbers', 'gutterTop', 'hideEmptyLines', 'suppressBottomSpacing'])
     if (page[key] !== undefined && typeof page[key] !== 'boolean') fail('용지 옵션이 올바르지 않습니다.');
   for (const key of ['firstHeader', 'firstFooter', 'evenHeader', 'evenFooter'])
     if (page[key] !== undefined && !boundedString(page[key], 10000)) fail('머리글·바닥글이 올바르지 않습니다.');
@@ -534,6 +534,9 @@ async function readDocxPage(
   const settingsFile = zip.file('word/settings.xml');
   const settings = settingsFile ? xml(await settingsFile.async('string')) : undefined;
   if (page.columns && settings) page.columns.balance = !enabled(elements(settings, 'noColumnBalance')[0]);
+  // This compatibility flag is off when absent. Do not give an imported
+  // Word document the native HWP final-line fit policy by default.
+  page.suppressBottomSpacing = !!settings && enabled(elements(settings, 'suppressBottomSpacing')[0]);
   page.differentOddEven = !!settings && enabled(elements(settings, 'evenAndOddHeaders')[0]);
   page.gutterTop = !!settings && enabled(elements(settings, 'gutterAtTop')[0]);
   for (const [source, destination] of [['header', 'headerDistance'], ['footer', 'footerDistance'], ['gutter', 'gutter']] as const) {
@@ -1581,7 +1584,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       ...(bookmarkAliases.size ? [{ name: bookmarkNamesProperty, value: JSON.stringify([...bookmarkAliases].map(([name, alias]) => [alias, name])) }] : []),
     ],
     evenAndOddHeaderAndFooters: differentOddEven,
-    compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false), doNotBreakWrappedTables: false },
+    compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false), doNotBreakWrappedTables: false,
+      suppressBottomSpacing: document.page.suppressBottomSpacing !== false },
     numbering: { config: numbering },
     footnotes, endnotes,
     comments: { children: comments },
