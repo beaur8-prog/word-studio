@@ -105,6 +105,22 @@ export async function initializeRegularFontFallback(profile: RegularFontFallback
   return 'fallback';
 }
 
+/** Activate the bundled Gothic only where the measured narrow CoreText face
+ * is available. Requested installed faces remain first in the CSS stack. */
+export async function initializeNarrowKoreanGothic(changed?: () => void): Promise<boolean> {
+  let available = false;
+  try {
+    await new FontFace('Studio narrow Korean Gothic probe', 'local("AppleSDGothicNeo-Regular")').load();
+    available = true;
+  } catch { /* Other native font environments retain their existing selection. */ }
+  const root = document.documentElement, before = root.classList.contains('narrow-korean-gothic');
+  root.classList.toggle('narrow-korean-gothic', available);
+  if (before !== available) {
+    if (changed) changed(); else document.dispatchEvent(new Event(wordFontMetricsChanged));
+  }
+  return available;
+}
+
 // CSS family lookup can resolve an unavailable Windows name through a
 // platform fontconfig alias. A local-only face probe admits actual installed
 // Korean serif faces; Linux otherwise reaches the bundled Noto face directly.
@@ -165,7 +181,7 @@ export async function initializeWordFontFallbacks(profiles: readonly FontFallbac
         document.fonts.add(fallback); changed();
       } catch { /* An optional font cannot prevent opening or recovering documents. */ }
     }
-  })), ...(profiles === families ? [initializeNativeKoreanSerif(changed), ...regularFamilies.map(profile => initializeRegularFontFallback(profile, changed))] : [])]);
+  })), ...(profiles === families ? [initializeNativeKoreanSerif(changed), initializeNarrowKoreanGothic(changed), ...regularFamilies.map(profile => initializeRegularFontFallback(profile, changed))] : [])]);
   // A stalled optional local-font probe must not leave the startup window
   // blank. Late results still register and notify the measurement owners.
   let timer: ReturnType<typeof setTimeout> | undefined;

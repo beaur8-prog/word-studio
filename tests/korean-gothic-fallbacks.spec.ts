@@ -9,7 +9,8 @@ test('missing Malgun preserves natural Hangul advances and authored fallback lis
       try { await new FontFace('Gothic availability probe', source).load(); return true; } catch { return false; }
     };
     const installed = await available('local("Malgun Gothic"),local("맑은 고딕")');
-    const apple = await available('local("AppleGothic")');
+    const narrow = document.documentElement.classList.contains('narrow-korean-gothic');
+    const originalLegacy = await available('local("한양중고딕")');
     const host = document.createElement('div'); host.className = 'tiptap'; document.body.append(host);
     const span = (family: string | null, text: string) => {
       const node = document.createElement('span');
@@ -18,19 +19,23 @@ test('missing Malgun preserves natural Hangul advances and authored fallback lis
       node.textContent = text; host.append(node); return node;
     };
     try {
-      const expectedHangul = span('AppleGothic', '가나다바사아'), expectedLatin = span('Arial', 'Abc123');
+      const expectedHangul = span('Noto Sans KR', '가나다바사아'), expectedLatin = span('Arial', 'Abc123');
       const hangul = [null, 'Malgun Gothic', '맑은 고딕'].map(f => span(f, '가나다바사아'));
       const latin = [null, 'Malgun Gothic', '맑은 고딕'].map(f => span(f, 'Abc123'));
+      const legacy = span('한양중고딕', '가나다바사아');
       const authored = span('"Malgun Gothic", monospace', '가나다');
+      await document.fonts.load('20px "Noto Sans KR"', '가나다바사아Abc123');
       await document.fonts.ready;
-      return { installed, apple, hangul: hangul.map(n => n.getBoundingClientRect().width),
+      return { installed, narrow, originalLegacy, legacyWidth:legacy.getBoundingClientRect().width, legacyFamily:getComputedStyle(legacy).fontFamily, legacySource:legacy.style.fontFamily, hangul: hangul.map(n => n.getBoundingClientRect().width),
         latin: latin.map(n => n.getBoundingClientRect().width), expectedHangul: expectedHangul.getBoundingClientRect().width,
         expectedLatin: expectedLatin.getBoundingClientRect().width,
         authored: getComputedStyle(authored).fontFamily, source: authored.style.fontFamily };
     } finally { host.remove(); }
   });
   expect(result.authored).toBe(result.source);
-  if (!result.installed && result.apple) {
+  if (result.narrow && !result.originalLegacy) expect(result.legacyWidth).toBeCloseTo(result.expectedHangul,2);
+  if (!result.narrow) expect(result.legacyFamily).toBe(result.legacySource);
+  if (!result.installed && result.narrow) {
     for (const width of result.hangul) expect(width).toBeCloseTo(result.expectedHangul, 2);
     for (const width of result.latin) expect(width).toBeCloseTo(result.expectedLatin, 2);
   }
@@ -98,4 +103,24 @@ test('Korean Gothic edit and two DOCX saves retain requested fonts and original 
     expect(row.xml).toContain('Malgun Gothic');
     expect(row.xml).not.toMatch(/AppleGothic|Noto Sans|Studio Korean Gothic/);
   }
+});
+
+test('a system without the measured narrow face retains its native fallback selection', async ({page})=>{
+  await page.goto('/');
+  await page.getByRole('textbox',{name:'문서 편집 영역',exact:true}).waitFor();
+  const result=await page.evaluate(async()=>{
+    const {initializeNarrowKoreanGothic}=await import('/src/word-font-fallbacks.ts');
+    const Original=globalThis.FontFace,root=document.documentElement,previous=root.classList.contains('narrow-korean-gothic');
+    (globalThis as any).FontFace=function(family:string,source:string,options:any){
+      return new Original(family,source.includes('AppleSDGothicNeo-Regular')?'local("WS Definitely Missing Native Face")':source,options);
+    };
+    try{
+      const available=await initializeNarrowKoreanGothic(()=>{});
+      const host=document.createElement('div');host.className='tiptap';document.body.append(host);
+      const span=document.createElement('span');span.style.fontFamily='한양중고딕';span.textContent='Native fallback';host.append(span);
+      try{return {available,active:root.classList.contains('narrow-korean-gothic'),family:getComputedStyle(span).fontFamily,source:span.style.fontFamily};}
+      finally{host.remove();}
+    }finally{globalThis.FontFace=Original;root.classList.toggle('narrow-korean-gothic',previous);}
+  });
+  expect(result.available).toBe(false);expect(result.active).toBe(false);expect(result.family).toBe(result.source);
 });

@@ -724,13 +724,15 @@ button:hover:not(:disabled) {
 .paper-footer > span:last-child {
   margin-left: auto;
 }
+/* The measured narrow native Gothic is replaced by a bundled natural face. */
+.narrow-korean-gothic { --studio-korean-sans-fallback: "Noto Sans KR", sans-serif; }
 .tiptap {
   font-synthesis: weight style;
   position: relative;
   outline: 0 !important;
   padding: var(--page-padding, var(--page-margin));
   min-height: var(--page-height);
-  font-family: "Malgun Gothic", "맑은 고딕", Arial, "AppleGothic", sans-serif;
+  font-family: "Malgun Gothic", "맑은 고딕", Arial, var(--studio-korean-sans-fallback, sans-serif);
   font-size: 11pt;
   line-height: 1.65;
   overflow-wrap: break-word;
@@ -745,8 +747,8 @@ button:hover:not(:disabled) {
 .tiptap > :first-child {
   margin-top: 0;
 }
-/* Installed Windows faces win. The optional Mac Gothic has full-em Hangul;
-   Arial keeps the existing Latin advances. Match a single authored family,
+/* Installed requested faces win; the measured narrow native fallback uses
+   bundled Gothic while Arial keeps Latin advances. Match one authored family,
    leaving explicit fallback lists and the saved font names untouched. */
 .tiptap [style*='font-family:Malgun Gothic;' i],
 .tiptap [style$='font-family:Malgun Gothic' i],
@@ -764,8 +766,19 @@ button:hover:not(:disabled) {
 .tiptap [style$='font-family:"맑은 고딕"' i],
 .tiptap [style*='font-family: "맑은 고딕";' i],
 .tiptap [style$='font-family: "맑은 고딕"' i] {
-  font-family: "Malgun Gothic", "맑은 고딕", Arial, "AppleGothic", sans-serif !important;
+  font-family: "Malgun Gothic", "맑은 고딕", Arial, var(--studio-korean-sans-fallback, sans-serif) !important;
 }
+.narrow-korean-gothic .tiptap [style*='font-family:한양중고딕;' i],
+.narrow-korean-gothic .tiptap [style$='font-family:한양중고딕' i],
+.narrow-korean-gothic .tiptap [style*='font-family: 한양중고딕;' i],
+.narrow-korean-gothic .tiptap [style$='font-family: 한양중고딕' i],
+.narrow-korean-gothic .tiptap [style*='font-family:"한양중고딕";' i],
+.narrow-korean-gothic .tiptap [style$='font-family:"한양중고딕"' i],
+.narrow-korean-gothic .tiptap [style*='font-family: "한양중고딕";' i],
+.narrow-korean-gothic .tiptap [style$='font-family: "한양중고딕"' i] {
+  font-family: "한양중고딕", Arial, "Noto Sans KR", sans-serif !important;
+}
+
 .tiptap p {
   margin: 0 0 10px;
   min-height: 1.65em;
