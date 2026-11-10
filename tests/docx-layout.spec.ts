@@ -67,7 +67,25 @@ test('nested form rows paginate in editor and print without shrinking or losing 
   const rows = Array.from({ length: 60 }, (_, i) => `<tr><td><p>Row ${i}</p></td><td><p>Value ${i}</p></td></tr>`).join('');
   const html = `<table><tr><td>${paragraphs}<table>${rows}</table><p>Last form paragraph</p></td></tr></table>`;
   await page.locator('input[type=file]').first().setInputFiles({ name: 'form.html', mimeType: 'text/html', buffer: Buffer.from(html) });
-  await expect(page.locator('.tiptap .pagination-gap').first()).toBeAttached();
+  // The editor can continue inside cells using cell gaps instead of outer
+  // block widgets. Assert the resulting page geometry, not the spacer type.
+  await expect.poll(async () => Number(await page.locator('.document-stack').getAttribute('data-pages'))).toBeGreaterThan(3);
+  const ink = await page.locator('.tiptap').evaluate(root => {
+    const sheet = root.closest<HTMLElement>('.document-stack')!, h = Number(sheet.dataset.pageHeight), top = Number(sheet.dataset.margin), bottom = h - Number(sheet.dataset.bottomMargin), origin = root.getBoundingClientRect().top;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); let measured = 0, outside = 0;
+    while (walker.nextNode()) {
+      const node = walker.currentNode as Text;
+      if (node.parentElement?.closest('.pagination-gap,.pagination-cell-gap')) continue;
+      for (let i = 0; i < node.length; i++) {
+        if (/\s/.test(node.data[i])) continue;
+        const range = document.createRange(); range.setStart(node, i); range.setEnd(node, i + 1); const r = range.getBoundingClientRect();
+        const y = r.top - origin, page = Math.floor((y + .5) / (h + 24)), within = y - page * (h + 24);
+        measured++; if (within < top - 1 || within + r.height > bottom + 1) outside++;
+      }
+    }
+    return { measured, outside };
+  });
+  expect(ink.measured).toBeGreaterThan(1000); expect(ink.outside).toBe(0);
   const before = await page.locator('.tiptap').innerText();
   const count = await page.locator('.document-stack').getAttribute('data-pages');
   await page.waitForTimeout(500);

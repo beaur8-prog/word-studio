@@ -96,8 +96,22 @@ for (const { columns, nested, padding, header } of cases) {
       await expect.poll(async () => {
         const rows = await inspect();
         return { first: rows.find(r => r.text === 'C0LINE00')?.page, last: rows.find(r => r.text === lastLabel)?.page,
-          inBody: rows.every(r => r.y >= r.top - .6 && r.y + r.height <= r.bottom + .6) };
-      }).toEqual({ first: 2, last: 3, inBody: true });
+          inBody: rows.every(r => r.y >= r.top - .6 && r.y + r.height <= r.bottom + .6),
+          samePrintedLines: rows.every(r => {
+            const printed = result.states[0].paragraphs.find(p => p.text === r.text);
+            return printed?.page === r.page && Math.abs(r.y - r.top - printed.top) <= 1.25;
+          }) };
+      }).toEqual({ first: 2, last: 3, inBody: true, samePrintedLines: true });
+    }
+    if (header) {
+      const headers = await editor.evaluate(root => {
+        const sheet = root.closest<HTMLElement>('.document-stack')!, h = Number(sheet.dataset.pageHeight), origin = root.getBoundingClientRect().top;
+        return [...sheet.querySelectorAll('p')].filter(p => (p.textContent || '').startsWith('HEADER')).map(p => ({
+          text: p.textContent, page: Math.floor((p.getBoundingClientRect().top - origin + .5) / (h + 24)) + 1,
+        })).sort((a, b) => a.page - b.page || a.text!.localeCompare(b.text!));
+      });
+      const printed = result.states[0].paragraphs.filter(p => p.text.startsWith('HEADER')).map(p => ({ text: p.text, page: p.page })).sort((a, b) => a.page - b.page || a.text.localeCompare(b.text));
+      expect(headers).toEqual(printed);
     }
     const before = await editor.evaluate((el: any) => el.editor.getJSON());
     const target = editor.locator('p').filter({ hasText: /^C0LINE00$/ });

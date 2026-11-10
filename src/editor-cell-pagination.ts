@@ -62,7 +62,7 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
         const page = Math.max(0, Math.floor((top - g.top + .5) / stride));
         const start = page * stride + g.top + Math.max(headerHeight, g.repeatAt?.(page) ?? 0) + outerBefore;
         if (top > start + .5) {
-          prefix = Math.max(0, (page + 1) * stride + g.top + Math.max(headerHeight, g.repeatAt?.(page + 1) ?? 0) + outerBefore - top);
+          prefix = Math.max(0, (page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) + outerBefore - top);
           addGap(pos, prefix, [...current.cells].reduce((sum, cell) => sum + cell.colSpan, 0));
           offset += prefix;
         }
@@ -92,19 +92,8 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
               const firstBody = rows[headerEnd];
               if (i === 0 && headerEnd && firstBody && [...firstBody.cells].every(cell => cell.rowSpan === 1) &&
                 rowCanContinue(firstBody.dataset, firstBody.getBoundingClientRect().height / g.scale, bodyHeight)) {
-                const top = naturalY(rows[0].getBoundingClientRect().top);
-                const headerHeight = (rows[headerEnd - 1].getBoundingClientRect().bottom - rows[0].getBoundingClientRect().top) / g.scale;
-                const firstParagraph = firstBody.querySelector('p,h1,h2,h3,h4,h5,h6');
-                const line = firstParagraph ? parseFloat(getComputedStyle(firstParagraph).lineHeight) || 24 : 24;
-                const budget = rowSplitPolicy(firstBody.dataset) === 'avoid'
-                  ? Math.max(headerHeight, bodyHeight - nestedBefore - nestedAfter) : headerHeight + line;
-                const gap = gapFor(top, top + budget, offset + extra, nestedBefore, nestedAfter);
-                if (gap) {
-                  const page = Math.max(0, Math.floor((top + g.extra + offset + extra - g.top + .5) / stride));
-                  const gutter = g.top + g.bottom + 24 + reserve(page) + (g.repeatAt?.(page + 1) ?? 0);
-                  addGap(view.posAtDOM(rows[0], 0) - 1, gap, [...rows[0].cells].reduce((sum, cell) => sum + cell.colSpan, 0));
-                  extra += gap; cellGaps += Math.min(gap, gutter);
-                }
+                // Nested headers remain source cell content, as in print.
+                // Fit the body row independently instead of moving its header.
                 i = headerEnd; continue;
               }
               let end = i === 0 ? Math.max(1, Math.min(rows.length, headerEnd + 1)) : i + 1;
