@@ -85,6 +85,7 @@ import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
 import { defaultPage, pageMargins, pageFurniture, paperSize } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
+import { withoutEditorReflow } from './editor-layout-task';
 import type { StudioDocument, PageSettings, Comment } from "./types";
 import {
   exportDocx,
@@ -828,7 +829,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   const preview = async () => {
     if (session.current) { setFileMenu(false); session.current.onViewer(); return; }
     outputLayout.current?.dispose();
-    const layout = await createPrintLayout(editor!.getHTML(), currentRef.current.page);
+    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), currentRef.current.page));
     outputLayout.current = layout;
     layout.element.classList.replace('measuring', 'preview');
     document.body.classList.add('studio-printing');
