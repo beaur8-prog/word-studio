@@ -1,0 +1,20 @@
+{
+  "inputSHA256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+  "samples": 80,
+  "secondsAtLeast": 40,
+  "pages": [
+    52
+  ],
+  "observedTransitions": [
+    52
+  ],
+  "testedWorkingSourceSHA256": {
+    "src/App.tsx": "3b4d31cb9674e54baaa95d0c372284dd0214dc55316d0d424104b61a80f1951c",
+    "src/editor-paragraph-pagination.ts": "1806c9dd5ed7801823c00ce61f8fa5bb9026b3b170bbc0bb148f71aa7ac488d9",
+    "src/paragraph-fragments.ts": "9960567daf45746c8cee029fa27329d3c249ca50adc63851d596a21e240f3e49",
+    "src/styles.css": "e7c58226ca317af253dd87a04fe599ab9cc325eaa2f487e4c9affd2f5e831d0e",
+    "src/docx-stories.ts": "1b3d332a79b7b3175131dfa1977f526dde3f0439581e37a6c9a86333ff75c258",
+    "src/section-node-view.ts": "9d8c90a20deb8a8937eb0e1dccb99b9d62da9de9b7641921095866989e5285a8"
+  },
+  "method": "Current product source in isolated native Electron; no injected experimental CSS. Old6ac frozen alternated53/55. Body preservation/final whole checks still required."
+}

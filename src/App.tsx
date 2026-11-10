@@ -1054,8 +1054,14 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   };
   const setPageValue = (change: Partial<PageSettings>) => {
     const p = documentMetadata.getState(editor.state)?.page ?? currentRef.current.page;
-    changeMetadata({ page: { ...p, ...change, ...(change.margin !== undefined ? { margins: undefined } : {}),
-      ...Object.fromEntries(['header','footer','firstHeader','firstFooter','evenHeader','evenFooter'].filter(key => key in change).map(key => [`${key}Html`, undefined])) } });
+    const next = { ...p, ...change, ...(change.margin !== undefined ? { margins: undefined } : {}),
+      ...Object.fromEntries(['header','footer','firstHeader','firstFooter','evenHeader','evenFooter'].filter(key => key in change).map(key => [`${key}Html`, undefined])) };
+    // Document page controls describe the first section. Its independent
+    // editor frame must follow the same metadata transaction, while later
+    // imported section settings and a single-step undo stay unchanged.
+    const tr = editor.state.tr, first = tr.doc.firstChild;
+    if (first?.type.name === 'sectionContent') tr.setNodeMarkup(0, null, { ...first.attrs, page: JSON.stringify(next) });
+    changeMetadata({ page: next }, tr);
   };
   const format = editor.getAttributes("textStyle");
   void selectionVersion;

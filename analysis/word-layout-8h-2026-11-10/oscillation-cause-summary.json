@@ -1,0 +1,27 @@
+{
+  "inputSHA256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+  "baselineRef": "6ac3f2b",
+  "frozenObservedPageTransitions": [
+    55,
+    53,
+    55,
+    53,
+    55,
+    53,
+    55,
+    53,
+    55
+  ],
+  "frozenFirstDifferingRowPosition": 16189,
+  "naturalRowTopDifferencePx": 0.5,
+  "diagnostic": "Only hide view-only TR page gutters during source measurement, preserving document and row heights.",
+  "trialPages": [
+    "52"
+  ],
+  "trialSamples": 80,
+  "trialTransitions": [
+    52
+  ],
+  "trialStable": true,
+  "scope": "Old exact6ac3f2b public DOCX reproduced in native Electron. Product adoption requires current source/whole regression and preservation checks."
+}

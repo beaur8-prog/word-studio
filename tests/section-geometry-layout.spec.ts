@@ -150,3 +150,31 @@ for (const [kind, pages] of [['continuous', 1], ['oddPage', 3], ['evenPage', 2]]
     await expect.poll(() => page.locator('.document-stack').getAttribute('data-pages')).toBe(String(pages));
   });
 }
+
+test('page settings still update the first framed section and undo preserves later sections', async ({ page }) => {
+  const first = { size: { width: 6000, height: 6000 }, margin: { top: 750, bottom: 750, left: 750, right: 750 } };
+  const second = { ...first, margin: { top: 300, bottom: 300, left: 300, right: 300 } };
+  const bytes = await Packer.toBuffer(new Document({ sections: [
+    { properties: { page:first }, children:[paragraph('FIRST')] },
+    { properties: { type:SectionType.NEXT_PAGE, page:second }, children:[paragraph('SECOND')] },
+  ] }));
+  await page.goto('/');
+  await page.locator('input[type=file]').first().setInputFiles({ name:'page-controls.docx', mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer:bytes });
+  const editor = page.getByRole('textbox',{name:'문서 편집 영역',exact:true});
+  await expect(editor).toContainText('SECOND'); await expect(page.locator('.busy-indicator')).toBeHidden();
+  const before = await editor.evaluate((el:any)=>el.editor.getJSON());
+  const sections = editor.locator('.document-section-content');
+  await expect.poll(async()=>Number(await sections.first().getAttribute('data-margin'))).toBeCloseTo(50,0);
+  await expect.poll(async()=>Number(await sections.nth(1).getAttribute('data-margin'))).toBeCloseTo(20,0);
+  await page.getByRole('button',{name:'레이아웃',exact:true}).click();
+  await page.getByRole('spinbutton',{name:'위 여백',exact:true}).fill('25.4');
+  await expect.poll(async()=>Number(await sections.first().getAttribute('data-margin'))).toBeCloseTo(96,4);
+  await expect.poll(async()=>Number(await sections.nth(1).getAttribute('data-margin'))).toBeCloseTo(20,0);
+  await editor.locator('.section-editable p').first().click();
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(()=>editor.evaluate((el:any)=>el.editor.getJSON())).toEqual(before);
+  await expect.poll(async()=>Number(await sections.first().getAttribute('data-margin'))).toBeCloseTo(50,0);
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  await expect.poll(async()=>Number(await sections.first().getAttribute('data-margin'))).toBeCloseTo(96,4);
+  await expect.poll(async()=>Number(await sections.nth(1).getAttribute('data-margin'))).toBeCloseTo(20,0);
+});

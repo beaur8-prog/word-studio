@@ -1,4 +1,5 @@
 import {imageFloating} from './image-floating';
+import {layoutTabs} from './document-tabs';
 // A hard break belongs to the preceding printed line. Give it an offset so
 // cutting after that line does not leave a spurious blank line on the tail.
 export function paragraphTextWalker(element: HTMLElement) {
@@ -118,8 +119,15 @@ export function paragraphPrefixHeight(paragraph: HTMLElement, offset: number, sc
   host.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;left:-100000px;top:0;padding:0;min-height:0;width:${paragraph.getBoundingClientRect().width / scale}px`;
   for (const key of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'lineHeight', 'letterSpacing'] as const) host.style[key] = css[key];
   head.querySelectorAll('.pagination-gap,.pagination-cell-gap,[data-flow-widget],.ProseMirror-separator').forEach(widget => widget.remove());
-  Object.assign(head.style, { margin: '0', width: '100%', boxSizing: 'border-box' }); host.append(head); document.body.append(host);
-  try { return head.getBoundingClientRect().height; } finally { host.remove(); }
+  const paragraphStyle = getComputedStyle(paragraph);
+  const left = parseFloat(paragraphStyle.marginLeft) || 0, right = parseFloat(paragraphStyle.marginRight) || 0;
+  // Custom tab positions are relative to the text margin. Keep that origin
+  // and remeasure the shortened trailing field, as the printed prefix does.
+  host.style.width = `${paragraph.getBoundingClientRect().width / scale + left + right}px`;
+  Object.assign(head.style, { marginTop: '0', marginBottom: '0', marginLeft: `${left}px`, marginRight: `${right}px`,
+    width: `${paragraph.getBoundingClientRect().width / scale}px`, boxSizing: 'border-box' });
+  host.append(head); document.body.append(host);
+  try { layoutTabs(host); return head.getBoundingClientRect().height; } finally { host.remove(); }
 }
 
 /** Word keep-lines protects any fitting ordinary paragraph. A short body

@@ -987,7 +987,11 @@ button:hover:not(:disabled) {
 }
 .pagination-row-gap { display: table-row; }
 .tiptap .pagination-row-gap > td { padding: 0 !important; border: 0 !important; font-size: 0; line-height: 0; }
-.pagination-measuring-cells .pagination-cell-gap { display: none !important; }
+/* A view-only TR changes collapsed border geometry by half a border even
+   after its height is subtracted. Measure the source rows without that TR,
+   or a borderline row can alternately fit and move on every layout pass. */
+.pagination-measuring-cells .pagination-cell-gap,
+.pagination-measuring-cells .pagination-row-gap { display: none !important; }
 .tiptap .pagination-split-row, .tiptap .pagination-merge-row { height: var(--pagination-row-height) !important; }
 .pagination-measuring-cells .pagination-split-row, .pagination-measuring-cells .pagination-merge-row { height: var(--pagination-source-row-height) !important; }
 .tiptap .pagination-split-row > td,

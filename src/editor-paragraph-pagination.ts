@@ -44,6 +44,16 @@ export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
     if (bottom <= boundary + .5) {
       references.push(...here.map(ref => ({ id: ref.id, page }))); continue;
     }
+    // A right/decimal tab's box can itself wrap before its trailing text.
+    // Moving only the following glyphs then leaves an unprintable prefix and
+    // adds a second empty line. A fitting tabbed paragraph must use a prefix
+    // that print can actually retain before inserting an inline page gutter.
+    if (paragraph.querySelector('[data-docx-tab]') && !paragraph.querySelector('[data-note-reference]') &&
+      paragraph.getBoundingClientRect().height / g.scale <= g.height - g.top - g.bottom + .5) {
+      const point = view.domAtPos(line.pos()), offset = paragraphTextOffset(paragraph, point.node, point.offset);
+      const prefixBottom = naturalY(paragraph.getBoundingClientRect().top) + paragraphPrefixHeight(paragraph, offset, g.scale) + g.extra + extra;
+      if (!offset || prefixBottom > boundary + .5) return null;
+    }
     const gap = Math.max(0, Math.ceil(((page + 1) * stride + g.top + (line.before || 0) - y) * 64) / 64);
     page++;
     if (line.bottom - line.top + (line.before || 0) + (line.after || 0) + reserve() > g.height - g.top - g.bottom + .5) return null;
