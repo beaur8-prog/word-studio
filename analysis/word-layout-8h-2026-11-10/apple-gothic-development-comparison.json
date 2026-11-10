@@ -1,0 +1,161 @@
+{
+  "method": "Local-only natural AppleGothic Hangul and Arial Latin diagnostic. Same development17, all unmatched/timeouts recorded separately and only guide independent retry used. Before adopting product CSS.",
+  "count": 17,
+  "beforeAbs": 32,
+  "candidateAbs": 26,
+  "rows": [
+    {
+      "id": "mois-2025-0",
+      "word": 24,
+      "before": 23,
+      "candidate": 23,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "word": 59,
+      "before": 52,
+      "candidate": 55,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "mods-household-1",
+      "word": 85,
+      "before": 77,
+      "candidate": 77,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "fsc-press-1",
+      "word": 4,
+      "before": 4,
+      "candidate": 4,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "fsc-press-4",
+      "word": 5,
+      "before": 5,
+      "candidate": 5,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "fsc-press-7",
+      "word": 16,
+      "before": 14,
+      "candidate": 14,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "fsc-press-10",
+      "word": 2,
+      "before": 2,
+      "candidate": 2,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "moel-rfp-0",
+      "word": 10,
+      "before": 10,
+      "candidate": 10,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "moel-rfp-1",
+      "word": 37,
+      "before": 36,
+      "candidate": 36,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "daejeon-safety-hwp",
+      "word": 1,
+      "before": 1,
+      "candidate": 1,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "gg-facility-hwp",
+      "word": 5,
+      "before": 5,
+      "candidate": 5,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "motie-budget-hwp",
+      "word": 7,
+      "before": 8,
+      "candidate": 8,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "motie-ax-0",
+      "word": 10,
+      "before": 10,
+      "candidate": 10,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "motie-ax-1",
+      "word": 3,
+      "before": 3,
+      "candidate": 3,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "mofe-budget-hwpx",
+      "word": 17,
+      "before": 17,
+      "candidate": 17,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "mfds-revenue-hwpx",
+      "word": 39,
+      "before": 42,
+      "candidate": 42,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    },
+    {
+      "id": "mss-funding-2026-2",
+      "word": 63,
+      "before": 54,
+      "candidate": 57,
+      "inputSame": true,
+      "bodySame": true,
+      "imagesSame": true
+    }
+  ]
+}
