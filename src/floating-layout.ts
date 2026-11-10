@@ -23,6 +23,7 @@ type Widget = {
   height?: number;
 };
 type Picture = {
+  wrapCell?: HTMLElement | null;
   offPage?: boolean;
   index: number;
   left: number;
@@ -157,7 +158,7 @@ function exclusion(picture: Picture, y: number, height: number): [number, number
 /** A Word group excludes text as one drawing, including gaps between children. */
 function groupExclusion(picture: Picture):Picture|undefined {
   const g=picture.geometry.drawingGroup;if(!g||picture.offPage)return;
-  return {index:-100000-picture.index,left:picture.left-((picture.geometry.horizontalPosition.offset||0)/9525-g.x),
+  return {wrapCell:picture.wrapCell,index:-100000-picture.index,left:picture.left-((picture.geometry.horizontalPosition.offset||0)/9525-g.x),
     top:picture.top-((picture.geometry.verticalPosition.offset||0)/9525-g.y),width:g.width,height:g.height,cssLeft:0,cssTop:0,
     geometry:{horizontalPosition:{relative:'page',offset:g.x*9525},verticalPosition:{relative:g.vertical,offset:g.y*9525},wrap:g.wrap,
       ...(g.polygon?{polygon:g.polygon}:{}),drawingGroup:g,margins:{top:g.margins[0]*9525,right:g.margins[1]*9525,bottom:g.margins[2]*9525,left:g.margins[3]*9525}}};
@@ -284,6 +285,7 @@ function imagePosition(
   });
   return {
     index,
+    wrapCell: g.layoutInCell !== false ? cell : null,
     offPage,
     left,
     top: y,
@@ -364,7 +366,10 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       // Its often page-sized bounds must not trigger a manual re-layout of
       // unrelated paragraphs, which changes justification and mixed-font
       // line endings even though every line still has its full width.
-      const flowing = pictures.filter(pic => !pic.offPage && pic.geometry.wrap?.type !== 0 && !(pic.index<0 && p.closest('.document-textbox')));
+      // A cell-bound drawing must not reflow paragraphs in another cell.
+      // Otherwise page-anchored artwork can chase an earlier row as its page moves.
+      const flowing = pictures.filter(pic => !pic.offPage && pic.geometry.wrap?.type !== 0 &&
+        (!pic.wrapCell || pic.wrapCell === p.closest('td,th')) && !(pic.index<0 && p.closest('.document-textbox')));
       const style = getComputedStyle(p),
         box = p.getClientRects()[0] || p.getBoundingClientRect();
       const lh = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3,

@@ -915,7 +915,9 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
       ?.flatMap((n) => n.marks ?? [])
       .find((m) => m.type === "textStyle")?.attrs?.lineHeight;
   const parsedLine = Number.parseFloat(lineHeight);
-  const line = typeof lineHeight === 'string' && lineHeight.endsWith('%') ? parsedLine / 100 : parsedLine;
+  // An explicit normal line is single spacing. Omitting it inherits the
+  // export document's 1.15 default and stretches imported tables on reopen.
+  const line = lineHeight === 'normal' ? 1 : typeof lineHeight === 'string' && lineHeight.endsWith('%') ? parsedLine / 100 : parsedLine;
   const indent = Number(node.attrs?.indent);
   const right = Number.parseFloat(node.attrs?.rightIndent), first = Number.parseFloat(node.attrs?.firstLineIndent);
   const before = Number.parseFloat(node.attrs?.spaceBefore), after = Number.parseFloat(node.attrs?.spaceAfter);

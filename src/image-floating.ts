@@ -122,7 +122,7 @@ export function imageFloating(value: unknown): ImageFloating | undefined {
         : {}),
       behindDocument: data.behindDocument === true,
       allowOverlap: true,
-      layoutInCell: true,
+      layoutInCell: data.layoutInCell !== false,
     };
   } catch {
     return;
@@ -189,6 +189,7 @@ export function drawingFloating(drawing: Element) {
         ]),
       ),
       behindDocument: anchor.getAttribute("behindDoc") === "1",
+      layoutInCell: !["0", "false", "off"].includes(anchor.getAttribute("layoutInCell") || ""),
       ...(drawing.hasAttribute("data-ws-drawing-group")?{drawingGroup:JSON.parse(drawing.getAttribute("data-ws-drawing-group")!)}:{}),
     }),
   );
