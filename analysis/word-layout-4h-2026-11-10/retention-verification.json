@@ -1,6 +1,6 @@
 {
   "method": "Verify retained source bytes, all baseline/final/reference PDFs and exact originals of all71 SDK inputs after cleanup. Does not rerun layout.",
-  "checkedFiles": 246,
+  "checkedFiles": 266,
   "errors": [],
   "files": [
     {
@@ -582,6 +582,86 @@
     {
       "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/law-operation-hwp.pdf",
       "sha256": "fb48e1a99f0c802e99869738abff257012fee09868452966e1f30e11a159b214"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/01-body-save1.docx",
+      "sha256": "cd466e2de67c0726114ce7ae75f691ae85c05e9ce9b63238cf6bc637423e21bc"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/01-body-save2.docx",
+      "sha256": "82a275cd552df748777782aa8e402b1b96a423885cadc49798a46eae98beef3f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/02-tables-save1.docx",
+      "sha256": "1b55e7abe98a3736cc686c4dd840d2b397a30be85dc05a63a256e5f5af428b8b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/02-tables-save2.docx",
+      "sha256": "c597334a32d0000588a979fa9c4705acc038bcd489438ac7a9b91e9b93d1a56a"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/03-floating-save1.docx",
+      "sha256": "8aad9b93cf3bef7c451212c24de538320a227240636d4e2b0d45f4318127b299"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/03-floating-save2.docx",
+      "sha256": "54093d55aa18de0d87118738ff32fc21d6b18244bf3d7bfa85133c5e5eb0f86d"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/04-nested-save1.docx",
+      "sha256": "ed2515b5f7785164e43cebd8d102eacb17a0c407534d8b3b4f1247cfd36fa6a3"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/04-nested-save2.docx",
+      "sha256": "9f53b2e0e2fc7c196b43a03ad8d3ff88de6968304cdfe5800aafb7e5d7cd30f8"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/05-styles-save1.docx",
+      "sha256": "0cf11029c3d3298277128ed76cee7e5efbcffcc438322365ca1cd7facbec2c44"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/05-styles-save2.docx",
+      "sha256": "5380acfa335ac8e0795b62e95041db2ced1caa7bb2a67445486682641dc270ec"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/06-long-body-save1.docx",
+      "sha256": "df1a98fcdc999d2c0e7cd7f214cde96a84eb2ac240231c346f411512de0338a9"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/06-long-body-save2.docx",
+      "sha256": "d85bc0c5414534d4782138a44e4c54e88c5727523964780b446a2ed015ef2f89"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/07-characters-save1.docx",
+      "sha256": "49e314b616caff2be8cc3c94bd0c782ce9e5d94edfed4bc9cb6140a05ca16330"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/07-characters-save2.docx",
+      "sha256": "28504d0b5413826953406b90faf1790e90f10f57136b5a4fcd0b0cbf2316bf8d"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/08-small-table-save1.docx",
+      "sha256": "08f60fd93ce6a5cd9224430e89ae87830900960edba6ca49e19f8d4f69ae9e0a"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/08-small-table-save2.docx",
+      "sha256": "5569ed1a74082b345463e22a2d61041d91468c973c83fc55cdb8eafbb0acbdef"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/09-theme-save1.docx",
+      "sha256": "4271503b023dbcf674b72568f8723a4c250c37b64589d77fa6890c6090d8e2e1"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/09-theme-save2.docx",
+      "sha256": "d417035cea334ccc15dc87a681a9592ae2d7ee3cfd04e1405b6969ae36b7ab26"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/10-references-save1.docx",
+      "sha256": "21fe883e0fd8683783649ef171417ca3c6778b386429c83427b6bb2d1e76d86a"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-frozen-baseline/10-references-save2.docx",
+      "sha256": "c2afc9b97a4233cbc7253409d832dd31070051b7eef0f362bc79a611ecf17a4a"
     },
     {
       "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/01-body-save1.docx",

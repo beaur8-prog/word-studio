@@ -1,0 +1,60 @@
+{
+  "runId": 42805090627,
+  "runURL": "https://github.com/beaur8-prog/word-studio/actions/runs/42805090627",
+  "testCommit": "4181e2c",
+  "productSourceCommit": "a69b0fd",
+  "conclusion": "success",
+  "windows": {
+    "platform": "Windows",
+    "jobId": 129792062714,
+    "conclusion": "success",
+    "nodeTests": 48,
+    "playwrightGroups": [
+      58,
+      55,
+      55,
+      360
+    ],
+    "cellPDFTextOrder": {
+      "checked": 7,
+      "passed": 7
+    },
+    "logSHA256Pending": true,
+    "summaries": [
+      "2026-11-10T11:10:16.9753241Z # tests 48",
+      "2026-11-10T11:10:16.9753720Z # pass 48",
+      "2026-11-10T11:10:16.9753920Z # fail 0",
+      "2026-11-10T11:12:47.2564926Z   58 passed (2.5m)",
+      "2026-11-10T11:23:28.1141933Z   55 passed (10.7m)",
+      "2026-11-10T11:34:18.2855806Z   55 passed (10.8m)",
+      "2026-11-10T11:48:46.0608738Z   360 passed (14.4m)",
+      "2026-11-10T11:48:46.6708439Z 7/7 cell PDFs preserve logical text order."
+    ]
+  },
+  "linux": {
+    "platform": "Linux",
+    "jobId": 129792062248,
+    "conclusion": "success",
+    "nodeTests": 48,
+    "playwrightGroups": [
+      58,
+      445
+    ],
+    "sdkInputs": 110,
+    "summaries": [
+      "2026-11-10T11:10:24.6773860Z # tests 48",
+      "2026-11-10T11:10:24.6774705Z # pass 48",
+      "2026-11-10T11:10:24.6775093Z # fail 0",
+      "2026-11-10T11:13:43.1584120Z   58 passed (3.3m)",
+      "2026-11-10T11:56:36.4530590Z   445 passed (42.6m)",
+      "2026-11-10T11:56:36.8572598Z 7/7 cell PDFs preserve logical text order."
+    ],
+    "sdkErrors": 0,
+    "cellPDFTextOrder": {
+      "checked": 7,
+      "passed": 7
+    }
+  },
+  "measuredAt": "2026-11-10T11:57:28Z",
+  "scope": "Selected platform regression groups. These are Chromium-based app checks, not desktop Microsoft Word measurements. The local71 SDK corpus is a separate completed validation."
+}

@@ -1,0 +1,395 @@
+{
+  "method": "Independent ZIP part byte comparison, frozen5cb4246 exporter versus final a69 exporter, same Word-original input10 and save1/save2. This establishes changes against prior product, not full raw-source fidelity.",
+  "files": 20,
+  "sameBodyXML": 18,
+  "sameMedia": 20,
+  "rows": [
+    {
+      "id": "01-body",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/01-body-save1.docx",
+      "afterFile": "roundtrip-word-final/01-body-save1.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "cd466e2de67c0726114ce7ae75f691ae85c05e9ce9b63238cf6bc637423e21bc",
+      "afterSHA256": "62ada64566c149a86df0ec2f69904f2381119b91f94afb110d4d8aee0c1161cb",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "01-body",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/01-body-save2.docx",
+      "afterFile": "roundtrip-word-final/01-body-save2.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "82a275cd552df748777782aa8e402b1b96a423885cadc49798a46eae98beef3f",
+      "afterSHA256": "aff17c9ccd200e8bd00d95cf87ca91cd003dcf89d5e526da71b47ec288bb7c13",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "02-tables",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/02-tables-save1.docx",
+      "afterFile": "roundtrip-word-final/02-tables-save1.docx",
+      "sameBodyXML": false,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml",
+        "word/_rels/document.xml.rels",
+        "word/document.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "1b55e7abe98a3736cc686c4dd840d2b397a30be85dc05a63a256e5f5af428b8b",
+      "afterSHA256": "a0db5392eaeebe896fed3ca139d8b52ab5dc772c043570bc7e81e092f9435dfe",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "02-tables",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/02-tables-save2.docx",
+      "afterFile": "roundtrip-word-final/02-tables-save2.docx",
+      "sameBodyXML": false,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml",
+        "word/_rels/document.xml.rels",
+        "word/document.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "c597334a32d0000588a979fa9c4705acc038bcd489438ac7a9b91e9b93d1a56a",
+      "afterSHA256": "7e05dbb402238ab8be4aa7fe265395507b9f9bdb209402e0866667ba9947f21c",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "03-floating",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/03-floating-save1.docx",
+      "afterFile": "roundtrip-word-final/03-floating-save1.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "8aad9b93cf3bef7c451212c24de538320a227240636d4e2b0d45f4318127b299",
+      "afterSHA256": "b0e236f60acf233e9f6854f88228cb0d81164ad32daa00e37f54e218003da73c",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "03-floating",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/03-floating-save2.docx",
+      "afterFile": "roundtrip-word-final/03-floating-save2.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "54093d55aa18de0d87118738ff32fc21d6b18244bf3d7bfa85133c5e5eb0f86d",
+      "afterSHA256": "eb753be1675ce791bc1712d6f75f142d9b57af23c4b45a1dabbee65205ccdd96",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "04-nested",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/04-nested-save1.docx",
+      "afterFile": "roundtrip-word-final/04-nested-save1.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "ed2515b5f7785164e43cebd8d102eacb17a0c407534d8b3b4f1247cfd36fa6a3",
+      "afterSHA256": "b03ddd77bd8f5df6dac6ee0c4d9c928119af917cd86b0843db72648fcc2c5efa",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "04-nested",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/04-nested-save2.docx",
+      "afterFile": "roundtrip-word-final/04-nested-save2.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "9f53b2e0e2fc7c196b43a03ad8d3ff88de6968304cdfe5800aafb7e5d7cd30f8",
+      "afterSHA256": "2aea11aa9d8861129a224ff4ec24a5a68060630a8f29c2f14c97d3f648721df7",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "05-styles",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/05-styles-save1.docx",
+      "afterFile": "roundtrip-word-final/05-styles-save1.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "0cf11029c3d3298277128ed76cee7e5efbcffcc438322365ca1cd7facbec2c44",
+      "afterSHA256": "522afe43d5971a8bb40f6cf85aae6d0e30b36b5af824f3a35dcb9893d8daf2c2",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "05-styles",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/05-styles-save2.docx",
+      "afterFile": "roundtrip-word-final/05-styles-save2.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "5380acfa335ac8e0795b62e95041db2ced1caa7bb2a67445486682641dc270ec",
+      "afterSHA256": "3f394c4c95a678ec4b2a32fddda0c94498efd63100b45a02cc782ad8dc32da38",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "06-long-body",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/06-long-body-save1.docx",
+      "afterFile": "roundtrip-word-final/06-long-body-save1.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "df1a98fcdc999d2c0e7cd7f214cde96a84eb2ac240231c346f411512de0338a9",
+      "afterSHA256": "e87838fed276a04d608296b6b317a55e7c58ddcbb7fd6b9a200fa3304fa30b3f",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "06-long-body",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/06-long-body-save2.docx",
+      "afterFile": "roundtrip-word-final/06-long-body-save2.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "d85bc0c5414534d4782138a44e4c54e88c5727523964780b446a2ed015ef2f89",
+      "afterSHA256": "a239af42766b1be763377ca7b4d3993111006a350cdc89190ece8d2104828a1f",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "07-characters",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/07-characters-save1.docx",
+      "afterFile": "roundtrip-word-final/07-characters-save1.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "49e314b616caff2be8cc3c94bd0c782ce9e5d94edfed4bc9cb6140a05ca16330",
+      "afterSHA256": "6a9ddd06e79181afa9109e208ed651c906146b0f561eeca251fb1179afb14e50",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "07-characters",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/07-characters-save2.docx",
+      "afterFile": "roundtrip-word-final/07-characters-save2.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "28504d0b5413826953406b90faf1790e90f10f57136b5a4fcd0b0cbf2316bf8d",
+      "afterSHA256": "2950ba09457d753041f49c5ee70e2f6c093a4b24d1d7ff8f30b3c9fc7d82e823",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "08-small-table",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/08-small-table-save1.docx",
+      "afterFile": "roundtrip-word-final/08-small-table-save1.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "08f60fd93ce6a5cd9224430e89ae87830900960edba6ca49e19f8d4f69ae9e0a",
+      "afterSHA256": "5d989170c86b9e92a70920d380c95866039eda6f54d488ea8ba3ba8001036da0",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "08-small-table",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/08-small-table-save2.docx",
+      "afterFile": "roundtrip-word-final/08-small-table-save2.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "5569ed1a74082b345463e22a2d61041d91468c973c83fc55cdb8eafbb0acbdef",
+      "afterSHA256": "ec1f61f385f23b6ca92d82b9a34d4e0b5ad5b0c4df8b40c580417c5fd6ef7ac0",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "09-theme",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/09-theme-save1.docx",
+      "afterFile": "roundtrip-word-final/09-theme-save1.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "4271503b023dbcf674b72568f8723a4c250c37b64589d77fa6890c6090d8e2e1",
+      "afterSHA256": "a5ea1517c0bcdd055cf78a3a18fe49d234a8967a4269e5ab6c041d1746409caf",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "09-theme",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/09-theme-save2.docx",
+      "afterFile": "roundtrip-word-final/09-theme-save2.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "d417035cea334ccc15dc87a681a9592ae2d7ee3cfd04e1405b6969ae36b7ab26",
+      "afterSHA256": "a02d5eaa3456715d056671104dd8970132856539cba8eeed02ff7c31107b1729",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "10-references",
+      "save": 1,
+      "beforeFile": "roundtrip-word-frozen-baseline/10-references-save1.docx",
+      "afterFile": "roundtrip-word-final/10-references-save1.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "21fe883e0fd8683783649ef171417ca3c6778b386429c83427b6bb2d1e76d86a",
+      "afterSHA256": "b8c354067a9549d77ad2ac044c5910f7bd25f2017622412c119fc0a1f4fcfaa9",
+      "sameCoreExceptDates": true
+    },
+    {
+      "id": "10-references",
+      "save": 2,
+      "beforeFile": "roundtrip-word-frozen-baseline/10-references-save2.docx",
+      "afterFile": "roundtrip-word-final/10-references-save2.docx",
+      "sameBodyXML": true,
+      "sameMediaFiles": true,
+      "changedParts": [
+        "docProps/core.xml"
+      ],
+      "addedParts": [],
+      "removedParts": [],
+      "sameBodyAfterRelationshipIDNormalization": true,
+      "sameRelationshipTargets": true,
+      "sameFieldInstructions": true,
+      "beforeSHA256": "c2afc9b97a4233cbc7253409d832dd31070051b7eef0f362bc79a611ecf17a4a",
+      "afterSHA256": "bcbabddc0e0ae06b5fa7a3e5363581d9c579f68f95241c197d89d29a981211bc",
+      "sameCoreExceptDates": true
+    }
+  ],
+  "sameNormalizedBodies": 20,
+  "sameFieldInstructions": 20,
+  "interpretation": "18/20 literal body XML identical;2 table outputs only random hyperlink rIds differ, normalized by relationship type/target/mode. All20 normalized body XML,relationship targets,field instructions and media bytes identical. All other changed parts are core metadata dates."
+}

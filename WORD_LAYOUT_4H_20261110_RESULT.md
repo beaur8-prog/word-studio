@@ -2,11 +2,11 @@
 
 동일 DOCX를 Studio에서 읽을 때 보관된 실제 웹 Word 출력과의 **정부 문서29개 쪽수 차이 합을49→42쪽(14.3%)**으로 줄였다. 쪽수가 같은 문서는15→16개다. Word에서 작성한 원본10개는 각각의 쪽수와 총30쪽을 유지했다. 본문·빈줄·여백 삭제, 글자 축소, 파일명별 예외를 사용하지 않았다.
 
-로컬 최종 검증 완료, 플랫폼 재검증 진행 중. 결과표는 인쇄 조판의 측정이며 편집 화면 전체의 정확도를 뜻하지 않는다.
+로컬·Windows·Linux 최종 검증을 완료했다. 결과표는 인쇄 조판의 측정이며 편집 화면 전체의 정확도를 뜻하지 않는다.
 
 ## 비교 방법
 
-- 작업 시작08:27:12 UTC, 새 구현 동결 예정11:27:12, 종료 한도12:27:12. 기준5cb4246, 제품수정b45d1a3·a69b0fd, 브랜치`codex/word-layout-four-hours-20261110`, 버전1.4.13 유지.
+- 작업 시작08:27:12 UTC, 새 구현 동결11:27:12, 종료 한도12:27:12, 검증 완료11:59 UTC. 기준5cb4246, 제품수정b45d1a3·a69b0fd, 브랜치`codex/word-layout-four-hours-20261110`, 버전1.4.13 유지.
 - 정부29개는 이전 실제 웹 Word에 업로드했던 DOCX와 **같은 SHA-256 입력**이다.30개 중 기존 변환 불가1개는 포함하지 않았다. 개발17/중간6/최종6 분리를 유지했다.
 - 이전 제품5cb4246도 현재의 같은 Chrome·DPR1·글꼴 환경으로29개 모두 새로 렌더했다. 과거 쪽수와29/29 같고, 동일 입력·논리본문 해시29/29 일치했다.
 - Word 원본10개는 별도 집합이다. 실제 분리 Electron/DPR1의 편집·인쇄 화면, 두 DOCX 저장, 보관된 Microsoft PDF의 고정398개와 별도140개 문단을 사용했다.
@@ -45,8 +45,8 @@ Word 원본10의 고정398개는 시작쪽 불일치12/절대오차12, 별도140
 ## 본문·그림·저장 검증
 
 - 정부29의 본문 모델 DOM에서 문단33,402개, 그림219개를 인쇄 DOM과 대조했다. 반복 머리행 문단117개를 별도로 식별하고, 나머지 문자열 변경0·그림 누락0·src 변경0. 수정 전후 그림 배치 수 모두219. 이는 DOM 보존 검사이며 모든 잉크의 가시성을 증명하는 검사는 아니다.
-- Word 원본10: 실제 DOCX 두 번 저장 후 논리본문·셀 내용/병합·그림 바이트/순서·구역·각주/필드·story 검사10/10 통과.
-- HWP10 준비 모델의 최종 두 저장 inventory는 이전 후보와 세 상태의 모든 key가 동일했다. 기존 엄격검사5개 실패(story/grid/core 표현 차이)는 이전5cb 제품에서도 재현했고 새 손실로 세지 않았다. 원본의 새 파싱 통과라고 부르지 않는다.
+- Word 원본10: 가져온 모델을 기준으로 실제 DOCX 두 번 저장 후 논리본문·셀 내용/병합·그림 바이트/순서·구역·각주/필드·story 검사10/10 통과. 별도5cb exporter와 실제20개 ZIP를 대조해 본문 XML18/20이 바이트 일치, 나머지2개도 임의 hyperlink rId를 실제 대상별로 정규화하면 일치했다. 그림 바이트·관계 대상·필드 명령은20/20 같았다.
+- HWP10 준비 모델의 최종 두 저장 inventory는 이전 후보와 세 상태의 모든 key가 동일했다. 기존 엄격검사5개 실패(story/grid/core inventory 차이, 별도 미해결)는 이전5cb 제품에서도 재현했고 새 손실로 세지 않았다. 원본의 새 파싱 통과라고 부르지 않는다.
 - 같은 HWP 두 번째 저장 DOCX를 이전·현재 제품으로 측정한 쪽수는7/167/4/38/1/38/8/20/15/5로 동일. 고정160은 불일치78·절대150, 고유3007은1817·3767, 누락0으로 동일하다. 다른 원본재변환 경로의 과거 수치와 구분한다.
 - 실제 Word/HWP 저장40개와 새 독립 경계 사례31개, 총71개를 공식 OpenXML SDK(Office2019)로 검사: 오류0.
 
@@ -56,7 +56,7 @@ Word 원본10의 고정398개는 시작쪽 불일치12/절대오차12, 별도140
 - 새 경계13개: 옵션 on/false/0/off/생략, 큰 행의 일반/중첩1·2열, 셀 여백·테두리·머리행, 원본과 두 저장, 배율100/50/125%, 모든 본문 줄의 페이지와 y좌표 오차≤1.25px, undo/redo. DPR1 및 DPR2 통과.
 - Android 최종38/38 통과.
 - 전체 PC: 최종811/811 통과. 플랫폼 시험 샘플 보강 뒤 해당16개도 별도 통과. 확대·가져오기 완료 검사20개 반복 통과.
-- Windows/Linux: [제품 소스 a69b0fd와 보강 샘플4181e2c 검사](https://github.com/beaur8-prog/word-studio/actions/runs/42805090627), 진행 중. 이전 Linux 실행의443/445 통과·샘플2실패는200px에 두 어절이 정확히 들어맞는 실제 줄 배열로 재현했다. 검증용 본문 폭180px로 보강했으며 실제 문서/제품 폭은 변경하지 않았다.
+- Windows: 네이티브48/48, UI58+55+55+360=528/528, 셀PDF 읽기순서7/7 통과. Linux도 네이티브48/48, UI58+445=503/503, 셀PDF 읽기순서7/7, 공식SDK110개 오류0으로 통과했다. [제품 소스 a69b0fd와 보강 샘플4181e2c 검사](https://github.com/beaur8-prog/word-studio/actions/runs/42805090627). 이전 Linux 실행의443/445 통과·샘플2실패는200px에 두 어절이 정확히 들어맞는 실제 줄 배열로 재현했다. 검증용 본문 폭180px로 보강했으며 실제 문서/제품 폭은 변경하지 않았다.
 - 원본 Word10 실제 앱에서 편집·인쇄 총30쪽, 글자 읽기순서 동일·글자 시작쪽 차이0을 유지했다. 기존 떠 있는 그림 문서의 줄 경계6개 차이는 그대로다.
 - 큰 정부 문서3개의 실제 앱 붙여넣기·undo·redo·undo와 원래 모델 복원, 저장·PDF를 검사했다. 글자별 좌표 수집을 생략한 빠른 측정에서는 그 항목을 미측정으로 표시했다.
 
@@ -69,6 +69,6 @@ Word 원본10의 고정398개는 시작쪽 불일치12/절대오차12, 별도140
 
 ## 증거와 배포 상태
 
-분석은`analysis/word-layout-4h-2026-11-10/`에 있다. 주요 기록은`government-final-comparison.json`, `government-same-input-proof.json`, `government-source-audit-summary.json`, `word-native-final2-summary.json`, `legacy-final-summary.json`, `legacy-final-inventory-comparison.json`, `sdk-input-manifest-final.json`, `sdk-final2.log`, `next-page-divergence-evidence.json`, `progress.md`다. 원본·기준·최종과 실패 증거를 보존하고 중간 사본·임시 검증 도구275MiB를 정리했다. 정리 뒤246개 원본/참조/최종/SDK입력 파일의 존재와해시를 재검증했다.
+분석은`analysis/word-layout-4h-2026-11-10/`에 있다. 주요 기록은`government-final-comparison.json`, `government-same-input-proof.json`, `government-source-audit-summary.json`, `word-native-final2-summary.json`, `legacy-final-summary.json`, `legacy-final-inventory-comparison.json`, `sdk-input-manifest-final.json`, `sdk-final2.log`, `next-page-divergence-evidence.json`, `progress.md`다. 원본·기준·최종과 실패 증거를 보존하고 중간 사본·임시 검증 도구275MiB를 정리했다. 정리 뒤266개 원본/참조/최종/SDK입력 파일의 존재와 해시를 재검증했다. 현재 분석 산출물은 약335MiB로1GiB 예산 안이다. 독립 ZIP 비교는 word-export-zip-delta.json, 최종 플랫폼 근거는 platform-final.json에 기록했다.
 
-공개 배포·리토스·버전 변경은 수행하지 않았다. 사용자 앱과 열린 문서는 보존했다. 화면 잠김으로 사용자용 앱은 새로 띄우지 않았다.
+공개 배포·리토스·버전 변경은 수행하지 않았다. 사용자 앱과 열린 문서는 보존했다. 화면 잠김으로 사용자용 앱은 새로 띄우지 않았다. 이어가기 자동화word-4는PAUSED로 종료했다.
