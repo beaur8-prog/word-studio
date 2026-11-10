@@ -1,0 +1,63 @@
+{
+  "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56",
+  "frozenSource": true,
+  "checks": [
+    {
+      "name": "desktop",
+      "passed": 849,
+      "duration": "22.8m",
+      "sourceCommit": "0bebe65",
+      "log": "desktop-final849.log",
+      "scope": "compiled/browser layout tests as recorded"
+    },
+    {
+      "name": "dpr2",
+      "passed": 51,
+      "duration": "56.1s",
+      "sourceCommit": "0bebe65",
+      "log": "dpr2-figure-final.log",
+      "scope": "compiled/browser layout tests as recorded"
+    },
+    {
+      "name": "androidEmulation",
+      "passed": 38,
+      "duration": "1.1m",
+      "sourceCommit": "0bebe65",
+      "log": "android-figure-final.log",
+      "scope": "Android browser emulation, not an installed APK"
+    },
+    {
+      "name": "focused",
+      "passed": 26,
+      "duration": "27.7s",
+      "sourceCommit": "0bebe65",
+      "log": "figure-final-focus.log",
+      "scope": "compiled/browser layout tests as recorded"
+    }
+  ],
+  "nativeCjs": {
+    "passed": 172,
+    "scope": "Native sources unchanged since tested4b72e71, see native-cjs-reuse-proof.json"
+  },
+  "typeScript": {
+    "exitCode": 0,
+    "logBytes": 0
+  },
+  "sdk": {
+    "sourceCommit": "0bebe65",
+    "fileCount": 366,
+    "expectedFileCount": 366,
+    "exitCode": 0,
+    "errors": 0,
+    "failures": [],
+    "seconds": 3.393,
+    "previous346Missing": 0,
+    "newSelectedArtifacts": 20,
+    "scope": "Established SDK prefixes. All prior346 retained plus10offpaper/4cell-scope/6normal-leading generated cases. Actual Word/NPS exports independently validated32/32 including10 equivalent offpaper outputs from focused run."
+  },
+  "crossPlatform": {
+    "runId": 42905528629,
+    "sourceCommit": "0bebe65",
+    "state": "running"
+  }
+}

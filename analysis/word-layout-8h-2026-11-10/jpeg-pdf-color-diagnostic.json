@@ -1,0 +1,171 @@
+{
+  "method": "Investigate failed exact-pixel JPEG matches without classifying them as loss.",
+  "comparison": "Same raster pixel dimensions. Choose nearest downsampled candidate then compare all RGB pixels. Presence evidence only; not source layout, not a losslessness claim.",
+  "rows": [
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 1,
+      "part": "word/media/0413267311c812e873e44ca4a3066ec48858a602.jpg",
+      "pixels": [
+        2481,
+        3508
+      ],
+      "candidatePage": 2,
+      "candidateImage": "X8.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 0.05417788648690136,
+      "rootMeanSquareChannelDifference": 0.49871059000602896,
+      "maximumChannelDifference": 21
+    },
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 3,
+      "part": "word/media/6a5c2a5ce696ac8e3159819ebff74dc983d429d0.jpg",
+      "pixels": [
+        2481,
+        3508
+      ],
+      "candidatePage": 3,
+      "candidateImage": "X15.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 0.011121007685777931,
+      "rootMeanSquareChannelDifference": 0.185496968225797,
+      "maximumChannelDifference": 16
+    },
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 4,
+      "part": "word/media/917f514743ada9eec38b64ecd7a1f1b68cae4a49.jpg",
+      "pixels": [
+        2481,
+        3508
+      ],
+      "candidatePage": 4,
+      "candidateImage": "X31.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 0.0038828352797873494,
+      "rootMeanSquareChannelDifference": 0.09201914051258175,
+      "maximumChannelDifference": 12
+    },
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 5,
+      "part": "word/media/917f514743ada9eec38b64ecd7a1f1b68cae4a49.jpg",
+      "pixels": [
+        2481,
+        3508
+      ],
+      "candidatePage": 4,
+      "candidateImage": "X31.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 0.0038828352797873494,
+      "rootMeanSquareChannelDifference": 0.09201914051258175,
+      "maximumChannelDifference": 12
+    },
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 6,
+      "part": "word/media/12a64d3c20f04e3ca8b5c3f65056512d6fb926a3.jpg",
+      "pixels": [
+        2246,
+        3071
+      ],
+      "candidatePage": 6,
+      "candidateImage": "X36.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 1.4546404916433561e-05,
+      "rootMeanSquareChannelDifference": 0.0038139327116334643,
+      "maximumChannelDifference": 1
+    },
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 9,
+      "part": "word/media/f9131eef2a2dd85eb8dc89107197464eebf71371.jpg",
+      "pixels": [
+        2246,
+        3071
+      ],
+      "candidatePage": 18,
+      "candidateImage": "X181.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 6.905917815808491e-05,
+      "rootMeanSquareChannelDifference": 0.008310181133599858,
+      "maximumChannelDifference": 1
+    },
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 11,
+      "part": "word/media/db115472dea63227c0aadc800131885a364964be.jpg",
+      "pixels": [
+        2246,
+        3071
+      ],
+      "candidatePage": 30,
+      "candidateImage": "X262.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 6.441979320134863e-05,
+      "rootMeanSquareChannelDifference": 0.008026189671214087,
+      "maximumChannelDifference": 1
+    },
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 12,
+      "part": "word/media/4ed4e70637d402c6c050d6014b167a5007c9019d.jpg",
+      "pixels": [
+        2246,
+        3071
+      ],
+      "candidatePage": 54,
+      "candidateImage": "X339.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 4.354256089603535e-05,
+      "rootMeanSquareChannelDifference": 0.006598670586001905,
+      "maximumChannelDifference": 1
+    },
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 14,
+      "part": "word/media/7167901507cf90e9a3b64c6395e9c0e34d1804f2.jpg",
+      "pixels": [
+        2246,
+        3071
+      ],
+      "candidatePage": 100,
+      "candidateImage": "X466.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 1.4546404916433561e-05,
+      "rootMeanSquareChannelDifference": 0.0038139327116334643,
+      "maximumChannelDifference": 1
+    },
+    {
+      "id": "mois-budget-0",
+      "sourceIndex": 19,
+      "part": "word/media/6b04836264e28a26a80ed3202368e4191b379658.jpg",
+      "pixels": [
+        2246,
+        3071
+      ],
+      "candidatePage": 130,
+      "candidateImage": "X560.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 9.907019959697276e-06,
+      "rootMeanSquareChannelDifference": 0.003147466622647515,
+      "maximumChannelDifference": 1
+    },
+    {
+      "id": "nps-venture-hwp",
+      "sourceIndex": 5,
+      "part": "word/media/7676bc29ca948de90c62274074ab266993437d48.jpg",
+      "pixels": [
+        335,
+        129
+      ],
+      "candidatePage": 2,
+      "candidateImage": "X63.jpg",
+      "encodedJPEGBytesIdentical": false,
+      "meanAbsoluteChannelDifference": 0.2778124879478576,
+      "rootMeanSquareChannelDifference": 0.8912242480526414,
+      "maximumChannelDifference": 27
+    }
+  ]
+}
