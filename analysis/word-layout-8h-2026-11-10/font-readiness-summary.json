@@ -1,0 +1,67 @@
+{
+  "method": "Same actual Word original10 and fixed398/140, isolated cold Chrome, no extra CSS; print-layout4b72 only as before and current font readiness after. One initial UI startup timeout in01 was independently retried and retained in render results. Existing warm native score already12/12 and2/2, so cold improvement is not a new global native Word accuracy claim.",
+  "scores": {
+    "common402": {
+      "before": {
+        "requested": 398,
+        "matchedBoth": 396,
+        "lostOrAmbiguous": 2,
+        "startPageMismatches": 61,
+        "absolutePageError": 61,
+        "exactLineParagraphs": 334
+      },
+      "after": {
+        "requested": 398,
+        "matchedBoth": 398,
+        "lostOrAmbiguous": 0,
+        "startPageMismatches": 12,
+        "absolutePageError": 12,
+        "exactLineParagraphs": 341
+      }
+    },
+    "fixed150": {
+      "before": {
+        "requested": 140,
+        "matchedBoth": 139,
+        "lostOrAmbiguous": 1,
+        "startPageMismatches": 12,
+        "absolutePageError": 12,
+        "exactLineParagraphs": 112
+      },
+      "after": {
+        "requested": 140,
+        "matchedBoth": 140,
+        "lostOrAmbiguous": 0,
+        "startPageMismatches": 2,
+        "absolutePageError": 2,
+        "exactLineParagraphs": 115
+      }
+    }
+  },
+  "syntheticBefore": {
+    "fontStatuses": [
+      "loading",
+      "loading"
+    ],
+    "coldPages": 7,
+    "warmPages": 9,
+    "maxBodyOverflowPX": 79.375
+  },
+  "focused": {
+    "passed": 40,
+    "failed": 0
+  },
+  "finalRequests": {
+    "passed": 4,
+    "failed": 0
+  },
+  "DPR2Rows": {
+    "passed": 9,
+    "failed": 0
+  },
+  "sourceSHA256": {
+    "src/print-layout.ts": "e2f17b31a08d6a65086549302c0091915cc5db411c1a998e47586c078cba4190",
+    "src/print-fonts.ts": "ff5566418aa15be80b561437186b7404a949bae54139c8682aa693e8b45838eb",
+    "tests/print-font-readiness.spec.ts": "93af0b8aaf6af2fbe38d06ae81ff9614466872d1e91ae5f406f736f73291892e"
+  }
+}

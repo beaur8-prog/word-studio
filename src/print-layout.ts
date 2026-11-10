@@ -1,3 +1,4 @@
+import { preparePrintFonts, type PrintFontRequest } from './print-fonts';
 import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
 import { rowSplitPolicy } from './row-split-policy';
 import { layoutTextBoxes } from './textbox-frame';
@@ -462,10 +463,13 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     onProgress?.({ label: '문서의 글꼴을 준비하는 중…' });
     const sample = source.textContent || '한글';
     const serifFallback = /휴먼명조|한양신명조|함초롬바탕|바탕|Batang/i.test(html);
+    const fontRequests: PrintFontRequest[] = [];
     for (const family of ['Noto Serif KR', 'Noto Sans KR', 'Studio Text', 'Studio Math', 'Studio Symbols', 'Studio Symbols 2', 'Studio Devanagari', 'Studio Emoji']) if (html.includes(family) || (family === 'Noto Serif KR' && serifFallback))
-      await Promise.all([400, 700].map(weight => document.fonts.load(`${weight} 12px "${family}"`, sample)));
-    if (source.querySelector('[data-symbol-font],[data-list-glyph]')) await Promise.all(['Studio Symbols 2','Studio Symbols','Studio Math','Studio Text','Studio Devanagari','Studio Emoji'].map(font => document.fonts.load(`12px "${font}"`)));
-    await document.fonts.ready;
+      for (const weight of [400, 700]) fontRequests.push({ font: `${weight} 12px "${family}"`, text: sample });
+    if (source.querySelector('[data-symbol-font],[data-list-glyph]')) for (const family of ['Studio Symbols 2','Studio Symbols','Studio Math','Studio Text','Studio Devanagari','Studio Emoji'])
+      fontRequests.push({ font: `12px "${family}"`, text: ' ' });
+    if (await preparePrintFonts(host, source, noteBodies.values(), initialPage, fontRequests, signal))
+      warnings.add('일부 글꼴을 불러오지 못해 대체 글꼴로 쪽 배치를 계산했습니다.');
     signal?.throwIfAborted();
     const images = [...source.querySelectorAll('img')]; let decoded = 0;
     if (images.length) onProgress?.({ label: '쪽 배치에 사용할 그림을 준비하는 중…', completed: 0, total: images.length, unit: '개' });
