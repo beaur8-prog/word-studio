@@ -22,6 +22,8 @@ export class SectionNodeView {
   private observer: ResizeObserver;
   private frame = 0;
   private signature = '';
+  private stack: HTMLElement | null = null;
+  private pageCount = () => this.schedule();
   constructor(private node: PMNode) {
     this.dom.className = 'document-section-content'; this.contentDOM.className = 'section-editable';
     this.backgrounds.className = 'section-papers'; this.backgrounds.contentEditable = 'false'; this.backgrounds.setAttribute('aria-hidden', 'true');
@@ -33,28 +35,41 @@ export class SectionNodeView {
   private layout() {
     const page = sectionSettings(this.node.attrs.page), [width, height] = pageDimensions(page), margins = pageMargins(page);
     const px = 96 / 25.4, count = Math.max(1, Number(this.dom.dataset.pages) || 1);
+    const stack = this.dom.closest<HTMLElement>('.document-stack');
+    if (stack !== this.stack) {
+      this.stack?.removeEventListener('pagecount', this.pageCount);
+      this.stack = stack; stack?.addEventListener('pagecount', this.pageCount);
+    }
+    const sections = [...(stack?.querySelectorAll<HTMLElement>('.document-section-content') ?? [])];
+    const before = sections.slice(0, sections.indexOf(this.dom)).reduce((sum, section) => sum + (Number(section.dataset.pages) || 1), 0);
+    const total = Number(stack?.dataset.pages) || count;
     this.dom.style.width = `${width}px`; this.dom.dataset.sectionContent = this.node.attrs.page;
     this.dom.dataset.pageHeight = String(height);
     this.dom.dataset.hideEmptyLines = String(page.hideEmptyLines === true);
     this.dom.dataset.suppressBottomSpacing = String(page.suppressBottomSpacing !== false);
-    const signature = `${this.node.attrs.page}:${count}`;
+    const signature = `${this.node.attrs.page}:${count}:${before}:${total}`;
     if (signature !== this.signature) {
-      this.signature = signature; this.backgrounds.replaceChildren();
+      this.signature = signature;
+      for (const old of this.backgrounds.querySelectorAll('.section-header,.section-footer')) this.observer.unobserve(old);
+      this.backgrounds.replaceChildren();
       for (let i = 0; i < count; i++) {
         const paper = document.createElement('div'); paper.className = 'section-paper';
         Object.assign(paper.style, { top: `${i * (height + 24)}px`, width: `${width}px`, height: `${height}px` });
-        const furniture = pageFurniture(page, i + 1), header = document.createElement('div'), footer = document.createElement('div');
+        const number = before + i + 1;
+        const furniture = pageFurniture(page, number, i === 0), header = document.createElement('div'), footer = document.createElement('div');
         header.className = 'section-header document-furniture'; footer.className = 'section-footer document-furniture';
         if (furniture.headerHtml) header.innerHTML = sanitizeImportedHtml(furniture.headerHtml).html; else header.textContent = furniture.header;
         if (furniture.footerHtml) footer.innerHTML = sanitizeImportedHtml(furniture.footerHtml).html; else footer.textContent = furniture.footer;
-        if (furniture.pageNumbers && !/data-page-number/.test((furniture.headerHtml || '') + (furniture.footerHtml || ''))) footer.append(document.createTextNode(String(i + 1)));
+        if (furniture.pageNumbers && !/data-page-number/.test((furniture.headerHtml || '') + (furniture.footerHtml || ''))) {
+          const field = document.createElement('span'); field.dataset.pageNumber = 'PAGE'; footer.append(field);
+        }
         for (const element of [header, footer]) Object.assign(element.style, { left: `${margins.left * px}px`, right: `${margins.right * px}px` });
         header.style.top = `${(page.headerDistance ?? Math.max(0, margins.top / 2 - 3)) * px}px`;
         footer.style.bottom = `${(page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)) * px}px`;
         paper.append(header, footer); this.backgrounds.append(paper);
         layoutFurnitureImages(paper);
         this.observer.observe(header); this.observer.observe(footer);
-        for (const field of paper.querySelectorAll<HTMLElement>('[data-page-number]')) field.textContent = String(field.dataset.pageNumber === 'NUMPAGES' ? count : i + 1);
+        for (const field of paper.querySelectorAll<HTMLElement>('[data-page-number]')) field.textContent = String(field.dataset.pageNumber === 'NUMPAGES' ? total : number);
       }
     }
     const occupied = (selector: string, distance: number) => Math.max(0, ...[...this.backgrounds.querySelectorAll<HTMLElement>(selector)].map(el =>
@@ -66,5 +81,5 @@ export class SectionNodeView {
   }
   update(node: PMNode) { if (node.type !== this.node.type) return false; this.node = node; this.schedule(); return true; }
   ignoreMutation(mutation: { target: globalThis.Node; type?: string }) { return mutation.target === this.dom || (mutation.type === 'attributes' && mutation.target === this.contentDOM) || !this.contentDOM.contains(mutation.target); }
-  destroy() { cancelAnimationFrame(this.frame); this.observer.disconnect(); }
+  destroy() { cancelAnimationFrame(this.frame); this.stack?.removeEventListener('pagecount', this.pageCount); this.observer.disconnect(); }
 }

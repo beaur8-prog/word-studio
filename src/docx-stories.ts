@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 import mammoth from 'mammoth';
 import { prepareDocxMetadata } from './docx-metadata';
 import { W, all, val } from './docx-format';
-import type { PageSettings } from './types';
+import { pageMargins, paperDimensions, type PageSettings } from './types';
 
 /** Convert a header, comment or note through the same formatting path as body
  * text, with its own relationships. The original ZIP and story stay unchanged. */
@@ -54,6 +54,19 @@ export function structureDocxSections(html: string, pages: PageSettings[]) {
   const template = document.createElement('template'); template.innerHTML = html;
   const output = document.createElement('div');
   const differentSizes = new Set(pages.map(p => `${p.size}:${p.orientation}`)).size > 1;
+  const geometry = (page: PageSettings) => {
+    const margins = pageMargins(page);
+    return [...paperDimensions(page), margins.top, margins.right, margins.bottom, margins.left]
+      .map(value => Math.round(value * 1000)).join(':');
+  };
+  // Equal paper names can still have different physical dimensions or body
+  // margins. Flat editing would keep the first section's page geometry while
+  // print correctly changes it. Independent next-page sections need frames.
+  // Continuous and parity boundaries keep their existing path until a frame
+  // can represent their shared page or intentional blank page as well.
+  const nextPageSections = pages.slice(1).every(page => !page.breakType || page.breakType === 'nextPage');
+  const separateGeometry = nextPageSections && new Set(pages.map(geometry)).size > 1;
+  const sectionFrames = differentSizes || separateGeometry;
   let page = pages[0], children: Element[] = [];
   const notes: Element[] = [];
   const flush = () => {
@@ -77,7 +90,7 @@ export function structureDocxSections(html: string, pages: PageSettings[]) {
       }
       nodes = output;
     }
-    if (differentSizes && page) {
+    if (sectionFrames && page) {
       const section = document.createElement('div'); section.dataset.sectionContent = JSON.stringify(page); section.append(...nodes); nodes = [section];
     }
     output.append(...nodes);

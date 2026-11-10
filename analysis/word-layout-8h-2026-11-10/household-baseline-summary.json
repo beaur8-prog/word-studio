@@ -1,0 +1,78 @@
+{
+  "inputSHA256": "ef412d51256ade00188519beac5b0efcd8a10a7e60c9b19765e656db28a97c06",
+  "method": "Actual app editor UI in isolated Chrome/DPR1, same exact DOCX; four stable samples; body-only paragraphs, sections use their own geometry. Not a Microsoft remeasurement.",
+  "summary": {
+    "pages": {
+      "editor": 92,
+      "print": 77
+    },
+    "paragraphCounts": {
+      "editor": 5702,
+      "print": 5702
+    },
+    "exactParagraphOrder": true,
+    "sheet": {
+      "height": 1122.52,
+      "top": 94.46666666666667,
+      "bottom": 94.46666666666667
+    },
+    "warnings": []
+  },
+  "convergence": [
+    {
+      "sample": 0,
+      "pages": "91",
+      "height": 104676.21875,
+      "stable": 0
+    },
+    {
+      "sample": 1,
+      "pages": "91",
+      "height": 104342.875,
+      "stable": 0
+    },
+    {
+      "sample": 2,
+      "pages": "91",
+      "height": 104351.8125,
+      "stable": 0
+    },
+    {
+      "sample": 3,
+      "pages": "91",
+      "height": 105238.875,
+      "stable": 0
+    },
+    {
+      "sample": 4,
+      "pages": "92",
+      "height": 105601.390625,
+      "stable": 0
+    },
+    {
+      "sample": 5,
+      "pages": "92",
+      "height": 105601.390625,
+      "stable": 1
+    },
+    {
+      "sample": 6,
+      "pages": "92",
+      "height": 105601.390625,
+      "stable": 2
+    },
+    {
+      "sample": 7,
+      "pages": "92",
+      "height": 105601.390625,
+      "stable": 3
+    },
+    {
+      "sample": 8,
+      "pages": "92",
+      "height": 105601.390625,
+      "stable": 4
+    }
+  ],
+  "errors": []
+}
