@@ -1,0 +1,33 @@
+{
+  "sourceBefore": "050febe",
+  "fullBefore": {
+    "passed": 819,
+    "failed": 1,
+    "scope": "PC820, failed same oversized bordered repeated-header case"
+  },
+  "candidateDPR2": {
+    "passed": 24,
+    "failed": 0,
+    "log": "dpr2-product-border-final.log",
+    "note": "No experimental transforms or DOM-mutating diagnostics. Thickness12/24, headers, nested, two saves, zoom100/50/125/100."
+  },
+  "nativeFunding": {
+    "samples": 80,
+    "intervalMs": 500,
+    "pages": [
+      52
+    ],
+    "log": "oscillation-product-border.log"
+  },
+  "sourceSHA256": {
+    "src/pagination.ts": "dbef7e33a39924bcfbb7de626905fbb2064493d954ab22ae417bc7b784879b37",
+    "src/editor-cell-pagination.ts": "f51d6e3b87bb7d0f5ee088efb10a50d1e526df3a1549796ba60fc3f836b29be7",
+    "src/styles.css": "e7c58226ca317af253dd87a04fe599ab9cc325eaa2f487e4c9affd2f5e831d0e",
+    "tests/oversized-word-rows.spec.ts": "266cb5ad285aae2118add3abb891089e1da1301d957d3536a53a623e634b0d2e"
+  },
+  "discarded": [
+    "all collapsed borders halved: changed print fit budgets and nested padding",
+    "first two-edge compensation with physical height as logical displacement: extra fresh-page risk",
+    "diagnostic code-generation newline error; no product result counted"
+  ]
+}

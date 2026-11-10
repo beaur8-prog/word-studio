@@ -24,15 +24,20 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
     const decorations: Decoration[] = [], signatures: string[] = [];
     const ownIn = (element: HTMLElement, top: number, bottom: number) => (g.references ?? []).filter(ref =>
       ref.top >= top - .5 && ref.top < bottom - .5 && [...element.querySelectorAll<HTMLElement>('[data-note-reference]')].some(el => el.dataset.noteReference === ref.id));
-    const gapFor = (top: number, bottom: number, offset: number, before = 0, after = 0, own: { id: string; top: number }[] = []) => {
+    const gapFor = (top: number, bottom: number, offset: number, before = 0, after = 0, own: { id: string; top: number }[] = [], repeatedEdge = 0) => {
       const y = top + g.extra + offset;
       const page = Math.max(0, Math.floor((y - g.top + .5) / stride));
       let destination = Math.max(page, ...own.map(ref => minimum.get(ref.id) ?? page));
       for (const ref of own) placed.set(ref.id, destination);
-      if (destination === page && bottom + after + g.extra + offset <= page * stride + g.height - g.bottom - reserve(page) + .5) return 0;
+      if (destination === page && bottom + after + g.extra + offset <= page * stride + g.height - g.bottom - reserve(page) + .5) return { gap: 0, repeatedEdge: 0 };
       destination = Math.max(page + 1, destination);
       for (const ref of own) placed.set(ref.id, destination);
-      return Math.max(0, Math.ceil((destination * stride + g.top + (g.repeatAt?.(destination) ?? 0) + before - y) * 64) / 64);
+      const header = g.repeatAt?.(destination) ?? 0;
+      // The measured repeated header already includes its table's outer
+      // half border. A nested table still needs both of its own edges.
+      const sharedEdge = header ? repeatedEdge : 0;
+      const gap = Math.max(0, Math.ceil((destination * stride + g.top + header + before - sharedEdge - y) * 64) / 64);
+      return { gap, repeatedEdge: sharedEdge };
     };
     const addGap = (pos: number, gap: number, columns = 0) => {
       decorations.push(Decoration.widget(pos, () => {
@@ -63,7 +68,9 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
         const start = page * stride + g.top + Math.max(headerHeight, g.repeatAt?.(page) ?? 0) + outerBefore;
         if (top > start + .5) {
           prefix = Math.max(0, (page + 1) * stride + g.top + (g.repeatAt?.(page + 1) ?? 0) + outerBefore - top);
-          addGap(pos, prefix, [...current.cells].reduce((sum, cell) => sum + cell.colSpan, 0));
+          // A leading TR removes the table's original outer half border.
+          // Restore that physical edge without extending the source flow.
+          addGap(pos, prefix + (rows[0] === current ? inset : 0), [...current.cells].reduce((sum, cell) => sum + cell.colSpan, 0));
           offset += prefix;
         }
       }
@@ -73,6 +80,9 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
         const cellStyle = getComputedStyle(cell);
         const before = outerBefore + (parseFloat(cellStyle.paddingTop) || 0) + (parseFloat(cellStyle.borderTopWidth) || 0);
         const after = outerAfter + (parseFloat(cellStyle.paddingBottom) || 0) + (parseFloat(cellStyle.borderBottomWidth) || 0);
+        const table = current.closest('table')!;
+        const repeatedEdge = table === row.closest('table') && getComputedStyle(table).borderCollapse === 'collapse'
+          ? (parseFloat(cellStyle.borderTopWidth) || 0) / 2 : 0;
         const visit = (block: HTMLElement): boolean => {
           if (block.matches('table')) {
             // View-only page gutters are TR widgets too. Counting them as source
@@ -99,7 +109,7 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
               let end = i === 0 ? Math.max(1, Math.min(rows.length, headerEnd + 1)) : i + 1;
               for (let j = i; j < end; j++) for (const c of rows[j].cells) end = Math.min(rows.length, Math.max(end, j + c.rowSpan));
               const first = rows[i], top = naturalY(first.getBoundingClientRect().top), bottom = naturalY(rows[end - 1].getBoundingClientRect().bottom);
-              const gap = gapFor(top, bottom, offset + extra, nestedBefore, nestedAfter, ownIn(table, top, bottom));
+              const { gap } = gapFor(top, bottom, offset + extra, nestedBefore, nestedAfter, ownIn(table, top, bottom));
               if (gap) {
                 const wholeForm = rows.length === 1 && rowSplitPolicy(rows[0].dataset) !== 'allow' &&
                   table.getBoundingClientRect().height / g.scale <= g.height - g.top - g.bottom + .5;
@@ -127,8 +137,8 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
           if (!block.matches('p,h1,h2,h3,h4,h5,h6,pre')) return [...block.children].every(child => visit(child as HTMLElement));
           for (const line of measureParagraphLines(view, block, naturalY)) {
             if (line.bottom - line.top > g.height - g.top - g.bottom) return false;
-            const gap = gapFor(line.top, line.bottom, offset + extra, before + (line.before || 0), after + (line.after || 0), ownIn(block, line.top, line.bottom));
-            if (gap) { addGap(line.pos(), gap); extra += gap; cellGaps += Math.max(0, gap - before - after); }
+            const { gap, repeatedEdge: sharedEdge } = gapFor(line.top, line.bottom, offset + extra, before + (line.before || 0), after + (line.after || 0), ownIn(block, line.top, line.bottom), repeatedEdge);
+            if (gap) { addGap(line.pos(), gap); extra += gap; cellGaps += Math.max(0, gap - before - after + sharedEdge); }
           }
           return true;
         };

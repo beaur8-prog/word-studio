@@ -16,12 +16,14 @@ const cases = [
   { columns: 2, nested: true, padding: 0, header: false },
   { columns: 2, nested: false, padding: 7, header: true },
   { columns: 1, nested: true, padding: 5, header: false },
+  { columns: 2, nested: false, padding: 7, header: false, edgeSize: 24 },
+  { columns: 2, nested: false, padding: 7, header: true, edgeSize: 24 },
   { columns: 2, nested: true, padding: 3, header: true },
 ];
-for (const { columns, nested, padding, header } of cases) {
-  test(`oversized Word cantSplit ${columns}-column ${nested ? 'nested' : 'body'} padding ${padding} header ${header} continues at its original size`, async ({ page }) => {
+for (const { columns, nested, padding, header, edgeSize = 12 } of cases) {
+  test(`oversized Word cantSplit ${columns}-column ${nested ? 'nested' : 'body'} padding ${padding} header ${header} border ${edgeSize} continues at its original size`, async ({ page }) => {
     const lineCount = padding ? 20 : 24, lastLabel = `C0LINE${String(lineCount - 1).padStart(2, '0')}`;
-    const edge = padding ? { style: BorderStyle.SINGLE, size: 12, color: '334455' } : none;
+    const edge = padding ? { style: BorderStyle.SINGLE, size: edgeSize, color: '334455' } : none;
     const rows = [new TableRow({ cantSplit: true, children: Array.from({ length: columns }, (_, col) =>
       cell(Array.from({ length: lineCount }, (_, line) => paragraph(`C${col}LINE${String(line).padStart(2, '0')}`)), padding)) })];
     if (header) rows.unshift(new TableRow({ tableHeader: true, children: Array.from({ length: columns }, (_, col) => cell([paragraph(`HEADER ${col}`)], padding)) }));
@@ -95,6 +97,10 @@ for (const { columns, nested, padding, header } of cases) {
       await slider.fill(String(zoom)); await slider.dispatchEvent('input'); await slider.dispatchEvent('change');
       await expect.poll(async () => {
         const rows = await inspect();
+        await writeFile(test.info().outputPath('last-line-inspection.json'), JSON.stringify({ zoom, rows: rows.map(r => {
+          const printed = result.states[0].paragraphs.find(p => p.text === r.text);
+          return { ...r, printed, delta: printed ? r.y - r.top - printed.top : null };
+        }) }, null, 2));
         return { first: rows.find(r => r.text === 'C0LINE00')?.page, last: rows.find(r => r.text === lastLabel)?.page,
           inBody: rows.every(r => r.y >= r.top - .6 && r.y + r.height <= r.bottom + .6),
           samePrintedLines: rows.every(r => {

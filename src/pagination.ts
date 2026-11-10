@@ -379,15 +379,25 @@ export const Pagination = Extension.create({
                     const parity = piece.breakType === 'oddPage' ? 1 : 0;
                     if ((totalCount + destination + 1) % 2 !== parity) destination++;
                   }
-                  const gap = Math.max(0, Math.ceil((destination * stride + top + repeat(piece.header, destination) - y) * 64) / 64);
+                  // A first source row starts inside the collapsed table edge.
+                  // Keep that inset on new paper; the spacer TR also replaces
+                  // the old outer half border, so its physical height is larger
+                  // than the logical displacement of the document content.
+                  let tableEdge = 0;
+                  const row = piece.columns ? view.nodeDOM(piece.pos) as HTMLTableRowElement : null;
+                  const table = row?.closest('table');
+                  if (row && table && getComputedStyle(table).borderCollapse === 'collapse' &&
+                    [...table.rows].filter(r => !r.classList.contains('ProseMirror-widget'))[0] === row)
+                    tableEdge = Math.max(0, (row.getBoundingClientRect().top - table.getBoundingClientRect().top) / scale);
+                  const gap = Math.max(0, Math.ceil((destination * stride + top + repeat(piece.header, destination) - y + tableEdge) * 64) / 64);
                   if (piece.explicit) dec.push(Decoration.node(piece.pos, piece.end, { style: `height:${gap}px` }));
                   else dec.push(Decoration.widget(piece.pos, () => {
                     const el = document.createElement(piece.columns ? 'tr' : 'div');
                     el.className = `pagination-gap${piece.columns ? ' pagination-row-gap' : ''}`;
-                    el.style.height = `${gap}px`; el.contentEditable = 'false'; el.setAttribute('aria-hidden', 'true');
-                    if (piece.columns) { const cell = document.createElement('td'); cell.colSpan = piece.columns; cell.style.height = `${gap}px`; el.append(cell); }
+                    el.style.height = `${gap + tableEdge}px`; el.contentEditable = 'false'; el.setAttribute('aria-hidden', 'true');
+                    if (piece.columns) { const cell = document.createElement('td'); cell.colSpan = piece.columns; cell.style.height = `${gap + tableEdge}px`; el.append(cell); }
                     return el;
-                  }, { side: -1, key: `gap-${piece.pos}-${gap}` }));
+                  }, { side: -1, key: `gap-${piece.pos}-${gap}-${tableEdge}` }));
                   extra += gap; signatures.push(`${piece.pos}:${gap.toFixed(3)}`); refs = candidate();
                 }
                 assignNotes(refs);
