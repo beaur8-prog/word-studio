@@ -198,10 +198,9 @@ export function drawingFloating(drawing: Element) {
 /** Keep off-paper drawings and their authored coordinates in the document.
  * A rectangle wholly outside its sheet has no paper ink or text-wrap budget;
  * a partly visible or paragraph-relative drawing follows its normal layout. */
-export function imageOutsidePaper(img: HTMLElement): boolean {
-  const g = imageFloating(img.dataset.imageFloating);
+function rawOutsidePaper(img: HTMLElement, g: ImageFloating): boolean {
   const sheet = img.closest<HTMLElement>('[data-page-height],.print-page');
-  if (!g || !sheet) return false;
+  if (!sheet) return false;
   const width = Number(img.getAttribute('width')), height = Number(img.getAttribute('height'));
   const style = getComputedStyle(sheet), paperWidth = parseFloat(style.width);
   const paperHeight = Number(sheet.dataset.pageHeight) || parseFloat(style.height);
@@ -210,4 +209,36 @@ export function imageOutsidePaper(img: HTMLElement): boolean {
   const x = (horizontal.offset || 0) / 9525, y = (vertical.offset || 0) / 9525;
   return (horizontal.relative === 'page' && !horizontal.align && (x >= paperWidth || x + width <= 0)) ||
     (vertical.relative === 'page' && !vertical.align && (y >= paperHeight || y + height <= 0));
+}
+
+/** A fitting foreground drawing in a single-paragraph cell stays in that
+ * cell even when Word's stored page-relative X lies outside the paper.
+ * Keep unsupported multi-block/group layouts on their existing path. */
+export function recoverableCellImage(img: HTMLElement): HTMLElement | null {
+  const g = imageFloating(img.dataset.imageFloating);
+  const cell = img.closest<HTMLElement>('td,th');
+  const p = img.closest<HTMLElement>('p,h1,h2,h3,h4,h5,h6');
+  if (!g || g.layoutInCell !== true || !g.wrap?.type || g.behindDocument ||
+      g.drawingGroup || !cell || !p || !rawOutsidePaper(img, g)) return null;
+
+  const blocks = [...cell.children].filter(n => !n.classList.contains('ProseMirror-widget'));
+  const width = Number(img.getAttribute('width'));
+  const height = Number(img.getAttribute('height'));
+  const sheet = img.closest<HTMLElement>('[data-page-height],.print-page');
+  if (!sheet) return null;
+  const style = getComputedStyle(sheet);
+  const paperHeight = Number(sheet.dataset.pageHeight) || parseFloat(style.height);
+  const paperWidth = parseFloat(style.width);
+  const horizontal = g.horizontalPosition, vertical = g.verticalPosition;
+  const x = (horizontal.offset || 0) / 9525, y = (vertical.offset || 0) / 9525;
+  return blocks.length === 1 && blocks[0] === p &&
+    cell.querySelectorAll('img[data-image-floating]').length === 1 && width > 0 && height > 0 &&
+    horizontal.relative === 'page' && !horizontal.align && (x >= paperWidth || x + width <= 0) &&
+    vertical.relative === 'page' && !vertical.align && y >= 0 &&
+    width <= p.clientWidth + .5 && y + height <= paperHeight ? p : null;
+}
+
+export function imageOutsidePaper(img: HTMLElement): boolean {
+  const g = imageFloating(img.dataset.imageFloating);
+  return !!g && rawOutsidePaper(img, g) && !recoverableCellImage(img);
 }

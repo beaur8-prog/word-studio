@@ -2163,3 +2163,10 @@ button:hover:not(:disabled) {
 
 /* Screen magnification must never change PDF/physical page dimensions. */
 @media screen { .print-layout.preview > .print-page { zoom: var(--print-preview-scale, 1); } }
+
+/* A prepaginated Word image owns an explicit frame, even when its bitmap's
+   intrinsic ratio differs. Keep screen preview and printed ink in that frame. */
+.print-layout img[data-inline-image][width][height] {
+  object-fit: fill;
+  max-height: none;
+}

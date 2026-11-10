@@ -4,7 +4,7 @@ import { layoutTextBoxes, textBoxFrame } from './textbox-frame';
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
-import { imageOutsidePaper, imageFloating, type ImageFloating } from "./image-floating";
+import { imageOutsidePaper, recoverableCellImage, imageFloating, type ImageFloating } from "./image-floating";
 
 type Boundary = [globalThis.Node, number];
 type Unit = {
@@ -24,6 +24,7 @@ type Widget = {
 };
 type Picture = {
   wrapCell?: HTMLElement | null;
+  minimumHeight?: number;
   offPage?: boolean;
   index: number;
   left: number;
@@ -34,7 +35,7 @@ type Picture = {
   cssTop: number;
   geometry: ImageFloating;
 };
-type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[] };
+type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number };
 const atomic =
   "img,[data-drawing-group-anchor],[data-symbol-font],[data-word-overlap],[data-docx-tab],[data-docx-bookmark],[data-note-reference],[data-page-number]";
 const floatingImages = (root: HTMLElement) =>
@@ -195,6 +196,14 @@ function imagePosition(
   if (!g) return;
   const p = img.closest<HTMLElement>("p,h1,h2,h3,h4,h5,h6");
   if (!p) return;
+  const recovery = recoverableCellImage(img);
+  // A cell-contained drawing reserves its authored extent without changing the
+  // document's coordinates or forcing the picture into the old row height.
+  const minimumHeight = recovery ? Math.max(
+    parseFloat(p.style.minHeight) || 0,
+    (g.verticalPosition.offset || 0) / 9525 + (Number(img.getAttribute("height")) || 0),
+  ) : undefined;
+  if (minimumHeight) p.style.minHeight = `${minimumHeight}px`;
   p.style.position = "relative";
   const rect = p.getClientRects()[0] || p.getBoundingClientRect(),
     group = p.closest<HTMLElement>("[data-column-count]");
@@ -254,7 +263,7 @@ function imagePosition(
         ? ph - top - bottom
         : rect.height;
   const inline=g.drawingGroup?.position==='inline' ? inlineDrawingAnchor(root,g.drawingGroup.id)?.getBoundingClientRect():undefined;
-  const left = inline ? inline.left+(horizontal.offset||0)/9525-g.drawingGroup!.x :
+  let left = inline ? inline.left+(horizontal.offset||0)/9525-g.drawingGroup!.x :
     hbase +
     (horizontal.align === "center"
       ? (hwidth - width) / 2
@@ -274,6 +283,10 @@ function imagePosition(
     !["paragraph", "line"].includes(vertical.relative || "paragraph")
   )
     y = Math.max(py + top, Math.min(y, py + ph - bottom - height));
+  if (recovery) {
+    left = Math.max(rect.left, Math.min(left, rect.right - width));
+    y = rect.top + (g.verticalPosition.offset || 0) / 9525;
+  }
   Object.assign(img.style, {
     display: offPage ? "none" : "",
     position: "absolute",
@@ -285,6 +298,7 @@ function imagePosition(
   });
   return {
     index,
+    minimumHeight,
     wrapCell: g.layoutInCell !== false ? cell : null,
     offPage,
     left,
@@ -591,6 +605,9 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
     // that final geometry, not the paragraph's pre-wrap position.
     for (const paragraph of result) paragraph.pictures = paragraph.pictures.map(picture =>
       imagePosition(images[picture.index], picture.index, copy) || picture);
+    for (const paragraph of result) {
+      paragraph.minimumHeight = Math.max(0, ...paragraph.pictures.map(p => p.minimumHeight || 0)) || undefined;
+    }
     return result;
   } finally {
     host.remove();
@@ -605,6 +622,9 @@ export function applyFloatingLayout(root: HTMLElement) {
   for (const paragraph of plan) {
     const p = ps[paragraph.index];
     if (paragraph.pictures.length) p.style.position = "relative";
+    if (paragraph.minimumHeight) {
+      p.style.minHeight = `${Math.max(parseFloat(p.style.minHeight) || 0, paragraph.minimumHeight)}px`;
+    }
     for (const picture of paragraph.pictures) {
       const img = images[picture.index];
       const own = imagePosition(img, picture.index, root);
@@ -660,7 +680,7 @@ export const FloatingLayout = Extension.create({
                     Decoration.node(
                       position,
                       position + view.state.doc.nodeAt(position)!.nodeSize,
-                      { style: "position:relative" },
+                      { style: `position:relative${paragraph.minimumHeight ? `;min-height:${paragraph.minimumHeight}px` : ""}` },
                     ),
                   );
                 const index = units(p);

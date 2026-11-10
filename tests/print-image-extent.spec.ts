@@ -1,0 +1,10 @@
+import{test,expect}from'@playwright/test';
+import{writeFile}from'node:fs/promises';
+for(const authored of [true,false])test(`print ${authored?'Word inline':'ordinary block'} artwork uses its intended image frame`,async({page})=>{
+ await page.goto('/');
+ await page.evaluate(async authored=>{const{createPrintLayout}=await import('/src/print-layout.ts'),{defaultPage}=await import('/src/types.ts');const canvas=document.createElement('canvas');canvas.width=canvas.height=1;const c=canvas.getContext('2d')!;c.fillStyle='#ed2010';c.fillRect(0,0,1,1);const layout=await createPrintLayout(`<p><img ${authored?'data-inline-image="true"':''} src="${canvas.toDataURL()}" width="120" height="30" style="width:120px;height:30px" alt="FRAME"></p>`,{...defaultPage,pageNumbers:false});layout.element.classList.replace('measuring','preview');document.body.classList.add('studio-printing');},authored);
+ await page.emulateMedia({media:'print'});const target=page.locator('.print-content img[alt="FRAME"]');const png=await target.screenshot({scale:'css'});await writeFile(test.info().outputPath('printed-frame.png'),png);
+ const ink=await page.evaluate(async b64=>{const img=new Image();img.src='data:image/png;base64,'+b64;await img.decode();const canvas=document.createElement('canvas');canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;const c=canvas.getContext('2d')!;c.drawImage(img,0,0);const d=c.getImageData(0,0,canvas.width,canvas.height).data;const xs=[],ys=[];for(let y=0;y<canvas.height;y++)for(let x=0;x<canvas.width;x++){const i=(y*canvas.width+x)*4;if(d[i]>150&&d[i+1]<100&&d[i+2]<100){xs.push(x);ys.push(y);}}return{width:Math.max(...xs)-Math.min(...xs)+1,height:Math.max(...ys)-Math.min(...ys)+1,frame:[canvas.width,canvas.height]};},png.toString('base64'));
+ await writeFile(test.info().outputPath('printed-frame-ink.json'),JSON.stringify(ink));expect(ink.frame).toEqual([120,30]);expect(ink.height).toBeGreaterThanOrEqual(29);expect(ink.width).toBeGreaterThanOrEqual(authored?119:29);if(!authored)expect(ink.width).toBeLessThanOrEqual(31);
+ await page.pdf({path:test.info().outputPath('printed-frame.pdf'),preferCSSPageSize:true,printBackground:true});
+});
