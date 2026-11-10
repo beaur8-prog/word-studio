@@ -1,0 +1,230 @@
+{
+  "method": "Independent actual OOXML drawing/image-part inspection. Authored offsets and extents are compared without changing the input.",
+  "rows": [
+    {
+      "stage": "original",
+      "inputSHA256": "4cb24cc3f256a969dd216048b82c0e8bf8776d4af43c026bc0ff653bb121d7c5",
+      "images": [
+        {
+          "sha256": "2c667b23ec667befa6a327cc8fe3b6617417b296dcd64b10015d4ff0d6ac1e99",
+          "extent": {
+            "cx": "1466850",
+            "cy": "352425"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "acb68a1148b56aaad503d80ab11b42ddaf3ec479e67961cca87781e79362bcb2",
+          "extent": {
+            "cx": "1571625",
+            "cy": "381000"
+          },
+          "positions": {
+            "positionH": {
+              "relativeFrom": "page",
+              "value": "9428798"
+            },
+            "positionV": {
+              "relativeFrom": "page",
+              "value": "917258"
+            }
+          },
+          "layoutInCell": "1",
+          "shape": "anchor"
+        },
+        {
+          "sha256": "057a7800f5853bdc9e4208fac586d5648faca70fa9a40c510e693cfadef83fd1",
+          "extent": {
+            "cx": "1314450",
+            "cy": "361950"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "72dedebb34667e8ada37046da224a28de70035e03d9fc70fed06e53441a20a51",
+          "extent": {
+            "cx": "1543050",
+            "cy": "371475"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "091f2106b85fbaa54e8dfa80011926687eaf14cf1ecb25ea018ffafeb918df9b",
+          "extent": {
+            "cx": "1419225",
+            "cy": "428625"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "04beb1abed85234d5163b131644f2e662bea215fe6af1567521be54713f55a2f",
+          "extent": {
+            "cx": "1228725",
+            "cy": "476250"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        }
+      ]
+    },
+    {
+      "stage": "save1",
+      "inputSHA256": "af53087c15e1b9147adfc58ef863a8e90984e8a258339c6a0b6b776bf5e0bdd9",
+      "images": [
+        {
+          "sha256": "2c667b23ec667befa6a327cc8fe3b6617417b296dcd64b10015d4ff0d6ac1e99",
+          "extent": {
+            "cx": "1466850",
+            "cy": "352425"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "acb68a1148b56aaad503d80ab11b42ddaf3ec479e67961cca87781e79362bcb2",
+          "extent": {
+            "cx": "1571625",
+            "cy": "381000"
+          },
+          "positions": {
+            "positionH": {
+              "relativeFrom": "page",
+              "value": "9428798"
+            },
+            "positionV": {
+              "relativeFrom": "page",
+              "value": "917258"
+            }
+          },
+          "layoutInCell": "1",
+          "shape": "anchor"
+        },
+        {
+          "sha256": "057a7800f5853bdc9e4208fac586d5648faca70fa9a40c510e693cfadef83fd1",
+          "extent": {
+            "cx": "1314450",
+            "cy": "361950"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "72dedebb34667e8ada37046da224a28de70035e03d9fc70fed06e53441a20a51",
+          "extent": {
+            "cx": "1543050",
+            "cy": "371475"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "091f2106b85fbaa54e8dfa80011926687eaf14cf1ecb25ea018ffafeb918df9b",
+          "extent": {
+            "cx": "1419225",
+            "cy": "428625"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "04beb1abed85234d5163b131644f2e662bea215fe6af1567521be54713f55a2f",
+          "extent": {
+            "cx": "1228725",
+            "cy": "476250"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        }
+      ]
+    },
+    {
+      "stage": "save2",
+      "inputSHA256": "fec4a2de774bcf0310efdbae5c811e29c02bfb1dff597a2b6c20ea514c964d11",
+      "images": [
+        {
+          "sha256": "2c667b23ec667befa6a327cc8fe3b6617417b296dcd64b10015d4ff0d6ac1e99",
+          "extent": {
+            "cx": "1466850",
+            "cy": "352425"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "acb68a1148b56aaad503d80ab11b42ddaf3ec479e67961cca87781e79362bcb2",
+          "extent": {
+            "cx": "1571625",
+            "cy": "381000"
+          },
+          "positions": {
+            "positionH": {
+              "relativeFrom": "page",
+              "value": "9428798"
+            },
+            "positionV": {
+              "relativeFrom": "page",
+              "value": "917258"
+            }
+          },
+          "layoutInCell": "1",
+          "shape": "anchor"
+        },
+        {
+          "sha256": "057a7800f5853bdc9e4208fac586d5648faca70fa9a40c510e693cfadef83fd1",
+          "extent": {
+            "cx": "1314450",
+            "cy": "361950"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "72dedebb34667e8ada37046da224a28de70035e03d9fc70fed06e53441a20a51",
+          "extent": {
+            "cx": "1543050",
+            "cy": "371475"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "091f2106b85fbaa54e8dfa80011926687eaf14cf1ecb25ea018ffafeb918df9b",
+          "extent": {
+            "cx": "1419225",
+            "cy": "428625"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        },
+        {
+          "sha256": "04beb1abed85234d5163b131644f2e662bea215fe6af1567521be54713f55a2f",
+          "extent": {
+            "cx": "1228725",
+            "cy": "476250"
+          },
+          "positions": {},
+          "layoutInCell": null,
+          "shape": "inline"
+        }
+      ]
+    }
+  ]
+}

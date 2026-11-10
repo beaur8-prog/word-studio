@@ -1,0 +1,14 @@
+[
+  {
+    "stage": "native-figure-core-mois-2025-0",
+    "exitCode": 0,
+    "seconds": 13.46,
+    "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56"
+  },
+  {
+    "stage": "native-figure-core-mss-funding-2026-0",
+    "exitCode": 0,
+    "seconds": 50.48,
+    "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56"
+  }
+]

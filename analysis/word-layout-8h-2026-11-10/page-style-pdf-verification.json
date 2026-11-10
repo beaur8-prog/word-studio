@@ -1,0 +1,152 @@
+{
+  "sourceBefore": "02cb48b",
+  "sourceAfter": "7dc8bd4",
+  "method": "actual page geometry,glyph order/coordinates,raster geometry,vector ink to .001pt,same input SHA; not Microsoft fidelity",
+  "rows": [
+    {
+      "id": "mois-2025-0",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "mss-funding-2026-2",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "mods-household-1",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "fsc-press-1",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "fsc-press-4",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "fsc-press-7",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "fsc-press-10",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "moel-rfp-0",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "moel-rfp-1",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "daejeon-safety-hwp",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "gg-facility-hwp",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "motie-budget-hwp",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "motie-ax-0",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "motie-ax-1",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "mofe-budget-hwpx",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "mfds-revenue-hwpx",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "mois-sop-3",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "mois-budget-0",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "nhis-overcharge-0",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "nhis-postpone-1",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "moel-manual-1",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "lh-smartcity-hwpx",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "nps-fund-hwp",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "nps-venture-hwp",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "lh-campus-hwpx",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "law-request-hwp",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "law-register-hwp",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    },
+    {
+      "id": "law-operation-hwp",
+      "sameInput": true,
+      "samePageGeometryAndInk": true
+    }
+  ]
+}

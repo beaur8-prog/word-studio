@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "0bebe65",
+  "documents": 29,
+  "totals": {
+    "paragraphs": 33402,
+    "unchanged": 33284,
+    "repeatedHeaders": 118,
+    "images": 219
+  },
+  "failures": {
+    "dynamic": 0,
+    "mismatches": 0,
+    "missingImages": 0,
+    "changedImages": 0
+  },
+  "errors": [],
+  "scope": "Actual print DOM body and exact original image src; separate PDF ink checks required."
+}

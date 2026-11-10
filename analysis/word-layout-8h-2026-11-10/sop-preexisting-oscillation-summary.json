@@ -1,0 +1,30 @@
+{
+  "inputSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+  "sameInput": true,
+  "baselineRef": "6ac3f2b",
+  "baselineAllSrcFrozen": true,
+  "baselinePageTransitions": [
+    170,
+    163,
+    169,
+    165,
+    173,
+    169,
+    160,
+    166
+  ],
+  "currentRef": "02cb48b",
+  "currentPageTransitions": [
+    169,
+    166,
+    172,
+    165,
+    169,
+    165,
+    170,
+    166
+  ],
+  "firstDifferingPosition": 5407,
+  "cause": "Later page-relative 680x839 floating diagram reflows earlier text, changes anchor page, then pulls it back. Global floating planner and pagination form a cycle.",
+  "status": "pre-existing unresolved, no manufactured page count; needs forward page/float ownership shared with print"
+}

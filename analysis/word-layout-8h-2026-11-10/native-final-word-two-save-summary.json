@@ -1,0 +1,686 @@
+{
+  "sourceCommit": "0bebe65",
+  "method": "Final isolated compiled native app. Actual original Word10 and two actual Studio exports; no fresh Microsoft re-open. Actual export input hashes and fresh-export part equality recorded separately.",
+  "rows": [
+    {
+      "id": "01-body",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 1337,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Welcome!",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 1337,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Welcome!",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 1337,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Welcome!",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    },
+    {
+      "id": "02-tables",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 7,
+            "print": 7
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 9153,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "For general deliveries:",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 7,
+            "print": 7
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 9153,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "For general deliveries:",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 7,
+            "print": 7
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 9153,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "For general deliveries:",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    },
+    {
+      "id": "03-floating",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 2,
+            "print": 2
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 3757,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0.0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Wide World Importers",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 2,
+            "print": 2
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 3757,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0.0,
+          "maximumYDifference": 0.125,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Wide World Importers",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 2,
+            "print": 2
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 3757,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0.0,
+          "maximumYDifference": 0.25,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Wide World Importers",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    },
+    {
+      "id": "04-nested",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 408,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Memo",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 408,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Memo",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 408,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Memo",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    },
+    {
+      "id": "05-styles",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 2,
+            "print": 2
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 4104,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "We specialize in the design, creation, and production of Office and Windows training products for information workers and home computer users. Our goal is to create smart, simple training solutions that help you achieve maximum productivity with greater ease.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 2,
+            "print": 2
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 4104,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "We specialize in the design, creation, and production of Office and Windows training products for information workers and home computer users. Our goal is to create smart, simple training solutions that help you achieve maximum productivity with greater ease.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 2,
+            "print": 2
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 4104,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "We specialize in the design, creation, and production of Office and Windows training products for information workers and home computer users. Our goal is to create smart, simple training solutions that help you achieve maximum productivity with greater ease.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    },
+    {
+      "id": "06-long-body",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 9,
+            "print": 9
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 17641,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "These rules and regulations govern day-to-day activities as of the date above. They are intended to reflect a common interest in maintaining a pleasant, respectful, neighborly environment, while maximizing collective property values.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 9,
+            "print": 9
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 17641,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "These rules and regulations govern day-to-day activities as of the date above. They are intended to reflect a common interest in maintaining a pleasant, respectful, neighborly environment, while maximizing collective property values.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 9,
+            "print": 9
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 17641,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "These rules and regulations govern day-to-day activities as of the date above. They are intended to reflect a common interest in maintaining a pleasant, respectful, neighborly environment, while maximizing collective property values.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    },
+    {
+      "id": "07-characters",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 4,
+            "print": 4
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 5024,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0.0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Familiarize employees with the concept of service.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 4,
+            "print": 4
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 5024,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0.0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Familiarize employees with the concept of service.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 4,
+            "print": 4
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 5024,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0.0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Familiarize employees with the concept of service.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    },
+    {
+      "id": "08-small-table",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 426,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Item",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 426,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Item",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 426,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Item",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    },
+    {
+      "id": "09-theme",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 2,
+            "print": 2
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 3714,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "OTSI has provided editorial and production services for hundreds of books\u2014possibly one that is on your bookshelf right now! We are pleased to offer a full range of publishing-related services.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 2,
+            "print": 2
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 3714,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "OTSI has provided editorial and production services for hundreds of books\u2014possibly one that is on your bookshelf right now! We are pleased to offer a full range of publishing-related services.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 2,
+            "print": 2
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 3714,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "OTSI has provided editorial and production services for hundreds of books\u2014possibly one that is on your bookshelf right now! We are pleased to offer a full range of publishing-related services.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    },
+    {
+      "id": "10-references",
+      "stages": {
+        "native-figure-word-original": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 1654,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0.0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Bamboo has long been woven into the cultures of many countries, where it has historically been used for everything from food and fodder to musical instruments and construction material. For centuries, millions of people have depended on this plant, which is known as \u201cfriend of the people\u201d in China, and \u201cwood of the poor\u201d in India. But the demand for bamboo has been increasing in other parts of the world as well, especially as it relates to furniture, accent pieces, and flooring. More and more, people are seeing the value and beauty of using bamboo in their homes to achieve modern-day fashion with an ethnic flavor. Entire books have been written on the subject, including Big Bad Bamboo and Bamboo, Family Style.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save1": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 1654,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0.0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Bamboo has long been woven into the cultures of many countries, where it has historically been used for everything from food and fodder to musical instruments and construction material. For centuries, millions of people have depended on this plant, which is known as \u201cfriend of the people\u201d in China, and \u201cwood of the poor\u201d in India. But the demand for bamboo has been increasing in other parts of the world as well, especially as it relates to furniture, accent pieces, and flooring. More and more, people are seeing the value and beauty of using bamboo in their homes to achieve modern-day fashion with an ethnic flavor. Entire books have been written on the subject, including Big Bad Bamboo and Bamboo, Family Style.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        },
+        "native-figure-word-save2": {
+          "pages": {
+            "editor": 1,
+            "print": 1
+          },
+          "samePrintGlyphOrderAsOriginal": true,
+          "glyphCount": 1654,
+          "startPageMismatch": 0,
+          "maximumXDifference": 0.0,
+          "maximumYDifference": 0.0,
+          "editorPrintGlyphPageMismatches": 0,
+          "editing": [
+            {
+              "originalParagraph": "Bamboo has long been woven into the cultures of many countries, where it has historically been used for everything from food and fodder to musical instruments and construction material. For centuries, millions of people have depended on this plant, which is known as \u201cfriend of the people\u201d in China, and \u201cwood of the poor\u201d in India. But the demand for bamboo has been increasing in other parts of the world as well, especially as it relates to furniture, accent pieces, and flooring. More and more, people are seeing the value and beauty of using bamboo in their homes to achieve modern-day fashion with an ethnic flavor. Entire books have been written on the subject, including Big Bad Bamboo and Bamboo, Family Style.",
+              "undoRestoredExactModel": true,
+              "redoApplied": true,
+              "finalModelUnchanged": true
+            }
+          ],
+          "errors": []
+        }
+      }
+    }
+  ]
+}

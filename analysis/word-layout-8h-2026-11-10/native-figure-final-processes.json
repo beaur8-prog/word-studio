@@ -1,0 +1,26 @@
+[
+  {
+    "stage": "native-figure-word-original",
+    "exitCode": 0,
+    "seconds": 69.75,
+    "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56"
+  },
+  {
+    "stage": "native-figure-word-save1",
+    "exitCode": 0,
+    "seconds": 67.3,
+    "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56"
+  },
+  {
+    "stage": "native-figure-word-save2",
+    "exitCode": 0,
+    "seconds": 66.14,
+    "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56"
+  },
+  {
+    "stage": "native-figure-nps",
+    "exitCode": 0,
+    "seconds": 7.6,
+    "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56"
+  }
+]

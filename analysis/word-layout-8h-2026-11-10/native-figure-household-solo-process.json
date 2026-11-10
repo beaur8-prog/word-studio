@@ -1,0 +1,7 @@
+{
+  "stage": "native-figure-household-solo",
+  "exitCode": 0,
+  "seconds": 168.63,
+  "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56",
+  "reason": "Previous three-document group completed all page/print/edit measurements, then four-minute whole-process watchdog fired during final cleanup. Independent household validation retains all checks; no timeout extended."
+}

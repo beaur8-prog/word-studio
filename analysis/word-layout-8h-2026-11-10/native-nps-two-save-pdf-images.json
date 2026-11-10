@@ -1,0 +1,62 @@
+{
+  "method": "Actual compiled Electron printToPDF, source and two real DOCX saves. Independent PDF image operators, authored dimensions retained, not only DOM presence.",
+  "rows": [
+    {
+      "file": "analysis/word-layout-8h-2026-11-10/native-figure-nps/nps-venture-hwp.pdf",
+      "sha256": "548a9dd5c2afe2cc029aa59f48b98dccdf493abf40439a297453e9a0631956e4",
+      "pages": 2,
+      "images": 6,
+      "logo": [
+        {
+          "page": 1,
+          "x": 411.74998284375,
+          "y": 145.49999201750006,
+          "width": 123.74999484374996,
+          "height": 30.000000669999963,
+          "pixels": [
+            992,
+            88
+          ]
+        }
+      ]
+    },
+    {
+      "file": "analysis/word-layout-8h-2026-11-10/native-figure-nps-saves/nps-venture-save1.pdf",
+      "sha256": "77de33ab8754f6f0f6f5673f74980030f48a8d063e8149c36cfe414e2f870e03",
+      "pages": 2,
+      "images": 6,
+      "logo": [
+        {
+          "page": 1,
+          "x": 411.74998284375,
+          "y": 145.49999201750006,
+          "width": 123.74999484374996,
+          "height": 30.000000669999963,
+          "pixels": [
+            992,
+            88
+          ]
+        }
+      ]
+    },
+    {
+      "file": "analysis/word-layout-8h-2026-11-10/native-figure-nps-saves/nps-venture-save2.pdf",
+      "sha256": "cf0ab796cdd6ea037e5f48e0f1407b4e739a0db5d311e15d86c9e52962493a89",
+      "pages": 2,
+      "images": 6,
+      "logo": [
+        {
+          "page": 1,
+          "x": 411.74998284375,
+          "y": 145.49999201750006,
+          "width": 123.74999484374996,
+          "height": 30.000000669999963,
+          "pixels": [
+            992,
+            88
+          ]
+        }
+      ]
+    }
+  ]
+}

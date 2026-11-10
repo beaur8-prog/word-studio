@@ -1,0 +1,6 @@
+{
+  "testedCommit": "4b72e71",
+  "finalCommit": "0bebe65",
+  "changedNativeFiles": [],
+  "method": "Completed172 native CJS checks reused only because electron/scripts/updater/native-test sources are byte-identical throughout subsequent product changes. Browser layout changes separately validated."
+}

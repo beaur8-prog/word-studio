@@ -1,0 +1,77 @@
+{
+  "legacy-frozen-6ac": {
+    "count": 10,
+    "pages": [
+      7,
+      167,
+      4,
+      38,
+      1,
+      38,
+      8,
+      20,
+      15,
+      5
+    ],
+    "fixed160": {
+      "mismatched": 78,
+      "absolutePageError": 150,
+      "missing": 0
+    },
+    "fixed3007": {
+      "mismatched": 1817,
+      "absolutePageError": 3767,
+      "missing": 0
+    }
+  },
+  "legacy-noto-balanced": {
+    "count": 10,
+    "pages": [
+      7,
+      167,
+      4,
+      38,
+      1,
+      38,
+      8,
+      20,
+      15,
+      5
+    ],
+    "fixed160": {
+      "mismatched": 78,
+      "absolutePageError": 151,
+      "missing": 0
+    },
+    "fixed3007": {
+      "mismatched": 1818,
+      "absolutePageError": 3788,
+      "missing": 0
+    }
+  },
+  "legacy-noto-font-ready": {
+    "count": 10,
+    "pages": [
+      7,
+      167,
+      4,
+      38,
+      1,
+      38,
+      8,
+      20,
+      15,
+      5
+    ],
+    "fixed160": {
+      "mismatched": 78,
+      "absolutePageError": 152,
+      "missing": 0
+    },
+    "fixed3007": {
+      "mismatched": 1819,
+      "absolutePageError": 3792,
+      "missing": 0
+    }
+  }
+}

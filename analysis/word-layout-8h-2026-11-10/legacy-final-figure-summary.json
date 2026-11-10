@@ -1,0 +1,116 @@
+{
+  "method": "same-second-saved-DOCX/prepared-HWP-models-not-fresh-parsing/frozen-native-reference-keys-v1",
+  "sourceCommit": "0bebe65",
+  "documents": 10,
+  "pageCounts": [
+    7,
+    167,
+    4,
+    38,
+    1,
+    38,
+    8,
+    20,
+    15,
+    5
+  ],
+  "comparisons": [
+    {
+      "id": "01-employment-contract",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    },
+    {
+      "id": "02-work-rules",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    },
+    {
+      "id": "03-health-table",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    },
+    {
+      "id": "04-language-plan",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    },
+    {
+      "id": "05-return-form",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    },
+    {
+      "id": "06-mixed-document",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    },
+    {
+      "id": "07-english-exam",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    },
+    {
+      "id": "08-math-exam",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    },
+    {
+      "id": "09-korean-exam",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    },
+    {
+      "id": "10-lh-plan",
+      "sameInventory": true,
+      "samePages": true,
+      "sameFixed160": true,
+      "sameFixed3007": true
+    }
+  ],
+  "fixed": {
+    "fixed160": {
+      "total": 160,
+      "found": 160,
+      "missing": 0,
+      "mismatched": 78,
+      "absolutePageError": 152
+    },
+    "fixed3007": {
+      "total": 3007,
+      "found": 3007,
+      "missing": 0,
+      "mismatched": 1819,
+      "absolutePageError": 3792
+    }
+  },
+  "remainingRegressionVersusStart": {
+    "fixed160": {
+      "mismatches": 0,
+      "absolutePageError": 2
+    },
+    "fixed3007": {
+      "mismatches": 2,
+      "absolutePageError": 25
+    }
+  },
+  "scope": "Retained second-saved DOCX/prepared HWP controls, not fresh original HWP parsing."
+}

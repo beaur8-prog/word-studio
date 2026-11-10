@@ -1,0 +1,14 @@
+[
+  {
+    "stage": "native-figure-nps-saves",
+    "exitCode": 0,
+    "seconds": 15.39,
+    "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56"
+  },
+  {
+    "stage": "native-figure-government-core",
+    "exitCode": 1,
+    "seconds": 240.61,
+    "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56"
+  }
+]

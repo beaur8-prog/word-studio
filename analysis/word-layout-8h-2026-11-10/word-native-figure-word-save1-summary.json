@@ -1,0 +1,38 @@
+{
+  "common402": {
+    "before": {
+      "requested": 398,
+      "matchedBoth": 398,
+      "lostOrAmbiguous": 0,
+      "startPageMismatches": 12,
+      "absolutePageError": 12,
+      "exactLineParagraphs": 341
+    },
+    "after": {
+      "requested": 398,
+      "matchedBoth": 398,
+      "lostOrAmbiguous": 0,
+      "startPageMismatches": 12,
+      "absolutePageError": 12,
+      "exactLineParagraphs": 341
+    }
+  },
+  "fixed150": {
+    "before": {
+      "requested": 140,
+      "matchedBoth": 140,
+      "lostOrAmbiguous": 0,
+      "startPageMismatches": 2,
+      "absolutePageError": 2,
+      "exactLineParagraphs": 115
+    },
+    "after": {
+      "requested": 140,
+      "matchedBoth": 140,
+      "lostOrAmbiguous": 0,
+      "startPageMismatches": 2,
+      "absolutePageError": 2,
+      "exactLineParagraphs": 115
+    }
+  }
+}

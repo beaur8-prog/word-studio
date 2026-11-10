@@ -1,0 +1,13 @@
+{
+  "sourceCommit": "0bebe65",
+  "documents": 29,
+  "imageOperators": 343,
+  "whollyOutsidePaper": 0,
+  "nps": {
+    "inputSHA256": "4cb24cc3f256a969dd216048b82c0e8bf8776d4af43c026bc0ff653bb121d7c5",
+    "pages": 2,
+    "imageOperators": 6,
+    "rawTwoSavesIdenticalImageBytesOrderPositionsAndExtents": true
+  },
+  "scope": "Actual PDF operators with positive paper intersection; does not prove absence of overlap/clipping or source-body/header identity. NPS inspected visually; independent raw image preservation is separate."
+}

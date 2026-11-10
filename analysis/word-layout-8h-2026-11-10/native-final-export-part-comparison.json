@@ -1,0 +1,230 @@
+{
+  "method": "Final native reopened actual 02cb normal-leading exports. Product exporter unchanged since02cb. Compare fresh0bebe exports part-for-part; creation timestamps in docProps may differ.",
+  "rows": [
+    {
+      "id": "01-body",
+      "save": 1,
+      "nativeInputSHA256": "71394ed35c99e8583b56dc287b423d649108d1641546c9941d7f6ee3b5fb8d4e",
+      "freshExportSHA256": "267484ff7101a875728b7f9e47db86718b4d7965c931407ab1d940a6c782adbe",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "02-tables",
+      "save": 1,
+      "nativeInputSHA256": "e4b021abd96da4b9d3e4f248fb7fb887536f5765a0fc25c694b4ebc8fb75ecb8",
+      "freshExportSHA256": "4cab7c39e17bc07676a503d5ced943fa55acb7fa3633e98b65f27ff505e01aa2",
+      "differentParts": [
+        "word/_rels/document.xml.rels",
+        "word/document.xml",
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": false,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "03-floating",
+      "save": 1,
+      "nativeInputSHA256": "611bdd03348c8c1685f1b3cfeb69fb1cf6f642439316720f54cbfdc2880f0d5c",
+      "freshExportSHA256": "ec74fbcf278877704ff8cfab2fb447892ebab7b25b521e86bd153e18322e08cb",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "04-nested",
+      "save": 1,
+      "nativeInputSHA256": "b28aa82d0db4eb3fdc35211f705a10d899273b894f0cf6e317b80faa3bc33088",
+      "freshExportSHA256": "1d27ee322376003ce0f1bc9a338e0f7903d24d528d1eb894228ea66b0bc5abda",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "05-styles",
+      "save": 1,
+      "nativeInputSHA256": "194b3a07057d9f5eea99bf67657ae715b21965cc36615b3cae722cfbd9cb08b8",
+      "freshExportSHA256": "16950af12b916c74e7d0a16b11c8b82c4aaa3f4dfb6c68f0d3288f61a192fbae",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "06-long-body",
+      "save": 1,
+      "nativeInputSHA256": "32b3b011a322536c75dcaada8b3d84cc9d93fcb8015fd041761d6e33b15846c4",
+      "freshExportSHA256": "6d2ae82799e80b2555ba75b155aa4fa960ba6baad7c1508eef967a1e78144963",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "07-characters",
+      "save": 1,
+      "nativeInputSHA256": "15f3d2139f322243daaa8409c243fb8f8df92b93decb87676516add1dad9e546",
+      "freshExportSHA256": "6f3780575e6b5382242007c95b2d5ed353de79be926de97bfaa5de8776650849",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "08-small-table",
+      "save": 1,
+      "nativeInputSHA256": "5738403702046424c2a0acba740dadfff4fe7db53e94fdc736135b063bda8f1b",
+      "freshExportSHA256": "c4c9a879f33b882c4150dada6953a78138eeb6c2db890451a89c570116471e18",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "09-theme",
+      "save": 1,
+      "nativeInputSHA256": "5c81f6237d0ba45d8d5e783eab5d3f5ed3b3c1ce8355b9e49faffd64c1d8e78f",
+      "freshExportSHA256": "012f336b719132bb72de418467a247ed96ceacdc9e55c81186d419d391ccc40f",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "10-references",
+      "save": 1,
+      "nativeInputSHA256": "105eed3469f8f1a7ca4c375b4d2140ad28a36294b4dc7ac245f7310ab2a844aa",
+      "freshExportSHA256": "5c47d53709ed5ebe72b6e530c6d1de5fc2a61b507c4ea3058acdfee061743cfd",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "01-body",
+      "save": 2,
+      "nativeInputSHA256": "a0c07f470c8c28b23cc1cbda557e9aae0e05a8c88dc147607c33b8e80624c0e0",
+      "freshExportSHA256": "d4e1543546945191ad2a5320609038f27b8b7747afd3b71541bd3bffc7b6bae0",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "02-tables",
+      "save": 2,
+      "nativeInputSHA256": "1d94702e7f4507010a431deec1dc794dab55a4a73aa600db9149461efe70c210",
+      "freshExportSHA256": "95fa0a88b3b1de401475ba0ecf5a497e6c8757b52ff11689a148cd5ef9fa299a",
+      "differentParts": [
+        "word/_rels/document.xml.rels",
+        "word/document.xml",
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": false,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "03-floating",
+      "save": 2,
+      "nativeInputSHA256": "38a2b99368b531d7ccf47ea10658eeee548a8e45be4a89e26b8050735b73f7bc",
+      "freshExportSHA256": "393af0bc4273010cc492ab5fb3e74bef317c7f62bd429ded4122e04dc3d481f3",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "04-nested",
+      "save": 2,
+      "nativeInputSHA256": "83623603176d83eadb836c345703951893c6f48643326cf0e70216abb3e630ad",
+      "freshExportSHA256": "f22d8aa514018431991a1cf2f2ea32a74640e6c87c0f203b3a935ce4a1428151",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "05-styles",
+      "save": 2,
+      "nativeInputSHA256": "7fdeb013df57147a6766a04b946568c9ddcee757a5dbfaab132b314831a64d2f",
+      "freshExportSHA256": "cc7ec741479f66a43620d436615fe994ed0c8b004cba407d50ca32051c752d89",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "06-long-body",
+      "save": 2,
+      "nativeInputSHA256": "89a090f8a6834db678c2ab1a27d7347eca88ecef4d15bb2ac4f686e84c669554",
+      "freshExportSHA256": "75b531ad0ebc40fd73d68ce49830837a66f5774f77fc86ee4d1d4151fc6939bb",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "07-characters",
+      "save": 2,
+      "nativeInputSHA256": "4bde236cd7de2fbb5398dded838b60b94be92ff313bd86f1efc31499c7f84975",
+      "freshExportSHA256": "abdf55db530f913a02a4a68bf78ce55122803154df65d0eadd35050c5c9a39db",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "08-small-table",
+      "save": 2,
+      "nativeInputSHA256": "a766b1ed326916ee5c2b50e752b0dc6923f9298535bcd23c654b67ea3107f615",
+      "freshExportSHA256": "2e6c53d78e315a55134af9866131ac4f880959afa138c2a43a944324c6dc891d",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "09-theme",
+      "save": 2,
+      "nativeInputSHA256": "ccb9a25d662f0e8be8608252b03615541d28181ced20f943140fa566f86071dd",
+      "freshExportSHA256": "da764b3b28381d1f17051f6d385bbd320d46a6fdde23507ae4c205066b60e18b",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    },
+    {
+      "id": "10-references",
+      "save": 2,
+      "nativeInputSHA256": "c18630a5f8dc8f0e8ffb1b3eca40a1dabd06c98174f046ac5d54cbde0d40834a",
+      "freshExportSHA256": "522dcdd0316e14c5a6f7fbe38ecbf0321b059ff034fafd04ef971ca4183410e8",
+      "differentParts": [
+        "docProps/core.xml"
+      ],
+      "sameDocumentAndRelationships": true,
+      "samePartsAfterRelationshipIdCanonicalization": true
+    }
+  ],
+  "canonicalization": "Resolve all document relationship IDs by stable position, preserving types/targets/target mode and all relationship references; exclude docProps timestamps only."
+}

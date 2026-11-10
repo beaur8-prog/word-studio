@@ -1,0 +1,12 @@
+{
+  "tool": "Microsoft OpenXML SDK Office2019 validator",
+  "sourceCommit": "0bebe65",
+  "files": 32,
+  "errors": 0,
+  "failures": [],
+  "sets": {
+    "actualWordTwoSaves": 20,
+    "actualMissingLogoTwoSaves": 2,
+    "newCellPictureRegressionTwoSaves": 10
+  }
+}
