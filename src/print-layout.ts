@@ -91,7 +91,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     const [width, height] = dimensions(settings), margins = pageMargins(settings);
     const pageName = `studioSection${sectionNumber}`;
     pageStyles.push(`@page ${pageName} { size:${width}mm ${height}mm; margin:0; }`);
-    style.textContent = [...new Set(pageStyles)].join('\n');
+
     const paper = document.createElement('section'); paper.className = 'print-page';
     pageSettings.set(paper, settings);
     paper.dataset.page = String(++pageNumber);
@@ -499,6 +499,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
     for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="NUMPAGES"]')) field.textContent = String(pageNumber);
     for (const field of host.querySelectorAll<HTMLElement>('[data-page-number="PAGE"]')) field.textContent = field.closest<HTMLElement>('.print-page')!.dataset.page!;
+    // Named @page rules affect output paper, not screen measurement. Publish
+    // them once so every new sheet does not invalidate the live editor's styles.
+    style.textContent = [...new Set(pageStyles)].join('\n');
     return { element: host, pages: pageNumber, pageSettings, warnings: [...warnings], dispose: () => host.remove() };
   } catch (error) { host.remove(); throw error; }
 }
