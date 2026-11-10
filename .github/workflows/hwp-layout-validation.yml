@@ -96,7 +96,9 @@ jobs:
   windows-layout:
     if: ${{ !inputs.validator_only }}
     runs-on: windows-latest
-    timeout-minutes: 50
+    # The two unchanged 110-case terminal matrices take about 30 minutes on
+    # Windows. Keep the full general group and allow time for its final checks.
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
