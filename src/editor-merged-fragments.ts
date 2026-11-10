@@ -9,14 +9,21 @@ import { prepareParagraphEnds } from './paragraph-fragments';
 type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number;
   removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; reserveAt?: (page: number) => number };
 
+/** Plain continuing merges can use the actual print-fragment geometry. More
+ * complex objects keep the existing general flow until they can be mapped. */
+export function canMeasureMergedFragments(rows: HTMLTableRowElement[]) {
+  const merges = rows.flatMap(row => [...row.cells].filter(cell => cell.rowSpan > 1));
+  return merges.length > 0 && merges.every(cell => cell.dataset.cellSplit === 'allow' && cell.children.length > 0 &&
+    [...cell.children].every(p => p.matches('p,h1,h2,h3,h4,h5,h6') &&
+      !p.querySelector('img:not(.ProseMirror-separator),svg,table,[data-page-number],[data-note-reference],[data-docx-tab],[data-docx-bookmark],[data-word-overlap]')));
+}
+
 /** A browser redistributes minimum row heights when a vertical merge is split.
  * Measure those same print fragments instead of budgeting every continuation
  * against the unsplit table's original row distribution. Only the view changes. */
 export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElement[], g: Geometry) {
   const merges = rows.flatMap(row => [...row.cells].filter(cell => cell.rowSpan > 1));
-  if (!merges.some(cell => cell.querySelector('[data-hwp-cell-line]')) ||
-    merges.some(cell => [...cell.children].some(p => !p.matches('p,h1,h2,h3,h4,h5,h6') ||
-      p.querySelector('img:not(.ProseMirror-separator),svg,table,[data-page-number],[data-note-reference],[data-docx-tab],[data-docx-bookmark],[data-word-overlap]')))) return null;
+  if (!canMeasureMergedFragments(rows)) return null;
   const table = rows[0].closest('table')!;
   const naturalY = (value: number) => {
     const y = (value - g.origin) / g.scale;

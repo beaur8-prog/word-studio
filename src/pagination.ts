@@ -1,3 +1,4 @@
+import { canMeasureMergedFragments } from './editor-merged-fragments';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import { wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
 import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
@@ -128,6 +129,19 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const first = rect(rows[i].dom), last = rect(rows[end - 1].dom);
       const height = last.top + last.height - first.top;
       const row = rows[i];
+      if (i === 0 && headerEnd && end > headerEnd + 1 &&
+        rows.slice(0, headerEnd).every((r, index) => r.node.content.content.every(c => index + Number(c.attrs.rowspan || 1) <= headerEnd)) &&
+        rows.slice(headerEnd, end).every(r => rowSplitPolicy(r.node.attrs) !== 'avoid' && r.node.attrs.wordRowRule !== 'exact' &&
+          rect(r.dom).height <= usableHeight + .5) &&
+        canMeasureMergedFragments(rows.slice(headerEnd, end).map(r => r.dom as HTMLTableRowElement))) {
+        let columns = 0; row.node.forEach(cell => { columns += Number(cell.attrs.colspan || 1); });
+        const body = rect(rows[headerEnd].dom);
+        // Keep the header with the first legal body row; let the permitted
+        // merge then use its own measured row-boundary continuation.
+        result.push({ pos: row.pos, end: rows[headerEnd - 1].pos + rows[headerEnd - 1].node.nodeSize,
+          top: first.top, height: body.top + body.height - first.top, columns });
+        i = headerEnd; continue;
+      }
       if (i === 0 && headerEnd && height > usableHeight && rows[headerEnd] && rowCanContinue(rows[headerEnd].node.attrs, rect(rows[headerEnd].dom).height, usableHeight)) {
         const headers = rect(rows[headerEnd - 1].dom);
         const paragraph = rows[headerEnd].dom.querySelector('p');

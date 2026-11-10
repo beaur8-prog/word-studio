@@ -125,7 +125,8 @@ function syncPaintedSelection(view: import('@tiptap/pm/view').EditorView) {
   if(view.composing)return;
   const sel=view.dom.ownerDocument.getSelection();if(!sel?.anchorNode || !sel.focusNode || !view.dom.contains(sel.anchorNode) || !view.dom.contains(sel.focusNode))return;
   const parent=(n:globalThis.Node)=>n instanceof HTMLElement?n:n.parentElement;
-  const affected=(n:globalThis.Node)=>{const p=parent(n);return p?.closest('.document-textbox-content') || p?.closest('p,h1,h2,h3,h4,h5,h6')?.querySelector('[data-flow-widget]');};
+  const affected=(n:globalThis.Node)=>{const p=parent(n);return p?.closest('.document-textbox-content') || p?.closest('p,h1,h2,h3,h4,h5,h6')?.querySelector('[data-flow-widget]') ||
+    view.state.selection instanceof TextSelection && p?.closest('li');};
   if(!affected(sel.anchorNode) && !affected(sel.focusNode))return;
   try{
     const anchor=view.posAtDOM(sel.anchorNode,sel.anchorOffset),head=view.posAtDOM(sel.focusNode,sel.focusOffset);
@@ -136,7 +137,9 @@ export const TextBoxLayout = Extension.create({ name:'textBoxLayout', addProseMi
   props:{handleDOMEvents:{
     // Native hit testing sees the painted textbox, while a zero-height anchor
     // can make ProseMirror's block hit test pick the underlying body paragraph.
-    // Flow widgets can similarly shift native hit tests in wrapped body text.
+    // Flow widgets and list paragraphs can leave the model selection behind
+    // the real native caret until the observer catches up. Never let an
+    // immediate key command operate on the previous body paragraph.
     // Adopt the actual DOM selection before commands; leave dragging/IME native.
     mouseup(view){syncPaintedSelection(view);return false;},
     keydown(view){syncPaintedSelection(view);return false;},

@@ -22,7 +22,9 @@ const sha = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
   const out = path.join(evidence, 'probe-' + stage);
   await fs.mkdir(out, { recursive: true });
   const { createServer } = await import(pathToFileURL(req.resolve('vite')));
-  const server = await createServer({ root, configFile: root + '/vite.config.ts',
+  const candidateFiles={'src/pagination.ts':'pagination-merge-header-experiment.ts','src/editor-merged-fragments.ts':'editor-merged-fragments-experiment.ts'};
+  const plugins=process.env.PROBE_MERGE_EXPERIMENT==='1'?[{name:'read-only-merge-header-candidate',enforce:'pre',async load(id){const rel=path.relative(root,id.split('?')[0]);if(candidateFiles[rel])return fs.readFile(evidence+'/'+candidateFiles[rel],'utf8')}}]:[];
+  const server = await createServer({ root,plugins, configFile: root + '/vite.config.ts',
     server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: { ignored: ['**'] } }, logLevel: 'error' });
   await server.listen();
   const { chromium } = req('@playwright/test');

@@ -1,0 +1,346 @@
+[
+  {
+    "type": "mousedown",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "nativeOffset": 0,
+    "target": "P"
+  },
+  {
+    "type": "mousedown:after",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "nativeOffset": 0,
+    "target": "P"
+  },
+  {
+    "type": "focusin",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "nativeOffset": 0,
+    "target": "DIV"
+  },
+  {
+    "type": "focusin:after",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "nativeOffset": 0,
+    "target": "DIV"
+  },
+  {
+    "type": "mouseup",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "P"
+  },
+  {
+    "type": "mouseup:after",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "P"
+  },
+  {
+    "type": "keydown",
+    "key": "Meta",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keydown:after",
+    "key": "Meta",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keydown",
+    "key": "ArrowRight",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keydown:after",
+    "key": "ArrowRight",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keyup",
+    "key": "ArrowRight",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keyup:after",
+    "key": "ArrowRight",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keyup",
+    "key": "Meta",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keyup:after",
+    "key": "Meta",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keydown",
+    "key": "Enter",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keydown:after",
+    "key": "Enter",
+    "count": 18,
+    "from": 1,
+    "to": 1,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "ITEM17",
+    "nativeOffset": 6,
+    "target": "DIV"
+  },
+  {
+    "type": "keyup",
+    "key": "Enter",
+    "count": 18,
+    "from": 3,
+    "to": 3,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "LEAD",
+    "nativeOffset": 0,
+    "target": "DIV"
+  },
+  {
+    "type": "keyup:after",
+    "key": "Enter",
+    "count": 18,
+    "from": 3,
+    "to": 3,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "LEAD",
+    "nativeOffset": 0,
+    "target": "DIV"
+  },
+  {
+    "type": "compositionstart",
+    "count": 18,
+    "from": 3,
+    "to": 3,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": false,
+    "native": "LEAD",
+    "nativeOffset": 0,
+    "target": "DIV"
+  },
+  {
+    "type": "compositionstart:after",
+    "count": 18,
+    "from": 3,
+    "to": 3,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "LEAD",
+    "composing": true,
+    "native": "LEAD",
+    "nativeOffset": 0,
+    "target": "DIV"
+  },
+  {
+    "type": "input",
+    "count": 18,
+    "from": 7,
+    "to": 7,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "한글🙂LEAD",
+    "composing": true,
+    "native": "한글🙂LEAD",
+    "nativeOffset": 4,
+    "target": "DIV"
+  },
+  {
+    "type": "input:after",
+    "count": 18,
+    "from": 7,
+    "to": 7,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "한글🙂LEAD",
+    "composing": true,
+    "native": "한글🙂LEAD",
+    "nativeOffset": 4,
+    "target": "DIV"
+  },
+  {
+    "type": "compositionend",
+    "count": 18,
+    "from": 7,
+    "to": 7,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "한글🙂LEAD",
+    "composing": true,
+    "native": "한글🙂LEAD",
+    "nativeOffset": 4,
+    "target": "DIV"
+  },
+  {
+    "type": "compositionend:after",
+    "count": 18,
+    "from": 7,
+    "to": 7,
+    "path": [
+      "paragraph"
+    ],
+    "parent": "한글🙂LEAD",
+    "composing": false,
+    "native": "한글🙂LEAD",
+    "nativeOffset": 4,
+    "target": "DIV"
+  }
+]
