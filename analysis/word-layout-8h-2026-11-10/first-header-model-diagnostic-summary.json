@@ -1,0 +1,71 @@
+{
+  "scope": "Separate uploaded/returned diagnostic inputs. No new Microsoft measurement and not added to the fixed29 score.",
+  "rows": [
+    {
+      "id": "nps-fund-uploaded-diagnostic",
+      "firstSettings": {
+        "differentFirstPage": false,
+        "firstHeader": "string-length:0",
+        "firstHeaderHtml": "string-length:403",
+        "firstFooter": "string-length:0",
+        "firstFooterHtml": "string-length:403"
+      },
+      "pages": 13,
+      "bodySHA256": "c926482f4771d4021b82f9abcc39248934b982ea37940e2f8ed4081bf90d2037",
+      "pdfImageOperators": 15,
+      "firstPageImages": [
+        {
+          "pixels": [
+            860,
+            77
+          ],
+          "box": [
+            2.999999875,
+            15.749999343750005,
+            476.25000415624896,
+            42.750003018749794
+          ]
+        },
+        {
+          "pixels": [
+            400,
+            160
+          ],
+          "box": [
+            60.749997468749996,
+            101.99999575000004,
+            149.99999375,
+            59.99999749999995
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nps-fund-returned-diagnostic",
+      "firstSettings": {
+        "differentFirstPage": true,
+        "firstHeader": "string-length:0",
+        "firstHeaderHtml": "string-length:403",
+        "firstFooter": "string-length:0",
+        "firstFooterHtml": "string-length:403"
+      },
+      "pages": 13,
+      "bodySHA256": "c926482f4771d4021b82f9abcc39248934b982ea37940e2f8ed4081bf90d2037",
+      "pdfImageOperators": 14,
+      "firstPageImages": [
+        {
+          "pixels": [
+            400,
+            160
+          ],
+          "box": [
+            60.749997468749996,
+            101.99999575000004,
+            149.99999375,
+            59.99999749999995
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2,5 +2,6 @@
   "testedCommit": "4b72e71",
   "finalCommit": "0bebe65",
   "changedNativeFiles": [],
-  "method": "Completed172 native CJS checks reused only because electron/scripts/updater/native-test sources are byte-identical throughout subsequent product changes. Browser layout changes separately validated."
+  "method": "Completed172 native CJS checks reused only because electron/scripts/updater/native-test sources are byte-identical throughout subsequent product changes. Browser layout changes separately validated.",
+  "supersededBy": "native-cjs-final.log: final0bebe65 fresh172/172pass, not relying on transitive-dependency assumptions."
 }

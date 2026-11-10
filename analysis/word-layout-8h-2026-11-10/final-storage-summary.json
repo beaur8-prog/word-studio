@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "0bebe65",
+  "evidenceBytesByFolder": {
+    "analysis/word-layout-8h-2026-11-10": 461500416,
+    "analysis/word-layout-4h-2026-11-10": 351641600
+  },
+  "evidenceTotalMiB": 775.47,
+  "budgetMiB": 1024,
+  "ownedTemporaryFilesRemoved": 662,
+  "ownedTemporaryBytesRemoved": 182857702,
+  "retainedCompiledFinalBuild": "/private/tmp/ws-word-layout-figure-final-r6g1sy3b",
+  "scope": "Owned validation tool/cache removal; preserve source, originals, baseline/final/failure evidence, user app/documents/recovery/iCloud checkout. Byte counts are task files removed, not a promise of equal physical disk savings for hardlinks.",
+  "retainedCompiledFinalBuildBytes": 46323225,
+  "evidenceAndCompiledMiB": 819.65,
+  "withinBudget": true
+}

@@ -71,3 +71,11 @@
 - 21:54 UTC 독립원문XML검사로정부29본문blip219개확인. SOP40중PDF25개원본픽셀완전동일·15개는기록된종이밖그림. 예산24개중14개정확픽셀동일,10개JPEG는동일크기후보와전픽셀대조해최대평균채널차0.055/255이하라재압축/색차와누락을분리. 실제복지로6개중PNG5정확동일/JPEG1평균0.278/255·모두가시. 추가첫페이지차이: nps-fund양쪽13쪽이지만Word첫페이지머리말그림없음/Studio있음,본문400×160그림Y201.5/102.0pt. 양쪽그림크기150×60pt유지. 원문titlePg val=false의표준해석/웹Word해석·수리여부와일반layoutInCell앵커를분리해야해미해결로기록,파일명예외수정안함. 새원인구현동결유지.
 
 - 21:54 UTC 최종0bebe65 PC849/849완료(22.8분). 새검사포함DPR2 51/51·Android모사38/38·집중26/26·최종타입통과. 전체내보내기SDK대상은이전346개가빠짐없이남고신규offpaper10/cell-scope4/normal6=20개추가되어366개. 단순기존개수346가정을분리하고누락0/추가20을확인한뒤실제366개SDK검사중. 제품소스수정없음. Windows/Linux최종CI계속진행,직전7dcCI는양OS성공완료.
+
+- 22:05 UTC 첫페이지진단추가:원래공개업로드DOCX와보관된실제Microsoft반환DOCX를분리대조. nps-fund의titlePg=false가반환본titlePg=1로바뀌었고본문그림앵커/extent는그대로다. 머리말차이를Studio렌더오류로단정하지않으며,새실제WordUI에서false/0/생략대조가필요. 셀안일반앵커Y해석은별도미해결로남긴다. Mac잠금true재확인,새Microsoft측정없음. 최종nativeCJS도간접소스참조가능성을제거하려최종소스에서새로172/172통과(7초),기존재사용증거를대체했다.
+
+- 22:19 UTC 최종0bebe65 Linux CI success. Windows는앞선변환/두terminal행렬을통과하고마지막general조판검사중. 업로드/실제Microsoft반환DOCX를별도Studio진단입력으로렌더하면둘다13쪽/동일본문이나differentFirstPage false→true에따라머리말그림15→14,반환본의14개가Word와같다. 본문그림Y102pt는계속남아셀앵커문제로분리. 이두사본은새Microsoft측정/고정29집합에넣지않았다. 제품소스계속동결,Windows결과뒤Git·보고·자동화종료예정.
+
+- 2026-11-10 22:22:50 UTC 최종제품0bebe65 Windows/Linux CI42905528629모두success. 대상headSHA일치확인. 전체PC849/849·DPR2 51/51·Android모사38/38·native172/172·전체선택DOCX366/366와별도32/32 SDK오류0,Word실제원본/두저장Studio앱30/30·누락로고원본/두저장3/3·핵심정부3독립전체수명주기완료. 목표미달·기존작은위치회귀·SOP순환/일반셀앵커/구역표지·새MicrosoftUI미측정과최종군오염을결과MD에명시. 제품소스/버전동결. 마지막임시도구정리·Git·자동화PAUSED만남음.
+
+- 2026-11-10 22:24:59 UTC 정리완료. word-4 automation_update로PAUSED후실제설정검증. 임시SDK/완료전용캐시662파일정리,직전+이번증거775.47MiB/최종컴파일포함819.65MiB로1GiB내. 사용자앱/문서/복구/iCloud미변경,Mac잠금true로일반앱실행생략. 현재실행중인로컬검사없음,Windows/Linux전체완료. 남은행동:결과와새진단기록최종Gitpush및최종보고.

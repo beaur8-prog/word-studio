@@ -1,0 +1,33 @@
+{
+  "headSha": "0bebe65b39a3f7aa4e9309371bdad56499b73a56",
+  "createdAt": "2026-11-10T21:29:25Z",
+  "updatedAt": "2026-11-10T22:20:49Z",
+  "status": "completed",
+  "conclusion": "success",
+  "runId": 42905528629,
+  "url": "https://github.com/beaur8-prog/word-studio/actions/runs/42905528629",
+  "jobs": [
+    {
+      "name": "linux-navigation",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-11-10T21:29:28Z",
+      "completedAt": "2026-11-10T22:18:38Z"
+    },
+    {
+      "name": "windows-layout",
+      "status": "completed",
+      "conclusion": "success",
+      "startedAt": "2026-11-10T21:29:29Z",
+      "completedAt": "2026-11-10T22:20:49Z"
+    },
+    {
+      "name": "local-openxml-validator",
+      "status": "completed",
+      "conclusion": "skipped",
+      "startedAt": "2026-11-10T21:29:27Z",
+      "completedAt": "2026-11-10T21:29:27Z"
+    }
+  ],
+  "scope": "Actual Windows/Linux CI browser/native conversion/schema/layout checks at exact final product commit; not installed desktop Word accuracy or APK hardware testing."
+}

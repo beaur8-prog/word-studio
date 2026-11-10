@@ -36,8 +36,11 @@
     }
   ],
   "nativeCjs": {
+    "sourceCommit": "0bebe65",
     "passed": 172,
-    "scope": "Native sources unchanged since tested4b72e71, see native-cjs-reuse-proof.json"
+    "failed": 0,
+    "log": "native-cjs-final.log",
+    "scope": "Fresh final source execution. The earlier unchanged-file reuse proof is superseded, including possible transitive source readers."
   },
   "typeScript": {
     "exitCode": 0,
@@ -57,7 +60,20 @@
   },
   "crossPlatform": {
     "runId": 42905528629,
-    "sourceCommit": "0bebe65",
-    "state": "running"
+    "sourceCommit": "0bebe65b39a3f7aa4e9309371bdad56499b73a56",
+    "state": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/beaur8-prog/word-studio/actions/runs/42905528629",
+    "jobs": {
+      "linux-navigation": "success",
+      "windows-layout": "success",
+      "local-openxml-validator": "skipped"
+    }
+  },
+  "verifiedAtUTC": "2026-11-10 22:22:50 UTC",
+  "workFinishedUTC": "2026-11-10 22:24:59 UTC",
+  "automation": {
+    "id": "word-4",
+    "status": "PAUSED"
   }
 }
