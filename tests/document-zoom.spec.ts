@@ -5,6 +5,7 @@ async function open(page: import('@playwright/test').Page) {
   await page.goto('/');
   await page.locator('input[type=file]').first().setInputFiles({ name: 'zoom.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: await fixture() });
   await expect(page.locator('.tiptap')).toContainText('ZOOM PAGE 5');
+  await expect(page.locator('.busy-indicator')).toBeHidden();
 }
 test('PC editor wheel and real trackpad pinch preserve paper/model, cursor anchor and undo history', async ({ page }) => {
   await open(page); const editor = page.locator('.tiptap'), view = page.locator('.document-workspace');
@@ -15,9 +16,20 @@ test('PC editor wheel and real trackpad pinch preserve paper/model, cursor ancho
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   await view.evaluate(el => { el.scrollTop = 2400; el.scrollLeft = 150; });
   await expect.poll(() => view.evaluate(el => el.scrollTop)).toBe(2400);
-  const paper = page.locator('.scaled-document'), before = await pointOnPage(view, paper);
+  // A pending browser scroll can finish between the setup and wheel delivery.
+  // Measure the physical point at the actual gesture, before the zoom handler.
+  await view.evaluate(v => v.addEventListener('wheel', event => {
+    const e = event as WheelEvent, paper = v.querySelector('.scaled-document')!, vr = v.getBoundingClientRect(), pr = paper.getBoundingClientRect();
+    const scale = new DOMMatrix(getComputedStyle(paper).transform).a;
+    (v as any).__wheelAnchor = { x: (e.clientX - pr.left) / scale, y: (e.clientY - pr.top) / scale, cx: e.clientX - vr.left, cy: e.clientY - vr.top };
+  }, { capture: true, once: true }));
   await wheel(page, view); await expect.poll(() => zoomScale(view)).toBeGreaterThan(2.1);
-  const after = await pointOnPage(view, paper); expect(Math.abs(after.x - before.x) * await zoomScale(view)).toBeLessThan(2); expect(Math.abs(after.y - before.y) * await zoomScale(view)).toBeLessThan(2);
+  await expect.poll(() => view.evaluate(v => {
+    const a = (v as any).__wheelAnchor, paper = v.querySelector('.scaled-document')!, vr = v.getBoundingClientRect(), pr = paper.getBoundingClientRect();
+    const scale = new DOMMatrix(getComputedStyle(paper).transform).a;
+    if (!a) return Infinity;
+    return Math.max(Math.abs((vr.left + a.cx - pr.left) / scale - a.x), Math.abs((vr.top + a.cy - pr.top) / scale - a.y)) * scale;
+  })).toBeLessThan(2);
   await page.getByRole('button', { name: /%$/, exact: false }).last().click();
   await assertInputs(page, view);
   expect(await page.locator('.document-stack').getAttribute('data-pages')).toBe(count);
