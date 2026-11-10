@@ -1,0 +1,34 @@
+{
+  "job": 129768807198,
+  "product": "a69b0fd",
+  "rows": [
+    {
+      "artifactPath": "hwp-word-wrap-body-charact-6e3fe--editing-and-two-DOCX-saves/wrap-states.json",
+      "firstState": {
+        "text": "가나다라마바 사아자차카타 파하거너더러 머버서어저처 가나다라마바 사아자차카타",
+        "wordBreak": "normal",
+        "splitWords": 0,
+        "lines": [
+          "가나다라마바 사아자차카타 ",
+          "파하거너더러 머버서어저처 ",
+          "가나다라마바 사아자차카타"
+        ],
+        "breaks": 0
+      }
+    },
+    {
+      "artifactPath": "hwp-word-wrap-body-charact-7ad3b--editing-and-two-DOCX-saves/wrap-states.json",
+      "firstState": {
+        "text": "가나다라마바 사아자차카타 파하거너더러 머버서어저처 가나다라마바 사아자차카타",
+        "wordBreak": "normal",
+        "splitWords": 0,
+        "lines": [
+          "가나다라마바 사아자차카타 ",
+          "파하거너더러 머버서어저처 ",
+          "가나다라마바 사아자차카타"
+        ],
+        "breaks": 0
+      }
+    }
+  ]
+}

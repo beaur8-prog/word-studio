@@ -1,0 +1,22 @@
+{
+  "method": "Actual Word PDF obtained before screen lock; exact input and PDF hashes. Separate diagnostic, excluded from fixed29. Four trial DOCX passed official SDK; source ZIP parts except settings were identical.",
+  "trial": {
+    "id": "mss-funding-2026-0",
+    "variant": "bottom",
+    "file": "analysis/word-layout-4h-2026-11-10/word-trials/WS-L4-20261110-funding-bottom.docx",
+    "sha256": "c4bf96ca30fb0c31a0ff84b8d04204b687bbb9f3f0e0cde412211c92b0c9936c",
+    "sourceSHA256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+    "changedParts": [
+      "word/settings.xml"
+    ],
+    "wordPages": 59,
+    "wordPDF": "analysis/word-layout-4h-2026-11-10/word-measured/WS-L4-20261110-funding-bottom.pdf",
+    "wordPDFSHA256": "a2078a18fb69b80b93ea944f073bea68d68ff6a21c50c49b61c02ff1547a6aed",
+    "currentStudioPages": 49
+  },
+  "compatibilityMode": 15,
+  "suppressBottomSpacing": true,
+  "sdkChecked": 4,
+  "sdkErrors": 0,
+  "interpretation": "Flag-only change left actual Word59 while Studio reads49. Cause/modern compatibility interaction remains unproven; do not claim new HWP export Word page improvement."
+}

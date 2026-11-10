@@ -8,7 +8,8 @@ const root = path.resolve(__dirname, '../../..');
 const evidence = path.dirname(__dirname);
 const previous = path.join(root, 'analysis/hwp-cd-10h-2026-11-07');
 const req = createRequire(root + '/package.json');
-const variant = process.env.LAYOUT_VARIANT || 'baseline';
+const variant = process.env.LAYOUT_VARIANT || 'current';
+if (!['current','baseline','frozen-product'].includes(variant)) throw Error('Historical experiments are recorded in Git/progress. Use current or frozen-product with the final source.');
 const stage = process.env.LAYOUT_STAGE || variant;
 const port = Number(process.env.LAYOUT_PORT || 5441);
 const selected = (process.env.LAYOUT_IDS || 'mss-funding-2026-0,mods-household-1,mois-2025-0').split(',');
@@ -19,40 +20,12 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
   const comparison = JSON.parse(await fs.readFile(previous + '/final-word-studio-comparison.json'));
   const corpus = process.env.LAYOUT_CORPUS || 'government';
   const wordInputs = corpus === 'word' ? JSON.parse(await fs.readFile(root + '/analysis/word-pagination-3h-2026-11-05/baseline.json')).rows.map(row => ({ id: row.id, inputFile: row.path, inputSHA256: row.sha256, split: 'existing-word-control', studioPages: row.wordReference.pages, wordPages: row.wordReference.pages })) : [];
-  const inputs = (corpus === 'word' ? wordInputs : comparison.rows).filter(row => selected.includes(row.id) || selected.includes('all'));
+  const suppliedInputs = process.env.LAYOUT_INPUT_MANIFEST ? JSON.parse(await fs.readFile(process.env.LAYOUT_INPUT_MANIFEST)).rows : null;
+  const inputs = (suppliedInputs || (corpus === 'word' ? wordInputs : comparison.rows)).filter(row => selected.includes(row.id) || selected.includes('all'));
   const { createServer } = await import(pathToFileURL(req.resolve('vite')));
   const diagnostic = { name: 'diagnostic-full-line-capacity', enforce: 'pre', async load(id) {
-    if (variant === 'oversized-word-row' && id.split('?')[0] === root + '/src/table-fragments.ts') {
-      const source = await fs.readFile(root + '/src/table-fragments.ts', 'utf8');
-      return source.replace("if (rowSplitPolicy(element.dataset) === 'avoid' || element.dataset.wordRowRule === 'exact') return null;", "if (element.dataset.wordRowRule === 'exact' || rowSplitPolicy(element.dataset) === 'avoid' && element.getBoundingClientRect().height <= context.bodyHeight() + .5) return null;")
-        .replace("row.cells.length > 1 && rowSplitPolicy(row.dataset) !== 'allow'", "row.cells.length > 1 && rowSplitPolicy(row.dataset) !== 'allow' && row.getBoundingClientRect().height <= context.bodyHeight() + .5");
-    }
-    if (variant === 'oversized-word-row' && id.split('?')[0] === root + '/src/print-layout.ts') {
-      const source = await fs.readFile(root + '/src/print-layout.ts', 'utf8');
-      const target = 'let groupFits = fits();';
-      return source.replace(target, `let groupFits = fits();
-      if (!groupFits && group.length === 1 && rowSplitPolicy(group[0].dataset) === 'avoid' && (bodyRows > 0 || content.children.length > 1)) {
-        group.forEach(row=>row.remove()); if (!bodyRows) part.table.remove();
-        newPage(); part = shell(i > 0); bodyRows = 0; group.forEach(row=>part.body.append(row)); groupFits = fits();
-      }`);
-    }
-    if (variant === 'word-row-minimum' && id.split('?')[0] === root + '/src/table-row-resize.ts') {
-      const source = await fs.readFile(root + '/src/table-row-resize.ts', 'utf8');
-      return source.replace("a.wordRowRule === 'exact' ? { 'data-word-row-rule': 'exact' } : {}", "['atLeast','exact'].includes(a.wordRowRule) ? { 'data-word-row-rule': a.wordRowRule } : {}");
-    }
-    if (variant === 'word-row-minimum' && id.split('?')[0] === root + '/src/table-fragments.ts') {
-      const source = await fs.readFile(root + '/src/table-fragments.ts', 'utf8');
-      const target = 'tail.style.height = `${Math.max(0, height - row.getBoundingClientRect().height)}px`;';
-      if (!source.includes(target)) throw Error('Row probe source changed');
-      return source.replace(target, `const wordMinimum = row.dataset.wordRowRule === 'atLeast' && (tail.textContent?.trim() || tail.querySelector('img,table')) ? parseFloat(original.style.height) || 0 : 0;
-        (window as any).__wordRowProbes ??= []; (window as any).__wordRowProbes.push({rule:row.dataset.wordRowRule,sourceHeight:original.style.height,minimum:wordMinimum,body:context.bodyHeight(),height,head:row.getBoundingClientRect().height,tailText:tail.textContent?.slice(0,80)});
-        tail.style.height = \`\${Math.max(0, height - row.getBoundingClientRect().height, wordMinimum <= context.bodyHeight() + .5 ? wordMinimum : 0)}px\`;`);
-    }
-    if (variant !== 'full-line' || id.split('?')[0] !== root + '/src/paragraph-fit.ts') return;
-    const source = await fs.readFile(root + '/src/paragraph-fit.ts', 'utf8');
-    if (!source.includes('export function paragraphFitBottom(paragraph: HTMLElement): number {')) throw Error('Probe source changed');
-    return source.replace('export function paragraphFitBottom(paragraph: HTMLElement): number {',
-      'export function paragraphFitBottom(paragraph: HTMLElement): number { return paragraph.getBoundingClientRect().bottom;');
+    if(variant==='frozen-product'){const rel=path.relative(root,id.split('?')[0]);if(['src/document-io.ts','src/print-layout.ts','src/paragraph-fit.ts','src/pagination.ts','src/types.ts','src/section-node-view.ts','src/App.tsx','src/android/EditorCanvas.tsx','src/row-split-policy.ts','src/table-fragments.ts','src/editor-cell-pagination.ts'].includes(rel))return require('node:child_process').execFileSync('git',['show','5cb4246:'+rel],{cwd:root,encoding:'utf8'});}
+
   }};
   const server = await createServer({ root, plugins: [diagnostic], configFile: root + '/vite.config.ts',
     server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: { ignored: ['**'] } }, logLevel: 'error' });
@@ -60,7 +33,7 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
   const { chromium } = req('@playwright/test');
   const browser = await chromium.launch({ channel: 'chrome', headless: true });
   const code = {};
-  for (const file of ['src/document-io.ts','src/paragraph-fit.ts','src/print-layout.ts','src/table-fragments.ts','src/row-split-policy.ts','src/pagination.ts','src/editor-cell-pagination.ts','src/table-row-resize.ts']) code[file] = sha(await fs.readFile(root + '/' + file));
+  for (const file of ['src/document-io.ts','src/paragraph-fit.ts','src/print-layout.ts','src/table-fragments.ts','src/row-split-policy.ts','src/pagination.ts','src/editor-cell-pagination.ts','src/table-row-resize.ts']) code[file] = sha(variant === 'frozen-product' ? require('node:child_process').execFileSync('git',['show','5cb4246:'+file],{cwd:root}) : await fs.readFile(root + '/' + file));
   const rows = [], errors = [];
   try {
     for (const input of inputs) {

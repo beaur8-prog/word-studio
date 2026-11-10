@@ -1,0 +1,136 @@
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const zlib = require('node:zlib');
+const { createRequire } = require('node:module');
+const { pathToFileURL } = require('node:url');
+const { createHash } = require('node:crypto');
+const root = path.resolve(__dirname, '../../..');
+const evidence = path.dirname(__dirname);
+const previous = path.join(root, 'analysis/hwp-cd-10h-2026-11-07');
+const req = createRequire(root + '/package.json');
+const variant = process.env.LAYOUT_VARIANT || 'baseline';
+const stage = process.env.LAYOUT_STAGE || variant;
+const port = Number(process.env.LAYOUT_PORT || 5441);
+const selected = (process.env.LAYOUT_IDS || 'mss-funding-2026-0,mods-household-1,mois-2025-0').split(',');
+const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+(async () => {
+  const out = path.join(evidence, 'render-' + stage);
+  await fs.mkdir(out, { recursive: true });
+  const comparison = JSON.parse(await fs.readFile(previous + '/final-word-studio-comparison.json'));
+  const corpus = process.env.LAYOUT_CORPUS || 'government';
+  const wordInputs = corpus === 'word' ? JSON.parse(await fs.readFile(root + '/analysis/word-pagination-3h-2026-11-05/baseline.json')).rows.map(row => ({ id: row.id, inputFile: row.path, inputSHA256: row.sha256, split: 'existing-word-control', studioPages: row.wordReference.pages, wordPages: row.wordReference.pages })) : [];
+  const inputs = (corpus === 'word' ? wordInputs : comparison.rows).filter(row => selected.includes(row.id) || selected.includes('all'));
+  const { createServer } = await import(pathToFileURL(req.resolve('vite')));
+  const diagnostic = { name: 'diagnostic-full-line-capacity', enforce: 'pre', async load(id) {
+    if (variant === 'oversized-word-row' && id.split('?')[0] === root + '/src/table-fragments.ts') {
+      const source = await fs.readFile(root + '/src/table-fragments.ts', 'utf8');
+      return source.replace("if (rowSplitPolicy(element.dataset) === 'avoid' || element.dataset.wordRowRule === 'exact') return null;", "if (element.dataset.wordRowRule === 'exact' || rowSplitPolicy(element.dataset) === 'avoid' && element.getBoundingClientRect().height <= context.bodyHeight() + .5) return null;")
+        .replace("row.cells.length > 1 && rowSplitPolicy(row.dataset) !== 'allow'", "row.cells.length > 1 && rowSplitPolicy(row.dataset) !== 'allow' && row.getBoundingClientRect().height <= context.bodyHeight() + .5");
+    }
+    if (variant === 'oversized-word-row' && id.split('?')[0] === root + '/src/print-layout.ts') {
+      const source = await fs.readFile(root + '/src/print-layout.ts', 'utf8');
+      const target = 'let groupFits = fits();';
+      return source.replace(target, `let groupFits = fits();
+      if (!groupFits && group.length === 1 && rowSplitPolicy(group[0].dataset) === 'avoid' && (bodyRows > 0 || content.children.length > 1)) {
+        group.forEach(row=>row.remove()); if (!bodyRows) part.table.remove();
+        newPage(); part = shell(i > 0); bodyRows = 0; group.forEach(row=>part.body.append(row)); groupFits = fits();
+      }`);
+    }
+    if (variant === 'word-row-minimum' && id.split('?')[0] === root + '/src/table-row-resize.ts') {
+      const source = await fs.readFile(root + '/src/table-row-resize.ts', 'utf8');
+      return source.replace("a.wordRowRule === 'exact' ? { 'data-word-row-rule': 'exact' } : {}", "['atLeast','exact'].includes(a.wordRowRule) ? { 'data-word-row-rule': a.wordRowRule } : {}");
+    }
+    if (variant === 'word-row-minimum' && id.split('?')[0] === root + '/src/table-fragments.ts') {
+      const source = await fs.readFile(root + '/src/table-fragments.ts', 'utf8');
+      const target = 'tail.style.height = `${Math.max(0, height - row.getBoundingClientRect().height)}px`;';
+      if (!source.includes(target)) throw Error('Row probe source changed');
+      return source.replace(target, `const wordMinimum = row.dataset.wordRowRule === 'atLeast' && (tail.textContent?.trim() || tail.querySelector('img,table')) ? parseFloat(original.style.height) || 0 : 0;
+        (window as any).__wordRowProbes ??= []; (window as any).__wordRowProbes.push({rule:row.dataset.wordRowRule,sourceHeight:original.style.height,minimum:wordMinimum,body:context.bodyHeight(),height,head:row.getBoundingClientRect().height,tailText:tail.textContent?.slice(0,80)});
+        tail.style.height = \`\${Math.max(0, height - row.getBoundingClientRect().height, wordMinimum <= context.bodyHeight() + .5 ? wordMinimum : 0)}px\`;`);
+    }
+    if (variant !== 'full-line' || id.split('?')[0] !== root + '/src/paragraph-fit.ts') return;
+    const source = await fs.readFile(root + '/src/paragraph-fit.ts', 'utf8');
+    if (!source.includes('export function paragraphFitBottom(paragraph: HTMLElement): number {')) throw Error('Probe source changed');
+    return source.replace('export function paragraphFitBottom(paragraph: HTMLElement): number {',
+      'export function paragraphFitBottom(paragraph: HTMLElement): number { return paragraph.getBoundingClientRect().bottom;');
+  }};
+  const server = await createServer({ root, plugins: [diagnostic], configFile: root + '/vite.config.ts',
+    server: { host: '127.0.0.1', port, strictPort: true, hmr: false, watch: { ignored: ['**'] } }, logLevel: 'error' });
+  await server.listen();
+  const { chromium } = req('@playwright/test');
+  const browser = await chromium.launch({ channel: 'chrome', headless: true });
+  const code = {};
+  for (const file of ['src/document-io.ts','src/paragraph-fit.ts','src/print-layout.ts','src/table-fragments.ts','src/row-split-policy.ts','src/pagination.ts','src/editor-cell-pagination.ts','src/table-row-resize.ts']) code[file] = sha(await fs.readFile(root + '/' + file));
+  const rows = [], errors = [];
+  try {
+    for (const input of inputs) {
+      const started = Date.now();
+      const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
+      page.on('pageerror', error => errors.push({ id: input.id, error: String(error) }));
+      try {
+        const bytes = await fs.readFile(path.resolve(previous, input.inputFile));
+        if (sha(bytes) !== input.inputSHA256) throw Error('Frozen Word input changed');
+        await page.goto('http://127.0.0.1:' + port + '/');
+        await page.getByRole('textbox', { name: '문서 편집 영역', exact: true }).waitFor();
+        const state = await page.evaluate(async bytes => {
+          const { importFile } = await import('/src/document-io.ts');
+          const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
+          const { generateHTML } = await import('/node_modules/@tiptap/core/dist/index.js');
+          const { createPrintLayout } = await import('/src/print-layout.ts');
+          const { paragraphLineOffsets } = await import('/src/paragraph-fragments.ts');
+          const loaded = await importFile(new File([new Uint8Array(bytes)], 'comparison.docx'));
+          const doc = { ...loaded.document, content: loaded.html === undefined ? loaded.document.content : parseDocumentHtml(loaded.html) };
+          const logical = n => n.type === 'hardBreak' ? '\n' : n.type === 'documentTab' ? '\t' : (n.text || '') + (n.content || []).map(logical).join('');
+          const text = logical(doc.content);
+          const bodySHA256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)))].map(n => n.toString(16).padStart(2, '0')).join('');
+          const source = document.createElement('div'); source.innerHTML = generateHTML(doc.content, editorExtensions);
+          [...source.querySelectorAll('p,h1,h2,h3,h4,h5,h6')].forEach((p, key) => p.dataset.auditKey = String(key)); [...source.querySelectorAll('img')].forEach((img,key)=>img.dataset.sourceImage=String(key));
+          const sourceRows = [...source.querySelectorAll('tr')].map(row=>({height:row.style.height,rule:row.dataset.wordRowRule,split:row.dataset.rowSplit,wordSplit:row.dataset.wordRowSplit,text:row.textContent.slice(0,90)}));
+          window.auditLayout = await createPrintLayout(source.innerHTML, doc.page);
+          const layout = window.auditLayout;
+          layout.element.classList.replace('measuring', 'preview'); document.body.classList.add('studio-printing');
+          const paragraphs = [...layout.element.querySelectorAll('[data-audit-key]')].map(p => {
+            const box = p.getBoundingClientRect(), sheet = p.closest('.print-page').getBoundingClientRect(), content = p.closest('.print-content,.print-footnotes').getBoundingClientRect(), css = getComputedStyle(p);
+            return { key: Number(p.dataset.auditKey), page: Number(p.closest('.print-page').dataset.page), text: p.textContent,
+              x: box.left - sheet.left, y: box.top - sheet.top, height: box.height, bottomToBody: box.bottom - content.bottom,
+              lineHeight: css.lineHeight, before: css.marginTop, after: css.marginBottom, wordLineRule: p.dataset.wordLineRule,
+              cell: !!p.closest('td,th'), lineOffsets: paragraphLineOffsets(p), fragmentOffset: p.dataset.fragmentOffset,
+              terminal: p.dataset.hwpCellTerminal, hwpCellLine: p.dataset.hwpCellLine };
+          });
+          const audit = { paragraphs: 0, unchanged: 0, repeatedHeaders: 0, dynamic: [], mismatches: [], images: source.querySelectorAll('img').length, missingImages: [], changedImages: [] };
+          for (const p of source.querySelectorAll('[data-audit-key]')) {
+            audit.paragraphs++;
+            const actual = [...layout.element.querySelectorAll('[data-audit-key="'+p.dataset.auditKey+'"]')];
+            const text = p.textContent || '', joined = actual.map(n=>n.textContent || '').join('');
+            if (text === joined) { audit.unchanged++; continue; }
+            const tr=p.closest('tr'), header=tr&&tr.cells.length&&[...tr.cells].every(c=>c.tagName==='TH');
+            if (header && actual.length>1 && actual.every(n=>n.textContent===text)) {audit.repeatedHeaders++;continue;}
+            const item={key:p.dataset.auditKey,source:text,actual:actual.map(n=>n.textContent)};
+            if(p.querySelector('[data-document-field],[data-note-reference]'))audit.dynamic.push(item);else audit.mismatches.push(item);
+          }
+          for(const img of source.querySelectorAll('img')){
+            const actual=[...layout.element.querySelectorAll('[data-source-image="'+img.dataset.sourceImage+'"]')];
+            if(!actual.length)audit.missingImages.push(img.dataset.sourceImage);
+            else if(actual.some(n=>n.getAttribute('src')!==img.getAttribute('src')))audit.changedImages.push(img.dataset.sourceImage);
+          }
+          return { audit, pages: layout.pages, warnings: layout.warnings, textCharacters: text.length, bodySHA256, paragraphs, sourceRows, rowProbes: window.__wordRowProbes, settings:doc.page,
+            pageTexts: [...layout.element.querySelectorAll('.print-content')].map(p => p.textContent),
+            tableFragments: layout.element.querySelectorAll('.print-content table').length,
+            imagePlacements: layout.element.querySelectorAll('.print-content img').length };
+        }, [...bytes]);
+        const pdf = out + '/' + input.id + '.pdf';
+
+        await fs.writeFile(out + '/' + input.id + '.json.gz', zlib.gzipSync(JSON.stringify(state)));
+        const row = { id: input.id, split: input.split, inputSHA256: input.inputSHA256, priorStudioPages: input.studioPages,
+          wordPages: input.wordPages, pages: state.pages, warnings: state.warnings, textCharacters: state.textCharacters,
+          bodySHA256: state.bodySHA256, imagePlacements: state.imagePlacements, tableFragments: state.tableFragments,
+          audit:state.audit, durationMs: Date.now() - started };
+        rows.push(row); console.log(JSON.stringify(row));
+      } catch (error) { errors.push({ id: input.id, error: String(error) }); console.error(input.id, String(error)); }
+      finally { await page.close(); }
+      await fs.writeFile(out + '/results.json', JSON.stringify({ utc: new Date().toISOString(), variant, stage, code,
+        method: 'Exact frozen actual web Word input bytes; current Studio print; DPR1, 100% display; no HWP model substitution', rows, errors }, null, 2));
+    }
+  } finally { await browser.close(); await server.close(); }
+  if (errors.length) process.exitCode = 1;
+})().catch(error => { console.error(error); process.exitCode = 1; });

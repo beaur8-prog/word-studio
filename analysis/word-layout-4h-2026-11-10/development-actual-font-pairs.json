@@ -1,0 +1,106 @@
+{
+  "mss-funding-2026-0": [
+    {
+      "word": "MalgunGothic",
+      "studio": "ArialMT",
+      "paragraphs": 304
+    },
+    {
+      "word": "MalgunGothic",
+      "studio": "AppleSDGothicNeo-Regular",
+      "paragraphs": 131
+    },
+    {
+      "word": "Batang",
+      "studio": "AppleMyungjo",
+      "paragraphs": 118
+    },
+    {
+      "word": "MalgunGothicBold",
+      "studio": "AppleSDGothicNeo-Bold",
+      "paragraphs": 7
+    },
+    {
+      "word": "ArialMT",
+      "studio": "ArialMT",
+      "paragraphs": 7
+    },
+    {
+      "word": "H2hdrM",
+      "studio": "AppleSDGothicNeo-Regular",
+      "paragraphs": 4
+    },
+    {
+      "word": "MalgunGothicBold",
+      "studio": "Arial-BoldMT",
+      "paragraphs": 2
+    },
+    {
+      "word": "MS-Mincho",
+      "studio": "HiraMinProN-W3",
+      "paragraphs": 1
+    }
+  ],
+  "mods-household-1": [
+    {
+      "word": "Batang",
+      "studio": "AppleMyungjo",
+      "paragraphs": 174
+    },
+    {
+      "word": "Batang",
+      "studio": "AppleSDGothicNeo-Bold",
+      "paragraphs": 123
+    },
+    {
+      "word": "Batang",
+      "studio": "AppleSDGothicNeo-Regular",
+      "paragraphs": 38
+    },
+    {
+      "word": "SegoeUISymbol",
+      "studio": "ZapfDingbatsITC",
+      "paragraphs": 32
+    },
+    {
+      "word": "CambriaMath",
+      "studio": "AppleSymbols",
+      "paragraphs": 19
+    },
+    {
+      "word": "Batang",
+      "studio": "AppleSDGothicNeo-Heavy",
+      "paragraphs": 16
+    },
+    {
+      "word": "MS-Mincho",
+      "studio": "LucidaGrande",
+      "paragraphs": 13
+    },
+    {
+      "word": "DotumChe",
+      "studio": "AppleSDGothicNeo-Regular",
+      "paragraphs": 6
+    },
+    {
+      "word": "PalatinoLinotype-Bold",
+      "studio": "AppleSDGothicNeo-Bold",
+      "paragraphs": 5
+    },
+    {
+      "word": "H2hdrM",
+      "studio": "AppleSDGothicNeo-Regular",
+      "paragraphs": 4
+    },
+    {
+      "word": "PalatinoLinotype-Roman",
+      "studio": "AppleSDGothicNeo-Regular",
+      "paragraphs": 4
+    },
+    {
+      "word": "DotumChe",
+      "studio": "AppleSDGothicNeo-Bold",
+      "paragraphs": 2
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "baseline": {
+    "documents": 10,
+    "pages": [
+      7,
+      167,
+      4,
+      38,
+      1,
+      38,
+      8,
+      20,
+      15,
+      5
+    ],
+    "fixed160": {
+      "total": 160,
+      "found": 160,
+      "missing": 0,
+      "mismatched": 78,
+      "absolutePageError": 150
+    },
+    "fixed3007": {
+      "total": 3007,
+      "found": 3007,
+      "missing": 0,
+      "mismatched": 1817,
+      "absolutePageError": 3767
+    }
+  },
+  "current": {
+    "documents": 10,
+    "pages": [
+      7,
+      167,
+      4,
+      38,
+      1,
+      38,
+      8,
+      20,
+      15,
+      5
+    ],
+    "fixed160": {
+      "total": 160,
+      "found": 160,
+      "missing": 0,
+      "mismatched": 78,
+      "absolutePageError": 150
+    },
+    "fixed3007": {
+      "total": 3007,
+      "found": 3007,
+      "missing": 0,
+      "mismatched": 1817,
+      "absolutePageError": 3767
+    }
+  }
+}

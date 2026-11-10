@@ -1,0 +1,195 @@
+{
+  "rows": [
+    {
+      "id": "01-employment-contract",
+      "strictBefore": true,
+      "strictFinal": true,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "02-work-rules",
+      "strictBefore": false,
+      "strictFinal": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "03-health-table",
+      "strictBefore": true,
+      "strictFinal": true,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "04-language-plan",
+      "strictBefore": true,
+      "strictFinal": true,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "05-return-form",
+      "strictBefore": true,
+      "strictFinal": true,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "06-mixed-document",
+      "strictBefore": false,
+      "strictFinal": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "07-english-exam",
+      "strictBefore": false,
+      "strictFinal": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "08-math-exam",
+      "strictBefore": false,
+      "strictFinal": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "09-korean-exam",
+      "strictBefore": false,
+      "strictFinal": false,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    },
+    {
+      "id": "10-lh-plan",
+      "strictBefore": true,
+      "strictFinal": true,
+      "states": [
+        {
+          "save": 0,
+          "differentKeys": []
+        },
+        {
+          "save": 1,
+          "differentKeys": []
+        },
+        {
+          "save": 2,
+          "differentKeys": []
+        }
+      ]
+    }
+  ],
+  "sameAsPreviousCandidate": true
+}

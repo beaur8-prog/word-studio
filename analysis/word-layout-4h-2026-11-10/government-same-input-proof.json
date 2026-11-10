@@ -1,0 +1,297 @@
+{
+  "rows": [
+    {
+      "id": "mois-2025-0",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 3,
+      "afterImages": 3,
+      "before": 22,
+      "after": 23,
+      "word": 24
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 6,
+      "afterImages": 6,
+      "before": 49,
+      "after": 52,
+      "word": 59
+    },
+    {
+      "id": "mss-funding-2026-2",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 34,
+      "afterImages": 34,
+      "before": 54,
+      "after": 54,
+      "word": 63
+    },
+    {
+      "id": "mods-household-1",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 60,
+      "afterImages": 60,
+      "before": 76,
+      "after": 77,
+      "word": 85
+    },
+    {
+      "id": "fsc-press-1",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 5,
+      "afterImages": 5,
+      "before": 4,
+      "after": 4,
+      "word": 4
+    },
+    {
+      "id": "fsc-press-4",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 5,
+      "after": 5,
+      "word": 5
+    },
+    {
+      "id": "fsc-press-7",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 6,
+      "afterImages": 6,
+      "before": 14,
+      "after": 14,
+      "word": 16
+    },
+    {
+      "id": "fsc-press-10",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 2,
+      "afterImages": 2,
+      "before": 2,
+      "after": 2,
+      "word": 2
+    },
+    {
+      "id": "moel-rfp-0",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 9,
+      "after": 10,
+      "word": 10
+    },
+    {
+      "id": "moel-rfp-1",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 2,
+      "afterImages": 2,
+      "before": 36,
+      "after": 36,
+      "word": 37
+    },
+    {
+      "id": "daejeon-safety-hwp",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 1,
+      "after": 1,
+      "word": 1
+    },
+    {
+      "id": "gg-facility-hwp",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 5,
+      "after": 5,
+      "word": 5
+    },
+    {
+      "id": "motie-budget-hwp",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 5,
+      "afterImages": 5,
+      "before": 8,
+      "after": 8,
+      "word": 7
+    },
+    {
+      "id": "motie-ax-0",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 10,
+      "after": 10,
+      "word": 10
+    },
+    {
+      "id": "motie-ax-1",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 3,
+      "after": 3,
+      "word": 3
+    },
+    {
+      "id": "mofe-budget-hwpx",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 2,
+      "afterImages": 2,
+      "before": 17,
+      "after": 17,
+      "word": 17
+    },
+    {
+      "id": "mfds-revenue-hwpx",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 5,
+      "afterImages": 5,
+      "before": 42,
+      "after": 42,
+      "word": 39
+    },
+    {
+      "id": "moel-manual-1",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 3,
+      "afterImages": 3,
+      "before": 100,
+      "after": 101,
+      "word": 106
+    },
+    {
+      "id": "mois-sop-3",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 40,
+      "afterImages": 40,
+      "before": 134,
+      "after": 134,
+      "word": 136
+    },
+    {
+      "id": "mois-budget-0",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 24,
+      "afterImages": 24,
+      "before": 150,
+      "after": 150,
+      "word": 149
+    },
+    {
+      "id": "nhis-overcharge-0",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 2,
+      "after": 2,
+      "word": 2
+    },
+    {
+      "id": "nhis-postpone-1",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 1,
+      "after": 1,
+      "word": 1
+    },
+    {
+      "id": "lh-smartcity-hwpx",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 5,
+      "afterImages": 5,
+      "before": 4,
+      "after": 4,
+      "word": 5
+    },
+    {
+      "id": "nps-fund-hwp",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 2,
+      "afterImages": 2,
+      "before": 13,
+      "after": 13,
+      "word": 13
+    },
+    {
+      "id": "nps-venture-hwp",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 6,
+      "afterImages": 6,
+      "before": 2,
+      "after": 2,
+      "word": 2
+    },
+    {
+      "id": "lh-campus-hwpx",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 9,
+      "afterImages": 9,
+      "before": 18,
+      "after": 18,
+      "word": 18
+    },
+    {
+      "id": "law-request-hwp",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 2,
+      "after": 2,
+      "word": 1
+    },
+    {
+      "id": "law-register-hwp",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 4,
+      "after": 4,
+      "word": 4
+    },
+    {
+      "id": "law-operation-hwp",
+      "sameInput": true,
+      "sameLogicalBody": true,
+      "beforeImages": 0,
+      "afterImages": 0,
+      "before": 2,
+      "after": 2,
+      "word": 2
+    }
+  ],
+  "allInputAndBodyHashesEqual": true,
+  "imagePlacementsBefore": 219,
+  "imagePlacementsAfter": 219
+}

@@ -1,0 +1,991 @@
+{
+  "method": "Verify retained source bytes, all baseline/final/reference PDFs and exact originals of all71 SDK inputs after cleanup. Does not rerun layout.",
+  "checkedFiles": 246,
+  "errors": [],
+  "files": [
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-mois-2025-0.docx",
+      "sha256": "e038c064d4a9db97bf472958e0787cebff5f86895fbd2451705f1fc7da583a01"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mois-2025-0.pdf",
+      "sha256": "4600c9a3fc9abe7d41631fb5bfd5aa2ed6bd54dc9fe8bfbe84910bb0b6b6d7af"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mois-2025-0.json.gz",
+      "sha256": "43fbc8fc6052f46da174139f09fca4efbd78d1e7d37bb9ec15279908149273fe"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-mois-2025-0.pdf",
+      "sha256": "e658dd2e78c59cabe3fae64f8c4827758337f31f250ef30fe53642ea6e2c930f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/mois-2025-0.pdf",
+      "sha256": "e59c6c5ef685809120a90b63acf1753874f447ed31d6d6cd0b1760f19ae89f67"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-bookmarks-final-upload/WS-CD-20261107-VERIFIED3-mss-funding-2026-0.docx",
+      "sha256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mss-funding-2026-0.pdf",
+      "sha256": "15bf2a6b84deea06f22855cda6ed497b713d22b4063e3d956d62b099c9d0b4f5"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mss-funding-2026-0.json.gz",
+      "sha256": "f327276ca6b13568c39bf876116fa414eb29f0a249b2a95864c948f2603dd371"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-bookmarks-final-returned/WS-CD-20261107-VERIFIED3-mss-funding-2026-0.pdf",
+      "sha256": "ffc8ce2e9cf3bb7c6f410d03bbe5f78330e64c546991e77191c53cf276a35b00"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/mss-funding-2026-0.pdf",
+      "sha256": "65cc1564f50350bbf11c83b3efee7536c772eecf387b717227672b53fbd39886"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-bookmarks-final-upload/WS-CD-20261107-VERIFIED3-mss-funding-2026-2.docx",
+      "sha256": "58624a9671fdd00bd1055d92b92ae5eb48d73aa2390059650c52a8a0f2a806db"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mss-funding-2026-2.pdf",
+      "sha256": "d2f0cdc280e4fe6b87674db4c6d92153697bde7be27794b8da3030262aa74bcc"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mss-funding-2026-2.json.gz",
+      "sha256": "2d51589660fce2745d3da39323db06c69c99a8f3006aec6558ba11ff0c9fe828"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-bookmarks-final-returned/WS-CD-20261107-VERIFIED3-mss-funding-2026-2.pdf",
+      "sha256": "b5ed0480e9bebf5b169c1b633710e8cb95fc4150de7dcd89c17ec36b916c3bef"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/mss-funding-2026-2.pdf",
+      "sha256": "b2b7593a78a37e31c1d9472b771e3bfbc94e6a906abcd416d01562b02feac0d9"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-mods-household-1.docx",
+      "sha256": "ef412d51256ade00188519beac5b0efcd8a10a7e60c9b19765e656db28a97c06"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mods-household-1.pdf",
+      "sha256": "7d659e0270a04e2046752b20944550f77f18f323464285a5967112c4dc4ff249"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mods-household-1.json.gz",
+      "sha256": "d01b2e9998fb8ec214e91550dda297f1f43f6851d1b51916ae381903466637ea"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-mods-household-1.pdf",
+      "sha256": "9177328835010063a5d5154751d4e1d2b4718e389be4945e4b3d795b736daca0"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/mods-household-1.pdf",
+      "sha256": "04b76c489b08ffd51f428e269826bd2fa328adf95049ee2a515ff7dac17edd86"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-fsc-press-1.docx",
+      "sha256": "43ded853eabb1eb9353896c521567639ae1adfdf51e069bd69fd2dc018b4f824"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/fsc-press-1.pdf",
+      "sha256": "09dca0b0ebd9b96849ce64519896f6288f244186ea3b5317166502de35992468"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/fsc-press-1.json.gz",
+      "sha256": "114248442c091152fc80028bab45b38f596bafee936ae5afb2aa0f68711a623a"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-fsc-press-1.pdf",
+      "sha256": "7731a3d99089b6c2a26f635d92a56edff0d711c8321ade7c24de4576918d3029"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/fsc-press-1.pdf",
+      "sha256": "7d9917856abe79a8e208b5f1fe6dac7132ff545efd924868bdde48a1413d0a35"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-fsc-press-4.docx",
+      "sha256": "a7cb67c7d92cb986b4b18a9b53b1d5bf0b6c48406c7f6b6168053d957c0839b1"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/fsc-press-4.pdf",
+      "sha256": "15277f54c6c60a0184ba1115b8f667e4c35927e1c47ae4ec86d6db3912692855"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/fsc-press-4.json.gz",
+      "sha256": "9c2fe4a0261f14c5e2269092d9ffd617d20d764c39ca697cc85499f7a42af783"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-fsc-press-4.pdf",
+      "sha256": "96b9f134a0677ce096d15013e3700d1e7b6d2da311bc5b47f1b1f318ad4017a9"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/fsc-press-4.pdf",
+      "sha256": "2ce019078f5ba11420f41e91b4b78bfd01d14c59ddad649046e8cf024f92c167"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-fsc-press-7.docx",
+      "sha256": "b84c60f6937479ff97c4dc2876637072cd9bcef0a26749422b2be3d877ff08d1"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/fsc-press-7.pdf",
+      "sha256": "d1b85e620ed1a2de648caf9a3310cee4b87f9b87311d79d34df2af909610c57d"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/fsc-press-7.json.gz",
+      "sha256": "50a63916791c31230028d5bf4c8b0c9fa7757a2ee9610a90ae0983f8a9b0e82e"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-fsc-press-7.pdf",
+      "sha256": "bfa7ff557711206de2913d731731a5b3a6918f55dc05d7198903abe24bc698cf"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/fsc-press-7.pdf",
+      "sha256": "98f7b6f51ec0a9aa35aadd6e3227d26099d09b29915553c29d43c5991329e831"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-fsc-press-10.docx",
+      "sha256": "d4a0d0cc6052d6a4f1b62b43c3377305097ef47bcca10456a0903d76efc42732"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/fsc-press-10.pdf",
+      "sha256": "7b21ac22aa2c288470db2e4229c279eab73c0a36612d34384029c065d2e15548"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/fsc-press-10.json.gz",
+      "sha256": "a34874d2e1a432335e5ee552052c97069e103a5b3f4b9d693f621c8de6d3de39"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-fsc-press-10.pdf",
+      "sha256": "c20fc23b224783730a269a6ec4dad27e108981b4d85f80c77f23972bd2e576be"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/fsc-press-10.pdf",
+      "sha256": "b52fede7aa4920d57ef045a66afdc64954d285aa70399010926e6e660725886c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-moel-rfp-0.docx",
+      "sha256": "b97528a9b0dca33c8c56f097a48b826dcca0c432a2445d3fd291eddf2c05c533"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/moel-rfp-0.pdf",
+      "sha256": "7eb183a171586e0f6afd86aa274a3a4f9cbd640e6d27219c365541ec7e312be1"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/moel-rfp-0.json.gz",
+      "sha256": "b348255a5f34967897f1087e0423d8eda87021694ba960f33ae21408ff1ac3f4"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-moel-rfp-0.pdf",
+      "sha256": "1a8e9280229ff7939f9378fe574eec7f592c2c72944a879d0868b838ae5b48db"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/moel-rfp-0.pdf",
+      "sha256": "dcf523e1719ec8d767f862f0907284d18bfea89898a09e709ca1bdcbe9f57a05"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-moel-rfp-1.docx",
+      "sha256": "c473de77ddc49fb48a8f83cab561eb6153d73900b998a22048df421e13e547d0"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/moel-rfp-1.pdf",
+      "sha256": "61891745309f897b78e3e32c788f9191c82686635f23a4bc0a0b904abdb46288"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/moel-rfp-1.json.gz",
+      "sha256": "11369b60e675fc1deda06df00c41a46c1013d596ec1540a3ecb6030b622fa92b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-moel-rfp-1.pdf",
+      "sha256": "d233b7aa0a68975d0ca5154123951924d227d593a9c47f73745da8fbd3b54c4a"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/moel-rfp-1.pdf",
+      "sha256": "4c4809126d5c6b9465f67b69e6372741306fd29aea070342b3026ae294948c01"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-daejeon-safety-hwp.docx",
+      "sha256": "17f16e6784514034c7a9fc0df4eefd706f5191782765600312e3dbaae055f3aa"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/daejeon-safety-hwp.pdf",
+      "sha256": "1b81b646c5c7f888bc3ece91f7f7418216bd2dc293b3d9cfd4a94c32ff3b897b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/daejeon-safety-hwp.json.gz",
+      "sha256": "8370dd31037a299011fe3691c68db97c7851e74c7c064597da1441a1409ffe8d"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-daejeon-safety-hwp.pdf",
+      "sha256": "bffb21b6edb468e1416766f805b96319f46d9852aa52e604e6ffdb709c068ea4"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/daejeon-safety-hwp.pdf",
+      "sha256": "e2c09f8524765457778712850797b26187ba0701ccb671b1e0ab7393157e75c9"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-gg-facility-hwp.docx",
+      "sha256": "31f28de4057b63ed66b822516cdef2b814ace68224b188f25e31f3f749e6a1a8"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/gg-facility-hwp.pdf",
+      "sha256": "a444ac34d404827df54e24db3e096fd6b0e3860c95c05421dedc3fbb7a217eaf"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/gg-facility-hwp.json.gz",
+      "sha256": "d9b6bc3304a76a12e76d32e34a3c936d10fed793d824e61deca6e99c75f68e9d"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-gg-facility-hwp.pdf",
+      "sha256": "a3da609b535f8a078fb49ce865490797d638fcb2df8539a9b596a2cad98345f5"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/gg-facility-hwp.pdf",
+      "sha256": "5da4d33bb6f3f23db35376419dc3cd553717f015ae0a82b5e58c2475b079a6df"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-motie-budget-hwp.docx",
+      "sha256": "4fbc17e877376edad81cad00233cfaca340bbb66a5531c0298c3653046e6155b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/motie-budget-hwp.pdf",
+      "sha256": "166b52bb7eabc154977594793f831b9306d1cad5f77931d6733c359ed5b89998"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/motie-budget-hwp.json.gz",
+      "sha256": "42efd687b2096f3923c95efd3802c59b0a84bfba76fe96afa18db0b7d179a9bb"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-motie-budget-hwp.pdf",
+      "sha256": "4d66c53644bda5a46f778617b988363b718a08db5c4fae3729cf2aaebf17186b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/motie-budget-hwp.pdf",
+      "sha256": "4a70224d2b15800bcacb2f7f0c1f575fb8fedb11fc1671a8ab9109dab1a39d44"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-motie-ax-0.docx",
+      "sha256": "3ed7e5c0329939e27db5d172b2315a50e529787ed9a49f278e8854bf09eeb83b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/motie-ax-0.pdf",
+      "sha256": "fbfb9b93c0644aaa58f970da865438b7bd73dac9e680b0da0999ef939a5afd73"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/motie-ax-0.json.gz",
+      "sha256": "b167925b5e865b032da454a330078df55e087e14d1da3b2a04aa3a0df4e052f7"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-motie-ax-0.pdf",
+      "sha256": "6772278bc4f27b17202e6ea1641404f859f875c2963bb5ef51301ed94a95564f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/motie-ax-0.pdf",
+      "sha256": "8b3040f9e66db4d38bc0fcbecd628198aaa73017bf192334aae5defa15ef0fb1"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-motie-ax-1.docx",
+      "sha256": "7c9e2aee292ae3dc840b626499da59e6ee5d9556411d969eb869f956bb5bca47"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/motie-ax-1.pdf",
+      "sha256": "5fe6851253a7534a75b0d99a133fdfec598d2d148f375cf4695412b9a07d05b2"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/motie-ax-1.json.gz",
+      "sha256": "97eaca3596831dda212666b775391795a43bfd34830cece76b0ec3c12f12f306"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-motie-ax-1.pdf",
+      "sha256": "73cd309616752472ea72af71e930bb8c8e4b029777867a9b6d24cce2966f37d9"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/motie-ax-1.pdf",
+      "sha256": "d8b4171668950a1519e0ee59d53dcb5e7ff9d6cd9c21580eac004b9eb6a724ea"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-mofe-budget-hwpx.docx",
+      "sha256": "7745eee49a0e29829b65cbe747e7a58044102c263a714984650ebc6b3c3b1efe"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mofe-budget-hwpx.pdf",
+      "sha256": "e897b488d48347c9c0a914e80a4fcc51b9652fbfcd83fb8136bcb583151d4f12"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mofe-budget-hwpx.json.gz",
+      "sha256": "da2b921f88f2adc48bbe6662cc83b7ec3cadcdf02438cb44655efba26eab24a0"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-mofe-budget-hwpx.pdf",
+      "sha256": "9ef1b4c4f4b1b3a4a157ac49fa413eb0c19d2d5ad4fb3b0d7164cd45e34bd3e4"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/mofe-budget-hwpx.pdf",
+      "sha256": "7653c3622afa8d7d114dfebbab9272b71e6e06660559eeebda400416329e1b7d"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-bookmarks-final-upload/WS-CD-20261107-VERIFIED3-mfds-revenue-hwpx.docx",
+      "sha256": "863c6a2050a35cf01f933ed7d07f42ff2582eab98b7f86a9446d6c3458979b48"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mfds-revenue-hwpx.pdf",
+      "sha256": "57a145b2044da1da84352944690ea4b8a13f44da99591bb085ed5796d73e8c6c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-development/mfds-revenue-hwpx.json.gz",
+      "sha256": "5b2f7e672daff9433e4c6d07849d9ce77d7f94ed6457ef3e47a4572a596b6205"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-bookmarks-final-returned/WS-CD-20261107-VERIFIED3-mfds-revenue-hwpx.pdf",
+      "sha256": "53a70fae807a323008ff07679908e957a71f99588d84c085ac61b319e750458e"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/mfds-revenue-hwpx.pdf",
+      "sha256": "619699b81278d5a08f47d80f46149241afe18916f01e8f99e36a3fa9e1a83f93"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-moel-manual-1.docx",
+      "sha256": "7d9d1cafa277b42b1c6f81fe53cac8f28e349ff701a6572188f9d63ddc00f37a"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-groups/moel-manual-1.pdf",
+      "sha256": "f7eca2b0cecf7011404c59c7368ed3f1ffe308e17d2e7ca3cf8b9333cc4f15b4"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-groups/moel-manual-1.json.gz",
+      "sha256": "cfad747975d60d9b65efb582d8d01bff11dd05a7c0edbbd9c8c99e01bc1dbefb"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-moel-manual-1.pdf",
+      "sha256": "f07ecb394a89ad4aa6b9c7c2ce234e8c8fed79f9d611055e8a086c6c7f0a86e2"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/moel-manual-1.pdf",
+      "sha256": "fc506a5148e2c3300024cb8186e5ff77738487ec00a80bf3c32d2ab94283d85d"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-mois-sop-3.docx",
+      "sha256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/mois-sop-3.pdf",
+      "sha256": "1ef5e089e5a2fa6f772f9f99c9ef0714bcc384ec47adcb6b2f9c0c07991db5c8"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/mois-sop-3.json.gz",
+      "sha256": "bc66a0c04a7b5b7d4c9abf6f49181af20580b85b11cfe823f3bf9f0e0eb48a0c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-mois-sop-3.pdf",
+      "sha256": "6ddedc0763844f7376e8d4dd43661df0afa959b85b8c6fa16ef1dc162e220d13"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/mois-sop-3.pdf",
+      "sha256": "dff85e7205bc4ba8569a73965964a7e6004ef12a5efef69770d42317e6d74aed"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-mois-budget-0.docx",
+      "sha256": "3f24adc9e4d4ca23ed6873d06d5eb1a9e0b0d704f7beec7256fe47a5c353dcf7"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/mois-budget-0.pdf",
+      "sha256": "35c69e41b3cf9403833ab56cdbf2dec886d7493568f9a7a84a2d15fb64ca69d9"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/mois-budget-0.json.gz",
+      "sha256": "4a855f32828f70e921c482b3b1e8691221dddac5027d75dcf2b475f20bada465"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-mois-budget-0.pdf",
+      "sha256": "1bbb11e2a2873ef1069e8efa8e28ff2d8f43f50ffbc1125deaca8dda27fd5fdc"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/mois-budget-0.pdf",
+      "sha256": "777a94cabf94af15fe894d0e81a510aa4d6ee9afc57c33d70f33f0133bafb11a"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-nhis-overcharge-0.docx",
+      "sha256": "bf5496e16fb7e1351a2ec228b9c3ee13282a6c0e7015326d15ffa848f8acabbf"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/nhis-overcharge-0.pdf",
+      "sha256": "36059ea285703dd2a905fba0a53ef0e09f59fa545b9c191985da538591762d12"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/nhis-overcharge-0.json.gz",
+      "sha256": "42ca6b1dd0883e760209ca22f015943ad6b689832ea70a68ead50f3ac8b7cd36"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-nhis-overcharge-0.pdf",
+      "sha256": "b6312ff8c34f98bc1c456c3c0eb72d5ac594a507554b82cab121aeb682f8fc3f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/nhis-overcharge-0.pdf",
+      "sha256": "49944f3140d305b4d4d5df7724eabccdcacf6aeb9177a9ac54e4907321f09445"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-nhis-postpone-1.docx",
+      "sha256": "604fb210e1271b18de05ba807fa2393abd2d4fae0db345b3bdff827a5af8bc0c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/nhis-postpone-1.pdf",
+      "sha256": "7da62889fc03e2f6d477a54a6089bccdc526ee08f82d76b5fcc83dc28bbb67f2"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/nhis-postpone-1.json.gz",
+      "sha256": "55f0ec13d74390ca87f05f3412070045134c86fe87d54752343a271ac92ad1de"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-nhis-postpone-1.pdf",
+      "sha256": "87788afe34e9cd767e45014f75b45cfc9094bf41c97cbd26a173bd78178cefdb"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/nhis-postpone-1.pdf",
+      "sha256": "1f4c3548d00bfe01cad0103f6bbcea4e682b55c62c45ca7df8adc0d5bde5fcb9"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-lh-smartcity-hwpx.docx",
+      "sha256": "ccf632b21c28579d19b7bf2df12e4bb4147db40a6e0aa1d58da5043e6f027518"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/lh-smartcity-hwpx.pdf",
+      "sha256": "bb1ae18a13ecb2610a243c0a6b8a305fd3a07bb2be4fbd92c77009e257f1901f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/lh-smartcity-hwpx.json.gz",
+      "sha256": "46a3952cac64594f20328cf5c80073752f0dd78797baef327b8c7b97a44da48c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-lh-smartcity-hwpx.pdf",
+      "sha256": "a9876cdfc5b94441b13d8eb9219099f1506b38e562724b5c223beecd4eacdc7d"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/lh-smartcity-hwpx.pdf",
+      "sha256": "841db67d81babde26dbf295e7f4e58496bee08949a4cef620bf8930e672c0bb0"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-nps-fund-hwp.docx",
+      "sha256": "bb0281bd8fb67c060dea3d25b4ac802e9970c23ed159bbd86138ace9eac45677"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/nps-fund-hwp.pdf",
+      "sha256": "5e3de517c2e907b85d474e1b87386dcb197b9788e6ca4b61a97417e0a71d9c76"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/nps-fund-hwp.json.gz",
+      "sha256": "cb1e74f6635f220b5c700ee3ed840ef6c206d418d05a6d71c084ecfb06c08afe"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-nps-fund-hwp.pdf",
+      "sha256": "418577a29d278f493f2f3066f295122215be7c57204fb2ef55ac84cd00bba39c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/nps-fund-hwp.pdf",
+      "sha256": "55cad54aef44883d4c51341dd6818f0b427eb79753d1c764dd79a180bcc91e13"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-nps-venture-hwp.docx",
+      "sha256": "4cb24cc3f256a969dd216048b82c0e8bf8776d4af43c026bc0ff653bb121d7c5"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/nps-venture-hwp.pdf",
+      "sha256": "f5bbd0221ce81914a74dcdcb2b560d77b34b74a4a394650dda598693f2f65f66"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/nps-venture-hwp.json.gz",
+      "sha256": "d3d2707dab7754670ab1fd76e2ceb50b80865c43403940c4eaca0be2b6671771"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-nps-venture-hwp.pdf",
+      "sha256": "0539cac0bc17e2ab1cc43cf009daaf455f6399ae18389bb84b6b056ac7d36a5b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/nps-venture-hwp.pdf",
+      "sha256": "a4fec1cb477f3e563fc21aa6406b03145567a78cb42941b9499a57620cd61710"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-lh-campus-hwpx.docx",
+      "sha256": "4eb893e167e763ecd33809401d59c75d613caef232b88f1d26743a597725d4c3"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/lh-campus-hwpx.pdf",
+      "sha256": "cdfdfa202728628e6b97122081303e7f85d994dc6a2996835955207325859505"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/lh-campus-hwpx.json.gz",
+      "sha256": "b3b9ebe92f1c4da638ab24cfcd160c5a168dd546879e0f6d5a1778cfc330c8e2"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-lh-campus-hwpx.pdf",
+      "sha256": "780838858e02e455065e27189b1181a74fb14e49eb559adc27fb34fabbae49ce"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/lh-campus-hwpx.pdf",
+      "sha256": "7758466b5968baaeb7bb08ea821fd889225bddf174aeb7f1a30f47b7ce15a6a5"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-law-request-hwp.docx",
+      "sha256": "454dcf939a4ebddd1e9867e536189c28657301471284f07740eea5a61f669a78"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/law-request-hwp.pdf",
+      "sha256": "e9b43f66c8dd972848af6d0bc5d137f10b4ff88005c8ae373b7e2f3863e54db4"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/law-request-hwp.json.gz",
+      "sha256": "e427b3356beadd2d5bb983dca1d330011dd2d93983f2a342a1efff62079c9758"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-law-request-hwp.pdf",
+      "sha256": "d37da482d0fc767c320dfba25d123a32aaee2dc1ac2ff624630c647066fb8045"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/law-request-hwp.pdf",
+      "sha256": "c80e623bc7c47d9ec62a063eedf46f595d7b3207a9f21196370b8da2ec98ee14"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-law-register-hwp.docx",
+      "sha256": "367ca63cf548ab9b57abe34a018fc0b27b32fdf8ed322b5fa05bced452962877"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/law-register-hwp.pdf",
+      "sha256": "7083aa438d47d8d576cc5533bb35aead04400b5d7857280d82da1f22741fcafa"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/law-register-hwp.json.gz",
+      "sha256": "56ea1da2adf1038338fd68eafacaf0eabaea107532ee2b9c348e345b2850dfdc"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-law-register-hwp.pdf",
+      "sha256": "3098143c6216dc281ae8a0525a6825eab2e55dec0c3b258f59137eb26785c431"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/law-register-hwp.pdf",
+      "sha256": "77337c02469820c433c62978d3f62db9c35f355021392650eaea81ded5fbbd07"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-upload/WS-CD-20261107-VERIFIED2-law-operation-hwp.docx",
+      "sha256": "411399a9f59d0c3e67a802632d81c787655cd5d8ab3c4fe8ebdf6afc2981cb8c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/law-operation-hwp.pdf",
+      "sha256": "816ee21aa1b3af564df5f942d36b9a2f3e7232eef00bb6a0d2edd39aef93490b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-rows-final-remaining/law-operation-hwp.json.gz",
+      "sha256": "50d585c60f4f071681c063ae23955bda591b1b496e21e0ac88e44483af9f2772"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/../hwp-cd-10h-2026-11-07/word-verified-returned/WS-CD-20261107-VERIFIED2-law-operation-hwp.pdf",
+      "sha256": "4a3c8a5948bf0601fc619e5f0c5be7162dfb51b5a9bb7e465c55119fec781045"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/render-frozen-baseline/law-operation-hwp.pdf",
+      "sha256": "fb48e1a99f0c802e99869738abff257012fee09868452966e1f30e11a159b214"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/01-body-save1.docx",
+      "sha256": "62ada64566c149a86df0ec2f69904f2381119b91f94afb110d4d8aee0c1161cb"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/01-body-save2.docx",
+      "sha256": "aff17c9ccd200e8bd00d95cf87ca91cd003dcf89d5e526da71b47ec288bb7c13"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/02-tables-save1.docx",
+      "sha256": "a0db5392eaeebe896fed3ca139d8b52ab5dc772c043570bc7e81e092f9435dfe"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/02-tables-save2.docx",
+      "sha256": "7e05dbb402238ab8be4aa7fe265395507b9f9bdb209402e0866667ba9947f21c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/03-floating-save1.docx",
+      "sha256": "b0e236f60acf233e9f6854f88228cb0d81164ad32daa00e37f54e218003da73c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/03-floating-save2.docx",
+      "sha256": "eb753be1675ce791bc1712d6f75f142d9b57af23c4b45a1dabbee65205ccdd96"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/04-nested-save1.docx",
+      "sha256": "b03ddd77bd8f5df6dac6ee0c4d9c928119af917cd86b0843db72648fcc2c5efa"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/04-nested-save2.docx",
+      "sha256": "2aea11aa9d8861129a224ff4ec24a5a68060630a8f29c2f14c97d3f648721df7"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/05-styles-save1.docx",
+      "sha256": "522afe43d5971a8bb40f6cf85aae6d0e30b36b5af824f3a35dcb9893d8daf2c2"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/05-styles-save2.docx",
+      "sha256": "3f394c4c95a678ec4b2a32fddda0c94498efd63100b45a02cc782ad8dc32da38"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/06-long-body-save1.docx",
+      "sha256": "e87838fed276a04d608296b6b317a55e7c58ddcbb7fd6b9a200fa3304fa30b3f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/06-long-body-save2.docx",
+      "sha256": "a239af42766b1be763377ca7b4d3993111006a350cdc89190ece8d2104828a1f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/07-characters-save1.docx",
+      "sha256": "6a9ddd06e79181afa9109e208ed651c906146b0f561eeca251fb1179afb14e50"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/07-characters-save2.docx",
+      "sha256": "2950ba09457d753041f49c5ee70e2f6c093a4b24d1d7ff8f30b3c9fc7d82e823"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/08-small-table-save1.docx",
+      "sha256": "5d989170c86b9e92a70920d380c95866039eda6f54d488ea8ba3ba8001036da0"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/08-small-table-save2.docx",
+      "sha256": "ec1f61f385f23b6ca92d82b9a34d4e0b5ad5b0c4df8b40c580417c5fd6ef7ac0"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/09-theme-save1.docx",
+      "sha256": "a5ea1517c0bcdd055cf78a3a18fe49d234a8967a4269e5ab6c041d1746409caf"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/09-theme-save2.docx",
+      "sha256": "a02d5eaa3456715d056671104dd8970132856539cba8eeed02ff7c31107b1729"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/10-references-save1.docx",
+      "sha256": "b8c354067a9549d77ad2ac044c5910f7bd25f2017622412c119fc0a1f4fcfaa9"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-word-final/10-references-save2.docx",
+      "sha256": "bcbabddc0e0ae06b5fa7a3e5363581d9c579f68f95241c197d89d29a981211bc"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/01-employment-contract-save1.docx",
+      "sha256": "846c5dca64b95a46435cef8e1739995a5f02d1bf26e05fb5d81d7e2bd4baaf31"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/01-employment-contract-save2.docx",
+      "sha256": "248efa7b1e11ed487b3f31984f3c22b2051a11978c44ce03b02534b55b819d7c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/02-work-rules-save1.docx",
+      "sha256": "86d1d84f571235e8fcffb4f57fe2fbcf275397abb2df6de0a0b607a6f73cbb7d"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/02-work-rules-save2.docx",
+      "sha256": "8e8a33cb061c609f8b10334bba493b30994e2097211277dac8f3d8a738b369a0"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/03-health-table-save1.docx",
+      "sha256": "4350e212dc8e06aec96483cbfa4941c3ab36b11b857f7ef19da5d9e108e91d32"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/03-health-table-save2.docx",
+      "sha256": "463b31f2f41eb81c5fae01cf7da141047530d89988e7dfd085d3fdb11b353e96"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/04-language-plan-save1.docx",
+      "sha256": "a1eee9fa4bff01f61c6a9dbbd4df480079c695e5c785706064d5ebf395a807bb"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/04-language-plan-save2.docx",
+      "sha256": "8fcc5b0a3e94304e793f250659ef68f2e996122bcc4634d01d8263668cd2b287"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/05-return-form-save1.docx",
+      "sha256": "e5c2b5570c30fec1c705a6cda6df340984ea999de557d7c0b41fc3564a4584f8"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/05-return-form-save2.docx",
+      "sha256": "43abb4e99546220768d3786086c318e40613807d84c2fdf45d44ca277ceb8f68"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/06-mixed-document-save1.docx",
+      "sha256": "2f32337e42b0c4b58ca7ae783979e2cbecc9b943ea8fabaa8d29c2eba9a67062"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/06-mixed-document-save2.docx",
+      "sha256": "9e24cf1ec72929bb907ad1922023b8eba373a48e3410307be75c1246890b371f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/07-english-exam-save1.docx",
+      "sha256": "5a02e8b57c987e570a97ffa048c2589fb1af9bc9c4307715c1667b9035a8dd15"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/07-english-exam-save2.docx",
+      "sha256": "a90a023a34972dec15a4d92eb18e0b6cdda821597483d2556c1f69c0068bce3f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/08-math-exam-save1.docx",
+      "sha256": "2ce63c65815b5de2998ca8eef8bc7bf6ea51327cf2aff2a5d7ea6861dd34e1b1"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/08-math-exam-save2.docx",
+      "sha256": "4e5f1927f7e8cae24b3e7d68dbfbadfc25a5f052767989c7809826c2f22e8d25"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/09-korean-exam-save1.docx",
+      "sha256": "1e8a95d69f9a274819eff6d3aa79d0a018f3a71260e2e4601cc6ebb4d4f1f8f5"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/09-korean-exam-save2.docx",
+      "sha256": "8c156667f1695899ab3ef17670412585f8761c32d8582a0a200fc24dabde71b7"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/10-lh-plan-save1.docx",
+      "sha256": "837326bcf49a55d78b0966565cdcded9ddc38c3e48553712a0dc9309b7df7b1e"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/roundtrip-legacy-final/10-lh-plan-save2.docx",
+      "sha256": "c17756fbdf9134c893b4bb16233e74ffe756f25cdb2500efa1514c8d7df1df83"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-95480-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "5bab18fc2c3da3879f7b764ccf02bfb0b682c1d9f8dc1660c81e9bbdbbf3fd06"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-95480-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "680897f6589622732458d97d3cfee7cbea66e6a65597c59a30c45e4d6d8c0d84"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-95480-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "e54b0bbf5cf26ea6a2b90f181fd98f5a3d35923394d30f5d7fe0d197cc15954b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-d4e66-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "05d295dfe4d20dbe7784f21e59d1ddd4adeb098fbcbca10a5476e5d865c03af5"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-d4e66-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "75376af0d2cf72086d2a0d1e6805ebc30aa84ff189501e915b349b815c87b73b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-d4e66-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "2bab20200a7161e52ac0432dfa5b2569448d8833d62024296e0109d04d8927ce"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-d4d47--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "fbdad82ab65af28a23da156314a02a5c389d557e90c9404836c349798e4ad7d8"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-d4d47--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "05bceed54180ce48dffde7f7a46a5b7f045e26acb32097684e572d1433b90b68"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-69b9e-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "1956b4b7b1ebf04552241b9da9c91e46a3f89006e936006189595e2162c1150f"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-69b9e-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "4ddee0745416dc9c03f68047419a1c1fdcbf1ab78c2eef6f9f7384a2f437b36b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-69b9e-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "6b33c83d69018c6a7054025437b6fad4f82eea8eb7e8a83086f9ddefad0910ed"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-d508b--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "0dca9df813fc784baf38125b8c1237a7fa64ef6c654afd669d2b32f430f85671"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-d508b--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "1bb2180dff6e2bd82705f782c016a8594ad022f44a6fbf2bc32ebedef46473b0"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-ed255--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "d3d8eaebe73b004e8e79a2699d735c6bf07bbbd9de8379981d5a6d5ded9c6534"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-ed255--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "4fc42d59a4a4e4b09e041cf770eba9eae4c48013e4de0d254cf0c126e00d5fbc"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-3c312-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "c83ed1e845580c32392dc45e5b0efad7c10d23907de954e78818c7d04ab148c8"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-3c312-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "6f1619bde4fb3e623516a702c7895cc7a1cb982304c8ae2d3677610bb94703f3"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-3c312-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "520aceee124c2066c61a74b5ccfee6d49da68dcfa13aa52f5825df09ed4794aa"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-2ccde--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "5c1d6ed51ab6a2ead85d1e013c6250398482b1bce281a616736a6cb1a3ab1835"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-2ccde--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "6092388e27da0148e482856459a0e1a7fe1c5e0d77d360a6b7a5a9c2046bef9e"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-58345--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "2dee20084d07894d11b081069609903c6ee20b032d3540918e7c3db713b81bb0"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/word-page-bottom-spacing-W-58345--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "ee864e9199831fceffde4e0d8da4f3a07a9eca10ef9c612f7c8675bf461cfa2e"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-cab64-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "65bbdf396b789a245a6eeee74bd731a735f09cc929b7fb6787dfbb84fea5abf2"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-cab64-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "563f2521e0f83e10dc3ca079e18fca8916c28a3e6d8833f20a7eb55ff26c3156"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-cab64-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "45df4270badaadb9647b5c36ddd35bfa3f98a05c00d0ec3263170cabfb07ea10"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-b3058-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "89ff85a7f8474cc8a81bbdfc40ec4cefeb9a2710f2b340f71618a4cdfac6c5ce"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-b3058-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "0298bf8c2b699b93650f8812f5f41ed03b107cbd1a1fa8e59079fd521640cd60"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-b3058-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "b944391f41ecf6cb62f5e58250825cef94c01ab2d4e25e67b4e677759f6a61a1"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-ce5f2-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "abd6c377a703a99a109151904b755cdb484747d4c5a7aa996d10a5bd571cab31"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-ce5f2-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "d86b61062df3c84b85bc1ec3847ac5e7cde755795596f374c80a6c5db9ef461c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/dpr2-test-results/oversized-word-rows-oversi-ce5f2-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "b1c480987a2e42140488edfd56b5acbc702a6a54705b11201a76661b6e8167ce"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/01-body.docx",
+      "sha256": "5bd1e50381c1c1d18b7855789bf579662cbc7e171fa117781d9c4a67967e75a8"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/01-body.pdf",
+      "sha256": "ebaa0ac3a164f56fe7f34f7e7667ba5ccbb48548abb8398bf8addd7b175994ad"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/01-body.pdf",
+      "sha256": "0c7250080515131c70f273413e05dea6362a130171f40b11e2ea9fb35851dfa8"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/02-tables.docx",
+      "sha256": "f724ffb96b922a9d72ef56f175cb09d8de806ffaee7cfa58ed3e9180f3578ed3"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/02-tables.pdf",
+      "sha256": "2539fd1e887b4d76c767e6fbea00bda75209397ac6c40d3b80d21bbc91ab088e"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/02-tables.pdf",
+      "sha256": "95158d9793417425be80ba55d400e8155dbabeb64f808ef6d6e722def5c36f7c"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/03-floating.docx",
+      "sha256": "c0bed46c4da5e88f8809e1ef8c4fa0c3d0e3f07094e1429fa39697586195d8c2"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/03-floating.pdf",
+      "sha256": "49a0ea69c219b876c19fd62f9438f63522fe33894dfd2b2e1b3d2921fc1f955b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/03-floating.pdf",
+      "sha256": "76183140aafc82621a483e25c567947bd7e670dfbbd9789e21e80b1160612937"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/04-nested.docx",
+      "sha256": "15fa3e772dbb7b5a12179dff85b40a4568b55ab317d4dbac789e15af71caa3d2"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/04-nested.pdf",
+      "sha256": "79c2edcbb73c5140cf9f5cbd39deca42125c5813252b2e29f66f0f4157c5cf2b"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/04-nested.pdf",
+      "sha256": "2df0799f1d0a23a9fcbe199a0ee449bbbeb4a5c24b92793b7ebc592e452fb956"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/05-styles.docx",
+      "sha256": "beb0875c1247b4171f1eca5ea7e850aece6e326cb373867a5e0550da5c6f8ba7"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/05-styles.pdf",
+      "sha256": "8db296b7cd0a9e92372bfe81c53f82260462d39e40f6802bdba324f58e5da027"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/05-styles.pdf",
+      "sha256": "fd13cb7f8cd3d426786da97ca8a9816c641b2287d2de6776a27abb12980687cf"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/06-long-body.docx",
+      "sha256": "f28bea7272ec9438d4d688e555a2912b655bb50d0e5a63ffe54f82c4d460651a"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/06-long-body.pdf",
+      "sha256": "8d589768a26f153b3ed00bd8a07800141802e56b0e98ec8f54d9b8801cb6cf14"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/06-long-body.pdf",
+      "sha256": "79893666120b6dbb97463f3202e28f71b39060c0cc13f30c9a807a365effc146"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/07-characters.docx",
+      "sha256": "b76a0d8042a2b1bfd828e3dc7951caaa159ce40f43df10a72d75d07b42e6b699"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/07-characters.pdf",
+      "sha256": "fe436ff1c8aa700294081649be146d3c7a69ec87369db83a17473bd3be32d061"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/07-characters.pdf",
+      "sha256": "d9ffc11fa9b62a3e9f7794dc4ea64a5b51f9d2d0b6e343f40197252aea27fbb0"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/08-small-table.docx",
+      "sha256": "7bd01eb80a18462c1d14ee17273085285db566c448948fac3acc816b7cf46c2c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/08-small-table.pdf",
+      "sha256": "62698c1747e42193a827bf7b9e81b590793f1ca87eeefe26cd008a7434afb50c"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/08-small-table.pdf",
+      "sha256": "723d6663b8fb5f7aa6f4906a2a950e4753986f31ede6b038922d904ffc3ce917"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/09-theme.docx",
+      "sha256": "596b0d7ff68f3dc6b11722be53f1cf410162860a3fc2c45d27c436a464c1ef32"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/09-theme.pdf",
+      "sha256": "7e5861aaa5968622ae8ed67fcdf6b682c19a236b1e17d38e06b6ad3ce4643b91"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/09-theme.pdf",
+      "sha256": "3b29a63101f1cf57989dd646f6d59e81a8ed57a9fd3d3f1491acc94c8894dede"
+    },
+    {
+      "path": "analysis/docx-word-layout-2026-10-31/inputs/10-references.docx",
+      "sha256": "6ae6688971eac742a198f6a66433770105d3713b0e4c220ce30955394a3ea594"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-baseline/10-references.pdf",
+      "sha256": "fd858438afcb4ffe56f8695bfce215ea5f6aff13c0cea5d6ee1d8a00002bb383"
+    },
+    {
+      "path": "analysis/word-layout-4h-2026-11-10/native-final2/10-references.pdf",
+      "sha256": "8f58137c4a348ac31d2353803a3dbf0adafb93e8067d02c362933cdf36e1b7f4"
+    }
+  ]
+}

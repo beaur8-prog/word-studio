@@ -9,7 +9,7 @@ extract,locate,norm=[ns[k] for k in ['extract','locate','norm']]
 manifest=json.loads((P/'final-word-studio-comparison.json').read_text())
 W='{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
 ids=os.environ.get('LAYOUT_IDS','mods-household-1,mss-funding-2026-0').split(',')
-stage=os.environ.get('LAYOUT_STAGE','baseline')
+stage=os.environ.get('LAYOUT_STAGE','frozen-baseline')
 for item in manifest['rows']:
  if item['id'] not in ids: continue
  file=P/item['inputFile']; assert hashlib.sha256(file.read_bytes()).hexdigest()==item['inputSHA256']

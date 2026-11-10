@@ -1,0 +1,471 @@
+{
+  "beforeBytes": 625846926,
+  "afterBytes": 337157405,
+  "freedBytes": 288689521,
+  "deleted": [
+    {
+      "path": "sdk-tool",
+      "bytes": 110969653,
+      "reason": "temporary SDK tool/copies or superseded actual Word10 stage; source exports, manifests and final remain"
+    },
+    {
+      "path": "sdk-inputs",
+      "bytes": 11815511,
+      "reason": "temporary SDK tool/copies or superseded actual Word10 stage; source exports, manifests and final remain"
+    },
+    {
+      "path": "native-candidate",
+      "bytes": 3384626,
+      "reason": "temporary SDK tool/copies or superseded actual Word10 stage; source exports, manifests and final remain"
+    },
+    {
+      "path": "native-final",
+      "bytes": 3384621,
+      "reason": "temporary SDK tool/copies or superseded actual Word10 stage; source exports, manifests and final remain"
+    },
+    {
+      "path": "render-full-line/mois-2025-0.pdf",
+      "bytes": 5045643,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-full-line/mois-2025-0.json.gz",
+      "bytes": 36989,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-full-line/mods-household-1.json.gz",
+      "bytes": 137869,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-full-line/mods-household-1.pdf",
+      "bytes": 7373440,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-full-line/mss-funding-2026-0.json.gz",
+      "bytes": 101193,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-full-line/mss-funding-2026-0.pdf",
+      "bytes": 2583046,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-baseline/mois-2025-0.pdf",
+      "bytes": 5044773,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-baseline/mois-2025-0.json.gz",
+      "bytes": 36959,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-baseline/mods-household-1.json.gz",
+      "bytes": 137865,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-baseline/mods-household-1.pdf",
+      "bytes": 7373188,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-baseline/mss-funding-2026-0.json.gz",
+      "bytes": 101154,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-baseline/mss-funding-2026-0.pdf",
+      "bytes": 2581579,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-oversized-word-row/mois-2025-0.pdf",
+      "bytes": 5045643,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-oversized-word-row/mois-2025-0.json.gz",
+      "bytes": 39040,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-oversized-word-row/mods-household-1.json.gz",
+      "bytes": 158248,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-oversized-word-row/mods-household-1.pdf",
+      "bytes": 7158113,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-oversized-word-row/mss-funding-2026-0.json.gz",
+      "bytes": 116561,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-oversized-word-row/mss-funding-2026-0.pdf",
+      "bytes": 2583039,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate-retry/mois-budget-0.json.gz",
+      "bytes": 251168,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate-retry/mois-budget-0.pdf",
+      "bytes": 5610311,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate-retry/moel-manual-1.pdf",
+      "bytes": 6704644,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate-retry/moel-manual-1.json.gz",
+      "bytes": 167987,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum/mois-2025-0.pdf",
+      "bytes": 5045643,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum/mois-2025-0.json.gz",
+      "bytes": 36989,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum/mods-household-1.json.gz",
+      "bytes": 137869,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum/mods-household-1.pdf",
+      "bytes": 7373440,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum/mss-funding-2026-0.json.gz",
+      "bytes": 101193,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum/mss-funding-2026-0.pdf",
+      "bytes": 2583046,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum-with-rule/mois-2025-0.pdf",
+      "bytes": 5045643,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum-with-rule/mois-2025-0.json.gz",
+      "bytes": 36989,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum-with-rule/mods-household-1.json.gz",
+      "bytes": 137887,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum-with-rule/mods-household-1.pdf",
+      "bytes": 7373524,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum-with-rule/mss-funding-2026-0.json.gz",
+      "bytes": 101215,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-word-row-minimum-with-rule/mss-funding-2026-0.pdf",
+      "bytes": 2584084,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/daejeon-safety-hwp.pdf",
+      "bytes": 119513,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mfds-revenue-hwpx.pdf",
+      "bytes": 2241951,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/lh-campus-hwpx.json.gz",
+      "bytes": 36217,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/nhis-postpone-1.json.gz",
+      "bytes": 1412,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mois-sop-3.pdf",
+      "bytes": 3270257,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/moel-rfp-1.pdf",
+      "bytes": 4412094,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/law-register-hwp.json.gz",
+      "bytes": 3522,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/fsc-press-4.json.gz",
+      "bytes": 3795,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/nhis-overcharge-0.pdf",
+      "bytes": 376246,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mois-2025-0.pdf",
+      "bytes": 5045643,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/law-request-hwp.json.gz",
+      "bytes": 3390,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/moel-rfp-0.pdf",
+      "bytes": 2323839,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/fsc-press-1.pdf",
+      "bytes": 1510910,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mofe-budget-hwpx.json.gz",
+      "bytes": 31905,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/fsc-press-10.json.gz",
+      "bytes": 2397,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mois-2025-0.json.gz",
+      "bytes": 36989,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/gg-facility-hwp.pdf",
+      "bytes": 491297,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/fsc-press-7.pdf",
+      "bytes": 4864574,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/daejeon-safety-hwp.json.gz",
+      "bytes": 1201,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/fsc-press-7.json.gz",
+      "bytes": 27914,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mofe-budget-hwpx.pdf",
+      "bytes": 1887382,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/motie-budget-hwp.pdf",
+      "bytes": 1753606,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/fsc-press-4.pdf",
+      "bytes": 1570680,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/moel-rfp-1.json.gz",
+      "bytes": 51792,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/gg-facility-hwp.json.gz",
+      "bytes": 7259,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/nps-venture-hwp.pdf",
+      "bytes": 319732,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/motie-budget-hwp.json.gz",
+      "bytes": 15073,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/lh-campus-hwpx.pdf",
+      "bytes": 1843581,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/law-register-hwp.pdf",
+      "bytes": 169761,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mss-funding-2026-2.pdf",
+      "bytes": 4174567,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/nhis-postpone-1.pdf",
+      "bytes": 84976,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mfds-revenue-hwpx.json.gz",
+      "bytes": 46334,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mss-funding-2026-0.json.gz",
+      "bytes": 101193,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/law-request-hwp.pdf",
+      "bytes": 230812,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/lh-smartcity-hwpx.pdf",
+      "bytes": 6047816,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/law-operation-hwp.json.gz",
+      "bytes": 5452,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/lh-smartcity-hwpx.json.gz",
+      "bytes": 4112,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/moel-rfp-0.json.gz",
+      "bytes": 17502,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/motie-ax-1.pdf",
+      "bytes": 972553,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mss-funding-2026-0.pdf",
+      "bytes": 2583046,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/motie-ax-0.pdf",
+      "bytes": 1549439,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/nps-fund-hwp.pdf",
+      "bytes": 2089105,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/nps-venture-hwp.json.gz",
+      "bytes": 3016,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mss-funding-2026-2.json.gz",
+      "bytes": 84540,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/fsc-press-1.json.gz",
+      "bytes": 6019,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/motie-ax-0.json.gz",
+      "bytes": 21635,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/mois-sop-3.json.gz",
+      "bytes": 197508,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/motie-ax-1.json.gz",
+      "bytes": 5949,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/nps-fund-hwp.json.gz",
+      "bytes": 22234,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/law-operation-hwp.pdf",
+      "bytes": 207590,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/nhis-overcharge-0.json.gz",
+      "bytes": 4868,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "render-candidate/fsc-press-10.pdf",
+      "bytes": 846724,
+      "reason": "superseded experiment; results/progress retained; full frozen baseline and final29 remain"
+    },
+    {
+      "path": "desktop-test-results",
+      "bytes": 18616134,
+      "reason": "earlier full suite outputs; failure proof copied, final full suite has separate outputs"
+    }
+  ],
+  "preserved": [
+    "frozen baseline29 and final29 PDFs",
+    "original external source/canonical data",
+    "native Word10 baseline/final2",
+    "final government3 actual app",
+    "final Word/HWP two-save files and new SDK fixture sources",
+    "SDK result logs and hashed manifest",
+    "current minimum-row experiment and failure evidence"
+  ]
+}

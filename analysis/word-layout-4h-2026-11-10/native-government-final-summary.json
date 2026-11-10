@@ -1,0 +1,53 @@
+{
+  "method": "Actual isolated Electron. Atomic paste/undo/redo/undo, exact editable model restored, actual save and print PDF. Source document profile pages are captured values; glyph correspondence was deliberately not measured in this pass.",
+  "rows": [
+    {
+      "id": "mods-household-1",
+      "pages": {
+        "editor": 92,
+        "print": 77
+      },
+      "editing": [
+        {
+          "originalParagraph": "가계금융복지조사",
+          "undoRestoredExactModel": true,
+          "redoApplied": true,
+          "finalModelUnchanged": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "pages": {
+        "editor": 53,
+        "print": 52
+      },
+      "editing": [
+        {
+          "originalParagraph": "중소벤처기업부 공고 제2025-649호",
+          "undoRestoredExactModel": true,
+          "redoApplied": true,
+          "finalModelUnchanged": true
+        }
+      ],
+      "errors": []
+    },
+    {
+      "id": "mois-2025-0",
+      "pages": {
+        "editor": 24,
+        "print": 23
+      },
+      "editing": [
+        {
+          "originalParagraph": "2025년 주요업무 추진계획",
+          "undoRestoredExactModel": true,
+          "redoApplied": true,
+          "finalModelUnchanged": true
+        }
+      ],
+      "errors": []
+    }
+  ]
+}

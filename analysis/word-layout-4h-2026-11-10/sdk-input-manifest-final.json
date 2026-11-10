@@ -1,0 +1,360 @@
+{
+  "expected": 71,
+  "files": [
+    {
+      "file": "hwp-gov-roundtrip-word-final-01-body-1.docx",
+      "source": "roundtrip-word-final/01-body-save1.docx",
+      "sha256": "62ada64566c149a86df0ec2f69904f2381119b91f94afb110d4d8aee0c1161cb"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-01-body-2.docx",
+      "source": "roundtrip-word-final/01-body-save2.docx",
+      "sha256": "aff17c9ccd200e8bd00d95cf87ca91cd003dcf89d5e526da71b47ec288bb7c13"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-02-tables-1.docx",
+      "source": "roundtrip-word-final/02-tables-save1.docx",
+      "sha256": "a0db5392eaeebe896fed3ca139d8b52ab5dc772c043570bc7e81e092f9435dfe"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-02-tables-2.docx",
+      "source": "roundtrip-word-final/02-tables-save2.docx",
+      "sha256": "7e05dbb402238ab8be4aa7fe265395507b9f9bdb209402e0866667ba9947f21c"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-03-floating-1.docx",
+      "source": "roundtrip-word-final/03-floating-save1.docx",
+      "sha256": "b0e236f60acf233e9f6854f88228cb0d81164ad32daa00e37f54e218003da73c"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-03-floating-2.docx",
+      "source": "roundtrip-word-final/03-floating-save2.docx",
+      "sha256": "eb753be1675ce791bc1712d6f75f142d9b57af23c4b45a1dabbee65205ccdd96"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-04-nested-1.docx",
+      "source": "roundtrip-word-final/04-nested-save1.docx",
+      "sha256": "b03ddd77bd8f5df6dac6ee0c4d9c928119af917cd86b0843db72648fcc2c5efa"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-04-nested-2.docx",
+      "source": "roundtrip-word-final/04-nested-save2.docx",
+      "sha256": "2aea11aa9d8861129a224ff4ec24a5a68060630a8f29c2f14c97d3f648721df7"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-05-styles-1.docx",
+      "source": "roundtrip-word-final/05-styles-save1.docx",
+      "sha256": "522afe43d5971a8bb40f6cf85aae6d0e30b36b5af824f3a35dcb9893d8daf2c2"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-05-styles-2.docx",
+      "source": "roundtrip-word-final/05-styles-save2.docx",
+      "sha256": "3f394c4c95a678ec4b2a32fddda0c94498efd63100b45a02cc782ad8dc32da38"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-06-long-body-1.docx",
+      "source": "roundtrip-word-final/06-long-body-save1.docx",
+      "sha256": "e87838fed276a04d608296b6b317a55e7c58ddcbb7fd6b9a200fa3304fa30b3f"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-06-long-body-2.docx",
+      "source": "roundtrip-word-final/06-long-body-save2.docx",
+      "sha256": "a239af42766b1be763377ca7b4d3993111006a350cdc89190ece8d2104828a1f"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-07-characters-1.docx",
+      "source": "roundtrip-word-final/07-characters-save1.docx",
+      "sha256": "6a9ddd06e79181afa9109e208ed651c906146b0f561eeca251fb1179afb14e50"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-07-characters-2.docx",
+      "source": "roundtrip-word-final/07-characters-save2.docx",
+      "sha256": "2950ba09457d753041f49c5ee70e2f6c093a4b24d1d7ff8f30b3c9fc7d82e823"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-08-small-table-1.docx",
+      "source": "roundtrip-word-final/08-small-table-save1.docx",
+      "sha256": "5d989170c86b9e92a70920d380c95866039eda6f54d488ea8ba3ba8001036da0"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-08-small-table-2.docx",
+      "source": "roundtrip-word-final/08-small-table-save2.docx",
+      "sha256": "ec1f61f385f23b6ca92d82b9a34d4e0b5ad5b0c4df8b40c580417c5fd6ef7ac0"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-09-theme-1.docx",
+      "source": "roundtrip-word-final/09-theme-save1.docx",
+      "sha256": "a5ea1517c0bcdd055cf78a3a18fe49d234a8967a4269e5ab6c041d1746409caf"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-09-theme-2.docx",
+      "source": "roundtrip-word-final/09-theme-save2.docx",
+      "sha256": "a02d5eaa3456715d056671104dd8970132856539cba8eeed02ff7c31107b1729"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-10-references-1.docx",
+      "source": "roundtrip-word-final/10-references-save1.docx",
+      "sha256": "b8c354067a9549d77ad2ac044c5910f7bd25f2017622412c119fc0a1f4fcfaa9"
+    },
+    {
+      "file": "hwp-gov-roundtrip-word-final-10-references-2.docx",
+      "source": "roundtrip-word-final/10-references-save2.docx",
+      "sha256": "bcbabddc0e0ae06b5fa7a3e5363581d9c579f68f95241c197d89d29a981211bc"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-01-employment-contract-1.docx",
+      "source": "roundtrip-legacy-final/01-employment-contract-save1.docx",
+      "sha256": "846c5dca64b95a46435cef8e1739995a5f02d1bf26e05fb5d81d7e2bd4baaf31"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-01-employment-contract-2.docx",
+      "source": "roundtrip-legacy-final/01-employment-contract-save2.docx",
+      "sha256": "248efa7b1e11ed487b3f31984f3c22b2051a11978c44ce03b02534b55b819d7c"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-02-work-rules-1.docx",
+      "source": "roundtrip-legacy-final/02-work-rules-save1.docx",
+      "sha256": "86d1d84f571235e8fcffb4f57fe2fbcf275397abb2df6de0a0b607a6f73cbb7d"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-02-work-rules-2.docx",
+      "source": "roundtrip-legacy-final/02-work-rules-save2.docx",
+      "sha256": "8e8a33cb061c609f8b10334bba493b30994e2097211277dac8f3d8a738b369a0"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-03-health-table-1.docx",
+      "source": "roundtrip-legacy-final/03-health-table-save1.docx",
+      "sha256": "4350e212dc8e06aec96483cbfa4941c3ab36b11b857f7ef19da5d9e108e91d32"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-03-health-table-2.docx",
+      "source": "roundtrip-legacy-final/03-health-table-save2.docx",
+      "sha256": "463b31f2f41eb81c5fae01cf7da141047530d89988e7dfd085d3fdb11b353e96"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-04-language-plan-1.docx",
+      "source": "roundtrip-legacy-final/04-language-plan-save1.docx",
+      "sha256": "a1eee9fa4bff01f61c6a9dbbd4df480079c695e5c785706064d5ebf395a807bb"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-04-language-plan-2.docx",
+      "source": "roundtrip-legacy-final/04-language-plan-save2.docx",
+      "sha256": "8fcc5b0a3e94304e793f250659ef68f2e996122bcc4634d01d8263668cd2b287"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-05-return-form-1.docx",
+      "source": "roundtrip-legacy-final/05-return-form-save1.docx",
+      "sha256": "e5c2b5570c30fec1c705a6cda6df340984ea999de557d7c0b41fc3564a4584f8"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-05-return-form-2.docx",
+      "source": "roundtrip-legacy-final/05-return-form-save2.docx",
+      "sha256": "43abb4e99546220768d3786086c318e40613807d84c2fdf45d44ca277ceb8f68"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-06-mixed-document-1.docx",
+      "source": "roundtrip-legacy-final/06-mixed-document-save1.docx",
+      "sha256": "2f32337e42b0c4b58ca7ae783979e2cbecc9b943ea8fabaa8d29c2eba9a67062"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-06-mixed-document-2.docx",
+      "source": "roundtrip-legacy-final/06-mixed-document-save2.docx",
+      "sha256": "9e24cf1ec72929bb907ad1922023b8eba373a48e3410307be75c1246890b371f"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-07-english-exam-1.docx",
+      "source": "roundtrip-legacy-final/07-english-exam-save1.docx",
+      "sha256": "5a02e8b57c987e570a97ffa048c2589fb1af9bc9c4307715c1667b9035a8dd15"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-07-english-exam-2.docx",
+      "source": "roundtrip-legacy-final/07-english-exam-save2.docx",
+      "sha256": "a90a023a34972dec15a4d92eb18e0b6cdda821597483d2556c1f69c0068bce3f"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-08-math-exam-1.docx",
+      "source": "roundtrip-legacy-final/08-math-exam-save1.docx",
+      "sha256": "2ce63c65815b5de2998ca8eef8bc7bf6ea51327cf2aff2a5d7ea6861dd34e1b1"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-08-math-exam-2.docx",
+      "source": "roundtrip-legacy-final/08-math-exam-save2.docx",
+      "sha256": "4e5f1927f7e8cae24b3e7d68dbfbadfc25a5f052767989c7809826c2f22e8d25"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-09-korean-exam-1.docx",
+      "source": "roundtrip-legacy-final/09-korean-exam-save1.docx",
+      "sha256": "1e8a95d69f9a274819eff6d3aa79d0a018f3a71260e2e4601cc6ebb4d4f1f8f5"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-09-korean-exam-2.docx",
+      "source": "roundtrip-legacy-final/09-korean-exam-save2.docx",
+      "sha256": "8c156667f1695899ab3ef17670412585f8761c32d8582a0a200fc24dabde71b7"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-10-lh-plan-1.docx",
+      "source": "roundtrip-legacy-final/10-lh-plan-save1.docx",
+      "sha256": "837326bcf49a55d78b0966565cdcded9ddc38c3e48553712a0dc9309b7df7b1e"
+    },
+    {
+      "file": "hwp-gov-roundtrip-legacy-final-10-lh-plan-2.docx",
+      "source": "roundtrip-legacy-final/10-lh-plan-save2.docx",
+      "sha256": "c17756fbdf9134c893b4bb16233e74ffe756f25cdb2500efa1514c8d7df1df83"
+    },
+    {
+      "file": "textbox-save-40-textbox-save-oversized-2.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-95480-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "5bab18fc2c3da3879f7b764ccf02bfb0b682c1d9f8dc1660c81e9bbdbbf3fd06"
+    },
+    {
+      "file": "textbox-save-41-textbox-save-input-oversized.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-95480-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "680897f6589622732458d97d3cfee7cbea66e6a65597c59a30c45e4d6d8c0d84"
+    },
+    {
+      "file": "textbox-save-42-textbox-save-oversized-1.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-95480-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "e54b0bbf5cf26ea6a2b90f181fd98f5a3d35923394d30f5d7fe0d197cc15954b"
+    },
+    {
+      "file": "textbox-save-43-textbox-save-oversized-2.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-d4e66-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "05d295dfe4d20dbe7784f21e59d1ddd4adeb098fbcbca10a5476e5d865c03af5"
+    },
+    {
+      "file": "textbox-save-44-textbox-save-input-oversized.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-d4e66-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "75376af0d2cf72086d2a0d1e6805ebc30aa84ff189501e915b349b815c87b73b"
+    },
+    {
+      "file": "textbox-save-45-textbox-save-oversized-1.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-d4e66-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "2bab20200a7161e52ac0432dfa5b2569448d8833d62024296e0109d04d8927ce"
+    },
+    {
+      "file": "textbox-save-46-textbox-save-bottom-spacing-1.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-d4d47--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "fbdad82ab65af28a23da156314a02a5c389d557e90c9404836c349798e4ad7d8"
+    },
+    {
+      "file": "textbox-save-47-textbox-save-bottom-spacing-2.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-d4d47--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "05bceed54180ce48dffde7f7a46a5b7f045e26acb32097684e572d1433b90b68"
+    },
+    {
+      "file": "textbox-save-48-textbox-save-oversized-2.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-69b9e-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "1956b4b7b1ebf04552241b9da9c91e46a3f89006e936006189595e2162c1150f"
+    },
+    {
+      "file": "textbox-save-49-textbox-save-input-oversized.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-69b9e-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "4ddee0745416dc9c03f68047419a1c1fdcbf1ab78c2eef6f9f7384a2f437b36b"
+    },
+    {
+      "file": "textbox-save-50-textbox-save-oversized-1.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-69b9e-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "6b33c83d69018c6a7054025437b6fad4f82eea8eb7e8a83086f9ddefad0910ed"
+    },
+    {
+      "file": "textbox-save-51-textbox-save-bottom-spacing-1.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-d508b--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "0dca9df813fc784baf38125b8c1237a7fa64ef6c654afd669d2b32f430f85671"
+    },
+    {
+      "file": "textbox-save-52-textbox-save-bottom-spacing-2.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-d508b--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "1bb2180dff6e2bd82705f782c016a8594ad022f44a6fbf2bc32ebedef46473b0"
+    },
+    {
+      "file": "textbox-save-53-textbox-save-bottom-spacing-1.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-ed255--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "d3d8eaebe73b004e8e79a2699d735c6bf07bbbd9de8379981d5a6d5ded9c6534"
+    },
+    {
+      "file": "textbox-save-54-textbox-save-bottom-spacing-2.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-ed255--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "4fc42d59a4a4e4b09e041cf770eba9eae4c48013e4de0d254cf0c126e00d5fbc"
+    },
+    {
+      "file": "textbox-save-55-textbox-save-oversized-2.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-3c312-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "c83ed1e845580c32392dc45e5b0efad7c10d23907de954e78818c7d04ab148c8"
+    },
+    {
+      "file": "textbox-save-56-textbox-save-input-oversized.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-3c312-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "6f1619bde4fb3e623516a702c7895cc7a1cb982304c8ae2d3677610bb94703f3"
+    },
+    {
+      "file": "textbox-save-57-textbox-save-oversized-1.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-3c312-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "520aceee124c2066c61a74b5ccfee6d49da68dcfa13aa52f5825df09ed4794aa"
+    },
+    {
+      "file": "textbox-save-58-textbox-save-bottom-spacing-1.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-2ccde--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "5c1d6ed51ab6a2ead85d1e013c6250398482b1bce281a616736a6cb1a3ab1835"
+    },
+    {
+      "file": "textbox-save-59-textbox-save-bottom-spacing-2.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-2ccde--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "6092388e27da0148e482856459a0e1a7fe1c5e0d77d360a6b7a5a9c2046bef9e"
+    },
+    {
+      "file": "textbox-save-60-textbox-save-bottom-spacing-1.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-58345--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-1.docx",
+      "sha256": "2dee20084d07894d11b081069609903c6ee20b032d3540918e7c3db713b81bb0"
+    },
+    {
+      "file": "textbox-save-61-textbox-save-bottom-spacing-2.docx",
+      "source": "dpr2-test-results/word-page-bottom-spacing-W-58345--editing-and-two-DOCX-saves/textbox-save-bottom-spacing-2.docx",
+      "sha256": "ee864e9199831fceffde4e0d8da4f3a07a9eca10ef9c612f7c8675bf461cfa2e"
+    },
+    {
+      "file": "textbox-save-62-textbox-save-oversized-2.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-cab64-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "65bbdf396b789a245a6eeee74bd731a735f09cc929b7fb6787dfbb84fea5abf2"
+    },
+    {
+      "file": "textbox-save-63-textbox-save-input-oversized.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-cab64-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "563f2521e0f83e10dc3ca079e18fca8916c28a3e6d8833f20a7eb55ff26c3156"
+    },
+    {
+      "file": "textbox-save-64-textbox-save-oversized-1.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-cab64-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "45df4270badaadb9647b5c36ddd35bfa3f98a05c00d0ec3263170cabfb07ea10"
+    },
+    {
+      "file": "textbox-save-65-textbox-save-oversized-2.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-b3058-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "89ff85a7f8474cc8a81bbdfc40ec4cefeb9a2710f2b340f71618a4cdfac6c5ce"
+    },
+    {
+      "file": "textbox-save-66-textbox-save-input-oversized.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-b3058-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "0298bf8c2b699b93650f8812f5f41ed03b107cbd1a1fa8e59079fd521640cd60"
+    },
+    {
+      "file": "textbox-save-67-textbox-save-oversized-1.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-b3058-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "b944391f41ecf6cb62f5e58250825cef94c01ab2d4e25e67b4e677759f6a61a1"
+    },
+    {
+      "file": "textbox-save-68-textbox-save-oversized-2.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-ce5f2-tinues-at-its-original-size/textbox-save-oversized-2.docx",
+      "sha256": "abd6c377a703a99a109151904b755cdb484747d4c5a7aa996d10a5bd571cab31"
+    },
+    {
+      "file": "textbox-save-69-textbox-save-input-oversized.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-ce5f2-tinues-at-its-original-size/textbox-save-input-oversized.docx",
+      "sha256": "d86b61062df3c84b85bc1ec3847ac5e7cde755795596f374c80a6c5db9ef461c"
+    },
+    {
+      "file": "textbox-save-70-textbox-save-oversized-1.docx",
+      "source": "dpr2-test-results/oversized-word-rows-oversi-ce5f2-tinues-at-its-original-size/textbox-save-oversized-1.docx",
+      "sha256": "b1c480987a2e42140488edfd56b5acbc702a6a54705b11201a76661b6e8167ce"
+    }
+  ]
+}

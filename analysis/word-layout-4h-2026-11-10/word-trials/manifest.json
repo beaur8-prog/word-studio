@@ -1,0 +1,48 @@
+{
+  "method": "Exact frozen public input; bottom trial adds only standard suppressBottomSpacing; all other ZIP part bytes identical. Diagnostic, not product output.",
+  "rows": [
+    {
+      "id": "mss-funding-2026-0",
+      "variant": "baseline",
+      "file": "analysis/word-layout-4h-2026-11-10/word-trials/WS-L4-20261110-funding-baseline.docx",
+      "sha256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+      "sourceSHA256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+      "changedParts": [],
+      "wordPages": null
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "variant": "bottom",
+      "file": "analysis/word-layout-4h-2026-11-10/word-trials/WS-L4-20261110-funding-bottom.docx",
+      "sha256": "c4bf96ca30fb0c31a0ff84b8d04204b687bbb9f3f0e0cde412211c92b0c9936c",
+      "sourceSHA256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+      "changedParts": [
+        "word/settings.xml"
+      ],
+      "wordPages": 59,
+      "wordPDF": "analysis/word-layout-4h-2026-11-10/word-measured/WS-L4-20261110-funding-bottom.pdf",
+      "wordPDFSHA256": "a2078a18fb69b80b93ea944f073bea68d68ff6a21c50c49b61c02ff1547a6aed",
+      "currentStudioPages": 49
+    },
+    {
+      "id": "mois-2025-0",
+      "variant": "baseline",
+      "file": "analysis/word-layout-4h-2026-11-10/word-trials/WS-L4-20261110-workplan-baseline.docx",
+      "sha256": "e038c064d4a9db97bf472958e0787cebff5f86895fbd2451705f1fc7da583a01",
+      "sourceSHA256": "e038c064d4a9db97bf472958e0787cebff5f86895fbd2451705f1fc7da583a01",
+      "changedParts": [],
+      "wordPages": null
+    },
+    {
+      "id": "mois-2025-0",
+      "variant": "bottom",
+      "file": "analysis/word-layout-4h-2026-11-10/word-trials/WS-L4-20261110-workplan-bottom.docx",
+      "sha256": "263af3b21f2122531dae22df840d9dfb235d03d3dccc8a86c1af625baac03876",
+      "sourceSHA256": "e038c064d4a9db97bf472958e0787cebff5f86895fbd2451705f1fc7da583a01",
+      "changedParts": [
+        "word/settings.xml"
+      ],
+      "wordPages": null
+    }
+  ]
+}

@@ -1,0 +1,317 @@
+{
+  "method": "First prospective matched paragraph page divergences after current two fixes, raw original OOXML ancestry. Diagnosis only, no adopted exception.",
+  "rows": [
+    {
+      "id": "mss-funding-2026-0",
+      "key": 233,
+      "word": {
+        "page": 7,
+        "x": 94.3,
+        "y": 104.77999999999997
+      },
+      "studio": {
+        "page": 6,
+        "x": 94.6874960546875,
+        "y": 581.9999757500003
+      },
+      "paragraphProperties": "<ns0:pPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:pStyle ns0:val=\"Normal\" /><ns0:keepNext ns0:val=\"false\" /><ns0:keepLines ns0:val=\"false\" /><ns0:widowControl ns0:val=\"false\" /><ns0:autoSpaceDE ns0:val=\"false\" /><ns0:autoSpaceDN ns0:val=\"false\" /><ns0:spacing ns0:after=\"0\" ns0:before=\"0\" ns0:line=\"360\" ns0:lineRule=\"exact\" /><ns0:ind ns0:left=\"312\" ns0:right=\"0\" ns0:hanging=\"312\" /><ns0:jc ns0:val=\"both\" /><ns0:rPr><ns0:rFonts ns0:ascii=\"맑은 고딕\" ns0:cs=\"맑은 고딕\" ns0:eastAsia=\"맑은 고딕\" ns0:hAnsi=\"맑은 고딕\" /><ns0:color ns0:val=\"000000\" /><ns0:sz ns0:val=\"24\" /><ns0:szCs ns0:val=\"24\" /></ns0:rPr></ns0:pPr>",
+      "ancestors": [
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"8670\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:tcBorders><ns0:top ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:left ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:bottom ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:right ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"102\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"102\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"3644\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"8670\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"360\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        }
+      ],
+      "textSHA256": "312bfaf7e23ae453e72964e24758da24b2c1e02c257946ce6bd1c2d3f707de84"
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "key": 234,
+      "word": {
+        "page": 7,
+        "x": 98.05,
+        "y": 138.79999999999995
+      },
+      "studio": {
+        "page": 6,
+        "x": 97.42968344042968,
+        "y": 616.4999743125003
+      },
+      "paragraphProperties": "<ns0:pPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:pStyle ns0:val=\"Normal\" /><ns0:keepNext ns0:val=\"false\" /><ns0:keepLines ns0:val=\"false\" /><ns0:widowControl ns0:val=\"false\" /><ns0:autoSpaceDE ns0:val=\"false\" /><ns0:autoSpaceDN ns0:val=\"false\" /><ns0:spacing ns0:after=\"0\" ns0:before=\"0\" ns0:line=\"310\" ns0:lineRule=\"exact\" /><ns0:ind ns0:left=\"780\" ns0:right=\"0\" ns0:hanging=\"780\" /><ns0:jc ns0:val=\"both\" /><ns0:rPr><ns0:rFonts ns0:ascii=\"맑은 고딕\" ns0:cs=\"맑은 고딕\" ns0:eastAsia=\"맑은 고딕\" ns0:hAnsi=\"맑은 고딕\" /><ns0:color ns0:val=\"000000\" /><ns0:sz ns0:val=\"24\" /><ns0:szCs ns0:val=\"24\" /></ns0:rPr></ns0:pPr>",
+      "ancestors": [
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"8670\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:tcBorders><ns0:top ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:left ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:bottom ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:right ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"102\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"102\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"3644\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"8670\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"360\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        }
+      ],
+      "textSHA256": "6ab3dc270217064eed63af5d1bf62995e5a654a9e2b6520898ccc2277cb4c5f9"
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "key": 238,
+      "word": {
+        "page": 7,
+        "x": 249.6,
+        "y": 157.54999999999995
+      },
+      "studio": {
+        "page": 6,
+        "x": 260.5781141425781,
+        "y": 636.7499734687502
+      },
+      "paragraphProperties": "<ns0:pPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:pStyle ns0:val=\"Normal\" /><ns0:keepNext ns0:val=\"false\" /><ns0:keepLines ns0:val=\"false\" /><ns0:widowControl ns0:val=\"false\" /><ns0:wordWrap ns0:val=\"0\" /><ns0:autoSpaceDE ns0:val=\"false\" /><ns0:autoSpaceDN ns0:val=\"false\" /><ns0:spacing ns0:after=\"0\" ns0:before=\"0\" ns0:line=\"200\" ns0:lineRule=\"exact\" /><ns0:ind ns0:left=\"0\" ns0:right=\"0\" ns0:firstLine=\"0\" /><ns0:jc ns0:val=\"center\" /><ns0:rPr><ns0:rFonts ns0:ascii=\"맑은 고딕\" ns0:cs=\"맑은 고딕\" ns0:eastAsia=\"맑은 고딕\" ns0:hAnsi=\"맑은 고딕\" /><ns0:color ns0:val=\"000000\" /><ns0:sz ns0:val=\"20\" /><ns0:szCs ns0:val=\"20\" /></ns0:rPr></ns0:pPr>",
+      "ancestors": [
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"7590\" /><ns0:gridSpan ns0:val=\"8\" /><ns0:tcBorders><ns0:top ns0:val=\"single\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:left ns0:val=\"single\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:right ns0:val=\"single\" ns0:color=\"000000\" ns0:sz=\"3\" /></ns0:tcBorders><ns0:shd ns0:fill=\"DFE6F7\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"0\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"378\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"8400\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        },
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"8670\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:tcBorders><ns0:top ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:left ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:bottom ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:right ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"102\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"102\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"3644\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"8670\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"360\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        }
+      ],
+      "textSHA256": "fc344dddc9bbe526d93a13487dd4837804a23a8206920d5595cd46bf5a43553d"
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "key": 275,
+      "word": {
+        "page": 7,
+        "x": 135.05,
+        "y": 211.29999999999995
+      },
+      "studio": {
+        "page": 6,
+        "x": 138.84374421484375,
+        "y": 696.7499709687503
+      },
+      "paragraphProperties": "<ns0:pPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:pStyle ns0:val=\"Normal\" /><ns0:keepNext ns0:val=\"false\" /><ns0:keepLines ns0:val=\"false\" /><ns0:widowControl ns0:val=\"false\" /><ns0:autoSpaceDE ns0:val=\"false\" /><ns0:autoSpaceDN ns0:val=\"false\" /><ns0:spacing ns0:after=\"0\" ns0:before=\"0\" ns0:line=\"234\" ns0:lineRule=\"exact\" /><ns0:ind ns0:left=\"161\" ns0:right=\"0\" ns0:hanging=\"161\" /><ns0:jc ns0:val=\"both\" /><ns0:rPr><ns0:rFonts ns0:ascii=\"맑은 고딕\" ns0:cs=\"맑은 고딕\" ns0:eastAsia=\"맑은 고딕\" ns0:hAnsi=\"맑은 고딕\" /><ns0:color ns0:val=\"000000\" /><ns0:sz ns0:val=\"18\" /><ns0:szCs ns0:val=\"18\" /></ns0:rPr></ns0:pPr>",
+      "ancestors": [
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"1290\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:vMerge ns0:val=\"restart\" /><ns0:tcBorders><ns0:top ns0:val=\"single\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:left ns0:val=\"single\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:right ns0:val=\"single\" ns0:color=\"000000\" ns0:sz=\"3\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"0\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"498\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"8400\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        },
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"8670\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:tcBorders><ns0:top ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:left ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:bottom ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /><ns0:right ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"102\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"102\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"3644\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"8670\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"360\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        }
+      ],
+      "textSHA256": "83fb33dd872714323ae5541fd5a3ccf0fe9006d9c1ca60a40f4aef2861ae8c66"
+    },
+    {
+      "id": "mods-household-1",
+      "key": 215,
+      "word": {
+        "page": 8,
+        "x": 78.775,
+        "y": 729.23
+      },
+      "studio": {
+        "page": 9,
+        "x": 75.58593435058593,
+        "y": 86.24999640625026
+      },
+      "paragraphProperties": "<ns0:pPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:pStyle ns0:val=\"Normal\" /><ns0:keepNext ns0:val=\"false\" /><ns0:keepLines ns0:val=\"false\" /><ns0:widowControl ns0:val=\"false\" /><ns0:autoSpaceDE ns0:val=\"false\" /><ns0:autoSpaceDN ns0:val=\"false\" /><ns0:spacing ns0:after=\"0\" ns0:before=\"0\" ns0:line=\"416\" ns0:lineRule=\"atLeast\" /><ns0:ind ns0:left=\"327\" ns0:right=\"101\" ns0:hanging=\"327\" /><ns0:jc ns0:val=\"both\" /><ns0:rPr><ns0:rFonts ns0:ascii=\"한양중고딕\" ns0:cs=\"한양중고딕\" ns0:eastAsia=\"한양중고딕\" ns0:hAnsi=\"한양중고딕\" /><ns0:color ns0:val=\"000000\" /><ns0:sz ns0:val=\"26\" /><ns0:szCs ns0:val=\"26\" /></ns0:rPr></ns0:pPr>",
+      "ancestors": [
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"9465\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:tcBorders><ns0:top ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:left ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:bottom ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:right ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /></ns0:tcBorders><ns0:shd ns0:fill=\"F0FDFE\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"102\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"102\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"846\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"9465\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        },
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"9750\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:tcBorders><ns0:top ns0:val=\"nil\" ns0:color=\"BBBBBB\" ns0:sz=\"0\" /><ns0:left ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /><ns0:right ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"283\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"0\" /></ns0:tcMar><ns0:vAlign ns0:val=\"top\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"13461\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"9750\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"113\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        }
+      ],
+      "textSHA256": "cfa58cdb29e9cc9c5226529d6c87a292d9eb1dc8205b5e26c887f5c260ac0b80"
+    },
+    {
+      "id": "mods-household-1",
+      "key": 218,
+      "word": {
+        "page": 9,
+        "x": 59.275,
+        "y": 97.27999999999997
+      },
+      "studio": {
+        "page": 10,
+        "x": 61.6874974296875,
+        "y": 95.99999599999899
+      },
+      "paragraphProperties": "<ns0:pPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:pStyle ns0:val=\"Normal\" /><ns0:keepNext ns0:val=\"false\" /><ns0:keepLines ns0:val=\"false\" /><ns0:widowControl ns0:val=\"false\" /><ns0:autoSpaceDE ns0:val=\"false\" /><ns0:autoSpaceDN ns0:val=\"false\" /><ns0:spacing ns0:after=\"0\" ns0:before=\"0\" ns0:line=\"416\" ns0:lineRule=\"exact\" /><ns0:ind ns0:left=\"515\" ns0:right=\"101\" ns0:hanging=\"515\" /><ns0:jc ns0:val=\"both\" /><ns0:rPr><ns0:rFonts ns0:ascii=\"휴먼명조\" ns0:cs=\"휴먼명조\" ns0:eastAsia=\"휴먼명조\" ns0:hAnsi=\"휴먼명조\" /><ns0:color ns0:val=\"000000\" /><ns0:sz ns0:val=\"26\" /><ns0:szCs ns0:val=\"26\" /></ns0:rPr></ns0:pPr>",
+      "ancestors": [
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"5160\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:vMerge ns0:val=\"restart\" /><ns0:tcBorders><ns0:top ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:left ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:bottom ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:right ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"102\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"257\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"9540\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        },
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"9750\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:tcBorders><ns0:top ns0:val=\"nil\" ns0:color=\"BBBBBB\" ns0:sz=\"0\" /><ns0:left ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /><ns0:right ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"283\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"0\" /></ns0:tcMar><ns0:vAlign ns0:val=\"top\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"14229\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"9750\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"113\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        }
+      ],
+      "textSHA256": "c7aeeb5b89b129e30419d5bcc7acaaf16eb1ad291e5fd448c0d7c8d0d614df9f"
+    },
+    {
+      "id": "mods-household-1",
+      "key": 220,
+      "word": {
+        "page": 9,
+        "x": 59.275,
+        "y": 148.54999999999995
+      },
+      "studio": {
+        "page": 10,
+        "x": 60.36327873486328,
+        "y": 147.74999384374894
+      },
+      "paragraphProperties": "<ns0:pPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:pStyle ns0:val=\"Normal\" /><ns0:keepNext ns0:val=\"false\" /><ns0:keepLines ns0:val=\"false\" /><ns0:widowControl ns0:val=\"false\" /><ns0:autoSpaceDE ns0:val=\"false\" /><ns0:autoSpaceDN ns0:val=\"false\" /><ns0:spacing ns0:after=\"0\" ns0:before=\"0\" ns0:line=\"416\" ns0:lineRule=\"exact\" /><ns0:ind ns0:left=\"522\" ns0:right=\"101\" ns0:hanging=\"522\" /><ns0:jc ns0:val=\"both\" /><ns0:rPr><ns0:rFonts ns0:ascii=\"휴먼명조\" ns0:cs=\"휴먼명조\" ns0:eastAsia=\"휴먼명조\" ns0:hAnsi=\"휴먼명조\" /><ns0:color ns0:val=\"000000\" /><ns0:sz ns0:val=\"26\" /><ns0:szCs ns0:val=\"26\" /></ns0:rPr></ns0:pPr>",
+      "ancestors": [
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"5160\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:vMerge ns0:val=\"restart\" /><ns0:tcBorders><ns0:top ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:left ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:bottom ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:right ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"102\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"257\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"9540\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        },
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"9750\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:tcBorders><ns0:top ns0:val=\"nil\" ns0:color=\"BBBBBB\" ns0:sz=\"0\" /><ns0:left ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /><ns0:right ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"283\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"0\" /></ns0:tcMar><ns0:vAlign ns0:val=\"top\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"14229\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"9750\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"113\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        }
+      ],
+      "textSHA256": "ab1aeafd1ec877ca4d0ae576f2fecc7b9ccfb1b1df132715637cf06c8bf87533"
+    },
+    {
+      "id": "mods-household-1",
+      "key": 222,
+      "word": {
+        "page": 9,
+        "x": 59.275,
+        "y": 199.79999999999995
+      },
+      "studio": {
+        "page": 10,
+        "x": 60.52734122802734,
+        "y": 198.74999171874913
+      },
+      "paragraphProperties": "<ns0:pPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:pStyle ns0:val=\"Normal\" /><ns0:keepNext ns0:val=\"false\" /><ns0:keepLines ns0:val=\"false\" /><ns0:widowControl ns0:val=\"false\" /><ns0:autoSpaceDE ns0:val=\"false\" /><ns0:autoSpaceDN ns0:val=\"false\" /><ns0:spacing ns0:after=\"0\" ns0:before=\"0\" ns0:line=\"417\" ns0:lineRule=\"exact\" /><ns0:ind ns0:left=\"515\" ns0:right=\"101\" ns0:hanging=\"515\" /><ns0:jc ns0:val=\"both\" /><ns0:rPr><ns0:rFonts ns0:ascii=\"휴먼명조\" ns0:cs=\"휴먼명조\" ns0:eastAsia=\"휴먼명조\" ns0:hAnsi=\"휴먼명조\" /><ns0:color ns0:val=\"000000\" /><ns0:sz ns0:val=\"26\" /><ns0:szCs ns0:val=\"26\" /></ns0:rPr></ns0:pPr>",
+      "ancestors": [
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"5160\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:vMerge ns0:val=\"restart\" /><ns0:tcBorders><ns0:top ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:left ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:bottom ns0:val=\"nil\" ns0:color=\"000000\" ns0:sz=\"0\" /><ns0:right ns0:val=\"dotted\" ns0:color=\"000000\" ns0:sz=\"3\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"28\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"102\" /></ns0:tcMar><ns0:vAlign ns0:val=\"center\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"257\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"9540\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        },
+        {
+          "type": "tc",
+          "properties": "<ns0:tcPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tcW ns0:type=\"dxa\" ns0:w=\"9750\" /><ns0:gridSpan ns0:val=\"1\" /><ns0:tcBorders><ns0:top ns0:val=\"nil\" ns0:color=\"BBBBBB\" ns0:sz=\"0\" /><ns0:left ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /><ns0:right ns0:val=\"single\" ns0:color=\"BBBBBB\" ns0:sz=\"9\" /></ns0:tcBorders><ns0:shd ns0:fill=\"auto\" ns0:val=\"clear\" /><ns0:tcMar><ns0:top ns0:type=\"dxa\" ns0:w=\"283\" /><ns0:left ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:bottom ns0:type=\"dxa\" ns0:w=\"0\" /><ns0:right ns0:type=\"dxa\" ns0:w=\"0\" /></ns0:tcMar><ns0:vAlign ns0:val=\"top\" /></ns0:tcPr>"
+        },
+        {
+          "type": "tr",
+          "properties": "<ns0:trPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:cantSplit /><ns0:trHeight ns0:val=\"14229\" ns0:hRule=\"atLeast\" /></ns0:trPr>"
+        },
+        {
+          "type": "tbl",
+          "properties": "<ns0:tblPr xmlns:ns0=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><ns0:tblW ns0:type=\"dxa\" ns0:w=\"9750\" /><ns0:tblInd ns0:type=\"dxa\" ns0:w=\"113\" /><ns0:tblBorders><ns0:top ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:left ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:bottom ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:right ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideH ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /><ns0:insideV ns0:val=\"single\" ns0:color=\"auto\" ns0:sz=\"4\" /></ns0:tblBorders><ns0:tblLayout ns0:type=\"fixed\" /></ns0:tblPr>"
+        }
+      ],
+      "textSHA256": "0c47e50641a37652250c6123b6a7f02e15d41d04ec753bd955c3c65ac6ebf8e6"
+    }
+  ]
+}
