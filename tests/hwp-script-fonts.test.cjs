@@ -77,3 +77,14 @@ test('inline objects keep their original fragment even if visible text alone mat
   const html = '<p><span>abc</span><img src="data:image/png;base64,' + 'AAAA'.repeat(40000) + '"></p>';
   assert.equal(restoreScriptFonts(html, 'abc', run('abc')), html);
 });
+
+
+test('a known base script face does not inherit the native combined fallback list', () => {
+  const source = '한글 Latin';
+  const html = `<p><span style="font-family:Hangul Face,Latin Face;font-size:12pt;letter-spacing:-.5px">${source}</span></p>`;
+  const result = restoreScriptFonts(html, source, run(source));
+  assert.match(result, /font-family:&quot;Hangul Face&quot;;">한글 <\/span>/);
+  assert.match(result, /font-family:&quot;Latin Face&quot;;">Latin<\/span>/);
+  assert.match(result, /font-size:12pt;letter-spacing:-\.5px/);
+  assert.equal(result.replace(/<[^>]*>/g, ''), source);
+});

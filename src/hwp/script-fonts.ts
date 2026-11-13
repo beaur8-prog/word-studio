@@ -80,7 +80,12 @@ export function restoreScriptFonts(html: string, source: string, runs: readonly 
       if (language(char) !== undefined) previousLanguage = script;
       while (index < runs.length && runs[index].end <= offset) index++;
       const run = runs[index], font = run && run.start <= offset ? run.fonts[script] || run.fonts[0] : '';
-      const next = font && font !== run.fonts[0] && font.length <= 500 && !/[\r\n\0]/.test(font) ? font : '';
+      // Select the known base face too. The native bridge combines Korean and
+      // Latin into a CSS fallback list; inheriting that list makes a missing
+      // Korean face fall back to the Latin face before a DOCX save, while the
+      // saved single face uses the application's Korean fallback. These faces
+      // come from the source character shape, not an authored CSS fallback list.
+      const next = font && font.length <= 500 && !/[\r\n\0]/.test(font) ? font : '';
       if (next !== selected) { flush(); selected = next; }
       pending += char; offset += char.length;
     }
