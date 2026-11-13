@@ -1,0 +1,97 @@
+{
+  "utc": "2026-11-13T22:00:51.040112+00:00",
+  "productCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "productSrcTree": "643248640ed5f468393f5d07f9a11bb7ca6b63d3",
+  "currentSrcTree": "643248640ed5f468393f5d07f9a11bb7ca6b63d3",
+  "sameProductTree": true,
+  "evidenceBytes": 826932906,
+  "budgetBytes": 1073741824,
+  "underBudget": true,
+  "closingCleanupOnly": [
+    {
+      "manifest": "cleanup-completed-native-result-json.json",
+      "reclaimedBytes": 51953796
+    },
+    {
+      "manifest": "cleanup-final-native-result-json.json",
+      "reclaimedBytes": 25988478
+    },
+    {
+      "manifest": "cleanup-lossless-model-archive-repack.json",
+      "reclaimedBytes": 59869060
+    },
+    {
+      "manifest": "cleanup-owned-prior-native-builds.json",
+      "reclaimedBytes": 185332172
+    },
+    {
+      "manifest": "cleanup-completed-prior-pc-outputs.json",
+      "reclaimedBytes": 71577283
+    },
+    {
+      "manifest": "cleanup-owned-extra-ink-profile.json",
+      "reclaimedBytes": 15362125
+    }
+  ],
+  "closingReclaimedFileBytes": 410082914,
+  "cleanupMeaning": "Logical file bytes reclaimed by these non-overlapping closing steps, not a filesystem df/free-space claim. Earlier PDF cleanup recorded separately and not added here. All archive entries raw-SHA verified before original deletion.",
+  "retainedArchiveChecks": [
+    {
+      "manifest": "native-model-archives/native-sop-77d0d06.manifest.json",
+      "archive": "native-model-archives/native-sop-77d0d06.tar.xz",
+      "bytes": 1524888,
+      "sha256": "29d06420f4f0eebe164d4492d834748a0fbda14d15c6e9cb6f1fc93f86350541",
+      "originalEntries": 35
+    },
+    {
+      "manifest": "native-model-archives/native-sop-b6edda3-body22.manifest.json",
+      "archive": "native-model-archives/native-sop-b6edda3-body22.tar.xz",
+      "bytes": 1526760,
+      "sha256": "a5f86d74b967d52c94b5414f99c78cac13adab40433f05227d52967ad1821596",
+      "originalEntries": 36
+    },
+    {
+      "manifest": "native-model-archives/native-sop-b6edda3-cover.manifest.json",
+      "archive": "native-model-archives/native-sop-b6edda3-cover.tar.xz",
+      "bytes": 1526840,
+      "sha256": "79959c901cffffc59b972f6e6fefe2f89d5ba1e6c26f2cdc2798886292092ee2",
+      "originalEntries": 36
+    },
+    {
+      "manifest": "native-model-archives/native-sop-menu-all-eee8aa0.manifest.json",
+      "archive": "native-model-archives/native-sop-menu-all-eee8aa0.tar.xz",
+      "bytes": 1516512,
+      "sha256": "e2009a1144c741a49b81072c7491c58d9aab3c5ee8bf1d8c3fb790bf1f85261a",
+      "originalEntries": 36
+    },
+    {
+      "manifest": "cleanup-completed-prior-pc-outputs.json",
+      "archive": "completed-prior-pc-outputs.tar.xz",
+      "bytes": 3771952,
+      "sha256": "816674d7e908b91ab1b663ded800d10e1c1741d7e06007a4f14fc4efc7e86f55",
+      "originalEntries": 2855
+    }
+  ],
+  "currentCompiledBuildManifest": "native-checkpoint-build.json",
+  "baselineGovernmentPDFs": "render-page-segment-checkpoint/",
+  "finalGovernmentPDFs": "render-final-6bc49fa-government/",
+  "finalSaved2GovernmentPDFs": "render-final-6bc49fa-government-saved2/",
+  "firstFinalExportFailure": "native-sop-6bc49fa-cover/",
+  "finalPassedNativeRuns": [
+    "native-sop-6bc49fa-body22/",
+    "native-sop-6bc49fa-cover-retry/",
+    "native-hwp-6bc49fa/",
+    "native-tabs-6bc49fa/"
+  ],
+  "rawOriginalIntegrity": "final-original-input-integrity.json",
+  "qaCheckpointAtMeasurement": "a775654bc6b776d9a528f6658704e14f32892b97",
+  "updatedUTC": "2026-11-13T22:47:20.452461+00:00",
+  "additionalDiagnosticInputs": [
+    "minimal-sop-paragraph-reservation/",
+    "minimal-sop-paragraph-reservation-offset/"
+  ],
+  "additionalUnresolvedEvidence": [
+    "remaining-sop-picture-bounds.json",
+    "remaining-sop-input-reduction-summary.json"
+  ]
+}

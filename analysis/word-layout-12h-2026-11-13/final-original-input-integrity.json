@@ -1,0 +1,449 @@
+{
+  "utc": "2026-11-13T22:00:50.960106+00:00",
+  "method": "End-of-run independent raw file SHA256 vs each frozen input manifest. Only reads original files; no source modification. Different scopes retained.",
+  "files": 49,
+  "allUnchanged": true,
+  "rows": [
+    {
+      "group": "government-DOCX",
+      "id": "mois-2025-0",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/mois-2025-0.docx",
+      "expectedSHA256": "e038c064d4a9db97bf472958e0787cebff5f86895fbd2451705f1fc7da583a01",
+      "finalSHA256": "e038c064d4a9db97bf472958e0787cebff5f86895fbd2451705f1fc7da583a01",
+      "unchanged": true,
+      "bytes": 1077821
+    },
+    {
+      "group": "government-DOCX",
+      "id": "mss-funding-2026-0",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/mss-funding-2026-0.docx",
+      "expectedSHA256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+      "finalSHA256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+      "unchanged": true,
+      "bytes": 147679
+    },
+    {
+      "group": "government-DOCX",
+      "id": "mss-funding-2026-2",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/mss-funding-2026-2.docx",
+      "expectedSHA256": "58624a9671fdd00bd1055d92b92ae5eb48d73aa2390059650c52a8a0f2a806db",
+      "finalSHA256": "58624a9671fdd00bd1055d92b92ae5eb48d73aa2390059650c52a8a0f2a806db",
+      "unchanged": true,
+      "bytes": 1707904
+    },
+    {
+      "group": "government-DOCX",
+      "id": "mods-household-1",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/mods-household-1.docx",
+      "expectedSHA256": "ef412d51256ade00188519beac5b0efcd8a10a7e60c9b19765e656db28a97c06",
+      "finalSHA256": "ef412d51256ade00188519beac5b0efcd8a10a7e60c9b19765e656db28a97c06",
+      "unchanged": true,
+      "bytes": 3760904
+    },
+    {
+      "group": "government-DOCX",
+      "id": "fsc-press-1",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/fsc-press-1.docx",
+      "expectedSHA256": "43ded853eabb1eb9353896c521567639ae1adfdf51e069bd69fd2dc018b4f824",
+      "finalSHA256": "43ded853eabb1eb9353896c521567639ae1adfdf51e069bd69fd2dc018b4f824",
+      "unchanged": true,
+      "bytes": 128872
+    },
+    {
+      "group": "government-DOCX",
+      "id": "fsc-press-4",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/fsc-press-4.docx",
+      "expectedSHA256": "a7cb67c7d92cb986b4b18a9b53b1d5bf0b6c48406c7f6b6168053d957c0839b1",
+      "finalSHA256": "a7cb67c7d92cb986b4b18a9b53b1d5bf0b6c48406c7f6b6168053d957c0839b1",
+      "unchanged": true,
+      "bytes": 17597
+    },
+    {
+      "group": "government-DOCX",
+      "id": "fsc-press-7",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/fsc-press-7.docx",
+      "expectedSHA256": "b84c60f6937479ff97c4dc2876637072cd9bcef0a26749422b2be3d877ff08d1",
+      "finalSHA256": "b84c60f6937479ff97c4dc2876637072cd9bcef0a26749422b2be3d877ff08d1",
+      "unchanged": true,
+      "bytes": 3645297
+    },
+    {
+      "group": "government-DOCX",
+      "id": "fsc-press-10",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/fsc-press-10.docx",
+      "expectedSHA256": "d4a0d0cc6052d6a4f1b62b43c3377305097ef47bcca10456a0903d76efc42732",
+      "finalSHA256": "d4a0d0cc6052d6a4f1b62b43c3377305097ef47bcca10456a0903d76efc42732",
+      "unchanged": true,
+      "bytes": 73417
+    },
+    {
+      "group": "government-DOCX",
+      "id": "moel-rfp-0",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/moel-rfp-0.docx",
+      "expectedSHA256": "b97528a9b0dca33c8c56f097a48b826dcca0c432a2445d3fd291eddf2c05c533",
+      "finalSHA256": "b97528a9b0dca33c8c56f097a48b826dcca0c432a2445d3fd291eddf2c05c533",
+      "unchanged": true,
+      "bytes": 39610
+    },
+    {
+      "group": "government-DOCX",
+      "id": "moel-rfp-1",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/moel-rfp-1.docx",
+      "expectedSHA256": "c473de77ddc49fb48a8f83cab561eb6153d73900b998a22048df421e13e547d0",
+      "finalSHA256": "c473de77ddc49fb48a8f83cab561eb6153d73900b998a22048df421e13e547d0",
+      "unchanged": true,
+      "bytes": 346714
+    },
+    {
+      "group": "government-DOCX",
+      "id": "daejeon-safety-hwp",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/daejeon-safety-hwp.docx",
+      "expectedSHA256": "17f16e6784514034c7a9fc0df4eefd706f5191782765600312e3dbaae055f3aa",
+      "finalSHA256": "17f16e6784514034c7a9fc0df4eefd706f5191782765600312e3dbaae055f3aa",
+      "unchanged": true,
+      "bytes": 15368
+    },
+    {
+      "group": "government-DOCX",
+      "id": "gg-facility-hwp",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/gg-facility-hwp.docx",
+      "expectedSHA256": "31f28de4057b63ed66b822516cdef2b814ace68224b188f25e31f3f749e6a1a8",
+      "finalSHA256": "31f28de4057b63ed66b822516cdef2b814ace68224b188f25e31f3f749e6a1a8",
+      "unchanged": true,
+      "bytes": 22712
+    },
+    {
+      "group": "government-DOCX",
+      "id": "motie-budget-hwp",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/motie-budget-hwp.docx",
+      "expectedSHA256": "4fbc17e877376edad81cad00233cfaca340bbb66a5531c0298c3653046e6155b",
+      "finalSHA256": "4fbc17e877376edad81cad00233cfaca340bbb66a5531c0298c3653046e6155b",
+      "unchanged": true,
+      "bytes": 103028
+    },
+    {
+      "group": "government-DOCX",
+      "id": "motie-ax-0",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/motie-ax-0.docx",
+      "expectedSHA256": "3ed7e5c0329939e27db5d172b2315a50e529787ed9a49f278e8854bf09eeb83b",
+      "finalSHA256": "3ed7e5c0329939e27db5d172b2315a50e529787ed9a49f278e8854bf09eeb83b",
+      "unchanged": true,
+      "bytes": 37162
+    },
+    {
+      "group": "government-DOCX",
+      "id": "motie-ax-1",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/motie-ax-1.docx",
+      "expectedSHA256": "7c9e2aee292ae3dc840b626499da59e6ee5d9556411d969eb869f956bb5bca47",
+      "finalSHA256": "7c9e2aee292ae3dc840b626499da59e6ee5d9556411d969eb869f956bb5bca47",
+      "unchanged": true,
+      "bytes": 21355
+    },
+    {
+      "group": "government-DOCX",
+      "id": "mofe-budget-hwpx",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/mofe-budget-hwpx.docx",
+      "expectedSHA256": "7745eee49a0e29829b65cbe747e7a58044102c263a714984650ebc6b3c3b1efe",
+      "finalSHA256": "7745eee49a0e29829b65cbe747e7a58044102c263a714984650ebc6b3c3b1efe",
+      "unchanged": true,
+      "bytes": 120472
+    },
+    {
+      "group": "government-DOCX",
+      "id": "mfds-revenue-hwpx",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/mfds-revenue-hwpx.docx",
+      "expectedSHA256": "863c6a2050a35cf01f933ed7d07f42ff2582eab98b7f86a9446d6c3458979b48",
+      "finalSHA256": "863c6a2050a35cf01f933ed7d07f42ff2582eab98b7f86a9446d6c3458979b48",
+      "unchanged": true,
+      "bytes": 272305
+    },
+    {
+      "group": "government-DOCX",
+      "id": "mois-sop-3",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/mois-sop-3.docx",
+      "expectedSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+      "finalSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+      "unchanged": true,
+      "bytes": 1561545
+    },
+    {
+      "group": "government-DOCX",
+      "id": "mois-budget-0",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/mois-budget-0.docx",
+      "expectedSHA256": "3f24adc9e4d4ca23ed6873d06d5eb1a9e0b0d704f7beec7256fe47a5c353dcf7",
+      "finalSHA256": "3f24adc9e4d4ca23ed6873d06d5eb1a9e0b0d704f7beec7256fe47a5c353dcf7",
+      "unchanged": true,
+      "bytes": 1768264
+    },
+    {
+      "group": "government-DOCX",
+      "id": "nhis-overcharge-0",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/nhis-overcharge-0.docx",
+      "expectedSHA256": "bf5496e16fb7e1351a2ec228b9c3ee13282a6c0e7015326d15ffa848f8acabbf",
+      "finalSHA256": "bf5496e16fb7e1351a2ec228b9c3ee13282a6c0e7015326d15ffa848f8acabbf",
+      "unchanged": true,
+      "bytes": 20326
+    },
+    {
+      "group": "government-DOCX",
+      "id": "nhis-postpone-1",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/nhis-postpone-1.docx",
+      "expectedSHA256": "604fb210e1271b18de05ba807fa2393abd2d4fae0db345b3bdff827a5af8bc0c",
+      "finalSHA256": "604fb210e1271b18de05ba807fa2393abd2d4fae0db345b3bdff827a5af8bc0c",
+      "unchanged": true,
+      "bytes": 15702
+    },
+    {
+      "group": "government-DOCX",
+      "id": "moel-manual-1",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/moel-manual-1.docx",
+      "expectedSHA256": "7d9d1cafa277b42b1c6f81fe53cac8f28e349ff701a6572188f9d63ddc00f37a",
+      "finalSHA256": "7d9d1cafa277b42b1c6f81fe53cac8f28e349ff701a6572188f9d63ddc00f37a",
+      "unchanged": true,
+      "bytes": 824148
+    },
+    {
+      "group": "government-DOCX",
+      "id": "lh-smartcity-hwpx",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/lh-smartcity-hwpx.docx",
+      "expectedSHA256": "ccf632b21c28579d19b7bf2df12e4bb4147db40a6e0aa1d58da5043e6f027518",
+      "finalSHA256": "ccf632b21c28579d19b7bf2df12e4bb4147db40a6e0aa1d58da5043e6f027518",
+      "unchanged": true,
+      "bytes": 5253583
+    },
+    {
+      "group": "government-DOCX",
+      "id": "nps-fund-hwp",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/nps-fund-hwp.docx",
+      "expectedSHA256": "bb0281bd8fb67c060dea3d25b4ac802e9970c23ed159bbd86138ace9eac45677",
+      "finalSHA256": "bb0281bd8fb67c060dea3d25b4ac802e9970c23ed159bbd86138ace9eac45677",
+      "unchanged": true,
+      "bytes": 91809
+    },
+    {
+      "group": "government-DOCX",
+      "id": "nps-venture-hwp",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/nps-venture-hwp.docx",
+      "expectedSHA256": "4cb24cc3f256a969dd216048b82c0e8bf8776d4af43c026bc0ff653bb121d7c5",
+      "finalSHA256": "4cb24cc3f256a969dd216048b82c0e8bf8776d4af43c026bc0ff653bb121d7c5",
+      "unchanged": true,
+      "bytes": 124699
+    },
+    {
+      "group": "government-DOCX",
+      "id": "lh-campus-hwpx",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/lh-campus-hwpx.docx",
+      "expectedSHA256": "4eb893e167e763ecd33809401d59c75d613caef232b88f1d26743a597725d4c3",
+      "finalSHA256": "4eb893e167e763ecd33809401d59c75d613caef232b88f1d26743a597725d4c3",
+      "unchanged": true,
+      "bytes": 134522
+    },
+    {
+      "group": "government-DOCX",
+      "id": "law-request-hwp",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/law-request-hwp.docx",
+      "expectedSHA256": "454dcf939a4ebddd1e9867e536189c28657301471284f07740eea5a61f669a78",
+      "finalSHA256": "454dcf939a4ebddd1e9867e536189c28657301471284f07740eea5a61f669a78",
+      "unchanged": true,
+      "bytes": 19294
+    },
+    {
+      "group": "government-DOCX",
+      "id": "law-register-hwp",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/law-register-hwp.docx",
+      "expectedSHA256": "367ca63cf548ab9b57abe34a018fc0b27b32fdf8ed322b5fa05bced452962877",
+      "finalSHA256": "367ca63cf548ab9b57abe34a018fc0b27b32fdf8ed322b5fa05bced452962877",
+      "unchanged": true,
+      "bytes": 22040
+    },
+    {
+      "group": "government-DOCX",
+      "id": "law-operation-hwp",
+      "file": "analysis/word-layout-8h-2026-11-10/native-government-inputs/law-operation-hwp.docx",
+      "expectedSHA256": "411399a9f59d0c3e67a802632d81c787655cd5d8ab3c4fe8ebdf6afc2981cb8c",
+      "finalSHA256": "411399a9f59d0c3e67a802632d81c787655cd5d8ab3c4fe8ebdf6afc2981cb8c",
+      "unchanged": true,
+      "bytes": 21771
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "01-body",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/01-body.docx",
+      "expectedSHA256": "5bd1e50381c1c1d18b7855789bf579662cbc7e171fa117781d9c4a67967e75a8",
+      "finalSHA256": "5bd1e50381c1c1d18b7855789bf579662cbc7e171fa117781d9c4a67967e75a8",
+      "unchanged": true,
+      "bytes": 21466
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "02-tables",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/02-tables.docx",
+      "expectedSHA256": "f724ffb96b922a9d72ef56f175cb09d8de806ffaee7cfa58ed3e9180f3578ed3",
+      "finalSHA256": "f724ffb96b922a9d72ef56f175cb09d8de806ffaee7cfa58ed3e9180f3578ed3",
+      "unchanged": true,
+      "bytes": 40799
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "03-floating",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/03-floating.docx",
+      "expectedSHA256": "c0bed46c4da5e88f8809e1ef8c4fa0c3d0e3f07094e1429fa39697586195d8c2",
+      "finalSHA256": "c0bed46c4da5e88f8809e1ef8c4fa0c3d0e3f07094e1429fa39697586195d8c2",
+      "unchanged": true,
+      "bytes": 39326
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "04-nested",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/04-nested.docx",
+      "expectedSHA256": "15fa3e772dbb7b5a12179dff85b40a4568b55ab317d4dbac789e15af71caa3d2",
+      "finalSHA256": "15fa3e772dbb7b5a12179dff85b40a4568b55ab317d4dbac789e15af71caa3d2",
+      "unchanged": true,
+      "bytes": 20889
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "05-styles",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/05-styles.docx",
+      "expectedSHA256": "beb0875c1247b4171f1eca5ea7e850aece6e326cb373867a5e0550da5c6f8ba7",
+      "finalSHA256": "beb0875c1247b4171f1eca5ea7e850aece6e326cb373867a5e0550da5c6f8ba7",
+      "unchanged": true,
+      "bytes": 95393
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "06-long-body",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/06-long-body.docx",
+      "expectedSHA256": "f28bea7272ec9438d4d688e555a2912b655bb50d0e5a63ffe54f82c4d460651a",
+      "finalSHA256": "f28bea7272ec9438d4d688e555a2912b655bb50d0e5a63ffe54f82c4d460651a",
+      "unchanged": true,
+      "bytes": 43772
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "07-characters",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/07-characters.docx",
+      "expectedSHA256": "b76a0d8042a2b1bfd828e3dc7951caaa159ce40f43df10a72d75d07b42e6b699",
+      "finalSHA256": "b76a0d8042a2b1bfd828e3dc7951caaa159ce40f43df10a72d75d07b42e6b699",
+      "unchanged": true,
+      "bytes": 32055
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "08-small-table",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/08-small-table.docx",
+      "expectedSHA256": "7bd01eb80a18462c1d14ee17273085285db566c448948fac3acc816b7cf46c2c",
+      "finalSHA256": "7bd01eb80a18462c1d14ee17273085285db566c448948fac3acc816b7cf46c2c",
+      "unchanged": true,
+      "bytes": 20806
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "09-theme",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/09-theme.docx",
+      "expectedSHA256": "596b0d7ff68f3dc6b11722be53f1cf410162860a3fc2c45d27c436a464c1ef32",
+      "finalSHA256": "596b0d7ff68f3dc6b11722be53f1cf410162860a3fc2c45d27c436a464c1ef32",
+      "unchanged": true,
+      "bytes": 96619
+    },
+    {
+      "group": "Word-original-DOCX",
+      "id": "10-references",
+      "file": "analysis/docx-word-layout-2026-10-31/inputs/10-references.docx",
+      "expectedSHA256": "6ae6688971eac742a198f6a66433770105d3713b0e4c220ce30955394a3ea594",
+      "finalSHA256": "6ae6688971eac742a198f6a66433770105d3713b0e4c220ce30955394a3ea594",
+      "unchanged": true,
+      "bytes": 74080
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "01-employment-contract",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/01-employment-contract.hwp",
+      "expectedSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "finalSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+      "unchanged": true,
+      "bytes": 69120
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "02-work-rules",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/02-work-rules.hwp",
+      "expectedSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "finalSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+      "unchanged": true,
+      "bytes": 279040
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "03-health-table",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/03-health-table.hwp",
+      "expectedSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+      "finalSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+      "unchanged": true,
+      "bytes": 61952
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "04-language-plan",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/04-language-plan.hwp",
+      "expectedSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+      "finalSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+      "unchanged": true,
+      "bytes": 304640
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "05-return-form",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/05-return-form.hwp",
+      "expectedSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+      "finalSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+      "unchanged": true,
+      "bytes": 114688
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "06-mixed-document",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/06-mixed-document.hwp",
+      "expectedSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "finalSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+      "unchanged": true,
+      "bytes": 2850304
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "07-english-exam",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/07-english-exam.hwp",
+      "expectedSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+      "finalSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+      "unchanged": true,
+      "bytes": 3486208
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "08-math-exam",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/08-math-exam.hwp",
+      "expectedSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "finalSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+      "unchanged": true,
+      "bytes": 770048
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "09-korean-exam",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/09-korean-exam.hwp",
+      "expectedSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+      "finalSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+      "unchanged": true,
+      "bytes": 435200
+    },
+    {
+      "group": "fresh-HWP-original",
+      "id": "10-lh-plan",
+      "file": "analysis/hwp-row-flow-2026-10-26/samples/10-lh-plan.hwp",
+      "expectedSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+      "finalSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+      "unchanged": true,
+      "bytes": 228352
+    }
+  ]
+}

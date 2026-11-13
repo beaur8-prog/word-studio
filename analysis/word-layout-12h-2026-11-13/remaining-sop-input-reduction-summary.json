@@ -1,0 +1,129 @@
+{
+  "utc": "2026-11-13T22:33:19.947373+00:00",
+  "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "method": "Input reduction and frame-offset diagnostics under the frozen compiled product only. Explicitly different public-sample copies; original/fixed 29-document inputs unchanged. Twelve-second local-box stability, not full 40-second acceptance or Word/page-accuracy results. Minimum failing input not yet proven.",
+  "reports": [
+    {
+      "id": "full-control",
+      "inputSHA256": "d3cbd2923b50e3e25898c07bb53b15e95b01e9b7f0e4fca24e2ff6bcba905000",
+      "inputBytes": 11092745,
+      "localTargetStableMs": 13404,
+      "diagnosticPages": 135,
+      "paragraphHeight": 329.4375,
+      "flowWidgetCount": 20,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation/full-control.wordstudio.gz"
+    },
+    {
+      "id": "source-segment-only",
+      "inputSHA256": "8c8c2dd071bbaad124cb0fd7ca4124061dde2d282e94f102e030b7ee25c25372",
+      "inputBytes": 236070,
+      "localTargetStableMs": 12085,
+      "diagnosticPages": 4,
+      "paragraphHeight": 23.53125,
+      "flowWidgetCount": 0,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation/source-segment-only.wordstudio.gz"
+    },
+    {
+      "id": "source-prefix-16",
+      "inputSHA256": "a85aa157f544b3bfe1ddc37bdb81487dec2454e3d1c18afeb45e30171090e887",
+      "inputBytes": 700414,
+      "localTargetStableMs": 12102,
+      "diagnosticPages": 9,
+      "paragraphHeight": 23.53125,
+      "flowWidgetCount": 0,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation/source-prefix-16.wordstudio.gz"
+    },
+    {
+      "id": "source-prefix-64",
+      "inputSHA256": "8386a202eeb23cfbc912b6caec97028a1721e5784b0d3db080aada99a7f99bdf",
+      "inputBytes": 1271693,
+      "localTargetStableMs": 12136,
+      "diagnosticPages": 15,
+      "paragraphHeight": 23.53125,
+      "flowWidgetCount": 0,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation/source-prefix-64.wordstudio.gz"
+    },
+    {
+      "id": "source-prefix-256",
+      "inputSHA256": "1d4f56adf5b5526c81322a7fe19db2851a33c7a4e9724207d910100c22c3cbe7",
+      "inputBytes": 2238462,
+      "localTargetStableMs": 12174,
+      "diagnosticPages": 33,
+      "paragraphHeight": 23.53125,
+      "flowWidgetCount": 0,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation/source-prefix-256.wordstudio.gz"
+    },
+    {
+      "id": "source-prefix-512",
+      "inputSHA256": "49112e4212cd6599e7477e24f6370af76aa39076eb6454fb7f8c509081cffc68",
+      "inputBytes": 3512451,
+      "localTargetStableMs": 12502,
+      "diagnosticPages": 54,
+      "paragraphHeight": 23.53125,
+      "flowWidgetCount": 0,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation/source-prefix-512.wordstudio.gz"
+    },
+    {
+      "id": "source-prefix-768",
+      "inputSHA256": "97b693573c66990427ba91b334ba231569ed64ba3c5ab8f7171343b1beda337d",
+      "inputBytes": 7684734,
+      "localTargetStableMs": 13012,
+      "diagnosticPages": 78,
+      "paragraphHeight": 329.4375,
+      "flowWidgetCount": 20,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation/source-prefix-768.wordstudio.gz"
+    },
+    {
+      "id": "body-without-cover",
+      "inputSHA256": "5ec60dddc2c3f814e6e6a8e54258a611b30bff4ef3a4d083d54bd997869b4ce9",
+      "inputBytes": 10971734,
+      "localTargetStableMs": 17079,
+      "diagnosticPages": 133,
+      "paragraphHeight": 23.53125,
+      "flowWidgetCount": 0,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation/body-without-cover.wordstudio.gz"
+    },
+    {
+      "id": "source-segment-with-cover",
+      "inputSHA256": "e919be2225a21f139b7369d2b52d34ed841d70d9c7289404d43b3f5a85f54293",
+      "inputBytes": 340171,
+      "localTargetStableMs": 12088,
+      "diagnosticPages": 6,
+      "paragraphHeight": 23.53125,
+      "flowWidgetCount": 0,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation-offset/source-segment-with-cover.wordstudio.gz"
+    },
+    {
+      "id": "source-segment-with-cover-first-block",
+      "inputSHA256": "ff1bba44dc93a2e8ba48c2c9d7a215c027e8c1abd0dd4357c57efe19ce5c2eba",
+      "inputBytes": 316191,
+      "localTargetStableMs": 12085,
+      "diagnosticPages": 5,
+      "paragraphHeight": 23.53125,
+      "flowWidgetCount": 0,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation-offset/source-segment-with-cover-first-block.wordstudio.gz"
+    },
+    {
+      "id": "body-with-first-cover-block",
+      "inputSHA256": "d92e150d6e3a9c638e64a2d752bf4b17d32f9d3dc671239263682660f4a99835",
+      "inputBytes": 11051846,
+      "localTargetStableMs": 13297,
+      "diagnosticPages": 134,
+      "paragraphHeight": 329.4375,
+      "flowWidgetCount": 20,
+      "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+      "artifact": "minimal-sop-paragraph-reservation-offset/body-with-first-cover-block.wordstudio.gz"
+    }
+  ],
+  "interpretation": "Full control and 78-page prefix copy retain excessive floating-flow widgets. Standalone original four-page segment and same segment with cover do not. Full body without cover is normal at target; adding the first original cover block restores the issue. It depends on surrounding pagination/coordinate context, not just target paragraph style or authored blank lines."
+}

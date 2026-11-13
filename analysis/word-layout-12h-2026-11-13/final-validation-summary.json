@@ -1,5 +1,5 @@
 {
-  "utc": "2026-11-13T21:52:30.177021+00:00",
+  "utc": "2026-11-13T22:38:30.841585+00:00",
   "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
   "method": "Separate fixed cohorts and raw-byte proofs, no denominator mixing. New native means isolated compiled Word Studio, not Microsoft Word. OS chooser is mocked; Android is browser simulation, not physical APK/device QA.",
   "government": {
@@ -629,6 +629,8 @@
   ],
   "unresolved": [
     "Government absolute page error remains 39 (target<=30 unmet).",
+    "SOP 13/25 historically Word-painted pictures are rendered narrower than authored model extents by paragraph max-width:100%; original/second-save OOXML extents remain preserved. No post-freeze product fix included.",
+    "SOP ordinary paragraph has excessive floating-flow widgets depending on surrounding pagination. Input-reduction diagnostics are not a completed minimal regression or a full stability acceptance test.",
     "SOP editor135/print133/historical Word136; two-page editor-print mismatch remains.",
     "Crossed vertical-merge table height cause not proven; exact-table A/B/C/D diagnostic inputs ready for actual Word.",
     "Five old strict HWP inventory issues remain; fresh byte/logical-cell checks do not erase them.",
@@ -694,6 +696,193 @@
       }
     ],
     "diagnosticCaution": "The thin first-glyph audit and longer original/undo/zoom native tests retain different local paragraph-box heights despite the same total 135 pages. They are separate observations, not proof that every fresh opening has identical line geometry. No source line spacing or blank lines were changed."
+  },
+  "knownNativePictureSizeDifferences": {
+    "utc": "2026-11-13T22:26:34.993054+00:00",
+    "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+    "inputSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+    "historicalWordPDFSHA256": "6ddedc0763844f7376e8d4dd43661df0afa959b85b8c6fa16ef1dc162e220d13",
+    "method": "Original source package and actual second-save DOCX extents; original body image pixels identify the matching historical Word drawing. Actual frozen native DOM bounds read without style overrides. Paper-fit uses the current native top-left plus authored extent; not a general crop/rotate/group solver. No new Microsoft measurement or primary 29-document score adjustment.",
+    "matchedPaintedSourcePictures": 25,
+    "renderedWidthSmallerThanModel": 13,
+    "secondSaveExtentSetDifferences": 0,
+    "CSSRule": "src/styles.css .tiptap img { max-width:100%; height:auto; }",
+    "example": {
+      "sourceIndex": 4,
+      "sourceRasterSHA256": "f13d150706fb921e7506446e7ed1d77ecc2c978829aea86fb0301b1ea7409c20",
+      "modelWidth": 680.3000524934383,
+      "modelHeight": 839.3000524934383,
+      "nativeWidth": 642.5,
+      "nativeHeight": 792.65625,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 680.2666666666667,
+      "wordHeightCSSpx": 839.2533333333334,
+      "wordPage": 9,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "7994333"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "7994333"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "7994333"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "7994333"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    }
+  },
+  "remainingInputReduction": {
+    "utc": "2026-11-13T22:33:19.947373+00:00",
+    "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+    "method": "Input reduction and frame-offset diagnostics under the frozen compiled product only. Explicitly different public-sample copies; original/fixed 29-document inputs unchanged. Twelve-second local-box stability, not full 40-second acceptance or Word/page-accuracy results. Minimum failing input not yet proven.",
+    "reports": [
+      {
+        "id": "full-control",
+        "inputSHA256": "d3cbd2923b50e3e25898c07bb53b15e95b01e9b7f0e4fca24e2ff6bcba905000",
+        "inputBytes": 11092745,
+        "localTargetStableMs": 13404,
+        "diagnosticPages": 135,
+        "paragraphHeight": 329.4375,
+        "flowWidgetCount": 20,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation/full-control.wordstudio.gz"
+      },
+      {
+        "id": "source-segment-only",
+        "inputSHA256": "8c8c2dd071bbaad124cb0fd7ca4124061dde2d282e94f102e030b7ee25c25372",
+        "inputBytes": 236070,
+        "localTargetStableMs": 12085,
+        "diagnosticPages": 4,
+        "paragraphHeight": 23.53125,
+        "flowWidgetCount": 0,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation/source-segment-only.wordstudio.gz"
+      },
+      {
+        "id": "source-prefix-16",
+        "inputSHA256": "a85aa157f544b3bfe1ddc37bdb81487dec2454e3d1c18afeb45e30171090e887",
+        "inputBytes": 700414,
+        "localTargetStableMs": 12102,
+        "diagnosticPages": 9,
+        "paragraphHeight": 23.53125,
+        "flowWidgetCount": 0,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation/source-prefix-16.wordstudio.gz"
+      },
+      {
+        "id": "source-prefix-64",
+        "inputSHA256": "8386a202eeb23cfbc912b6caec97028a1721e5784b0d3db080aada99a7f99bdf",
+        "inputBytes": 1271693,
+        "localTargetStableMs": 12136,
+        "diagnosticPages": 15,
+        "paragraphHeight": 23.53125,
+        "flowWidgetCount": 0,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation/source-prefix-64.wordstudio.gz"
+      },
+      {
+        "id": "source-prefix-256",
+        "inputSHA256": "1d4f56adf5b5526c81322a7fe19db2851a33c7a4e9724207d910100c22c3cbe7",
+        "inputBytes": 2238462,
+        "localTargetStableMs": 12174,
+        "diagnosticPages": 33,
+        "paragraphHeight": 23.53125,
+        "flowWidgetCount": 0,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation/source-prefix-256.wordstudio.gz"
+      },
+      {
+        "id": "source-prefix-512",
+        "inputSHA256": "49112e4212cd6599e7477e24f6370af76aa39076eb6454fb7f8c509081cffc68",
+        "inputBytes": 3512451,
+        "localTargetStableMs": 12502,
+        "diagnosticPages": 54,
+        "paragraphHeight": 23.53125,
+        "flowWidgetCount": 0,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation/source-prefix-512.wordstudio.gz"
+      },
+      {
+        "id": "source-prefix-768",
+        "inputSHA256": "97b693573c66990427ba91b334ba231569ed64ba3c5ab8f7171343b1beda337d",
+        "inputBytes": 7684734,
+        "localTargetStableMs": 13012,
+        "diagnosticPages": 78,
+        "paragraphHeight": 329.4375,
+        "flowWidgetCount": 20,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation/source-prefix-768.wordstudio.gz"
+      },
+      {
+        "id": "body-without-cover",
+        "inputSHA256": "5ec60dddc2c3f814e6e6a8e54258a611b30bff4ef3a4d083d54bd997869b4ce9",
+        "inputBytes": 10971734,
+        "localTargetStableMs": 17079,
+        "diagnosticPages": 133,
+        "paragraphHeight": 23.53125,
+        "flowWidgetCount": 0,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation/body-without-cover.wordstudio.gz"
+      },
+      {
+        "id": "source-segment-with-cover",
+        "inputSHA256": "e919be2225a21f139b7369d2b52d34ed841d70d9c7289404d43b3f5a85f54293",
+        "inputBytes": 340171,
+        "localTargetStableMs": 12088,
+        "diagnosticPages": 6,
+        "paragraphHeight": 23.53125,
+        "flowWidgetCount": 0,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation-offset/source-segment-with-cover.wordstudio.gz"
+      },
+      {
+        "id": "source-segment-with-cover-first-block",
+        "inputSHA256": "ff1bba44dc93a2e8ba48c2c9d7a215c027e8c1abd0dd4357c57efe19ce5c2eba",
+        "inputBytes": 316191,
+        "localTargetStableMs": 12085,
+        "diagnosticPages": 5,
+        "paragraphHeight": 23.53125,
+        "flowWidgetCount": 0,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation-offset/source-segment-with-cover-first-block.wordstudio.gz"
+      },
+      {
+        "id": "body-with-first-cover-block",
+        "inputSHA256": "d92e150d6e3a9c638e64a2d752bf4b17d32f9d3dc671239263682660f4a99835",
+        "inputBytes": 11051846,
+        "localTargetStableMs": 13297,
+        "diagnosticPages": 134,
+        "paragraphHeight": 329.4375,
+        "flowWidgetCount": 20,
+        "sourceTargetTextSHA256": "c9fb9cfae8c6fc33eac99f1eea47e0aab84e88acf5ae031a34e6dab1fb843b4a",
+        "artifact": "minimal-sop-paragraph-reservation-offset/body-with-first-cover-block.wordstudio.gz"
+      }
+    ],
+    "interpretation": "Full control and 78-page prefix copy retain excessive floating-flow widgets. Standalone original four-page segment and same segment with cover do not. Full body without cover is normal at target; adding the first original cover block restores the issue. It depends on surrounding pagination/coordinate context, not just target paragraph style or authored blank lines."
+  },
+  "originalInputIntegrity": {
+    "utc": "2026-11-13T22:00:50.960106+00:00",
+    "method": "End-of-run independent raw file SHA256 vs each frozen input manifest. Only reads original files; no source modification. Different scopes retained.",
+    "files": 49,
+    "allUnchanged": true
   },
   "nativeSOPFirstGlyphAndPrintAudit": {
     "editorPages": 135,

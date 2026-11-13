@@ -154,6 +154,14 @@ assert gov_pdf['documents']==gov_pdf['sameGlyphMultiplicity']==gov_pdf['sameImag
 summary['governmentTwoRealDOCXSaves']={k:v for k,v in gov_rt.items() if k!='rows'}
 summary['governmentSaved2ActualPDF']={k:v for k,v in gov_pdf.items() if k!='rows'}
 summary['remainingOrdinaryParagraphReservation']=read('remaining-sop-paragraph-reservation.json')
+bounds=read('remaining-sop-picture-bounds.json')
+assert bounds['sourceCommit']==FINAL and bounds['matchedPaintedSourcePictures']==25 and bounds['secondSaveExtentSetDifferences']==0
+summary['knownNativePictureSizeDifferences']={k:v for k,v in bounds.items() if k!='rows'}
+summary['knownNativePictureSizeDifferences']['example']=next(r for r in bounds['rows'] if r['sourceIndex']==4)
+summary['remainingInputReduction']=read('remaining-sop-input-reduction-summary.json')
+summary['originalInputIntegrity']={k:v for k,v in read('final-original-input-integrity.json').items() if k!='rows'}
+summary['unresolved'].insert(1,'SOP 13/25 historically Word-painted pictures are rendered narrower than authored model extents by paragraph max-width:100%; original/second-save OOXML extents remain preserved. No post-freeze product fix included.')
+summary['unresolved'].insert(2,'SOP ordinary paragraph has excessive floating-flow widgets depending on surrounding pagination. Input-reduction diagnostics are not a completed minimal regression or a full stability acceptance test.')
 ink=read('remaining-sop-native-print-first-drift.json')
 assert ink['sourceCommit']==FINAL and not ink['errors'] and ink['hidden'] and ink['sourcePreserved']
 summary['nativeSOPFirstGlyphAndPrintAudit']={k:ink[k] for k in ['editorPages','printPages','paragraphs','firstVisibleGlyphStarts','firstGlyphStartsOutsideBodyTolerance2CSSpx','firstGlyphStartCheckIsNotAllLinesVisibility','uniqueNativePrintComparison','historicalWordLookup']}

@@ -1,0 +1,1038 @@
+{
+  "utc": "2026-11-13T22:26:34.993054+00:00",
+  "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "inputSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+  "historicalWordPDFSHA256": "6ddedc0763844f7376e8d4dd43661df0afa959b85b8c6fa16ef1dc162e220d13",
+  "method": "Original source package and actual second-save DOCX extents; original body image pixels identify the matching historical Word drawing. Actual frozen native DOM bounds read without style overrides. Paper-fit uses the current native top-left plus authored extent; not a general crop/rotate/group solver. No new Microsoft measurement or primary 29-document score adjustment.",
+  "matchedPaintedSourcePictures": 25,
+  "renderedWidthSmallerThanModel": 13,
+  "secondSaveExtentSetDifferences": 0,
+  "CSSRule": "src/styles.css .tiptap img { max-width:100%; height:auto; }",
+  "rows": [
+    {
+      "sourceIndex": 3,
+      "sourceRasterSHA256": "c2bbc9c78bde5725f08097ed4b9909b371d995558092c984157291877b011d97",
+      "modelWidth": 611.2,
+      "modelHeight": 147.2,
+      "nativeWidth": 605.5,
+      "nativeHeight": 145.8125,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 605.5,
+      "wordWidthCSSpx": 611.2,
+      "wordHeightCSSpx": 147.19999999999996,
+      "wordPage": 5,
+      "wordPixelIdentityMethod": "exact-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "5821680",
+            "cy": "1402080"
+          },
+          "pictureExtent": {
+            "cx": "5821680",
+            "cy": "1402080"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "5821680",
+            "cy": "1402080"
+          },
+          "pictureExtent": {
+            "cx": "5821680",
+            "cy": "1402080"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 4,
+      "sourceRasterSHA256": "f13d150706fb921e7506446e7ed1d77ecc2c978829aea86fb0301b1ea7409c20",
+      "modelWidth": 680.3000524934383,
+      "modelHeight": 839.3000524934383,
+      "nativeWidth": 642.5,
+      "nativeHeight": 792.65625,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 680.2666666666667,
+      "wordHeightCSSpx": 839.2533333333334,
+      "wordPage": 9,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "7994333"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "7994333"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "7994333"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "7994333"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 5,
+      "sourceRasterSHA256": "b62b1c113601aa347c15b17c3589fd5d8821648dce324ecef661b0e6a6ae8474",
+      "modelWidth": 680.3000524934383,
+      "modelHeight": 279.30005249343833,
+      "nativeWidth": 642.5,
+      "nativeHeight": 263.765625,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 680.2133333333334,
+      "wordHeightCSSpx": 279.2666666666666,
+      "wordPage": 15,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "2660333"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "2660333"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "2660333"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "2660333"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 6,
+      "sourceRasterSHA256": "93dafe96d688614370d8f4f2efa1aa416b4f6045feee6b31235388cb2d9d11e9",
+      "modelWidth": 640.1000524934383,
+      "modelHeight": 121,
+      "nativeWidth": 640.09375,
+      "nativeHeight": 120.984375,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 640.0666666666667,
+      "wordHeightCSSpx": 120.99333333333334,
+      "wordPage": 17,
+      "wordPixelIdentityMethod": "exact-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6096953",
+            "cy": "1152525"
+          },
+          "pictureExtent": {
+            "cx": "6096953",
+            "cy": "1152525"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6096953",
+            "cy": "1152525"
+          },
+          "pictureExtent": {
+            "cx": "6096953",
+            "cy": "1152525"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 7,
+      "sourceRasterSHA256": "d160db527e902786b2f0f876162cd0352ecba09a7c470297f146aac6753501d4",
+      "modelWidth": 642.5000524934384,
+      "modelHeight": 890.5000524934384,
+      "nativeWidth": 642.5,
+      "nativeHeight": 890.5,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 642.4666666666668,
+      "wordHeightCSSpx": 890.4533333333334,
+      "wordPage": 25,
+      "wordPixelIdentityMethod": "exact-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "8482013"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "8482013"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "8482013"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "8482013"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 8,
+      "sourceRasterSHA256": "abeccc1f196d889249c85e4c5fb71cca248a089643fb6903bde11b152b4e9285",
+      "modelWidth": 642.5000524934384,
+      "modelHeight": 847.4,
+      "nativeWidth": 642.5,
+      "nativeHeight": 847.390625,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 642.4666666666668,
+      "wordHeightCSSpx": 847.36,
+      "wordPage": 26,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "8071485"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "8071485"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "8071485"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "8071485"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 9,
+      "sourceRasterSHA256": "aa2e3b6e28a01be86fa58801720d7684aea0c9087e5a5dd64fb9f7245953d3c2",
+      "modelWidth": 618,
+      "modelHeight": 722.2,
+      "nativeWidth": 612.5,
+      "nativeHeight": 715.765625,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 612.5,
+      "wordWidthCSSpx": 618.0000000000001,
+      "wordHeightCSSpx": 722.1999999999999,
+      "wordPage": 35,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "5886450",
+            "cy": "6878955"
+          },
+          "pictureExtent": {
+            "cx": "5886450",
+            "cy": "6878955"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "5886450",
+            "cy": "6878955"
+          },
+          "pictureExtent": {
+            "cx": "5886450",
+            "cy": "6878955"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 10,
+      "sourceRasterSHA256": "8219bad8b87b999dc9dc172a0ba1417b564fd3dcdbdae93c0c735421499e23e3",
+      "modelWidth": 617.6,
+      "modelHeight": 714.8,
+      "nativeWidth": 612.5,
+      "nativeHeight": 708.890625,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 612.5,
+      "wordWidthCSSpx": 617.6,
+      "wordHeightCSSpx": 714.8000000000001,
+      "wordPage": 36,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "5882640",
+            "cy": "6808470"
+          },
+          "pictureExtent": {
+            "cx": "5882640",
+            "cy": "6808470"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "5882640",
+            "cy": "6808470"
+          },
+          "pictureExtent": {
+            "cx": "5882640",
+            "cy": "6808470"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 11,
+      "sourceRasterSHA256": "98bfbaf95a9a95f7bfce80faeb78ab2c1998248a157d8ddbae19f2bc026a1f31",
+      "modelWidth": 642.5000524934384,
+      "modelHeight": 262.30005249343833,
+      "nativeWidth": 612.5,
+      "nativeHeight": 250.046875,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 612.5,
+      "wordWidthCSSpx": 642.4133333333333,
+      "wordHeightCSSpx": 262.2666666666666,
+      "wordPage": 37,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "2498408"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "2498408"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "2498408"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "2498408"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 15,
+      "sourceRasterSHA256": "194566f4094f9f75f9b54d0e6ed2ba6415439e9de561aeafd8802a7d6a5d04b4",
+      "modelWidth": 601.7000524934383,
+      "modelHeight": 148.50005249343832,
+      "nativeWidth": 601.6875,
+      "nativeHeight": 148.484375,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 605.5,
+      "wordWidthCSSpx": 601.5600000000001,
+      "wordHeightCSSpx": 148.4666666666667,
+      "wordPage": 38,
+      "wordPixelIdentityMethod": "exact-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "5731193",
+            "cy": "1414463"
+          },
+          "pictureExtent": {
+            "cx": "5731193",
+            "cy": "1414463"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "5731193",
+            "cy": "1414463"
+          },
+          "pictureExtent": {
+            "cx": "5731193",
+            "cy": "1414463"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 25,
+      "sourceRasterSHA256": "7d33c12635e9ae16fc25e75b76ded6badfea6994a8ee74c56c9f265e13f52d53",
+      "modelWidth": 680.3000524934383,
+      "modelHeight": 694.3000524934383,
+      "nativeWidth": 642.5,
+      "nativeHeight": 655.71875,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 680.2666666666667,
+      "wordHeightCSSpx": 694.2666666666668,
+      "wordPage": 43,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "6613208"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "6613208"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "6613208"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "6613208"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 26,
+      "sourceRasterSHA256": "883d9184146820ebbfcc6d4369ad34e119e8b669c9a16fd3f4063b229bdb2d44",
+      "modelWidth": 574.1000524934383,
+      "modelHeight": 210.7000524934383,
+      "nativeWidth": 574.09375,
+      "nativeHeight": 210.6875,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 574.0133333333333,
+      "wordHeightCSSpx": 210.66666666666666,
+      "wordPage": 50,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "5468303",
+            "cy": "2006918"
+          },
+          "pictureExtent": {
+            "cx": "5468303",
+            "cy": "2006918"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "5468303",
+            "cy": "2006918"
+          },
+          "pictureExtent": {
+            "cx": "5468303",
+            "cy": "2006918"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 27,
+      "sourceRasterSHA256": "54445559b03d1d24f54bbe237de5be0db8f5d59b030ad25f408fee3ef22acf89",
+      "modelWidth": 642.5000524934384,
+      "modelHeight": 825.1000524934383,
+      "nativeWidth": 642.5,
+      "nativeHeight": 825.09375,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 642.4666666666668,
+      "wordHeightCSSpx": 825.0533333333333,
+      "wordPage": 55,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "7859078"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "7859078"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "7859078"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "7859078"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 28,
+      "sourceRasterSHA256": "851f257368d512635ea8bb68f46454b0a1922e638f0c360fe431029da5f2e31f",
+      "modelWidth": 642.5000524934384,
+      "modelHeight": 242.90005249343832,
+      "nativeWidth": 642.5,
+      "nativeHeight": 242.890625,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 642.4133333333333,
+      "wordHeightCSSpx": 242.86666666666665,
+      "wordPage": 62,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "2313623"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "2313623"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "2313623"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "2313623"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 29,
+      "sourceRasterSHA256": "ff02b8a3c65e4e7b2facb589addf500c7e604f0730f339f146ed2309e0310a06",
+      "modelWidth": 611.2,
+      "modelHeight": 148.50005249343832,
+      "nativeWidth": 605.5,
+      "nativeHeight": 147.109375,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 605.5,
+      "wordWidthCSSpx": 611.0666666666666,
+      "wordHeightCSSpx": 148.4666666666667,
+      "wordPage": 70,
+      "wordPixelIdentityMethod": "exact-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "5821680",
+            "cy": "1414463"
+          },
+          "pictureExtent": {
+            "cx": "5821680",
+            "cy": "1414463"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "5821680",
+            "cy": "1414463"
+          },
+          "pictureExtent": {
+            "cx": "5821680",
+            "cy": "1414463"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 30,
+      "sourceRasterSHA256": "2bafd6773c42e60c84f712a56a0b3e016b50e4d3f5620ab2888809fe6e93ca0e",
+      "modelWidth": 680.3000524934383,
+      "modelHeight": 830.2,
+      "nativeWidth": 642.5,
+      "nativeHeight": 784.0625,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 680.2666666666667,
+      "wordHeightCSSpx": 830.16,
+      "wordPage": 75,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "7907655"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "7907655"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "7907655"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "7907655"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 31,
+      "sourceRasterSHA256": "8704ec37e62bfdb35262fd55e4b66e693a8079960d232601c8ea4e90274888c0",
+      "modelWidth": 680.3000524934383,
+      "modelHeight": 277.30005249343833,
+      "nativeWidth": 642.5,
+      "nativeHeight": 261.890625,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 680.2133333333334,
+      "wordHeightCSSpx": 277.2666666666667,
+      "wordPage": 81,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "2641283"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "2641283"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "2641283"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "2641283"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 32,
+      "sourceRasterSHA256": "8230123bbfe8bcfe359bcc0b795af2165774427a1fa0e14b172a064d1ed7d8cd",
+      "modelWidth": 680.3000524934383,
+      "modelHeight": 157.8,
+      "nativeWidth": 642.5,
+      "nativeHeight": 149.03125,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 680.2666666666667,
+      "wordHeightCSSpx": 157.78666666666663,
+      "wordPage": 82,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "1503045"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "1503045"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "1503045"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "1503045"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 33,
+      "sourceRasterSHA256": "26319abc083b2d1ef2dda546aeb1034dfd6a0bbadcca1e7d96c198e2d96ea5bc",
+      "modelWidth": 642.5000524934384,
+      "modelHeight": 817.6,
+      "nativeWidth": 642.5,
+      "nativeHeight": 817.59375,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 642.4666666666668,
+      "wordHeightCSSpx": 817.56,
+      "wordPage": 87,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "7787640"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "7787640"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "7787640"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "7787640"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 34,
+      "sourceRasterSHA256": "0426d0ae8b0d708f51f93cf6903e3081a707315ebd055b1088926081201b5b65",
+      "modelWidth": 617,
+      "modelHeight": 147.2,
+      "nativeWidth": 617,
+      "nativeHeight": 147.1875,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 617.0000000000001,
+      "wordHeightCSSpx": 147.19999999999996,
+      "wordPage": 100,
+      "wordPixelIdentityMethod": "exact-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "5876925",
+            "cy": "1402080"
+          },
+          "pictureExtent": {
+            "cx": "5876925",
+            "cy": "1402080"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "5876925",
+            "cy": "1402080"
+          },
+          "pictureExtent": {
+            "cx": "5876925",
+            "cy": "1402080"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 35,
+      "sourceRasterSHA256": "d7891cc4cad414d252ecee6247a4b1b17a9938c0e05d72da1a563515e52904fd",
+      "modelWidth": 642.5000524934384,
+      "modelHeight": 825.1000524934383,
+      "nativeWidth": 642.5,
+      "nativeHeight": 825.09375,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 642.4666666666666,
+      "wordHeightCSSpx": 825.0533333333333,
+      "wordPage": 107,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "7859078"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "7859078"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "7859078"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "7859078"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 36,
+      "sourceRasterSHA256": "70b72e4d748ca89267f006492eeb935a427b6d1444e62d23b1f09a49bfb141af",
+      "modelWidth": 642.5000524934384,
+      "modelHeight": 822.7000524934383,
+      "nativeWidth": 642.5,
+      "nativeHeight": 822.6875,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 642.4666666666666,
+      "wordHeightCSSpx": 822.6533333333333,
+      "wordPage": 108,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "7836218"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "7836218"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6119813",
+            "cy": "7836218"
+          },
+          "pictureExtent": {
+            "cx": "6119813",
+            "cy": "7836218"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 37,
+      "sourceRasterSHA256": "0aad665364487331a4b2849818a551411b610c510fc0d8c0ccd9aa5dabbccae6",
+      "modelWidth": 420.5000524934383,
+      "modelHeight": 142.1000524934383,
+      "nativeWidth": 420.5,
+      "nativeHeight": 142.09375,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 420.4000000000001,
+      "wordHeightCSSpx": 142.0666666666667,
+      "wordPage": 116,
+      "wordPixelIdentityMethod": "exact-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "4005263",
+            "cy": "1353503"
+          },
+          "pictureExtent": {
+            "cx": "4005263",
+            "cy": "1353503"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "4005263",
+            "cy": "1353503"
+          },
+          "pictureExtent": {
+            "cx": "4005263",
+            "cy": "1353503"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": false,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 38,
+      "sourceRasterSHA256": "8d697d455ce60fcb03bdc208c4fc561abc89cb106284a346ea1513c2c0b916d4",
+      "modelWidth": 680.3000524934383,
+      "modelHeight": 863.4,
+      "nativeWidth": 642.5,
+      "nativeHeight": 815.421875,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 680.2666666666667,
+      "wordHeightCSSpx": 863.36,
+      "wordPage": 121,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "8223885"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "8223885"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "8223885"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "8223885"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    },
+    {
+      "sourceIndex": 39,
+      "sourceRasterSHA256": "f66596c5604b3648d6673e0db8ead9ce2a84f9c7aef24a3baf7ff7d5b3303496",
+      "modelWidth": 680.3000524934383,
+      "modelHeight": 733.2,
+      "nativeWidth": 642.5,
+      "nativeHeight": 692.453125,
+      "nativeComputedMaxWidth": "100%",
+      "paragraphWidth": 642.5,
+      "wordWidthCSSpx": 680.2666666666667,
+      "wordHeightCSSpx": 733.16,
+      "wordPage": 122,
+      "wordPixelIdentityMethod": "near-decoded-RGB",
+      "originalSourceExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "6983730"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "6983730"
+          }
+        }
+      ],
+      "secondSaveExtents": [
+        {
+          "wpExtent": {
+            "cx": "6479858",
+            "cy": "6983730"
+          },
+          "pictureExtent": {
+            "cx": "6479858",
+            "cy": "6983730"
+          }
+        }
+      ],
+      "sourceExtentSetsPreserved": true,
+      "actualNativeWidthSmallerThanModel": true,
+      "authoredSizeWouldFitActualPhysicalPaper": true
+    }
+  ]
+}

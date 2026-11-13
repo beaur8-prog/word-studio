@@ -1,6 +1,6 @@
 {
-  "utc": "2026-11-13T21:53:56.332400+00:00",
-  "method": "Static parsing of QA tools only; no product execution or substitute for functional validation.",
+  "utc": "2026-11-13T22:47:20.451342+00:00",
+  "method": "Static QA-tool parsing only; independent of product functional tests.",
   "rows": [
     {
       "file": "tools/archive-completed-test-outputs.py",
@@ -19,6 +19,11 @@
     },
     {
       "file": "tools/audit-roundtrip-section-geometry.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/audit-sop-picture-bounds.py",
       "kind": "python-ast",
       "passed": true
     },
@@ -95,6 +100,11 @@
     {
       "file": "tools/minimize-merged-table.py",
       "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/minimize-sop-paragraph-reservation.cjs",
+      "kind": "node-syntax",
       "passed": true
     },
     {
