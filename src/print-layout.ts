@@ -124,6 +124,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     const bottom = Math.max(margins.bottom * PX, meaningful(footer) ? parseFloat(footer.style.bottom) + footer.getBoundingClientRect().height + 2 : 0);
     content.style.top = `${top}px`; content.style.height = `${Math.max(1, height * PX - top - bottom)}px`;
     content.dataset.bodyHeight = String(Math.max(1, height * PX - top - bottom));
+    paper.dataset.pageHeight = String(height * PX);
+    paper.dataset.margin = String(top); paper.dataset.bottomMargin = String(bottom);
     footnotes = document.createElement('div'); footnotes.className = 'tiptap print-footnotes';
     Object.assign(footnotes.style, { left: `${margins.left * PX}px`, right: `${margins.right * PX}px`, bottom: `${bottom}px` });
     paper.append(footnotes);
@@ -450,13 +452,20 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         content.append(a); newPage(); append(b); return;
       }
       if (content.children.length) {
-        newPage();
+        // A rejected probe may have wrapped older text around this anchor.
+        // Its exclusion leaves this sheet together with the paragraph.
+        fits(); newPage();
         if (wordKeepParagraph(element) && element.dataset.wordKeepLines === 'true') element.style.marginTop = '0';
         append(element); return;
       }
       content.append(element); scaleOversized(element); return;
     }
-    if (content.children.length > 1) { element.remove(); newPage(); content.append(element); }
+    if (content.children.length > 1) {
+      // Removing a floating anchor also removes its exclusion from earlier
+      // paragraphs. Reflow the old sheet, then resolve the picture against
+      // its new paper instead of carrying its old relative CSS offset.
+      element.remove(); fits(); newPage(); content.append(element); fits();
+    }
     scaleOversized(element);
   }
   try {
