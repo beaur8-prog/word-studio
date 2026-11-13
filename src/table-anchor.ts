@@ -1,3 +1,4 @@
+import { paperInset } from './paper-inset';
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { documentScale } from './document-scale';
@@ -46,7 +47,7 @@ export function layoutTableAnchors(root: HTMLElement) {
       const height = Number(sheet.dataset.pageHeight) || paper.height / scale;
       const top = sheet.classList.contains('print-page') ? (root.getBoundingClientRect().top - paper.top) / scale : Number(sheet.dataset.margin) || 0;
       const bottom = sheet.classList.contains('print-page') ? (root.getBoundingClientRect().bottom - paper.top) / scale
-        : height - (Number(sheet.dataset.bottomMargin) || Number(sheet.dataset.margin) || 0);
+        : height - paperInset(sheet.dataset.bottomMargin, paperInset(sheet.dataset.margin, 0));
       const tableHeight = table.getBoundingClientRect().height / scale;
       const flowHeight = [...table.getClientRects()].reduce((sum, rect) => sum + rect.height / scale, 0);
       // A table enlarged beyond one sheet must remain ordinary, splittable

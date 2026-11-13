@@ -1,3 +1,4 @@
+import { paperInset } from './paper-inset';
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { layoutTabs } from './document-tabs';
@@ -73,7 +74,7 @@ export function layoutColumns(root: HTMLElement, bottom?: number) {
     const sheet = group.closest<HTMLElement>('[data-page-height]');
     const scale = documentScale(group);
     const height = Number(sheet?.dataset.pageHeight) || 1122.52;
-    const top = Number(sheet?.dataset.margin) || 96, marginBottom = Number(sheet?.dataset.bottomMargin) || top;
+    const top = paperInset(sheet?.dataset.margin, 96), marginBottom = paperInset(sheet?.dataset.bottomMargin, top);
     const usable = Math.max(1, height - top - marginBottom), stride = height + 24;
     const oldPrefix = parseFloat(group.style.getPropertyValue('--column-prefix')) || 0;
     const origin = sheet?.getBoundingClientRect().top || 0;

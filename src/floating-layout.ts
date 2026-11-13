@@ -1,3 +1,4 @@
+import { paperInset } from './paper-inset';
 import { cellRelativePicture, reserveCellPicture, restoreCellPictureReservations, cellPictureReservation } from './floating-cell-relative';
 import { documentScale } from './document-scale';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
@@ -48,9 +49,9 @@ function ownerPaper(image: HTMLImageElement, root: HTMLElement) {
   const sheet = paragraph.closest<HTMLElement>('[data-page-height],.print-page') || root;
   const scale = documentScale(paragraph);
   const y = (paragraph.getBoundingClientRect().top - sheet.getBoundingClientRect().top) / scale;
-  const height = Number(sheet.dataset.pageHeight) || 1122.52, top = Number(sheet.dataset.margin) || 96;
+  const height = Number(sheet.dataset.pageHeight) || 1122.52, top = paperInset(sheet.dataset.margin, 96);
   const page = Math.max(0, Math.floor((y - top + .5) / (height + 24)));
-  return { page, y, height, top, bottom: Number(sheet.dataset.bottomMargin) || top };
+  return { page, y, height, top, bottom: paperInset(sheet.dataset.bottomMargin, top) };
 }
 
 function layoutHash(value: string) {
@@ -239,16 +240,13 @@ function imagePosition(
   const ph = Number(sheet.dataset.pageHeight) || parseFloat(sheet.style.height) || 1122.52;
   const textRoot = p.closest<HTMLElement>(".section-editable") || root;
   const rootStyle = getComputedStyle(textRoot),
-    top =
-      Number(sheet.dataset.margin) ||
-      parseFloat(rootStyle.paddingTop) ||
-      parseFloat(root.style.top) ||
-      96;
-  const bottom = Number(sheet.dataset.bottomMargin) || parseFloat(rootStyle.paddingBottom) || 96;
+    top = paperInset(sheet.dataset.margin,
+      parseFloat(rootStyle.paddingTop) || parseFloat(root.style.top) || 96);
+  const bottom = paperInset(sheet.dataset.bottomMargin, parseFloat(rootStyle.paddingBottom) || 96);
   const page = Math.max(0, Math.floor((rect.top - sr.top - top + 0.5) / (ph + 24))),
     py = sr.top + page * (ph + 24);
-  const leftMargin = parseFloat(rootStyle.paddingLeft) || parseFloat(root.style.left) || 0;
-  const rightMargin = parseFloat(rootStyle.paddingRight) || leftMargin;
+  const leftMargin = paperInset(sheet.dataset.leftMargin, parseFloat(rootStyle.paddingLeft) || parseFloat(root.style.left) || 0);
+  const rightMargin = paperInset(sheet.dataset.rightMargin, parseFloat(rootStyle.paddingRight) || leftMargin);
   const cell = p.closest<HTMLElement>("td,th");
   const cellStyle = cell ? getComputedStyle(cell) : undefined;
   const column = cell ? cell.getBoundingClientRect().left + (parseFloat(cellStyle!.paddingLeft) || 0) : group
@@ -801,7 +799,7 @@ export const FloatingLayout = Extension.create({
                   if (dom instanceof HTMLElement) pos.set(dom, position);
                 }
               });
-              const sheet=view.dom.closest<HTMLElement>('.document-stack'),shape=sheet?[sheet.dataset.pageHeight,sheet.dataset.margin,sheet.dataset.bottomMargin,getComputedStyle(sheet).width].join('|'):'';
+              const sheet=view.dom.closest<HTMLElement>('.document-stack'),shape=sheet?[sheet.dataset.pageHeight,sheet.dataset.margin,sheet.dataset.bottomMargin,sheet.dataset.leftMargin,sheet.dataset.rightMargin,getComputedStyle(sheet).width].join('|'):'';
               if(flowDocument!==view.state.doc || flowShape!==shape) {
                 pageFlow.starts.clear();pageFlow.backwards.clear();pageFlow.candidates.clear();backwardsSeen.clear();paperHistory.clear();flowDocument=view.state.doc;flowShape=shape;
               }

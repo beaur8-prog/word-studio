@@ -126,6 +126,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     content.dataset.bodyHeight = String(Math.max(1, height * PX - top - bottom));
     paper.dataset.pageHeight = String(height * PX);
     paper.dataset.margin = String(top); paper.dataset.bottomMargin = String(bottom);
+    paper.dataset.leftMargin = String(margins.left * PX); paper.dataset.rightMargin = String(margins.right * PX);
     footnotes = document.createElement('div'); footnotes.className = 'tiptap print-footnotes';
     Object.assign(footnotes.style, { left: `${margins.left * PX}px`, right: `${margins.right * PX}px`, bottom: `${bottom}px` });
     paper.append(footnotes);

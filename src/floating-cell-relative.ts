@@ -1,3 +1,4 @@
+import { paperInset } from './paper-inset';
 import { imageFloating, imageOutsidePaper, recoverableCellImage } from './image-floating';
 
 const paragraph = 'p,h1,h2,h3,h4,h5,h6';
@@ -35,7 +36,7 @@ export function cellRelativePicture(img: HTMLImageElement, root: HTMLElement) {
   const sheet = img.closest<HTMLElement>('[data-page-height],.print-page') || root;
   const style = getComputedStyle(sheet);
   const bodyHeight = (Number(sheet.dataset.pageHeight) || parseFloat(style.height) || 1122.52) -
-    (Number(sheet.dataset.margin) || 96) - (Number(sheet.dataset.bottomMargin) || 96);
+    paperInset(sheet.dataset.margin, 96) - paperInset(sheet.dataset.bottomMargin, 96);
   if (!(width > 0 && height > 0 && offset >= 0 && offset + height <= bodyHeight + .5 &&
       width <= owner.clientWidth + .5)) return;
   return { cell, first: blocks[0], last: blocks.at(-1)!, offset, height };

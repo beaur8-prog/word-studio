@@ -78,6 +78,7 @@ export class SectionNodeView {
     const bottom = Math.max(margins.bottom * px, occupied('.section-footer', page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)));
     Object.assign(this.contentDOM.style, { padding: `${top}px ${margins.right * px}px ${bottom}px ${margins.left * px}px`, minHeight: `${count * (height + 24) - 24}px` });
     this.dom.dataset.margin = String(top); this.dom.dataset.bottomMargin = String(bottom);
+    this.dom.dataset.leftMargin = String(margins.left * px); this.dom.dataset.rightMargin = String(margins.right * px);
   }
   update(node: PMNode) { if (node.type !== this.node.type) return false; this.node = node; this.schedule(); return true; }
   ignoreMutation(mutation: { target: globalThis.Node; type?: string }) { return mutation.target === this.dom || (mutation.type === 'attributes' && mutation.target === this.contentDOM) || !this.contentDOM.contains(mutation.target); }
