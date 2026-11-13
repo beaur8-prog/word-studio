@@ -328,7 +328,9 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
     width: `${parseFloat(getComputedStyle(owner || root).width)}px`,
   });
   const copy = root.cloneNode(true) as HTMLElement;
-  copy.querySelectorAll("[data-flow-widget]").forEach((el) => el.remove());
+  // Caret separators can leave a phantom line before newly inserted block
+  // widgets in a clone. They have no authored width, height or model offset.
+  copy.querySelectorAll("[data-flow-widget],.ProseMirror-separator").forEach((el) => el.remove());
   copy.removeAttribute("contenteditable");
   host.append(copy);
   document.body.append(host);
@@ -350,6 +352,21 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
   try {
     const ps = paragraphs(copy),
       images = floatingImages(copy);
+    // Stripping old wrap widgets changes the clone's physical coordinates.
+    // A page-anchored picture must still belong to its source page segment:
+    // an explicit body break prevents it from wrapping preceding paper.
+    const pageSegments = new Map<Element, number>();
+    let segment = 0;
+    for (const element of copy.querySelectorAll('p,h1,h2,h3,h4,h5,h6,[data-page-break]')) {
+      if (element.hasAttribute('data-page-break') && !element.closest('td,th,[data-column-count],.document-textbox')) segment++;
+      pageSegments.set(element, segment);
+    }
+    const samePageSegment = (picture: Picture, paragraph: HTMLElement) => {
+      if (picture.index < 0) return true;
+      const image = images[picture.index];
+      if (image.closest('td,th,[data-column-count],.document-textbox')) return true;
+      return pageSegments.get(image.closest('p,h1,h2,h3,h4,h5,h6')!) === pageSegments.get(paragraph);
+    };
     prepareDrawingGroupAnchors(copy);
     layoutTextBoxes(copy);
     const pictures = images
@@ -376,13 +393,23 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
         if (i >= 0) pictures[i] = picture;
         const group=groupExclusion(picture);if(group){const gi=pictures.findIndex(v=>v.index<=-100000 && v.geometry.drawingGroup?.id===group.geometry.drawingGroup!.id);if(gi>=0)pictures[gi]=group;}
       }
+      // A body paragraph containing only floating anchors has no painted
+      // inline content for its own artwork to wrap. Preserve its natural
+      // source line; paper fitting still includes the drawing's real extent.
+      if (own.length && !p.closest('td,th,.document-textbox,[data-column-count]') &&
+          !p.textContent?.replace(/[\s\u200b\u2060\ufeff]/gu, '') &&
+          !p.querySelector('img:not([data-image-floating]):not(.ProseMirror-separator),svg,video,canvas,[data-note-reference],[data-page-number],[data-symbol-font],[data-word-overlap],[data-docx-tab]') &&
+          own.every(picture => !picture.geometry.drawingGroup)) {
+        result.push({ index: pi, widgets: [], pictures: own });
+        continue;
+      }
       // Behind/in-front artwork needs positioning but does not exclude text.
       // Its often page-sized bounds must not trigger a manual re-layout of
       // unrelated paragraphs, which changes justification and mixed-font
       // line endings even though every line still has its full width.
       // A cell-bound drawing must not reflow paragraphs in another cell.
       // Otherwise page-anchored artwork can chase an earlier row as its page moves.
-      const flowing = pictures.filter(pic => !pic.offPage && pic.geometry.wrap?.type !== 0 &&
+      const flowing = pictures.filter(pic => samePageSegment(pic, p) && !pic.offPage && pic.geometry.wrap?.type !== 0 &&
         (!pic.wrapCell || pic.wrapCell === p.closest('td,th')) && !(pic.index<0 && p.closest('.document-textbox')));
       const style = getComputedStyle(p),
         box = p.getClientRects()[0] || p.getBoundingClientRect();
