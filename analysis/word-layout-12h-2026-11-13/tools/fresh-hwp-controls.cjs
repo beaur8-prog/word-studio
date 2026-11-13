@@ -1,10 +1,11 @@
 const fs=require('node:fs/promises'),path=require('node:path'),z=require('node:zlib'),{execFileSync}=require('node:child_process'),{createRequire}=require('node:module'),{pathToFileURL}=require('node:url'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'../../..'),base=path.dirname(__dirname),req=createRequire(root+'/package.json'),hash=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
 (async()=>{
- const out=base+'/fresh-hwp-controls';await fs.mkdir(out,{recursive:true});
+ const out=base+'/'+(process.env.HWP_FRESH_STAGE||'fresh-hwp-controls');await fs.mkdir(out,{recursive:true});
  const inputs=JSON.parse(await fs.readFile(root+'/analysis/word-layout-4h-2026-11-10/fresh-legacy-reference/results.json')).rows;
  const rows=[],errors=[];
- for(const ref of ['eee8aa0','a4685e2']){
+ const refs=JSON.parse(process.env.HWP_FRESH_REFS||'["eee8aa0","a4685e2"]');
+ for(const ref of refs){
   const {createServer}=await import(pathToFileURL(req.resolve('vite'))),sources=new Map(),cache=await fs.mkdtemp('/private/tmp/ws-layout-fresh-hwp-');
   const frozen={name:'frozen-source',enforce:'pre',load(id){const file=path.relative(root,id.split('?')[0]);if(file.startsWith('src/')&&/\.(ts|tsx|css|json)$/.test(file)){if(!sources.has(file))sources.set(file,execFileSync('git',['show',ref+':'+file],{cwd:root,encoding:'utf8'}));return sources.get(file);}}};
   const server=await createServer({root,cacheDir:cache,configFile:root+'/vite.config.ts',plugins:[frozen],server:{host:'127.0.0.1',port:5643,strictPort:true,hmr:false,watch:{ignored:['**']}},logLevel:'error'});await server.listen();
@@ -24,11 +25,11 @@ const root=path.resolve(__dirname,'../../..'),base=path.dirname(__dirname),req=c
      const layout=await createPrintLayout(generateHTML(doc.content,editorExtensions),doc.page);let printed;try{printed={pages:layout.pages,warnings:layout.warnings,pictures:[...layout.element.querySelectorAll('.print-content img[data-image-floating]')].map(image=>{const r=image.getBoundingClientRect(),p=image.closest('.print-page'),o=p.getBoundingClientRect();return{page:Number(p.dataset.page),x:r.x-o.x,y:r.y-o.y,width:r.width,height:r.height,display:getComputedStyle(image).display};})};}finally{layout.dispose();}
      if(current)for(let pass=1;pass<=2;pass++){const blob=await exportDocx(doc),bytes=new Uint8Array(await blob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));saves.push(btoa(binary));const loaded=await importFile(new File([blob],id+'.docx'));doc={...loaded.document,content:parseDocumentHtml(loaded.html)};states.push(await summary(doc));}
      return{nativePages:info.count,states,printed,saves};
-    },{bytes:[...bytes],id:input.id,current:ref==='a4685e2'});
+    },{bytes:[...bytes],id:input.id,current:ref===refs.at(-1)});
     const saves=[];for(const[index,data]of result.saves.entries()){const bytes=Buffer.from(data,'base64'),file=out+'/textbox-save-fresh-'+input.id+'-'+(index+1)+'.docx';await fs.writeFile(file,bytes);saves.push({file:path.relative(base,file),sha256:hash(bytes),bytes:bytes.length});}
     delete result.saves;const row={ref,id:input.id,inputSHA256:input.sha256,...result,saves,durationMs:Date.now()-started};rows.push(row);console.log(JSON.stringify({ref,id:input.id,pages:row.printed.pages,characters:row.states[0].characters,images:row.states[0].images.length,finished:true,durationMs:row.durationMs}));
    }catch(error){errors.push({ref,id:input.id,error:String(error)});console.error(String(error));}finally{await page.close();}
-   await fs.writeFile(out+'/results.json',JSON.stringify({method:'Fresh original HWP bytes through production Worker and editable import, not retained prepared models. Frozen eee8aa0 versus a4685e2; current model additionally exported and reopened as real DOCX twice. Native HWP parser page count is not Microsoft Word.',rows,errors},null,2));
+   await fs.writeFile(out+'/results.json',JSON.stringify({method:'Fresh original HWP bytes through production Worker and editable import, not retained prepared models. Source refs recorded per row; last source model additionally exported and reopened as real DOCX twice. Native HWP parser page count is not Microsoft Word.',rows,errors},null,2));
   }}finally{await browser.close();await server.close();await fs.rm(cache,{recursive:true,force:true});}
  }
  if(errors.length)process.exitCode=1;

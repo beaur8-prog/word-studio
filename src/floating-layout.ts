@@ -389,10 +389,18 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
     // an explicit body break prevents it from wrapping preceding paper.
     const pageSegments = new Map<Element, number>();
     let segment = 0;
-    for (const element of copy.querySelectorAll('p,h1,h2,h3,h4,h5,h6,[data-page-break]')) {
+    for (const element of copy.querySelectorAll('p,h1,h2,h3,h4,h5,h6,[data-page-break],table')) {
       if (element.hasAttribute('data-page-break') && !element.closest('td,th,[data-column-count],.document-textbox')) segment++;
       pageSegments.set(element, segment);
     }
+    // An empty anchor has no painted line of its own. In a source segment
+    // containing a table, cell metrics and row pagination can still change
+    // the apparent before/after paper. Require the existing repeated-cycle
+    // evidence there instead of committing a transient one-pass constraint.
+    const tableSegments = new Set([...copy.querySelectorAll('table')]
+      .filter(table => !table.closest('td,th,[data-column-count],.document-textbox'))
+      .map(table => pageSegments.get(table)));
+    const tableDependentParagraphs = new Set(ps.filter(p => tableSegments.has(pageSegments.get(p))));
     const samePageSegment = (picture: Picture, paragraph: HTMLElement) => {
       if (picture.index < 0) return true;
       const image = images[picture.index];
@@ -722,7 +730,7 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
     if (pageFlow) for (const paragraph of result) {
       for (const picture of paragraph.pictures) {
         if (pageFlow.starts.has(picture.index)) paragraph.startPage = true;
-        else if (pageFlow.candidates.has(picture.index) && pageFlow.backwards.has(picture.index)) {
+        else if ((ps[paragraph.index].textContent?.replace(/[\s\u200b\u2060\ufeff]/gu, "") || !tableDependentParagraphs.has(ps[paragraph.index])) && pageFlow.candidates.has(picture.index) && pageFlow.backwards.has(picture.index)) {
           const paper = ownerPaper(images[picture.index], copy)!, initial = initialPictures!.get(picture.index)!;
           if (picture.top - initial >= paper.height + 24 - .5) pageFlow.starts.add(picture.index);
         }

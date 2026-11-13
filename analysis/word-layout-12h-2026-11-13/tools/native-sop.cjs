@@ -7,8 +7,9 @@ const canonical = value => Array.isArray(value) ? value.map(canonical) : value &
   ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 const started = Date.now(), log = value => console.log(JSON.stringify({ elapsedMs: Date.now() - started, ...value }));
 function semantics(doc) {
-  const images = [], tables = [], notes = [], fields = [], breaks = [];
+  const images = [], tables = [], notes = [], fields = [], breaks = [], sections = [doc.page];
   const visit = node => {
+    if (node.type === 'sectionBreak') sections.push(JSON.parse(node.attrs.page));
     if (node.type === 'inlineImage' || node.type === 'image') {
       const attrs = node.attrs || {}, encoded = String(attrs.src || '').split(',')[1] || '';
       images.push({ sha256: sha(Buffer.from(encoded, 'base64')), width: attrs.width, height: attrs.height,
@@ -22,7 +23,7 @@ function semantics(doc) {
     if (node.type === 'documentSymbol') return node.attrs?.glyph || '';
     return (node.text || '') + (node.content || []).map(visit).join('');
   };
-  const text = visit(doc.content); return { text, images, tables, notes, fields, breaks };
+  const text = visit(doc.content); return { text, images, tables, notes, fields, breaks, sections };
 }
 (async () => {
   const out = base + '/' + (process.env.NATIVE_QA_STAGE || 'native-sop-eee8aa0'); await fs.mkdir(out, { recursive: true });
@@ -32,7 +33,7 @@ function semantics(doc) {
   const profile = await fs.mkdtemp('/private/tmp/ws-layout-12h-sop-'), original = profile + '/mois-sop-3.docx';
   await fs.writeFile(original, input);
   const entry = profile + '/entry.cjs';
-  await fs.writeFile(entry, `const{app,BrowserWindow,systemPreferences}=require('electron');const old=systemPreferences.setUserDefault.bind(systemPreferences);systemPreferences.setUserDefault=(k,...a)=>k==='NSOSPLastRootDirectory'?undefined:old(k,...a);app.whenReady().then(()=>app.setActivationPolicy('prohibited'));BrowserWindow.prototype.show=function(){};BrowserWindow.prototype.focus=function(){};app.on('browser-window-created',(_e,w)=>{w.setSkipTaskbar(true);w.webContents.setBackgroundThrottling(false)});app.whenReady().then(()=>app.dock?.hide());require(${JSON.stringify(base + '/native-app/electron/main.cjs')});`);
+  await fs.writeFile(entry, `const{app,BrowserWindow,systemPreferences}=require('electron');const old=systemPreferences.setUserDefault.bind(systemPreferences);systemPreferences.setUserDefault=(k,...a)=>k==='NSOSPLastRootDirectory'?undefined:old(k,...a);app.whenReady().then(()=>app.setActivationPolicy('prohibited'));BrowserWindow.prototype.show=function(){};BrowserWindow.prototype.focus=function(){};app.on('browser-window-created',(_e,w)=>{w.setSkipTaskbar(true);w.webContents.setBackgroundThrottling(false)});app.whenReady().then(()=>app.dock?.hide());require(${JSON.stringify((process.env.NATIVE_QA_APP_DIR || base + '/native-app') + '/electron/main.cjs')});`);
   const env = { ...process.env, STUDIO_DISABLE_UPDATES: '1' }; delete env.ELECTRON_RUN_AS_NODE; delete env.WORD_STUDIO_DEV;
   const app = await electron.launch({ executablePath: req('electron'), args: [entry, '--force-device-scale-factor=1', '--user-data-dir=' + profile + '/data'], env, timeout: 60000 });
   const child = app.process(); const watchdog = setTimeout(() => { log({ failure: 'Owned native QA exceeded 30 minutes' }); child.kill('SIGKILL'); process.exitCode = 1; }, 1800000); watchdog.unref();
@@ -52,9 +53,15 @@ function semantics(doc) {
       const paragraphs = [...root.querySelectorAll('p,h1,h2,h3,h4,h5,h6')].filter(el => !el.closest(excluded)).map(rect);
       const images = [...root.querySelectorAll('img[data-image-floating]')].filter(el => !el.closest(excluded)).map(rect);
       const gaps = [...root.querySelectorAll('.pagination-gap,.pagination-cell-gap')].map(rect);
-      const data = JSON.stringify([stack.dataset.pages, number(origin.height), paragraphs, images, gaps]); let hash = 2166136261;
+      const meaningful = [...root.querySelectorAll('p,h1,h2,h3,h4,h5,h6')].filter(el => !el.closest(excluded) && (el.textContent.trim() || [...el.querySelectorAll('img')].some(i => i.getBoundingClientRect().height > .1)));
+      const stride = Number(stack.dataset.pageHeight) + 24, physicalParagraphPages = Math.max(1, ...meaningful.map(p => Math.floor((rect(p)[1] + .5) / stride) + 1));
+      const metric = root.editor.state.plugins.find(p => p.key.startsWith('hwpCellLineMetrics')), metricDecorations = metric?.getState(root.editor.state)?.find().length || 0;
+      const sections = [...root.querySelectorAll('.document-section-content')].map(s => ({ pages: s.dataset.pages, top: s.dataset.margin, bottom: s.dataset.bottomMargin, height: s.dataset.pageHeight }));
+      const data = JSON.stringify([stack.dataset.pages, number(origin.height), paragraphs, images, gaps, sections]); let hash = 2166136261;
       for (let i = 0; i < data.length; i++) hash = Math.imul(hash ^ data.charCodeAt(i), 16777619);
-      return { pages: Number(stack.dataset.pages), height: number(origin.height), scale, signature: (hash >>> 0).toString(16), images, paragraphs: paragraphs.length, gaps: gaps.length, paragraphRects: paragraphs, gapRects: gaps };
+      const bodyPictures = [...root.querySelectorAll('img[data-image-floating]')].filter(el=>!el.closest(excluded));
+      const floatingStarts = bodyPictures.flatMap((img,index)=>img.closest('p,h1,h2,h3,h4,h5,h6')?.hasAttribute('data-floating-start-page') ? [index] : []);
+      return { floatingStarts, fontsStatus:document.fonts.status, pages: Number(stack.dataset.pages), physicalParagraphPages, metricDecorations, sections, height: number(origin.height), scale, signature: (hash >>> 0).toString(16), images, paragraphs: paragraphs.length, gaps: gaps.length, paragraphRects: paragraphs, gapRects: gaps };
     });
     async function stable(label) {
       const samples = [], start = Date.now(); let previous, stableSince = Date.now();
@@ -65,7 +72,10 @@ function semantics(doc) {
         if (Date.now() - stableSince >= Number(process.env.NATIVE_STABLE_MS || 40000)) {
           const result = { label, samples, final: state, stableMs: Date.now() - stableSince };
           phases.push(result); await fs.writeFile(out + '/' + label + '.json.gz', z.gzipSync(JSON.stringify(result)));
-          if (errors.length) throw Error('Renderer error: ' + errors.join('; ')); return state;
+          if (errors.length) throw Error('Renderer error: ' + errors.join('; '));
+          if (process.env.NATIVE_STRICT_FRAMES === '1' && (state.pages !== state.physicalParagraphPages || !state.metricDecorations))
+            throw Error('Physical paper count or cell metrics are incomplete: ' + JSON.stringify({pages:state.pages, physical:state.physicalParagraphPages, metrics:state.metricDecorations}));
+          return state;
         }
       }
       await fs.writeFile(out + '/' + label + '-failure.json.gz', z.gzipSync(JSON.stringify(samples))); throw Error('No 40-second geometry convergence: ' + label);
@@ -84,12 +94,20 @@ function semantics(doc) {
       await expect(page.locator('.busy-indicator')).toBeHidden(); await page.evaluate(() => document.fonts.ready);
       const originalState = await stable('pass-' + pass + '-original'), document = await saveBackup('pass-' + pass + '-backup');
       const content = semantics(document); if (!reference) reference = content;
-      if (content.text !== reference.text || JSON.stringify(content.tables) !== JSON.stringify(reference.tables) || JSON.stringify(content.notes) !== JSON.stringify(reference.notes) || JSON.stringify(content.fields) !== JSON.stringify(reference.fields) || JSON.stringify(content.breaks) !== JSON.stringify(reference.breaks)) throw Error('Source text/table/note/field/break preservation failed at pass ' + pass);
+      if (content.text !== reference.text || JSON.stringify(content.tables) !== JSON.stringify(reference.tables) || JSON.stringify(content.notes) !== JSON.stringify(reference.notes) || JSON.stringify(content.fields) !== JSON.stringify(reference.fields) || JSON.stringify(content.breaks) !== JSON.stringify(reference.breaks) || content.sections.length !== reference.sections.length) throw Error('Source text/table/note/field/break preservation failed at pass ' + pass);
       if (JSON.stringify(content.images.map(i => i.sha256)) !== JSON.stringify(reference.images.map(i => i.sha256))) throw Error('Source image bytes/order changed at pass ' + pass);
       checkpointModel = await editor.evaluate(el => el.editor.getJSON());
       await fs.writeFile(out + '/pass-' + pass + '-before.json.gz', z.gzipSync(JSON.stringify(checkpointModel)));
       const before = await modelHash();
-      await editor.evaluate(el => { let end; el.editor.state.doc.descendants((node, pos) => { if (end === undefined && node.isTextblock && node.textContent.trim()) end = pos + 1 + node.content.size; }); el.editor.commands.setTextSelection(end); el.editor.commands.focus(); });
+      await editor.evaluate((el, { target, segment }) => {
+        let start = 0, limit = el.editor.state.doc.content.size, frameIndex = -1;
+        if (target >= 0) el.editor.state.doc.forEach((node, pos) => { if (node.type.name === 'sectionContent' && ++frameIndex === target) {
+          start = pos; limit = pos + node.nodeSize;
+          if (segment >= 0) { let scope = 0, found = false; node.forEach((child, offset) => { if (child.type.name === 'pageBreak') scope++; if (!found && scope === segment && child.textContent.trim()) { start = pos + 1 + offset; limit = start + child.nodeSize; found = true; } }); if (!found) throw Error('Requested QA source segment missing'); }
+        } });
+        let end; el.editor.state.doc.descendants((node, pos) => { if (end === undefined && pos >= start && pos < limit && node.isTextblock && node.textContent.trim()) end = pos + 1 + node.content.size; });
+        el.editor.commands.setTextSelection(end); el.editor.commands.focus();
+      }, { target: Number(process.env.NATIVE_EDIT_SECTION ?? -1), segment: Number(process.env.NATIVE_EDIT_BREAK_SEGMENT ?? -1) });
       await page.keyboard.insertText(' NATIVE PAGE QA'); await expect(editor).toContainText(' NATIVE PAGE QA'); await stable('pass-' + pass + '-edited');
       await page.keyboard.press('ControlOrMeta+z'); await page.waitForTimeout(300);
       await fs.writeFile(out + '/pass-' + pass + '-after-undo.json.gz', z.gzipSync(JSON.stringify(await editor.evaluate(el => el.editor.getJSON()))));
@@ -106,6 +124,7 @@ function semantics(doc) {
       // reject changes larger than two layout units.
       if (undoMaxDelta > 1/32) throw Error('Undo changed original geometry by ' + undoMaxDelta + 'px at pass ' + pass);
       log({ phase: 'undo-geometry-restored', pass, undoMaxDelta });
+      if (process.env.NATIVE_UNDO_ONLY === '1') break;
       await page.keyboard.press('ControlOrMeta+Shift+z'); await expect(editor).toContainText(' NATIVE PAGE QA'); await stable('pass-' + pass + '-redo');
       await page.keyboard.press('ControlOrMeta+z'); await expect.poll(modelHash, { timeout: 90000, intervals: [250, 500, 1000] }).toBe(before); await stable('pass-' + pass + '-undo-again');
       for (const zoom of [50, 125, 100]) {
@@ -127,7 +146,7 @@ function semantics(doc) {
     const printPages = await page.locator('.print-page').count();
     const pdf = await app.evaluate(async ({ BrowserWindow }) => (await BrowserWindow.getAllWindows()[0].webContents.printToPDF({ printBackground: true, preferCSSPageSize: true })).toString('base64'));
     await fs.writeFile(out + '/sop-save2-native.pdf', Buffer.from(pdf, 'base64'));
-    await fs.writeFile(out + '/result.json', JSON.stringify({ sourceRef: 'eee8aa0', originalSHA256: sha(input), sourcePreserved: sha(await fs.readFile(row.path)) === sha(input), hidden: !(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some(w => w.isVisible()))), method: 'Isolated compiled Electron with actual native open/save IPC, keyboard editing, and the native application Export Word menu action. OS file chooser mocked; no user profile or source input overwritten. Each phase requires the configured continuous stability interval of identical physical paragraph/image/gap geometry; CSS class and attribute order are not geometry. Microsoft Word not newly measured.', requiredStableMs: Number(process.env.NATIVE_STABLE_MS || 40000), phases: phases.map(({ label, final, stableMs }) => ({ label, final, stableMs })), saves, printPages, bodyLength: reference.text.length, bodySHA256: sha(reference.text), images: reference.images.length, tables: reference.tables.length, errors }, null, 2));
+    await fs.writeFile(out + '/result.json', JSON.stringify({ sourceRef: process.env.NATIVE_BUILD_COMMIT || 'eee8aa0', editTarget: { frame:process.env.NATIVE_EDIT_SECTION, sourceBreakSegment:process.env.NATIVE_EDIT_BREAK_SEGMENT }, originalSHA256: sha(input), sourcePreserved: sha(await fs.readFile(row.path)) === sha(input), hidden: !(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().some(w => w.isVisible()))), method: 'Isolated compiled Electron with actual native open/save IPC, keyboard editing, and the native application Export Word menu action. OS file chooser mocked; no user profile or source input overwritten. Each phase requires the configured continuous stability interval of identical physical paragraph/image/gap geometry; CSS class and attribute order are not geometry. Microsoft Word not newly measured.', requiredStableMs: Number(process.env.NATIVE_STABLE_MS || 40000), phases: phases.map(({ label, final, stableMs }) => ({ label, final, stableMs })), saves, printPages, bodyLength: reference.text.length, bodySHA256: sha(reference.text), images: reference.images.length, tables: reference.tables.length, sourceSections: reference.sections, errors }, null, 2));
     log({ complete: true, printPages, phases: phases.length, images: reference.images.length, saves });
   } catch (error) {
     if (page) await fs.writeFile(out + '/failure-model.json.gz', z.gzipSync(JSON.stringify(await page.getByRole('textbox', { name: '문서 편집 영역', exact: true }).evaluate(el => el.editor.getJSON()).catch(() => null))));
