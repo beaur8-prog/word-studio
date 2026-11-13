@@ -31,7 +31,7 @@ export class SectionNodeView {
     this.observer = new ResizeObserver(() => this.schedule()); this.observer.observe(this.contentDOM);
     this.schedule();
   }
-  private schedule() { cancelAnimationFrame(this.frame); this.frame = requestAnimationFrame(() => this.layout()); }
+  private schedule() { if (this.frame) return; this.frame = requestAnimationFrame(() => { this.frame = 0; this.layout(); }); }
   private layout() {
     const page = sectionSettings(this.node.attrs.page), [width, height] = pageDimensions(page), margins = pageMargins(page);
     const px = 96 / 25.4, count = Math.max(1, Number(this.dom.dataset.pages) || 1);

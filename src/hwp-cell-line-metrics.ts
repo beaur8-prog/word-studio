@@ -77,7 +77,10 @@ export const HwpCellLineMetrics = Extension.create({
     props: { decorations: state => key.getState(state) },
     view(view) {
       let frame = 0, signature = '', lastDocument = view.state.doc;
-      const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
+      // Other planners dispatch transactions during the same animation frame.
+      // Keep the pending callback: cancelling it on every update can postpone
+      // cell metrics indefinitely in documents with floating drawings.
+      const schedule = () => { if (frame) return; frame = requestAnimationFrame(() => { frame = 0;
         if (!view.dom.isConnected || view.composing) return;
         const decorations: Decoration[] = [], values: string[] = [];
         view.state.doc.descendants((node, pos) => {
