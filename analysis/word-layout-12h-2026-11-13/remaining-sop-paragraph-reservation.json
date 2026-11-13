@@ -1,0 +1,39 @@
+{
+  "utc": "2026-11-13T21:50:09.642407+00:00",
+  "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "method": "Exploratory actual-native editor vs native print same complete paragraph before the first page mismatch. Native view boxes can include planner widgets; this is a diagnostic, not proof of authored blank lines or a completed root-cause fix.",
+  "paragraphKey": 3626,
+  "sourceParagraphHasOnlyText": true,
+  "sourceBreaksOrImages": 0,
+  "authoredLineSpacing": "17.65pt",
+  "editorFirstGlyph": {
+    "page": 97,
+    "y": 575.015625,
+    "bodyTop": 94.46666666666667,
+    "bodyBottom": 1046.915625
+  },
+  "nativeEditorParagraphHeight": 305.90625,
+  "nativePrintParagraphHeight": 23.531341712949427,
+  "differenceCSSpx": 282.3749082870506,
+  "actualTableDOMRows": 5,
+  "sourceTableRows": 4,
+  "tableHeightIncludingViewGap": 466.5,
+  "leadingViewGapHeight": 231.703125,
+  "tableHeightExcludingViewGap": 234.796875,
+  "interpretation": "Table DOM has four authored rows plus a virtual pagination gap row. A prior ordinary text paragraph already has a large view-only reservation; the table-height difference alone is not a proven cause. Next inspect ownership/measurement of existing paragraph/page gaps rather than forcing row heights.",
+  "otherRetainedStableNativeBoxMeasurements": [
+    {
+      "stage": "native-sop-6bc49fa-body22",
+      "heightCSSpx": [
+        329.4375
+      ]
+    },
+    {
+      "stage": "native-sop-6bc49fa-cover-retry",
+      "heightCSSpx": [
+        329.4375
+      ]
+    }
+  ],
+  "diagnosticCaution": "The thin first-glyph audit and longer original/undo/zoom native tests retain different local paragraph-box heights despite the same total 135 pages. They are separate observations, not proof that every fresh opening has identical line geometry. No source line spacing or blank lines were changed."
+}

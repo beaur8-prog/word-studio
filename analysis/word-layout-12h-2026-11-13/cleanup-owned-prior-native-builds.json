@@ -1,0 +1,43 @@
+{
+  "utc": "2026-11-13T20:50:12.803763+00:00",
+  "method": "Only inactive owned prior-checkpoint temporary native build directories identified by this run manifests, exact asset hash verified and no open files. Final 6bc compiled build, SDK, all raw inputs/failures/user apps/recovery and old iCloud checkout retained. Source commits and hashes allow rebuilding.",
+  "rows": [
+    {
+      "buildManifest": "native-checkpoint-build-1012ae8.json",
+      "sourceCommit": "1012ae877e4ed83b74dbd1db4270782f661a1de2",
+      "removed": "/private/tmp/ws-word-layout-12h-native-gj3jojf7",
+      "files": 1009,
+      "bytes": 46333425,
+      "assetHashesVerified": true,
+      "openFiles": 0
+    },
+    {
+      "buildManifest": "native-checkpoint-build-77d0d06.json",
+      "sourceCommit": "77d0d068c817ed9bb5ca82e17e09a94b868f321b",
+      "removed": "/private/tmp/ws-word-layout-12h-native-e61luu8x",
+      "files": 1009,
+      "bytes": 46332697,
+      "assetHashesVerified": true,
+      "openFiles": 0
+    },
+    {
+      "buildManifest": "native-checkpoint-build-b6edda3.json",
+      "sourceCommit": "b6edda3243fd4397efe4abf27e9e19bec9244f4a",
+      "removed": "/private/tmp/ws-word-layout-12h-native-t23gfr1_",
+      "files": 1009,
+      "bytes": 46333441,
+      "assetHashesVerified": true,
+      "openFiles": 0
+    },
+    {
+      "buildManifest": "native-checkpoint-build-fe9e72f.json",
+      "sourceCommit": "fe9e72f7c5483819bb798e8e1ecd0f5ac2791905",
+      "removed": "/private/tmp/ws-word-layout-12h-native-6oqusnvq",
+      "files": 1009,
+      "bytes": 46332609,
+      "assetHashesVerified": true,
+      "openFiles": 0
+    }
+  ],
+  "reclaimedBytes": 185332172
+}

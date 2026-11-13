@@ -130,7 +130,7 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
       }
       finally { await page.close(); }
       await fs.writeFile(out + '/results.json', JSON.stringify({ utc: new Date().toISOString(), variant, stage, sourceRef, code, fileRefs,localOverrides, experimentalCSS:process.env.EXPERIMENT_CSS_FILE?{name:path.basename(process.env.EXPERIMENT_CSS_FILE),sha256:sha(await fs.readFile(process.env.EXPERIMENT_CSS_FILE))}:null,preflightFontExperiment:process.env.EXPERIMENT_PREFLIGHT_FONT==='1',fontExperiment:process.env.EXPERIMENT_FONT||null,fontLatinFirst:process.env.EXPERIMENT_LATIN||null,fontExperimentFamilies:process.env.EXPERIMENT_FAMILIES||null,fontExperimentExtraFamilies:process.env.EXPERIMENT_EXTRA_FAMILIES||null,
-        method: 'Exact frozen actual web Word input bytes; current Studio print; DPR1, 100% display; no HWP model substitution', rows, errors }, null, 2));
+        method: process.env.LAYOUT_METHOD || 'Exact frozen actual web Word input bytes; current Studio print; DPR1, 100% display; no HWP model substitution', rows, errors }, null, 2));
     }
   } finally { await browser.close(); await server.close(); await fs.rm(cache,{recursive:true,force:true}); }
   if (errors.length) process.exitCode = 1;

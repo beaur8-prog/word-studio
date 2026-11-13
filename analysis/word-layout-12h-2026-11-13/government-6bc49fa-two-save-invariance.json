@@ -1,0 +1,419 @@
+{
+  "utc": "2026-11-13T21:41:10.403943+00:00",
+  "method": "Original Studio print vs its actual second-save DOCX print under exact same frozen product; NOT a same-byte Microsoft comparison. Historical Word references intentionally absent from saved files.",
+  "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "modelPreservationPassed": 29,
+  "gridStableAfterFirstSave": 29,
+  "independentXMLGeometryPreserved": 29,
+  "samePages": 29,
+  "sameBodySHA256": 29,
+  "sameImagePlacements": 29,
+  "rows": [
+    {
+      "id": "mois-2025-0",
+      "originalInputSHA256": "e038c064d4a9db97bf472958e0787cebff5f86895fbd2451705f1fc7da583a01",
+      "saved2InputSHA256": "66a2a6a5e4aaea52be8cc0e79c390e99999c3643f47f25caa8cd042625cc8e20",
+      "beforePages": 23,
+      "saved2Pages": 23,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        27,
+        27
+      ]
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "originalInputSHA256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+      "saved2InputSHA256": "4f5ee36c98bc4d10830d5419bd0eea5dce3b3bf0cb67a5ba6db2278ed4378be5",
+      "beforePages": 54,
+      "saved2Pages": 54,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        147,
+        147
+      ]
+    },
+    {
+      "id": "mss-funding-2026-2",
+      "originalInputSHA256": "58624a9671fdd00bd1055d92b92ae5eb48d73aa2390059650c52a8a0f2a806db",
+      "saved2InputSHA256": "cd7b44066b558a8eec2db4783b13f9dc57b9c9a7d2ac7bd9b437815f22e79405",
+      "beforePages": 54,
+      "saved2Pages": 54,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        67,
+        67
+      ]
+    },
+    {
+      "id": "mods-household-1",
+      "originalInputSHA256": "ef412d51256ade00188519beac5b0efcd8a10a7e60c9b19765e656db28a97c06",
+      "saved2InputSHA256": "c8086fe916644b545b5dbe32fe6302ba7312c9f48905c7dba707105615399da1",
+      "beforePages": 79,
+      "saved2Pages": 79,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        183,
+        183
+      ]
+    },
+    {
+      "id": "fsc-press-1",
+      "originalInputSHA256": "43ded853eabb1eb9353896c521567639ae1adfdf51e069bd69fd2dc018b4f824",
+      "saved2InputSHA256": "0814295ec5e2ff4e60e1c0fb814fb3be870a28c281150281c37ef059df52d339",
+      "beforePages": 4,
+      "saved2Pages": 4,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        9,
+        9
+      ]
+    },
+    {
+      "id": "fsc-press-4",
+      "originalInputSHA256": "a7cb67c7d92cb986b4b18a9b53b1d5bf0b6c48406c7f6b6168053d957c0839b1",
+      "saved2InputSHA256": "53771249362c289d71ca6df3579055fb831409adc959937f54508c352f1ae6a3",
+      "beforePages": 5,
+      "saved2Pages": 5,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "fsc-press-7",
+      "originalInputSHA256": "b84c60f6937479ff97c4dc2876637072cd9bcef0a26749422b2be3d877ff08d1",
+      "saved2InputSHA256": "e2af6887257e6dbeac00ec4daf1d2a117b4356a50faa93b113a37c7603de2374",
+      "beforePages": 14,
+      "saved2Pages": 14,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        24,
+        24
+      ]
+    },
+    {
+      "id": "fsc-press-10",
+      "originalInputSHA256": "d4a0d0cc6052d6a4f1b62b43c3377305097ef47bcca10456a0903d76efc42732",
+      "saved2InputSHA256": "559cb2faeb4b0404c4e6853dceb74167499ee4881bcbc8312b18af082787c36f",
+      "beforePages": 2,
+      "saved2Pages": 2,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        5,
+        5
+      ]
+    },
+    {
+      "id": "moel-rfp-0",
+      "originalInputSHA256": "b97528a9b0dca33c8c56f097a48b826dcca0c432a2445d3fd291eddf2c05c533",
+      "saved2InputSHA256": "bb39776b85b35ff63df9bc306ae236b86163550d84c5629780a36361970360cf",
+      "beforePages": 10,
+      "saved2Pages": 10,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        16,
+        16
+      ]
+    },
+    {
+      "id": "moel-rfp-1",
+      "originalInputSHA256": "c473de77ddc49fb48a8f83cab561eb6153d73900b998a22048df421e13e547d0",
+      "saved2InputSHA256": "dc80d9b748921319564dfd9ccea33936a1eecbf27769e21a9669db4a779276c1",
+      "beforePages": 36,
+      "saved2Pages": 36,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        51,
+        51
+      ]
+    },
+    {
+      "id": "daejeon-safety-hwp",
+      "originalInputSHA256": "17f16e6784514034c7a9fc0df4eefd706f5191782765600312e3dbaae055f3aa",
+      "saved2InputSHA256": "028f16a378a156d1e666a19f6944dbc08128264d48b4a5357c4a00a2d37afa23",
+      "beforePages": 1,
+      "saved2Pages": 1,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "gg-facility-hwp",
+      "originalInputSHA256": "31f28de4057b63ed66b822516cdef2b814ace68224b188f25e31f3f749e6a1a8",
+      "saved2InputSHA256": "7922cd06b29b49977ccecfc2f248b75b3e93b63766c5d44440ed3ff53eae345c",
+      "beforePages": 5,
+      "saved2Pages": 5,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        6,
+        6
+      ]
+    },
+    {
+      "id": "motie-budget-hwp",
+      "originalInputSHA256": "4fbc17e877376edad81cad00233cfaca340bbb66a5531c0298c3653046e6155b",
+      "saved2InputSHA256": "54ccc4dbbf9dc05c6d4ff7dcfde3ffe6347d3bfd03d4fd7952e0b7c5a6c933c4",
+      "beforePages": 8,
+      "saved2Pages": 8,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        10,
+        10
+      ]
+    },
+    {
+      "id": "motie-ax-0",
+      "originalInputSHA256": "3ed7e5c0329939e27db5d172b2315a50e529787ed9a49f278e8854bf09eeb83b",
+      "saved2InputSHA256": "7519d85a69b960342c386f576011dc3093e483c4c459c370480b17d6248c4676",
+      "beforePages": 10,
+      "saved2Pages": 10,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        12,
+        12
+      ]
+    },
+    {
+      "id": "motie-ax-1",
+      "originalInputSHA256": "7c9e2aee292ae3dc840b626499da59e6ee5d9556411d969eb869f956bb5bca47",
+      "saved2InputSHA256": "af82794a85c5d6d8f250ddf14dca7482c171f14d8309c0bf15284e495337a478",
+      "beforePages": 3,
+      "saved2Pages": 3,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        6,
+        6
+      ]
+    },
+    {
+      "id": "mofe-budget-hwpx",
+      "originalInputSHA256": "7745eee49a0e29829b65cbe747e7a58044102c263a714984650ebc6b3c3b1efe",
+      "saved2InputSHA256": "8f88b23f34185a0d59a37f77e03f783e87285218c38c676600df769ba16e9b5f",
+      "beforePages": 17,
+      "saved2Pages": 17,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        33,
+        33
+      ]
+    },
+    {
+      "id": "mfds-revenue-hwpx",
+      "originalInputSHA256": "863c6a2050a35cf01f933ed7d07f42ff2582eab98b7f86a9446d6c3458979b48",
+      "saved2InputSHA256": "dd972dc47791077d9ba2f1edceb3c80d7890603e8586788180455c908a3bb421",
+      "beforePages": 42,
+      "saved2Pages": 42,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        45,
+        45
+      ]
+    },
+    {
+      "id": "mois-sop-3",
+      "originalInputSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+      "saved2InputSHA256": "cfe85c9fc142ec7d6598f40fb5dec9bd9931b2c4b5a0c036f1da5aaafcdeedb6",
+      "beforePages": 133,
+      "saved2Pages": 133,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        152,
+        152
+      ]
+    },
+    {
+      "id": "mois-budget-0",
+      "originalInputSHA256": "3f24adc9e4d4ca23ed6873d06d5eb1a9e0b0d704f7beec7256fe47a5c353dcf7",
+      "saved2InputSHA256": "b3740589d0d5fd98bfa92a65f72df5fe255bac1746cff2633ac27421f4d3bb85",
+      "beforePages": 150,
+      "saved2Pages": 150,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        183,
+        183
+      ]
+    },
+    {
+      "id": "nhis-overcharge-0",
+      "originalInputSHA256": "bf5496e16fb7e1351a2ec228b9c3ee13282a6c0e7015326d15ffa848f8acabbf",
+      "saved2InputSHA256": "6a9880ba5216db1d710120e185edee080dbadc319ca53b04d8101715b86ba1a5",
+      "beforePages": 2,
+      "saved2Pages": 2,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "nhis-postpone-1",
+      "originalInputSHA256": "604fb210e1271b18de05ba807fa2393abd2d4fae0db345b3bdff827a5af8bc0c",
+      "saved2InputSHA256": "97c010575eec23a31925cbaa98c2966ed09610931402e43af49bff53f0ef246f",
+      "beforePages": 1,
+      "saved2Pages": 1,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "moel-manual-1",
+      "originalInputSHA256": "7d9d1cafa277b42b1c6f81fe53cac8f28e349ff701a6572188f9d63ddc00f37a",
+      "saved2InputSHA256": "0a1fcf178640b2b2e18d156e82ae5ddc23ae9529539904db9e30264ebd2826d2",
+      "beforePages": 101,
+      "saved2Pages": 101,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        185,
+        185
+      ]
+    },
+    {
+      "id": "lh-smartcity-hwpx",
+      "originalInputSHA256": "ccf632b21c28579d19b7bf2df12e4bb4147db40a6e0aa1d58da5043e6f027518",
+      "saved2InputSHA256": "061ee55ca2f90b4049094dccbac6a40ed22cad345efd5520170bce2d9e76f674",
+      "beforePages": 4,
+      "saved2Pages": 4,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        8,
+        8
+      ]
+    },
+    {
+      "id": "nps-fund-hwp",
+      "originalInputSHA256": "bb0281bd8fb67c060dea3d25b4ac802e9970c23ed159bbd86138ace9eac45677",
+      "saved2InputSHA256": "86d3df83b63ef0f9bd7563210c3c8621c1c5071771038792f44355d5989e2ba0",
+      "beforePages": 13,
+      "saved2Pages": 13,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        19,
+        19
+      ]
+    },
+    {
+      "id": "nps-venture-hwp",
+      "originalInputSHA256": "4cb24cc3f256a969dd216048b82c0e8bf8776d4af43c026bc0ff653bb121d7c5",
+      "saved2InputSHA256": "100e38564ec5260dddc01a6b51968b73592fe40a38d6a3702dd305b172d17833",
+      "beforePages": 2,
+      "saved2Pages": 2,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        6,
+        6
+      ]
+    },
+    {
+      "id": "lh-campus-hwpx",
+      "originalInputSHA256": "4eb893e167e763ecd33809401d59c75d613caef232b88f1d26743a597725d4c3",
+      "saved2InputSHA256": "2cee6e8ad34b2d3c5facd2d985d4dd86d008adfc021796527cc5927f417ef42b",
+      "beforePages": 18,
+      "saved2Pages": 18,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        50,
+        50
+      ]
+    },
+    {
+      "id": "law-request-hwp",
+      "originalInputSHA256": "454dcf939a4ebddd1e9867e536189c28657301471284f07740eea5a61f669a78",
+      "saved2InputSHA256": "b5e9b6b2e317d4aa70f45113251fe7dd66785605a7117f9a97be669691a56b01",
+      "beforePages": 2,
+      "saved2Pages": 2,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        3,
+        3
+      ]
+    },
+    {
+      "id": "law-register-hwp",
+      "originalInputSHA256": "367ca63cf548ab9b57abe34a018fc0b27b32fdf8ed322b5fa05bced452962877",
+      "saved2InputSHA256": "2de1517e9cc3b5807e6e5b7ebe1a4d4d992a7b00906d6827fb544e9048bf0f09",
+      "beforePages": 4,
+      "saved2Pages": 4,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        3,
+        3
+      ]
+    },
+    {
+      "id": "law-operation-hwp",
+      "originalInputSHA256": "411399a9f59d0c3e67a802632d81c787655cd5d8ab3c4fe8ebdf6afc2981cb8c",
+      "saved2InputSHA256": "75a02deff8250e17dcd84c00fea6888649f7077ce9333d576b4e69ccaae25bf5",
+      "beforePages": 2,
+      "saved2Pages": 2,
+      "samePages": true,
+      "sameBodySHA256": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        3,
+        3
+      ]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "runId": 43495241058,
+  "status": "completed",
+  "conclusion": "success",
+  "url": "https://github.com/beaur8-prog/word-studio/actions/runs/43495241058",
+  "method": "Official GitHub workflow metadata and filtered decoded job logs; no account/authentication data retained. Browser/Node/PDF/OpenXML tests on Windows/Linux, not desktop Microsoft Word.",
+  "jobs": [
+    {
+      "id": 132126503350,
+      "name": "linux-navigation",
+      "conclusion": "success",
+      "nativeNode": {
+        "passed": 48,
+        "failed": 0
+      },
+      "conversionBrowser": {
+        "passed": 58
+      },
+      "layoutBrowser": {
+        "passed": 538,
+        "skipped": 1
+      },
+      "openXMLSDK": {
+        "files": 110,
+        "errors": 0
+      },
+      "cellPDFLogicalTextOrder": {
+        "passed": 7,
+        "total": 7
+      }
+    },
+    {
+      "id": 132126503640,
+      "name": "windows-layout",
+      "conclusion": "success",
+      "nativeNode": {
+        "passed": 48,
+        "failed": 0
+      },
+      "conversionBrowser": {
+        "passed": 58
+      },
+      "HWPCellMatrix": {
+        "passed": 55
+      },
+      "HWPXCellMatrix": {
+        "passed": 55
+      },
+      "layoutBrowser": {
+        "passed": 453,
+        "skipped": 1
+      },
+      "cellPDFLogicalTextOrder": {
+        "passed": 7,
+        "total": 7
+      },
+      "openXMLSDK": "No Windows SDK validation step; Linux SDK and separate local exact-stage validation reported independently."
+    }
+  ],
+  "headCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30"
+}

@@ -1,0 +1,272 @@
+{
+  "utc": "2026-11-13T21:50:09.599078+00:00",
+  "method": "Current original Studio actual PDF vs its actual second-save DOCX PDF, not Microsoft. Separate document byte hashes; glyph type/multiplicity, operator count and positive paper intersections only. No claim of whole image/cell visibility or exact typography.",
+  "documents": 29,
+  "sameGlyphMultiplicity": 29,
+  "sameImageOperatorCount": 29,
+  "operators": 343,
+  "outsidePaper": 0,
+  "rows": [
+    {
+      "id": "mois-2025-0",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 3,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 6,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "mss-funding-2026-2",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 34,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "mods-household-1",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 60,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "fsc-press-1",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 5,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "fsc-press-4",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "fsc-press-7",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 6,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "fsc-press-10",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 2,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "moel-rfp-0",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "moel-rfp-1",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 2,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "daejeon-safety-hwp",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "gg-facility-hwp",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "motie-budget-hwp",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 5,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "motie-ax-0",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "motie-ax-1",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "mofe-budget-hwpx",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 2,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "mfds-revenue-hwpx",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 5,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "mois-sop-3",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 25,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "mois-budget-0",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 150,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "nhis-overcharge-0",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "nhis-postpone-1",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "moel-manual-1",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 3,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "lh-smartcity-hwpx",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 5,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "nps-fund-hwp",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 15,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "nps-venture-hwp",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 6,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "lh-campus-hwpx",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 9,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "law-request-hwp",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "law-register-hwp",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    },
+    {
+      "id": "law-operation-hwp",
+      "sameGlyphMultiplicity": true,
+      "sameImageOperatorCount": true,
+      "operators": 0,
+      "outsidePaper": 0,
+      "lostGlyphs": {},
+      "gainedGlyphs": {}
+    }
+  ]
+}

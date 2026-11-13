@@ -36,9 +36,12 @@ function semantics(doc) {
   await fs.writeFile(entry, `const{app,BrowserWindow,systemPreferences}=require('electron');const old=systemPreferences.setUserDefault.bind(systemPreferences);systemPreferences.setUserDefault=(k,...a)=>k==='NSOSPLastRootDirectory'?undefined:old(k,...a);app.whenReady().then(()=>app.setActivationPolicy('prohibited'));BrowserWindow.prototype.show=function(){};BrowserWindow.prototype.focus=function(){};app.on('browser-window-created',(_e,w)=>{w.setSkipTaskbar(true);w.webContents.setBackgroundThrottling(false)});app.whenReady().then(()=>app.dock?.hide());require(${JSON.stringify((process.env.NATIVE_QA_APP_DIR || base + '/native-app') + '/electron/main.cjs')});`);
   const env = { ...process.env, STUDIO_DISABLE_UPDATES: '1' }; delete env.ELECTRON_RUN_AS_NODE; delete env.WORD_STUDIO_DEV;
   const app = await electron.launch({ executablePath: req('electron'), args: [entry, '--force-device-scale-factor=1', '--user-data-dir=' + profile + '/data'], env, timeout: 60000 });
-  const child = app.process(); const watchdog = setTimeout(() => { log({ failure: 'Owned native QA exceeded 30 minutes' }); child.kill('SIGKILL'); process.exitCode = 1; }, 1800000); watchdog.unref();
+  const child = app.process(); const watchdog = setTimeout(() => { log({ failure: 'Owned native QA exceeded its total deadline' }); child.kill('SIGKILL'); process.exitCode = 1; }, Number(process.env.NATIVE_TOTAL_TIMEOUT_MS || 2400000)); watchdog.unref();
   let page, checkpointModel; const errors = [], phases = [], saves = []; let reference;
   try {
+    const actualUserData = await app.evaluate(({ app }) => app.getPath('userData'));
+    if (path.resolve(actualUserData) !== path.resolve(profile + '/data')) throw Error('QA native profile was not isolated');
+    log({ phase: 'owned-native-profile-confirmed', actualUserData });
     page = await app.firstWindow(); await page.setViewportSize({ width: 1440, height: 1000 }); page.setDefaultTimeout(120000);
     page.on('pageerror', e => { errors.push(String(e)); log({ rendererError: String(e) }); });
     await app.evaluate(({ dialog }) => { const original = dialog.showMessageBoxSync.bind(dialog); dialog.showMessageBoxSync = (...args) => args.at(-1)?.title === 'Close Word Studio?' ? 1 : original(...args); });
@@ -136,7 +139,22 @@ function semantics(doc) {
       if (pass < 2) {
         file = out + '/textbox-save-sop-' + (pass + 1) + '.docx';
         await app.evaluate(({ dialog }, target) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: target }); }, file);
-        await app.evaluate(({Menu}) => { const item = Menu.getApplicationMenu().items.flatMap(item => item.submenu?.items || []).find(item => item.label.startsWith('Export Word Document')); if (!item) throw Error('Native DOCX menu missing'); item.click(); }); await expect.poll(() => fs.stat(file).then(s => s.size).catch(() => 0), { timeout: 120000 }).toBeGreaterThan(0);
+        await app.evaluate(({Menu}) => { const item = Menu.getApplicationMenu().items.flatMap(item => item.submenu?.items || []).find(item => item.label.startsWith('Export Word Document')); if (!item) throw Error('Native DOCX menu missing'); item.click(); }); const exportStartedAt = Date.now(); let pendingSamples = 0;
+        await expect.poll(async () => {
+          const bytes = await fs.stat(file).then(s => s.size).catch(() => 0);
+          if (!bytes && ++pendingSamples % 20 === 0) {
+            let probeTimer;
+            const state = await Promise.race([
+              page.evaluate(() => ({ busy: document.querySelector('.busy-indicator')?.textContent,
+                fonts: document.fonts.status, measuringPages: document.querySelectorAll('.print-layout.measuring .print-page').length,
+                measuringCells: document.querySelectorAll('.print-layout.measuring [data-hwp-export-line]').length,
+                lastMeasuredCell: [...document.querySelectorAll('[data-hwp-export-line]')].at(-1)?.getAttribute('data-hwp-export-line') })),
+              new Promise(resolve => { probeTimer = setTimeout(() => resolve({ diagnostic: 'Renderer did not answer the read-only probe in 2 seconds' }), 2000); }),
+            ]).finally(() => clearTimeout(probeTimer));
+            log({ phase: 'native-docx-export-pending', pass: pass + 1, exportMs: Date.now() - exportStartedAt, ...state });
+          }
+          return bytes;
+        }, { timeout: Number(process.env.NATIVE_EXPORT_TIMEOUT_MS || 300000), intervals: [1000] }).toBeGreaterThan(0);
         await expect(page.locator('.busy-indicator')).toBeHidden(); const saved = await fs.readFile(file); if (saved.subarray(0, 2).toString() !== 'PK') throw Error('Native DOCX is not a ZIP');
         saves.push({ file, sha256: sha(saved), bytes: saved.length }); log({ phase: 'native-docx-saved', pass: pass + 1, bytes: saved.length });
       }

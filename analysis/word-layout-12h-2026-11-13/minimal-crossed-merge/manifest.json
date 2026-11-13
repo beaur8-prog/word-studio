@@ -1,0 +1,52 @@
+{
+  "method": "Read-only source-package minimization for the next actual Word comparison.\nThe original target table XML is preserved in variant A. B/C/D are explicit\ncounterfactual diagnostics, never product changes or the fixed original cohort.\n",
+  "sourceInputSHA256": "58624a9671fdd00bd1055d92b92ae5eb48d73aa2390059650c52a8a0f2a806db",
+  "sourceId": "mss-funding-2026-2",
+  "sourceTableIndex": 22,
+  "sourceRows": 23,
+  "sourceTableText": "기술부문전문분야기술부문전문분야로봇로봇생산자동화기술센서 계측기술로봇 관련 정보기술·소프트웨어센서기술자동화기계 관련 정보기술·소프트웨어시스템통합화기술산업지능형 소프트웨어소프트웨어솔루션엔지니어링 설계설계기술생산공정모델링 서비스생산관리 서비스시뮬레이션 서비스계량분석 서비스컴퓨터 이용설계(CAD)관련 소프트웨어시험관리 서비스컴퓨터 이용제조(CAM)관련 소프트웨어검사관리 서비스주조 관련 소프트웨어분석관리 서비스용접 관련 소프트웨어품질관리 서비스소성가공 관련 소프트웨어-기타 뿌리기술 관련 소프트웨어-",
+  "sourceTableXMLSHA256": "4a219bc69e674b5757ff693b605de73a5b47598b804076614d7fb8f84d737ac8",
+  "rows": [
+    {
+      "variant": "A-exact-source",
+      "file": "minimal-crossed-merge/textbox-save-crossed-merge-A-exact-source.docx",
+      "bytes": 16347,
+      "sha256": "d32537ca2e57051e3d8165387b2d8d7417fa25215adc312522a15486a9c0cba0",
+      "tableTextSHA256": "c4f5a6da142f52cbef28cc04bbda828be47a018dc47d80c22431e4994409d810",
+      "rowCount": 23,
+      "originalTableXMLPreserved": true,
+      "MicrosoftWordMeasured": false
+    },
+    {
+      "variant": "B-no-row-minima",
+      "file": "minimal-crossed-merge/textbox-save-crossed-merge-B-no-row-minima.docx",
+      "bytes": 16213,
+      "sha256": "2edcddf35b6e53ed45505cabb31f6a4510cffd722276593816d5dc0a5277e5ef",
+      "tableTextSHA256": "c4f5a6da142f52cbef28cc04bbda828be47a018dc47d80c22431e4994409d810",
+      "rowCount": 23,
+      "originalTableXMLPreserved": false,
+      "MicrosoftWordMeasured": false
+    },
+    {
+      "variant": "C-explicit-tiny-continuation-marks",
+      "file": "minimal-crossed-merge/textbox-save-crossed-merge-C-explicit-tiny-continuation-marks.docx",
+      "bytes": 16402,
+      "sha256": "ee31bca42d1295124e238def7915476e632b75487082c6c1c95e9fffca8e2352",
+      "tableTextSHA256": "c4f5a6da142f52cbef28cc04bbda828be47a018dc47d80c22431e4994409d810",
+      "rowCount": 23,
+      "originalTableXMLPreserved": false,
+      "MicrosoftWordMeasured": false
+    },
+    {
+      "variant": "D-no-vertical-merges",
+      "file": "minimal-crossed-merge/textbox-save-crossed-merge-D-no-vertical-merges.docx",
+      "bytes": 16295,
+      "sha256": "3e12a7fc1071b17a82266263dd7dd8cef546b875d4920e23f1f82b3a5734072f",
+      "tableTextSHA256": "c4f5a6da142f52cbef28cc04bbda828be47a018dc47d80c22431e4994409d810",
+      "rowCount": 23,
+      "originalTableXMLPreserved": false,
+      "MicrosoftWordMeasured": false
+    }
+  ],
+  "notAnAccuracyResult": "Each smaller file is a different input from the fixed 29-document cohort. No new Microsoft measurement has been made."
+}

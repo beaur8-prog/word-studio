@@ -1,0 +1,49 @@
+{
+  "method": "Exact native captured model; same body/page/comments hash as b6 and current body/cover before/after undo. Frozen source refs; empty vs same live Studio editor. Local headless benchmark, not native UI or Microsoft measurement.",
+  "rows": [
+    {
+      "ref": "b6edda3",
+      "mode": "blank-editor",
+      "inputUncompressedSHA256": "3e14e4d04a975e9f768852addf65adcff701d9e26111c275930a760fea07fd6e",
+      "exportMs": 17896.299999713898,
+      "modelUnchanged": true,
+      "bytes": 1561515,
+      "sha256": "ec63883c69785f89940cffc89cfe770daea12de773baae661e91895f1c68ddfa",
+      "errors": [],
+      "wholeMs": 21953
+    },
+    {
+      "ref": "b6edda3",
+      "mode": "live-editor",
+      "inputUncompressedSHA256": "3e14e4d04a975e9f768852addf65adcff701d9e26111c275930a760fea07fd6e",
+      "exportMs": 72684.69999980927,
+      "modelUnchanged": true,
+      "bytes": 1561516,
+      "sha256": "45e715b123cb6fe1408d48a4926d8b5ed87837e4e132d97a8e0a975817b94276",
+      "errors": [],
+      "wholeMs": 136653
+    },
+    {
+      "ref": "6bc49fa",
+      "mode": "blank-editor",
+      "inputUncompressedSHA256": "3e14e4d04a975e9f768852addf65adcff701d9e26111c275930a760fea07fd6e",
+      "exportMs": 16600.10000038147,
+      "modelUnchanged": true,
+      "bytes": 1561515,
+      "sha256": "aa12ecbfebe1db2906d546646e4d57fae671270284e3811b1e70d6d10a0adad8",
+      "errors": [],
+      "wholeMs": 19410
+    },
+    {
+      "ref": "6bc49fa",
+      "mode": "live-editor",
+      "inputUncompressedSHA256": "3e14e4d04a975e9f768852addf65adcff701d9e26111c275930a760fea07fd6e",
+      "exportMs": 71432.80000019073,
+      "modelUnchanged": true,
+      "bytes": 1561515,
+      "sha256": "5560901b315bc78ac3ddaa90f6e6ca15734d3ac30c03e1fecb26bfc466acbfdd",
+      "errors": [],
+      "wholeMs": 132252
+    }
+  ]
+}

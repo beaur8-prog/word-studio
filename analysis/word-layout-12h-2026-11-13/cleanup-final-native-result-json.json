@@ -1,0 +1,23 @@
+{
+  "utc": "2026-11-13T21:20:25.404205+00:00",
+  "method": "Completed final native SOP QA results losslessly compressed after all behavioral and SDK validation. Full raw bytes preserved and verified. The summary reader accepts the .json.gz form; native DOCX/PDF/models remain available.",
+  "rows": [
+    {
+      "original": "native-sop-6bc49fa-body22/result.json",
+      "compressed": "native-sop-6bc49fa-body22/result.json.gz",
+      "originalBytes": 13950322,
+      "compressedBytes": 956018,
+      "uncompressedSHA256": "3a494173fd76eee02630b03152c034edcb490f7e7fef5955493466c0c4e44db7",
+      "compressedSHA256": "57b727b8cac590c9281eab37a920b45f0f146a959b87d12c50f93eb4b5adfd99"
+    },
+    {
+      "original": "native-sop-6bc49fa-cover-retry/result.json",
+      "compressed": "native-sop-6bc49fa-cover-retry/result.json.gz",
+      "originalBytes": 13950184,
+      "compressedBytes": 956010,
+      "uncompressedSHA256": "c01c213d62f5b0a19dba4e637c2fe98cab782d58300215d19a25e9676726d269",
+      "compressedSHA256": "b37666de4b0996cb9e1f2926cb71dfe741a63bffcc27b951690fde706b9b92d1"
+    }
+  ],
+  "reclaimedBytes": 25988478
+}

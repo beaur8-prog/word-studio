@@ -1,0 +1,39 @@
+{
+  "utc": "2026-11-13T20:45:11.773384+00:00",
+  "method": "Completed inactive prior-checkpoint native QA result JSON losslessly gzip compressed; original raw-byte SHA verified after reopening. No original documents, final active runs or failures removed.",
+  "rows": [
+    {
+      "original": "native-sop-menu-all-eee8aa0/result.json",
+      "compressed": "native-sop-menu-all-eee8aa0/result.json.gz",
+      "originalBytes": 13912434,
+      "compressedBytes": 956810,
+      "uncompressedSHA256": "9ec2e2b62827fcbc4a51ba2dd41729aa2ba8c17654493a2fa688673d0c664e98",
+      "compressedSHA256": "a1b519918476e898e8c3ce435422dad388110ebfbada53fb4329cad3756cf5ad"
+    },
+    {
+      "original": "native-sop-77d0d06/result.json",
+      "compressed": "native-sop-77d0d06/result.json.gz",
+      "originalBytes": 13964984,
+      "compressedBytes": 955041,
+      "uncompressedSHA256": "f2c80fc6be9f341be7380033fe2b9cdfa97d4688d16e672cf2f320582994b588",
+      "compressedSHA256": "f54de8337f0fcbabc5ea20e34f23fc8b08afd334d528c1a2a32a259f368158f4"
+    },
+    {
+      "original": "native-sop-b6edda3-cover/result.json",
+      "compressed": "native-sop-b6edda3-cover/result.json.gz",
+      "originalBytes": 13950058,
+      "compressedBytes": 955999,
+      "uncompressedSHA256": "2b08d76a2fcfa303b05a774090b5f981120e7d22ec834836037ed44435222c57",
+      "compressedSHA256": "130fe5662f0062c90950c5c65005078614bd72f24786a5f836e7c1dbe3c9a632"
+    },
+    {
+      "original": "native-sop-b6edda3-body22/result.json",
+      "compressed": "native-sop-b6edda3-body22/result.json.gz",
+      "originalBytes": 13950192,
+      "compressedBytes": 956022,
+      "uncompressedSHA256": "45ebe91b17c90034f421d0f69f9583f605415afb4a328e66424f78032e04e5f1",
+      "compressedSHA256": "856c9fcd0278c9d375dc9aacb0433cbb0fb764a36b763443b317f7590f959314"
+    }
+  ],
+  "reclaimedBytes": 51953796
+}

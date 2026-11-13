@@ -1,0 +1,191 @@
+{
+  "utc": "2026-11-13T21:53:56.332400+00:00",
+  "method": "Static parsing of QA tools only; no product execution or substitute for functional validation.",
+  "rows": [
+    {
+      "file": "tools/archive-completed-test-outputs.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/audit-docx-pdf-picture-content.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/audit-pdf-assets.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/audit-roundtrip-section-geometry.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/benchmark-sop-export.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/build-native-candidate.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/build-native-checkpoint.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/corpus-roundtrip.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/editor-print-drawings-drift.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/editor-print-first-drift.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/finalize-jpeg-picture-audit.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/first-word-drift.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/fresh-hwp-controls.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/frozen-server.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/hwp-docx-first-drift.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/inspect-float-owners.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/inspect-native-sop-ink.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/minimal-float-probe.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/minimize-merged-table.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/native-hwp-script-roundtrip.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/native-sop.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/native-tab-selection.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/native-word.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/render-inputs.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/repack-inactive-model-archives.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/run-native-word-checkpoint.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/run-word-final.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/score-legacy.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/score-word.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/sop-pdf-furniture-inventory.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/sop-undo-native-probe.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/sop-undo-probe.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/sop-word-pictures.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/summarize-final.py",
+      "kind": "python-ast",
+      "passed": true
+    },
+    {
+      "file": "tools/trace-floating-pagination.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/trace-layout-fair.cjs",
+      "kind": "node-syntax",
+      "passed": true
+    },
+    {
+      "file": "tools/word-studio-pdf-pictures.py",
+      "kind": "python-ast",
+      "passed": true
+    }
+  ]
+}

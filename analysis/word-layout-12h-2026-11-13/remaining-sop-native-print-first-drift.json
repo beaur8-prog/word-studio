@@ -1,0 +1,1257 @@
+{
+  "utc": "2026-11-13T21:12:49.669913+00:00",
+  "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "inputSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+  "method": "Actual compiled Electron editor and normal native print-preview UI; first visible glyph located against actual paper backgrounds. Same unique complete text once in each view, not the Word398/140 or HWP160/3007 cohort. Independent of the instrumented Chrome helper, whose earlier key1229 result is not native evidence.",
+  "editorPages": 135,
+  "printPages": 133,
+  "paragraphs": 4885,
+  "firstVisibleGlyphStarts": 3785,
+  "firstGlyphStartsOutsideBodyTolerance2CSSpx": [],
+  "firstGlyphStartCheckIsNotAllLinesVisibility": true,
+  "uniqueNativePrintComparison": {
+    "matched": 1895,
+    "mismatched": 489,
+    "firstMismatches": [
+      {
+        "key": 3635,
+        "text": "○ 운영체계(OS성 데이터)와 어플리케이션 데이터",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 134.578125,
+        "printY": 767.4873662671733
+      },
+      {
+        "key": 3636,
+        "text": "○ 데이터 베이스와 파일시스템",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 155.90625,
+        "printY": 788.8155743934522
+      },
+      {
+        "key": 3637,
+        "text": "○ 서버 구성 파일과 로그 파일",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 173.234375,
+        "printY": 806.1437669297476
+      },
+      {
+        "key": 3638,
+        "text": "가상화 환경",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 219.796875,
+        "printY": 852.7064484068985
+      },
+      {
+        "key": 3639,
+        "text": "○ 가상 머신(VM) 전체",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 202.46875,
+        "printY": 835.3782558706031
+      },
+      {
+        "key": 3640,
+        "text": "○ VM 설정과 구성 파일 ",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 223.796875,
+        "printY": 856.7064639968819
+      },
+      {
+        "key": 3641,
+        "text": "○ 가상화 호스트와 클러스터 구성",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 241.125,
+        "printY": 874.0346565331773
+      },
+      {
+        "key": 3643,
+        "text": "○ 관계형 데이터베이스 (Ms SQL, My SQL, Oracle, PostgreSQL 등)",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 270.359375,
+        "printY": 903.2691454740328
+      },
+      {
+        "key": 3644,
+        "text": "○ NoSQL 데이터베이스 (MongoDB 등)",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 291.6875,
+        "printY": 924.5973536003117
+      },
+      {
+        "key": 3645,
+        "text": "○ 트랜잭션 로그 및 데이터베이스 스키마",
+        "nativePage": 98,
+        "printPage": 97,
+        "nativeY": 309.015625,
+        "printY": 941.9255461366072
+      },
+      {
+        "key": 3683,
+        "text": "백업 정책 ",
+        "nativePage": 99,
+        "printPage": 98,
+        "nativeY": 148.390625,
+        "printY": 949.4568254896228
+      },
+      {
+        "key": 3684,
+        "text": "백업/복구 대장",
+        "nativePage": 99,
+        "printPage": 98,
+        "nativeY": 169.71875,
+        "printY": 970.7850336159017
+      },
+      {
+        "key": 3685,
+        "text": "복구 계획서",
+        "nativePage": 99,
+        "printPage": 98,
+        "nativeY": 191.046875,
+        "printY": 992.1132417421805
+      },
+      {
+        "key": 3686,
+        "text": "모의 훈련 계획 및 결과 보고서",
+        "nativePage": 99,
+        "printPage": 98,
+        "nativeY": 208.375,
+        "printY": 1009.441434278476
+      },
+      {
+        "key": 3729,
+        "text": "○ 정보시스템의 장애나 화재 등 사고로 인해 저장해 둔 정보가 소실되거나 손상될 경우에 대비하여 일정한 시간 차이를 두고 데이터를 복사하여 별도의 매체(디스크 혹은 테이프 등)에 예비로 저장해두는 행위를 말한다.",
+        "nativePage": 101,
+        "printPage": 100,
+        "nativeY": 168.046875,
+        "printY": 168.01627984020266
+      }
+    ]
+  },
+  "modelParagraphCount": 4885,
+  "sourceModelTableContextForFirstMismatch": [
+    {
+      "key": 3632,
+      "attrs": {
+        "textAlign": "center",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "13.3px",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "13.3333px",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": "1 Percent 13.3333 17.3333 13.3 13.3",
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 30.6333,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableHeader",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "rgb(242, 242, 242)",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0.375pt solid rgb(0, 0, 0)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0pt rgb(255, 255, 255)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              147
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3633,
+      "attrs": {
+        "textAlign": "center",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "13.3px",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "13.3333px",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": "1 Percent 13.3333 17.3333 13.3 13.3",
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 30.6333,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableHeader",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "rgb(242, 242, 242)",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3634,
+      "attrs": {
+        "textAlign": "center",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "13.3px",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "13.3333px",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": "keep-all",
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": "1 Percent 13.3333 21.3333 13.3 13.3",
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0.375pt solid rgb(0, 0, 0)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0pt rgb(255, 255, 255)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              147
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3635,
+      "attrs": {
+        "textAlign": "justify",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "16pt",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "10pt",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": null,
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3636,
+      "attrs": {
+        "textAlign": "justify",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "16pt",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "10pt",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": null,
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3637,
+      "attrs": {
+        "textAlign": "justify",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "13.3px",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "13.3333px",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": "1 Percent 13.3333 21.3333 13.3 13.3",
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3638,
+      "attrs": {
+        "textAlign": "center",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "13.3px",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "13.3333px",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": "keep-all",
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": "1 Percent 13.3333 21.3333 13.3 13.3",
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0.375pt solid rgb(0, 0, 0)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0pt rgb(255, 255, 255)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              147
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3639,
+      "attrs": {
+        "textAlign": "justify",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "16pt",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "10pt",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": null,
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3640,
+      "attrs": {
+        "textAlign": "justify",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "16pt",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "10pt",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": null,
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3641,
+      "attrs": {
+        "textAlign": "justify",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "13.3px",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "13.3333px",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": "1 Percent 13.3333 21.3333 13.3 13.3",
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3642,
+      "attrs": {
+        "textAlign": "center",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "13.3px",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "13.3333px",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": "keep-all",
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": "1 Percent 13.3333 21.3333 13.3 13.3",
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0.375pt solid rgb(0, 0, 0)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0pt rgb(255, 255, 255)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              147
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3643,
+      "attrs": {
+        "textAlign": "justify",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "16pt",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "10pt",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": null,
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3644,
+      "attrs": {
+        "textAlign": "justify",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "16pt",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "10pt",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": null,
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    },
+    {
+      "key": 3645,
+      "attrs": {
+        "textAlign": "justify",
+        "tabStops": null,
+        "indent": 0,
+        "lineSpacing": "13.3px",
+        "spaceBefore": "0px",
+        "spaceAfter": "0px",
+        "rightIndent": "0px",
+        "firstLineIndent": "0px",
+        "paragraphFont": "\"맑은 고딕\"",
+        "paragraphSize": "13.3333px",
+        "paragraphColor": "rgb(0, 0, 0)",
+        "wordBreak": null,
+        "wordAutoSpaceDE": false,
+        "wordAutoSpaceDN": false,
+        "wordContextualSpacing": null,
+        "wordKeepNext": false,
+        "wordKeepLines": false,
+        "wordTextAlignment": null,
+        "wordParagraphStyle": "Normal",
+        "wordParagraphStyleName": "Normal",
+        "wordParagraphStyleKind": "paragraph",
+        "wordWidowControl": false,
+        "wordLineRule": "exact",
+        "hwpCellLine": "1 Percent 13.3333 21.3333 13.3 13.3",
+        "hwpBodyLine": null
+      },
+      "ancestors": [
+        {
+          "type": "table",
+          "preorderTableIndex": 102,
+          "attrs": {
+            "wordTableLayout": "fixed",
+            "tableAnchor": null,
+            "tableAlignment": null,
+            "tableIndent": "1.93333px",
+            "tableSpacing": "10.6667px"
+          },
+          "rowCount": 4
+        },
+        {
+          "type": "row",
+          "attrs": {
+            "rowHeight": 67.9,
+            "wordRowRule": "atLeast",
+            "wordRowSplit": null,
+            "rowSplit": "avoid"
+          }
+        },
+        {
+          "type": "tableCell",
+          "attrs": {
+            "cellSplit": null,
+            "backgroundColor": "transparent",
+            "verticalAlign": "middle",
+            "borderTop": "0.375pt solid rgb(0, 0, 0)",
+            "borderRight": "0pt rgb(255, 255, 255)",
+            "borderBottom": "0.375pt solid rgb(0, 0, 0)",
+            "borderLeft": "0.375pt solid rgb(0, 0, 0)",
+            "paddingTop": "1.53333px",
+            "paddingRight": "5.66667px",
+            "paddingBottom": "1.53333px",
+            "paddingLeft": "5.66667px",
+            "fontFamily": null,
+            "fontSize": null,
+            "textColor": null,
+            "whiteSpace": null,
+            "colspan": 1,
+            "rowspan": 1,
+            "colwidth": [
+              494
+            ],
+            "align": null
+          }
+        }
+      ]
+    }
+  ],
+  "historicalWordLookup": {
+    "inputSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+    "referencePDFSHA256": "6ddedc0763844f7376e8d4dd43661df0afa959b85b8c6fa16ef1dc162e220d13",
+    "needle": "운영체계(OS성 데이터)와 어플리케이션 데이터",
+    "wordPage": 99,
+    "newMicrosoftMeasurement": false
+  },
+  "hidden": true,
+  "sourcePreserved": true,
+  "errors": []
+}

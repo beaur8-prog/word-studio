@@ -1,0 +1,39 @@
+{
+  "utc": "2026-11-13T20:55:45.541689+00:00",
+  "method": "Completed owned QA snapshots only; same original decompressed bytes and entry SHAs, no source/user data removal.",
+  "rows": [
+    {
+      "stage": "native-sop-menu-all-eee8aa0",
+      "beforeBytes": 16806984,
+      "afterBytes": 1516512,
+      "adopted": true,
+      "verifiedEntries": 36,
+      "seconds": 8.56
+    },
+    {
+      "stage": "native-sop-77d0d06",
+      "beforeBytes": 15470264,
+      "afterBytes": 1524888,
+      "adopted": true,
+      "verifiedEntries": 35,
+      "seconds": 9.19
+    },
+    {
+      "stage": "native-sop-b6edda3-cover",
+      "beforeBytes": 16843716,
+      "afterBytes": 1526840,
+      "adopted": true,
+      "verifiedEntries": 36,
+      "seconds": 9.61
+    },
+    {
+      "stage": "native-sop-b6edda3-body22",
+      "beforeBytes": 16843096,
+      "afterBytes": 1526760,
+      "adopted": true,
+      "verifiedEntries": 36,
+      "seconds": 9.59
+    }
+  ],
+  "reclaimedBytes": 59869060
+}

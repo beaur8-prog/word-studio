@@ -1,0 +1,292 @@
+{
+  "utc": "2026-11-13T20:50:08.737549+00:00",
+  "method": "Separate diagnostic DOCX inputs; actual Studio and isolated LibreOffice Writer PDFs using explicit system font configuration. No Microsoft measurement and no primary cohort accuracy score. Detected horizontal edges/rows are not source logical rows. Previous blank-Hangul Writer run is disqualified.",
+  "WriterEnvironmentRecord": "minimal-crossed-merge-writer-process-system-fonts.json",
+  "rows": [
+    {
+      "kind": "Studio",
+      "file": "render-minimal-crossed-merge/A-exact-source.pdf",
+      "pages": 1,
+      "measurements": [
+        {
+          "page": 1,
+          "printableGlyphs": 247,
+          "HangulGlyphs": 233,
+          "tableEdgeDetections": [
+            {
+              "bbox": [
+                73.874996921875,
+                85.24999644791671,
+                522.3906032337239,
+                419.624982515625
+              ],
+              "heightPt": 334.3749860677083,
+              "detectedRows": 22,
+              "detectedCells": 32
+            }
+          ],
+          "glyphFonts": [
+            "AAAAAA+NotoSansKRThin-Bold",
+            "BAAAAA+NotoSansKRThin-Bold",
+            "CAAAAA+NotoSansKRThin-Bold",
+            "DAAAAA+NotoSansKRThin-Bold",
+            "EAAAAA+NotoSansKRThin-Regular",
+            "FAAAAA+NotoSansKRThin-Regular",
+            "GAAAAA+NotoSansKRThin-Regular",
+            "HAAAAA+NotoSansKRThin-Regular",
+            "IAAAAA+NotoSansKRThin-Regular",
+            "JAAAAA+NotoSansKRThin-Regular",
+            "KAAAAA+ArialMT",
+            "LAAAAA+NotoSansKRThin-Regular",
+            "MAAAAA+NotoSansKRThin-Regular",
+            "NAAAAA+NotoSansKRThin-Regular",
+            "OAAAAA+NotoSansKRThin-Regular"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Studio",
+      "file": "render-minimal-crossed-merge/B-no-row-minima.pdf",
+      "pages": 1,
+      "measurements": [
+        {
+          "page": 1,
+          "printableGlyphs": 247,
+          "HangulGlyphs": 233,
+          "tableEdgeDetections": [
+            {
+              "bbox": [
+                73.874996921875,
+                85.24999644791671,
+                522.4017639475447,
+                374.624984390625
+              ],
+              "heightPt": 289.3749879427083,
+              "detectedRows": 13,
+              "detectedCells": 32
+            }
+          ],
+          "glyphFonts": [
+            "AAAAAA+NotoSansKRThin-Bold",
+            "BAAAAA+NotoSansKRThin-Bold",
+            "CAAAAA+NotoSansKRThin-Bold",
+            "DAAAAA+NotoSansKRThin-Bold",
+            "EAAAAA+NotoSansKRThin-Regular",
+            "FAAAAA+NotoSansKRThin-Regular",
+            "GAAAAA+NotoSansKRThin-Regular",
+            "HAAAAA+NotoSansKRThin-Regular",
+            "IAAAAA+NotoSansKRThin-Regular",
+            "JAAAAA+NotoSansKRThin-Regular",
+            "KAAAAA+ArialMT",
+            "LAAAAA+NotoSansKRThin-Regular",
+            "MAAAAA+NotoSansKRThin-Regular",
+            "NAAAAA+NotoSansKRThin-Regular",
+            "OAAAAA+NotoSansKRThin-Regular"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Studio",
+      "file": "render-minimal-crossed-merge/C-explicit-tiny-continuation-marks.pdf",
+      "pages": 1,
+      "measurements": [
+        {
+          "page": 1,
+          "printableGlyphs": 247,
+          "HangulGlyphs": 233,
+          "tableEdgeDetections": [
+            {
+              "bbox": [
+                73.874996921875,
+                85.24999644791671,
+                522.3906032337239,
+                419.624982515625
+              ],
+              "heightPt": 334.3749860677083,
+              "detectedRows": 22,
+              "detectedCells": 32
+            }
+          ],
+          "glyphFonts": [
+            "AAAAAA+NotoSansKRThin-Bold",
+            "BAAAAA+NotoSansKRThin-Bold",
+            "CAAAAA+NotoSansKRThin-Bold",
+            "DAAAAA+NotoSansKRThin-Bold",
+            "EAAAAA+NotoSansKRThin-Regular",
+            "FAAAAA+NotoSansKRThin-Regular",
+            "GAAAAA+NotoSansKRThin-Regular",
+            "HAAAAA+NotoSansKRThin-Regular",
+            "IAAAAA+NotoSansKRThin-Regular",
+            "JAAAAA+NotoSansKRThin-Regular",
+            "KAAAAA+ArialMT",
+            "LAAAAA+NotoSansKRThin-Regular",
+            "MAAAAA+NotoSansKRThin-Regular",
+            "NAAAAA+NotoSansKRThin-Regular",
+            "OAAAAA+NotoSansKRThin-Regular"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Studio",
+      "file": "render-minimal-crossed-merge/D-no-vertical-merges.pdf",
+      "pages": 1,
+      "measurements": [
+        {
+          "page": 1,
+          "printableGlyphs": 247,
+          "HangulGlyphs": 233,
+          "tableEdgeDetections": [
+            {
+              "bbox": [
+                73.84615076923077,
+                85.24999644791671,
+                522.3979374170918,
+                592.124975328125
+              ],
+              "heightPt": 506.87497888020823,
+              "detectedRows": 23,
+              "detectedCells": 92
+            }
+          ],
+          "glyphFonts": [
+            "AAAAAA+NotoSansKRThin-Bold",
+            "BAAAAA+NotoSansKRThin-Bold",
+            "CAAAAA+NotoSansKRThin-Bold",
+            "DAAAAA+NotoSansKRThin-Bold",
+            "EAAAAA+NotoSansKRThin-Regular",
+            "FAAAAA+NotoSansKRThin-Regular",
+            "GAAAAA+NotoSansKRThin-Regular",
+            "HAAAAA+NotoSansKRThin-Regular",
+            "IAAAAA+NotoSansKRThin-Regular",
+            "JAAAAA+NotoSansKRThin-Regular",
+            "KAAAAA+ArialMT",
+            "LAAAAA+NotoSansKRThin-Regular",
+            "MAAAAA+ArialMT",
+            "NAAAAA+NotoSansKRThin-Regular",
+            "OAAAAA+NotoSansKRThin-Regular",
+            "PAAAAA+NotoSansKRThin-Regular"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Writer-system-fonts",
+      "file": "minimal-crossed-merge-writer/textbox-save-crossed-merge-A-exact-source.pdf",
+      "pages": 1,
+      "measurements": [
+        {
+          "page": 1,
+          "printableGlyphs": 247,
+          "HangulGlyphs": 233,
+          "tableEdgeDetections": [
+            {
+              "bbox": [
+                74.2,
+                85.15076377952795,
+                522.6666666666666,
+                437.450763779528
+              ],
+              "heightPt": 352.30000000000007,
+              "detectedRows": 23,
+              "detectedCells": 32
+            }
+          ],
+          "glyphFonts": [
+            "BAAAAA+ArialUnicodeMS",
+            "CAAAAA+HiraMaruPro-W4"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Writer-system-fonts",
+      "file": "minimal-crossed-merge-writer/textbox-save-crossed-merge-B-no-row-minima.pdf",
+      "pages": 1,
+      "measurements": [
+        {
+          "page": 1,
+          "printableGlyphs": 247,
+          "HangulGlyphs": 233,
+          "tableEdgeDetections": [
+            {
+              "bbox": [
+                74.2,
+                85.15076377952805,
+                522.6666666666666,
+                408.55076377952804
+              ],
+              "heightPt": 323.4,
+              "detectedRows": 13,
+              "detectedCells": 32
+            }
+          ],
+          "glyphFonts": [
+            "BAAAAA+ArialUnicodeMS",
+            "CAAAAA+HiraMaruPro-W4"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Writer-system-fonts",
+      "file": "minimal-crossed-merge-writer/textbox-save-crossed-merge-C-explicit-tiny-continuation-marks.pdf",
+      "pages": 1,
+      "measurements": [
+        {
+          "page": 1,
+          "printableGlyphs": 247,
+          "HangulGlyphs": 233,
+          "tableEdgeDetections": [
+            {
+              "bbox": [
+                74.2,
+                85.15076377952795,
+                522.6666666666666,
+                437.450763779528
+              ],
+              "heightPt": 352.30000000000007,
+              "detectedRows": 23,
+              "detectedCells": 32
+            }
+          ],
+          "glyphFonts": [
+            "BAAAAA+ArialUnicodeMS",
+            "CAAAAA+HiraMaruPro-W4"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "Writer-system-fonts",
+      "file": "minimal-crossed-merge-writer/textbox-save-crossed-merge-D-no-vertical-merges.pdf",
+      "pages": 1,
+      "measurements": [
+        {
+          "page": 1,
+          "printableGlyphs": 247,
+          "HangulGlyphs": 233,
+          "tableEdgeDetections": [
+            {
+              "bbox": [
+                74.2,
+                85.15076377952795,
+                522.6666666666666,
+                626.5507637795281
+              ],
+              "heightPt": 541.4000000000001,
+              "detectedRows": 23,
+              "detectedCells": 92
+            }
+          ],
+          "glyphFonts": [
+            "BAAAAA+ArialUnicodeMS",
+            "CAAAAA+HiraMaruPro-W4"
+          ]
+        }
+      ]
+    }
+  ]
+}

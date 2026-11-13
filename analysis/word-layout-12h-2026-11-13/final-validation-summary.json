@@ -1,0 +1,900 @@
+{
+  "utc": "2026-11-13T21:52:30.177021+00:00",
+  "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "method": "Separate fixed cohorts and raw-byte proofs, no denominator mixing. New native means isolated compiled Word Studio, not Microsoft Word. OS chooser is mocked; Android is browser simulation, not physical APK/device QA.",
+  "government": {
+    "all": {
+      "count": 29,
+      "beforeAbsolutePageError": 39,
+      "finalAbsolutePageError": 39,
+      "beforeExact": 15,
+      "finalExact": 16
+    },
+    "development": {
+      "count": 17,
+      "beforeAbsolutePageError": 29,
+      "finalAbsolutePageError": 28,
+      "beforeExact": 8,
+      "finalExact": 9
+    },
+    "validation": {
+      "count": 6,
+      "beforeAbsolutePageError": 9,
+      "finalAbsolutePageError": 10,
+      "beforeExact": 2,
+      "finalExact": 2
+    },
+    "heldOut": {
+      "count": 6,
+      "beforeAbsolutePageError": 1,
+      "finalAbsolutePageError": 1,
+      "beforeExact": 5,
+      "finalExact": 5
+    }
+  },
+  "WordDOCX10": {
+    "pages": [
+      {
+        "before": 1,
+        "after": 1,
+        "word": 1
+      },
+      {
+        "before": 7,
+        "after": 7,
+        "word": 7
+      },
+      {
+        "before": 2,
+        "after": 2,
+        "word": 2
+      },
+      {
+        "before": 1,
+        "after": 1,
+        "word": 1
+      },
+      {
+        "before": 2,
+        "after": 2,
+        "word": 2
+      },
+      {
+        "before": 9,
+        "after": 9,
+        "word": 9
+      },
+      {
+        "before": 4,
+        "after": 4,
+        "word": 4
+      },
+      {
+        "before": 1,
+        "after": 1,
+        "word": 1
+      },
+      {
+        "before": 2,
+        "after": 2,
+        "word": 2
+      },
+      {
+        "before": 1,
+        "after": 1,
+        "word": 1
+      }
+    ],
+    "fixed": {
+      "common402": {
+        "before": {
+          "requested": 398,
+          "matchedBoth": 398,
+          "lostOrAmbiguous": 0,
+          "startPageMismatches": 12,
+          "absolutePageError": 12,
+          "exactLineParagraphs": 341
+        },
+        "after": {
+          "requested": 398,
+          "matchedBoth": 398,
+          "lostOrAmbiguous": 0,
+          "startPageMismatches": 12,
+          "absolutePageError": 12,
+          "exactLineParagraphs": 341
+        }
+      },
+      "fixed150": {
+        "before": {
+          "requested": 140,
+          "matchedBoth": 140,
+          "lostOrAmbiguous": 0,
+          "startPageMismatches": 2,
+          "absolutePageError": 2,
+          "exactLineParagraphs": 115
+        },
+        "after": {
+          "requested": 140,
+          "matchedBoth": 140,
+          "lostOrAmbiguous": 0,
+          "startPageMismatches": 2,
+          "absolutePageError": 2,
+          "exactLineParagraphs": 115
+        }
+      }
+    },
+    "freshTwoSaveDocuments": 20,
+    "preservationDocumentsPassed": 10,
+    "nativeOpenEditUndoRedoPrintCases": 30
+  },
+  "freshHWP10": {
+    "modelScope": "Fresh production Worker -> editable model -> two real DOCX saves; not independent original HWP logical 218937-character verification",
+    "modelCharactersUTF16": 288591,
+    "modelHardBreaks": 140,
+    "modelImages": 638,
+    "savePageInvariantDocuments": 10,
+    "rows": [
+      {
+        "id": "01-employment-contract",
+        "inputSHA256": "8acbe67ba95fd53432b80cbdbc82e9cb118534775ada58b832437eae2b4ea99c",
+        "originalSave1Save2Pages": [
+          7,
+          7,
+          7
+        ],
+        "modelCharactersUTF16": 8726,
+        "modelHardBreaks": 27,
+        "modelImages": 0,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      },
+      {
+        "id": "02-work-rules",
+        "inputSHA256": "03283609f61455863cbdaf9cc4eef55909204142e4fe2e8f0d2009056471f1ec",
+        "originalSave1Save2Pages": [
+          160,
+          160,
+          160
+        ],
+        "modelCharactersUTF16": 121021,
+        "modelHardBreaks": 61,
+        "modelImages": 2,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      },
+      {
+        "id": "03-health-table",
+        "inputSHA256": "ae694583e739ac48af97cb12ce573c2da9f4cb637721fdf84e5af4bf7ca17c13",
+        "originalSave1Save2Pages": [
+          4,
+          4,
+          4
+        ],
+        "modelCharactersUTF16": 2626,
+        "modelHardBreaks": 0,
+        "modelImages": 0,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      },
+      {
+        "id": "04-language-plan",
+        "inputSHA256": "ab59c95dde8cd42e490f7b9a3deb13a9142969706e784053237bf9dc625150e9",
+        "originalSave1Save2Pages": [
+          38,
+          38,
+          38
+        ],
+        "modelCharactersUTF16": 31435,
+        "modelHardBreaks": 7,
+        "modelImages": 4,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      },
+      {
+        "id": "05-return-form",
+        "inputSHA256": "da81b4010331bcac290f900c7cf224c97ee8355399614725ce46c197ff1a22a4",
+        "originalSave1Save2Pages": [
+          1,
+          1,
+          1
+        ],
+        "modelCharactersUTF16": 1204,
+        "modelHardBreaks": 0,
+        "modelImages": 3,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      },
+      {
+        "id": "06-mixed-document",
+        "inputSHA256": "1dce9356ec316407b6c684d5a11190a44bb26da643a7749626763e781ab0c13b",
+        "originalSave1Save2Pages": [
+          37,
+          37,
+          37
+        ],
+        "modelCharactersUTF16": 48819,
+        "modelHardBreaks": 2,
+        "modelImages": 44,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      },
+      {
+        "id": "07-english-exam",
+        "inputSHA256": "7a5755a2f773fce4d295cbfeb1c5d722edb02c7f920bb067fa56940e8cd6a05b",
+        "originalSave1Save2Pages": [
+          8,
+          8,
+          8
+        ],
+        "modelCharactersUTF16": 33490,
+        "modelHardBreaks": 0,
+        "modelImages": 16,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      },
+      {
+        "id": "08-math-exam",
+        "inputSHA256": "e40e3d675373c8efb3a844fc71f209600d3b0db987a04b3808b8e74a6b1671fe",
+        "originalSave1Save2Pages": [
+          20,
+          20,
+          20
+        ],
+        "modelCharactersUTF16": 4843,
+        "modelHardBreaks": 41,
+        "modelImages": 543,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      },
+      {
+        "id": "09-korean-exam",
+        "inputSHA256": "905454045ca2e236839a7cab59750678116d08af3db31dbf846819af355b8d15",
+        "originalSave1Save2Pages": [
+          15,
+          15,
+          15
+        ],
+        "modelCharactersUTF16": 32482,
+        "modelHardBreaks": 1,
+        "modelImages": 23,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      },
+      {
+        "id": "10-lh-plan",
+        "inputSHA256": "3e764bd182badf58d7669d9fd89b9d3b681432619f9bbe1d7ad3fe4e1be463fb",
+        "originalSave1Save2Pages": [
+          5,
+          5,
+          5
+        ],
+        "modelCharactersUTF16": 3945,
+        "modelHardBreaks": 1,
+        "modelImages": 3,
+        "bodyCellsImageBytesAndOrderPreserved": true
+      }
+    ]
+  },
+  "legacyPreparedHWP10": {
+    "pages": [
+      7,
+      167,
+      4,
+      38,
+      1,
+      38,
+      8,
+      20,
+      15,
+      5
+    ],
+    "fixed": {
+      "fixed160": {
+        "total": 160,
+        "found": 160,
+        "missing": 0,
+        "mismatched": 78,
+        "absolutePageError": 152
+      },
+      "fixed3007": {
+        "total": 3007,
+        "found": 3007,
+        "missing": 0,
+        "mismatched": 1819,
+        "absolutePageError": 3792
+      }
+    },
+    "unresolvedStrictInventoryDocuments": 5,
+    "explanation": "Known header/data cell role, raw-tab/documentTab, story materialization and section/column group differences remain unproven harmless; not declared resolved."
+  },
+  "actualPDF": {
+    "governmentRows": [
+      {
+        "id": "mois-2025-0",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 3,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "mss-funding-2026-0",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 6,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "mss-funding-2026-2",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 34,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "mods-household-1",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 60,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "fsc-press-1",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 5,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "fsc-press-4",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "fsc-press-7",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 6,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "fsc-press-10",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 2,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "moel-rfp-0",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "moel-rfp-1",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 2,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "daejeon-safety-hwp",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "gg-facility-hwp",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "motie-budget-hwp",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 5,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "motie-ax-0",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "motie-ax-1",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "mofe-budget-hwpx",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 2,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "mfds-revenue-hwpx",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 5,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "mois-sop-3",
+        "sameGlyphMultiplicity": false,
+        "imageOperators": 25,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "mois-budget-0",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 150,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "nhis-overcharge-0",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "nhis-postpone-1",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "moel-manual-1",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 3,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "lh-smartcity-hwpx",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 5,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "nps-fund-hwp",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 15,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "nps-venture-hwp",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 6,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "lh-campus-hwpx",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 9,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "law-request-hwp",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "law-register-hwp",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      },
+      {
+        "id": "law-operation-hwp",
+        "sameGlyphMultiplicity": true,
+        "imageOperators": 0,
+        "whollyOutsidePaper": 0
+      }
+    ],
+    "governmentOperators": 343,
+    "governmentWhollyOutsidePaper": 0,
+    "governmentGlyphMultiplicityEqual": 28,
+    "SOPBodyGlyphMultiplicityEqual": true,
+    "SOPDeltaExactlyPageFurniture": true,
+    "freshHWPSaved2SourceDOMImages": 638,
+    "freshHWPSaved2PDFOperators": 654,
+    "freshHWPSaved2WhollyOutsidePaper": 0,
+    "limitation": "Positive image-paper intersection is not full visibility, correct page ownership, no overlap or independent source completeness. Repeated header images can yield more PDF operators than source images.",
+    "freshHWPSaved2UniqueRasterCoverage": {
+      "totalUniqueRasterAssets": 412,
+      "totalExactPixelAssets": 407,
+      "totalExactEncodedJPEGAssets": 5,
+      "limitation": "Actually painted raster assets proven by exact decoded pixels or exact encoded JPEG bytes; full visibility, clipping, page/order and original HWP completeness remain separate."
+    }
+  },
+  "localTests": {
+    "PC": {
+      "passed": 893,
+      "duration": "24.8m",
+      "log": "pc-6bc49fa.log"
+    },
+    "DPR2": {
+      "passed": 82,
+      "duration": "3.5m",
+      "log": "dpr2-6bc49fa.log"
+    },
+    "AndroidSimulation": {
+      "passed": 38,
+      "duration": "55.4s",
+      "log": "android-6bc49fa.log"
+    },
+    "Node": {
+      "passed": 173,
+      "failed": 0,
+      "log": "native-tests-6bc49fa.log"
+    }
+  },
+  "officialOpenXMLSDK": [
+    {
+      "stage": "fresh-hwp-6bc49fa",
+      "files": 20,
+      "rows": 20,
+      "exitCode": 0,
+      "errors": []
+    },
+    {
+      "stage": "native-hwp-6bc49fa",
+      "files": 4,
+      "rows": 4,
+      "exitCode": 0,
+      "errors": []
+    },
+    {
+      "stage": "native-sop-6bc49fa-body22",
+      "files": 2,
+      "rows": 2,
+      "exitCode": 0,
+      "errors": []
+    },
+    {
+      "stage": "native-sop-6bc49fa-cover-retry",
+      "files": 2,
+      "rows": 2,
+      "exitCode": 0,
+      "errors": []
+    },
+    {
+      "stage": "native-tabs-6bc49fa",
+      "files": 2,
+      "rows": 2,
+      "exitCode": 0,
+      "errors": []
+    },
+    {
+      "stage": "pc-6bc49fa",
+      "files": 425,
+      "rows": 425,
+      "exitCode": 0,
+      "errors": []
+    },
+    {
+      "stage": "roundtrip-government-6bc49fa",
+      "files": 58,
+      "rows": 58,
+      "exitCode": 0,
+      "errors": []
+    },
+    {
+      "stage": "roundtrip-word-6bc49fa",
+      "files": 20,
+      "rows": 20,
+      "exitCode": 0,
+      "errors": []
+    }
+  ],
+  "nativeTabs": {
+    "repetitions": 16,
+    "twoMenuSaves": true,
+    "printPages": 1,
+    "errors": []
+  },
+  "nativeHWP": {
+    "documents": 2,
+    "phases": 18,
+    "editorPrintPages": [
+      {
+        "id": "02-work-rules",
+        "editor": [
+          162,
+          162,
+          162
+        ],
+        "print": 160
+      },
+      {
+        "id": "04-language-plan",
+        "editor": [
+          38,
+          38,
+          38
+        ],
+        "print": 38
+      }
+    ]
+  },
+  "nativeSOP": [
+    {
+      "stage": "native-sop-6bc49fa-body22",
+      "status": "passed",
+      "phases": 24,
+      "requiredContinuousStabilityMs": 40000,
+      "editorPages": 135,
+      "physicalParagraphPages": 135,
+      "printPages": 133,
+      "sourcePreserved": true,
+      "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+      "result": "native-sop-6bc49fa-body22/result.json.gz"
+    },
+    {
+      "stage": "native-sop-6bc49fa-cover-retry",
+      "status": "passed",
+      "phases": 24,
+      "requiredContinuousStabilityMs": 40000,
+      "editorPages": 135,
+      "physicalParagraphPages": 135,
+      "printPages": 133,
+      "sourcePreserved": true,
+      "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+      "result": "native-sop-6bc49fa-cover-retry/result.json.gz"
+    }
+  ],
+  "unresolved": [
+    "Government absolute page error remains 39 (target<=30 unmet).",
+    "SOP editor135/print133/historical Word136; two-page editor-print mismatch remains.",
+    "Crossed vertical-merge table height cause not proven; exact-table A/B/C/D diagnostic inputs ready for actual Word.",
+    "Five old strict HWP inventory issues remain; fresh byte/logical-cell checks do not erase them.",
+    "One frozen final SOP cover export exceeded 120s; retry and same-model previous/final benchmark retained.",
+    "New web Word and desktop Microsoft Word not measured this run while screen locked.",
+    "Post-freeze performance candidate was blocked by automatic approval review and was not created or included; pending optional user exception is not approval."
+  ],
+  "governmentTwoRealDOCXSaves": {
+    "utc": "2026-11-13T21:41:10.403943+00:00",
+    "method": "Original Studio print vs its actual second-save DOCX print under exact same frozen product; NOT a same-byte Microsoft comparison. Historical Word references intentionally absent from saved files.",
+    "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+    "modelPreservationPassed": 29,
+    "gridStableAfterFirstSave": 29,
+    "independentXMLGeometryPreserved": 29,
+    "samePages": 29,
+    "sameBodySHA256": 29,
+    "sameImagePlacements": 29
+  },
+  "governmentSaved2ActualPDF": {
+    "utc": "2026-11-13T21:50:09.599078+00:00",
+    "method": "Current original Studio actual PDF vs its actual second-save DOCX PDF, not Microsoft. Separate document byte hashes; glyph type/multiplicity, operator count and positive paper intersections only. No claim of whole image/cell visibility or exact typography.",
+    "documents": 29,
+    "sameGlyphMultiplicity": 29,
+    "sameImageOperatorCount": 29,
+    "operators": 343,
+    "outsidePaper": 0
+  },
+  "remainingOrdinaryParagraphReservation": {
+    "utc": "2026-11-13T21:50:09.642407+00:00",
+    "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+    "method": "Exploratory actual-native editor vs native print same complete paragraph before the first page mismatch. Native view boxes can include planner widgets; this is a diagnostic, not proof of authored blank lines or a completed root-cause fix.",
+    "paragraphKey": 3626,
+    "sourceParagraphHasOnlyText": true,
+    "sourceBreaksOrImages": 0,
+    "authoredLineSpacing": "17.65pt",
+    "editorFirstGlyph": {
+      "page": 97,
+      "y": 575.015625,
+      "bodyTop": 94.46666666666667,
+      "bodyBottom": 1046.915625
+    },
+    "nativeEditorParagraphHeight": 305.90625,
+    "nativePrintParagraphHeight": 23.531341712949427,
+    "differenceCSSpx": 282.3749082870506,
+    "actualTableDOMRows": 5,
+    "sourceTableRows": 4,
+    "tableHeightIncludingViewGap": 466.5,
+    "leadingViewGapHeight": 231.703125,
+    "tableHeightExcludingViewGap": 234.796875,
+    "interpretation": "Table DOM has four authored rows plus a virtual pagination gap row. A prior ordinary text paragraph already has a large view-only reservation; the table-height difference alone is not a proven cause. Next inspect ownership/measurement of existing paragraph/page gaps rather than forcing row heights.",
+    "otherRetainedStableNativeBoxMeasurements": [
+      {
+        "stage": "native-sop-6bc49fa-body22",
+        "heightCSSpx": [
+          329.4375
+        ]
+      },
+      {
+        "stage": "native-sop-6bc49fa-cover-retry",
+        "heightCSSpx": [
+          329.4375
+        ]
+      }
+    ],
+    "diagnosticCaution": "The thin first-glyph audit and longer original/undo/zoom native tests retain different local paragraph-box heights despite the same total 135 pages. They are separate observations, not proof that every fresh opening has identical line geometry. No source line spacing or blank lines were changed."
+  },
+  "nativeSOPFirstGlyphAndPrintAudit": {
+    "editorPages": 135,
+    "printPages": 133,
+    "paragraphs": 4885,
+    "firstVisibleGlyphStarts": 3785,
+    "firstGlyphStartsOutsideBodyTolerance2CSSpx": [],
+    "firstGlyphStartCheckIsNotAllLinesVisibility": true,
+    "uniqueNativePrintComparison": {
+      "matched": 1895,
+      "mismatched": 489,
+      "firstMismatches": [
+        {
+          "key": 3635,
+          "text": "○ 운영체계(OS성 데이터)와 어플리케이션 데이터",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 134.578125,
+          "printY": 767.4873662671733
+        },
+        {
+          "key": 3636,
+          "text": "○ 데이터 베이스와 파일시스템",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 155.90625,
+          "printY": 788.8155743934522
+        },
+        {
+          "key": 3637,
+          "text": "○ 서버 구성 파일과 로그 파일",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 173.234375,
+          "printY": 806.1437669297476
+        },
+        {
+          "key": 3638,
+          "text": "가상화 환경",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 219.796875,
+          "printY": 852.7064484068985
+        },
+        {
+          "key": 3639,
+          "text": "○ 가상 머신(VM) 전체",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 202.46875,
+          "printY": 835.3782558706031
+        },
+        {
+          "key": 3640,
+          "text": "○ VM 설정과 구성 파일 ",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 223.796875,
+          "printY": 856.7064639968819
+        },
+        {
+          "key": 3641,
+          "text": "○ 가상화 호스트와 클러스터 구성",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 241.125,
+          "printY": 874.0346565331773
+        },
+        {
+          "key": 3643,
+          "text": "○ 관계형 데이터베이스 (Ms SQL, My SQL, Oracle, PostgreSQL 등)",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 270.359375,
+          "printY": 903.2691454740328
+        },
+        {
+          "key": 3644,
+          "text": "○ NoSQL 데이터베이스 (MongoDB 등)",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 291.6875,
+          "printY": 924.5973536003117
+        },
+        {
+          "key": 3645,
+          "text": "○ 트랜잭션 로그 및 데이터베이스 스키마",
+          "nativePage": 98,
+          "printPage": 97,
+          "nativeY": 309.015625,
+          "printY": 941.9255461366072
+        },
+        {
+          "key": 3683,
+          "text": "백업 정책 ",
+          "nativePage": 99,
+          "printPage": 98,
+          "nativeY": 148.390625,
+          "printY": 949.4568254896228
+        },
+        {
+          "key": 3684,
+          "text": "백업/복구 대장",
+          "nativePage": 99,
+          "printPage": 98,
+          "nativeY": 169.71875,
+          "printY": 970.7850336159017
+        },
+        {
+          "key": 3685,
+          "text": "복구 계획서",
+          "nativePage": 99,
+          "printPage": 98,
+          "nativeY": 191.046875,
+          "printY": 992.1132417421805
+        },
+        {
+          "key": 3686,
+          "text": "모의 훈련 계획 및 결과 보고서",
+          "nativePage": 99,
+          "printPage": 98,
+          "nativeY": 208.375,
+          "printY": 1009.441434278476
+        },
+        {
+          "key": 3729,
+          "text": "○ 정보시스템의 장애나 화재 등 사고로 인해 저장해 둔 정보가 소실되거나 손상될 경우에 대비하여 일정한 시간 차이를 두고 데이터를 복사하여 별도의 매체(디스크 혹은 테이프 등)에 예비로 저장해두는 행위를 말한다.",
+          "nativePage": 101,
+          "printPage": 100,
+          "nativeY": 168.046875,
+          "printY": 168.01627984020266
+        }
+      ]
+    },
+    "historicalWordLookup": {
+      "inputSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+      "referencePDFSHA256": "6ddedc0763844f7376e8d4dd43661df0afa959b85b8c6fa16ef1dc162e220d13",
+      "needle": "운영체계(OS성 데이터)와 어플리케이션 데이터",
+      "wordPage": 99,
+      "newMicrosoftMeasurement": false
+    }
+  },
+  "crossPlatformCI": {
+    "runId": 43495241058,
+    "status": "completed",
+    "conclusion": "success",
+    "url": "https://github.com/beaur8-prog/word-studio/actions/runs/43495241058",
+    "method": "Official GitHub workflow metadata and filtered decoded job logs; no account/authentication data retained. Browser/Node/PDF/OpenXML tests on Windows/Linux, not desktop Microsoft Word.",
+    "jobs": [
+      {
+        "id": 132126503350,
+        "name": "linux-navigation",
+        "conclusion": "success",
+        "nativeNode": {
+          "passed": 48,
+          "failed": 0
+        },
+        "conversionBrowser": {
+          "passed": 58
+        },
+        "layoutBrowser": {
+          "passed": 538,
+          "skipped": 1
+        },
+        "openXMLSDK": {
+          "files": 110,
+          "errors": 0
+        },
+        "cellPDFLogicalTextOrder": {
+          "passed": 7,
+          "total": 7
+        }
+      },
+      {
+        "id": 132126503640,
+        "name": "windows-layout",
+        "conclusion": "success",
+        "nativeNode": {
+          "passed": 48,
+          "failed": 0
+        },
+        "conversionBrowser": {
+          "passed": 58
+        },
+        "HWPCellMatrix": {
+          "passed": 55
+        },
+        "HWPXCellMatrix": {
+          "passed": 55
+        },
+        "layoutBrowser": {
+          "passed": 453,
+          "skipped": 1
+        },
+        "cellPDFLogicalTextOrder": {
+          "passed": 7,
+          "total": 7
+        },
+        "openXMLSDK": "No Windows SDK validation step; Linux SDK and separate local exact-stage validation reported independently."
+      }
+    ],
+    "headCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30"
+  }
+}

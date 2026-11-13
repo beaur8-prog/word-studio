@@ -1,0 +1,531 @@
+{
+  "method": "Same frozen original DOCX bytes and historical actual web Word print PDFs. Baseline is product 0bebe65/a58ad27; not the earlier 42-error run. No new Microsoft measurements. Prior heldOut documents are now regression controls, not unseen validation.",
+  "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "counts": {
+    "all": {
+      "count": 29,
+      "beforeAbsolutePageError": 39,
+      "finalAbsolutePageError": 39,
+      "beforeExact": 15,
+      "finalExact": 16
+    },
+    "development": {
+      "count": 17,
+      "beforeAbsolutePageError": 29,
+      "finalAbsolutePageError": 28,
+      "beforeExact": 8,
+      "finalExact": 9
+    },
+    "validation": {
+      "count": 6,
+      "beforeAbsolutePageError": 9,
+      "finalAbsolutePageError": 10,
+      "beforeExact": 2,
+      "finalExact": 2
+    },
+    "heldOut": {
+      "count": 6,
+      "beforeAbsolutePageError": 1,
+      "finalAbsolutePageError": 1,
+      "beforeExact": 5,
+      "finalExact": 5
+    }
+  },
+  "targetAbsolutePageError": 30,
+  "targetMet": false,
+  "rows": [
+    {
+      "id": "mois-2025-0",
+      "split": "development",
+      "inputSHA256": "e038c064d4a9db97bf472958e0787cebff5f86895fbd2451705f1fc7da583a01",
+      "wordPages": 24,
+      "beforePages": 23,
+      "finalPages": 23,
+      "beforeAbsolutePageError": 1,
+      "finalAbsolutePageError": 1,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        27,
+        27
+      ]
+    },
+    {
+      "id": "mss-funding-2026-0",
+      "split": "development",
+      "inputSHA256": "aae447838700d025df0d5f42e61fb8c5bd2e0ad92f7292e66d19bbf2527ad90f",
+      "wordPages": 59,
+      "beforePages": 54,
+      "finalPages": 54,
+      "beforeAbsolutePageError": 5,
+      "finalAbsolutePageError": 5,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        147,
+        147
+      ]
+    },
+    {
+      "id": "mss-funding-2026-2",
+      "split": "development",
+      "inputSHA256": "58624a9671fdd00bd1055d92b92ae5eb48d73aa2390059650c52a8a0f2a806db",
+      "wordPages": 63,
+      "beforePages": 54,
+      "finalPages": 54,
+      "beforeAbsolutePageError": 9,
+      "finalAbsolutePageError": 9,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        67,
+        67
+      ]
+    },
+    {
+      "id": "mods-household-1",
+      "split": "development",
+      "inputSHA256": "ef412d51256ade00188519beac5b0efcd8a10a7e60c9b19765e656db28a97c06",
+      "wordPages": 85,
+      "beforePages": 79,
+      "finalPages": 79,
+      "beforeAbsolutePageError": 6,
+      "finalAbsolutePageError": 6,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        183,
+        183
+      ]
+    },
+    {
+      "id": "fsc-press-1",
+      "split": "development",
+      "inputSHA256": "43ded853eabb1eb9353896c521567639ae1adfdf51e069bd69fd2dc018b4f824",
+      "wordPages": 4,
+      "beforePages": 4,
+      "finalPages": 4,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        9,
+        9
+      ]
+    },
+    {
+      "id": "fsc-press-4",
+      "split": "development",
+      "inputSHA256": "a7cb67c7d92cb986b4b18a9b53b1d5bf0b6c48406c7f6b6168053d957c0839b1",
+      "wordPages": 5,
+      "beforePages": 5,
+      "finalPages": 5,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "fsc-press-7",
+      "split": "development",
+      "inputSHA256": "b84c60f6937479ff97c4dc2876637072cd9bcef0a26749422b2be3d877ff08d1",
+      "wordPages": 16,
+      "beforePages": 14,
+      "finalPages": 14,
+      "beforeAbsolutePageError": 2,
+      "finalAbsolutePageError": 2,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        24,
+        24
+      ]
+    },
+    {
+      "id": "fsc-press-10",
+      "split": "development",
+      "inputSHA256": "d4a0d0cc6052d6a4f1b62b43c3377305097ef47bcca10456a0903d76efc42732",
+      "wordPages": 2,
+      "beforePages": 2,
+      "finalPages": 2,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        5,
+        5
+      ]
+    },
+    {
+      "id": "moel-rfp-0",
+      "split": "development",
+      "inputSHA256": "b97528a9b0dca33c8c56f097a48b826dcca0c432a2445d3fd291eddf2c05c533",
+      "wordPages": 10,
+      "beforePages": 10,
+      "finalPages": 10,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        16,
+        16
+      ]
+    },
+    {
+      "id": "moel-rfp-1",
+      "split": "development",
+      "inputSHA256": "c473de77ddc49fb48a8f83cab561eb6153d73900b998a22048df421e13e547d0",
+      "wordPages": 37,
+      "beforePages": 36,
+      "finalPages": 36,
+      "beforeAbsolutePageError": 1,
+      "finalAbsolutePageError": 1,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        51,
+        51
+      ]
+    },
+    {
+      "id": "daejeon-safety-hwp",
+      "split": "development",
+      "inputSHA256": "17f16e6784514034c7a9fc0df4eefd706f5191782765600312e3dbaae055f3aa",
+      "wordPages": 1,
+      "beforePages": 1,
+      "finalPages": 1,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "gg-facility-hwp",
+      "split": "development",
+      "inputSHA256": "31f28de4057b63ed66b822516cdef2b814ace68224b188f25e31f3f749e6a1a8",
+      "wordPages": 5,
+      "beforePages": 5,
+      "finalPages": 5,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        6,
+        6
+      ]
+    },
+    {
+      "id": "motie-budget-hwp",
+      "split": "development",
+      "inputSHA256": "4fbc17e877376edad81cad00233cfaca340bbb66a5531c0298c3653046e6155b",
+      "wordPages": 7,
+      "beforePages": 8,
+      "finalPages": 8,
+      "beforeAbsolutePageError": 1,
+      "finalAbsolutePageError": 1,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        10,
+        10
+      ]
+    },
+    {
+      "id": "motie-ax-0",
+      "split": "development",
+      "inputSHA256": "3ed7e5c0329939e27db5d172b2315a50e529787ed9a49f278e8854bf09eeb83b",
+      "wordPages": 10,
+      "beforePages": 10,
+      "finalPages": 10,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        12,
+        12
+      ]
+    },
+    {
+      "id": "motie-ax-1",
+      "split": "development",
+      "inputSHA256": "7c9e2aee292ae3dc840b626499da59e6ee5d9556411d969eb869f956bb5bca47",
+      "wordPages": 3,
+      "beforePages": 3,
+      "finalPages": 3,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        6,
+        6
+      ]
+    },
+    {
+      "id": "mofe-budget-hwpx",
+      "split": "development",
+      "inputSHA256": "7745eee49a0e29829b65cbe747e7a58044102c263a714984650ebc6b3c3b1efe",
+      "wordPages": 17,
+      "beforePages": 16,
+      "finalPages": 17,
+      "beforeAbsolutePageError": 1,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        32,
+        33
+      ]
+    },
+    {
+      "id": "mfds-revenue-hwpx",
+      "split": "development",
+      "inputSHA256": "863c6a2050a35cf01f933ed7d07f42ff2582eab98b7f86a9446d6c3458979b48",
+      "wordPages": 39,
+      "beforePages": 42,
+      "finalPages": 42,
+      "beforeAbsolutePageError": 3,
+      "finalAbsolutePageError": 3,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        45,
+        45
+      ]
+    },
+    {
+      "id": "mois-sop-3",
+      "split": "validation",
+      "inputSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+      "wordPages": 136,
+      "beforePages": 134,
+      "finalPages": 133,
+      "beforeAbsolutePageError": 2,
+      "finalAbsolutePageError": 3,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        152,
+        152
+      ]
+    },
+    {
+      "id": "mois-budget-0",
+      "split": "validation",
+      "inputSHA256": "3f24adc9e4d4ca23ed6873d06d5eb1a9e0b0d704f7beec7256fe47a5c353dcf7",
+      "wordPages": 149,
+      "beforePages": 150,
+      "finalPages": 150,
+      "beforeAbsolutePageError": 1,
+      "finalAbsolutePageError": 1,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        183,
+        183
+      ]
+    },
+    {
+      "id": "nhis-overcharge-0",
+      "split": "validation",
+      "inputSHA256": "bf5496e16fb7e1351a2ec228b9c3ee13282a6c0e7015326d15ffa848f8acabbf",
+      "wordPages": 2,
+      "beforePages": 2,
+      "finalPages": 2,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        2,
+        2
+      ]
+    },
+    {
+      "id": "nhis-postpone-1",
+      "split": "validation",
+      "inputSHA256": "604fb210e1271b18de05ba807fa2393abd2d4fae0db345b3bdff827a5af8bc0c",
+      "wordPages": 1,
+      "beforePages": 1,
+      "finalPages": 1,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        1,
+        1
+      ]
+    },
+    {
+      "id": "moel-manual-1",
+      "split": "validation",
+      "inputSHA256": "7d9d1cafa277b42b1c6f81fe53cac8f28e349ff701a6572188f9d63ddc00f37a",
+      "wordPages": 106,
+      "beforePages": 101,
+      "finalPages": 101,
+      "beforeAbsolutePageError": 5,
+      "finalAbsolutePageError": 5,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        185,
+        185
+      ]
+    },
+    {
+      "id": "lh-smartcity-hwpx",
+      "split": "validation",
+      "inputSHA256": "ccf632b21c28579d19b7bf2df12e4bb4147db40a6e0aa1d58da5043e6f027518",
+      "wordPages": 5,
+      "beforePages": 4,
+      "finalPages": 4,
+      "beforeAbsolutePageError": 1,
+      "finalAbsolutePageError": 1,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        8,
+        8
+      ]
+    },
+    {
+      "id": "nps-fund-hwp",
+      "split": "heldOut",
+      "inputSHA256": "bb0281bd8fb67c060dea3d25b4ac802e9970c23ed159bbd86138ace9eac45677",
+      "wordPages": 13,
+      "beforePages": 13,
+      "finalPages": 13,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        19,
+        19
+      ]
+    },
+    {
+      "id": "nps-venture-hwp",
+      "split": "heldOut",
+      "inputSHA256": "4cb24cc3f256a969dd216048b82c0e8bf8776d4af43c026bc0ff653bb121d7c5",
+      "wordPages": 2,
+      "beforePages": 2,
+      "finalPages": 2,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        6,
+        6
+      ]
+    },
+    {
+      "id": "lh-campus-hwpx",
+      "split": "heldOut",
+      "inputSHA256": "4eb893e167e763ecd33809401d59c75d613caef232b88f1d26743a597725d4c3",
+      "wordPages": 18,
+      "beforePages": 18,
+      "finalPages": 18,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        50,
+        50
+      ]
+    },
+    {
+      "id": "law-request-hwp",
+      "split": "heldOut",
+      "inputSHA256": "454dcf939a4ebddd1e9867e536189c28657301471284f07740eea5a61f669a78",
+      "wordPages": 1,
+      "beforePages": 2,
+      "finalPages": 2,
+      "beforeAbsolutePageError": 1,
+      "finalAbsolutePageError": 1,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        3,
+        3
+      ]
+    },
+    {
+      "id": "law-register-hwp",
+      "split": "heldOut",
+      "inputSHA256": "367ca63cf548ab9b57abe34a018fc0b27b32fdf8ed322b5fa05bced452962877",
+      "wordPages": 4,
+      "beforePages": 4,
+      "finalPages": 4,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        3,
+        3
+      ]
+    },
+    {
+      "id": "law-operation-hwp",
+      "split": "heldOut",
+      "inputSHA256": "411399a9f59d0c3e67a802632d81c787655cd5d8ab3c4fe8ebdf6afc2981cb8c",
+      "wordPages": 2,
+      "beforePages": 2,
+      "finalPages": 2,
+      "beforeAbsolutePageError": 0,
+      "finalAbsolutePageError": 0,
+      "sameInput": true,
+      "sameBody": true,
+      "sameImagePlacements": true,
+      "tableFragments": [
+        3,
+        3
+      ]
+    }
+  ]
+}
