@@ -1,6 +1,6 @@
 import { documentScale } from './document-scale';
-import { Extension, Node } from '@tiptap/core';
-import { Plugin } from '@tiptap/pm/state';
+import { Extension, Node, type Editor } from '@tiptap/core';
+import { Plugin, TextSelection } from '@tiptap/pm/state';
 
 export type DocumentTabStop = { position: number; type: 'left' | 'right' | 'center' | 'decimal'; leader?: 'dot' | 'hyphen' | 'underscore' };
 export function parseTabStops(value: unknown): DocumentTabStop[] {
@@ -74,7 +74,31 @@ export function layoutTabs(root: HTMLElement) {
   }
 }
 
+/** Native mouse/arrow selectionchange can arrive after the next keydown.
+ * Custom insertion commands must use the visible caret instead of a stale
+ * text selection. Leave node/cell/gap selections and IME composition alone. */
+function synchronizeTabSelection(editor: Editor) {
+  const { view, state } = editor;
+  if (view.composing || !(state.selection instanceof TextSelection) ||
+      view.dom.ownerDocument.activeElement !== view.dom) return;
+  const selection = view.dom.ownerDocument.getSelection();
+  if (!selection?.anchorNode || !selection.focusNode ||
+      !view.dom.contains(selection.anchorNode) || !view.dom.contains(selection.focusNode)) return;
+  try {
+    const anchor = view.posAtDOM(selection.anchorNode, selection.anchorOffset);
+    const head = view.posAtDOM(selection.focusNode, selection.focusOffset);
+    if (!state.doc.resolve(anchor).parent.inlineContent || !state.doc.resolve(head).parent.inlineContent) return;
+    const next = TextSelection.create(state.doc, anchor, head);
+    if (!next.eq(state.selection)) view.dispatch(state.tr.setSelection(next));
+  } catch {
+    // A native selection outside the editable document has no model position.
+  }
+}
+
 export const DocumentTab = Node.create({
+  // Synchronize before lower-priority table/list/code keymaps decide whether
+  // to consume Tab; their specialized navigation still handles those contexts.
+  priority: 1100,
   name: 'documentTab', group: 'inline', inline: true, atom: true, selectable: false,
   parseHTML: () => [{ tag: 'span[data-docx-tab]' }],
   renderHTML: () => ['span', { 'data-docx-tab': 'true', class: 'document-tab' }, '\t'],
@@ -85,8 +109,11 @@ export const DocumentTab = Node.create({
     return { dom, ignoreMutation: () => true };
   },
   addKeyboardShortcuts() {
-    return { Tab: () => this.editor.isActive('table') || this.editor.isActive('listItem') || this.editor.isActive('codeBlock') ? false
-      : this.editor.commands.insertContent({ type: this.name }) };
+    return { Tab: () => {
+      synchronizeTabSelection(this.editor);
+      return this.editor.isActive('table') || this.editor.isActive('listItem') || this.editor.isActive('codeBlock') ? false
+        : this.editor.commands.insertContent({ type: this.name });
+    } };
   },
 });
 export const DocumentTabs = Extension.create({

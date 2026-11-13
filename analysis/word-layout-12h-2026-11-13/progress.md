@@ -79,3 +79,7 @@
 
 - 2026-11-13T19:14:15.720333+00:00 b6 Windows全검사success/Linux general458/532에서50분joblimit취소,실패assertion로그없음. SDK110단계이미통과했으나남은74+PDF본문검사는미완료로표시. 테스트를빼지않고Linuxdeadline65분으로수정하여최종source1012ae8과같은제품으로다시양OS실행.
 - HWP수정후두원본3970문단의저장전후시작쪽불일치:취업규칙2297중1830→8,업무계획1673중1200→0(동일문단key,각첫fragment만채점). Word대비지표아닌동일Studio저장왕복지표다. 기존prepared160/3007은b6에서78/152·1819/3792그대로,원문분모혼합없음.
+
+- 2026-11-13T19:45:46.469720+00:00 新최종전체1012ae8는887/888통과(24분),Tab후내용ValueLabel이앞에입력되는1실패. 파일읽기완료대기만추가해도4/10실패하여단순fixture준비문제로판정하지않음. 실제키이벤트trace12회중2실패에서Tabkeydown시nativeDOMcursor는Label끝offset5/PMselection은1을확인. 원인:mouse/nativeArrow의selectionchange가늦게도착하는데customTab은오래된PM선택에삽입함. 읽기직전빈문서문제도별도지연파일대조2건으로분리.
+- 회귀수정작업본:공개view.posAtDOM/TextSelection으로실제텍스트선택만Tab직전에동기화. node/cell/gap/composition은건드리지않으며Table/List/Code키맵보다먼저동기화후기존특수동작에위임. 독립동기이벤트반례기존4실패/Gap정상1통과,수정후정방향/역방향범위·끝caret·표다음셀·table뒤gap·실제keyboard각12회72/72및관련28/28통과. 최초green의undo빈문서는fixture setContent를같이취소한검사준비문제여서실제파일열기로기초문서를설정후모든undo/redo통과. 제품의문자·문서·페이지·그림데이터수정없음. 타입통과. 다음:정확커밋893전체/고해상도77/Android38/실제native·두저장/새양OS. 20:05새구현동결유지.
+- 1012ae8 큰HWP실제native viewer→변환→DOCX두저장/편집undo/redo2문서18단계각20초완료,취업규칙편집162/162/162·인쇄160,업무계획38/38/38·인쇄38,본문/셀/그림바이트·순서보존·hidden=true/오류0. print160미리보기이미완료후Playwrightnavigationbarrier만120초대기한첫실패는분리보존,noWaitAfter후실제페이지수와PDF확인으로검사기수정. 최초5초변환안내대기오류도분리. 실제OS패널은mock이다.

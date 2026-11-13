@@ -148,6 +148,9 @@ test('right and center tab stops with leaders align after typing and survive DOC
 
 test('Tab inserts a document tab outside tables without losing keyboard focus', async ({ page }) => {
   await page.locator('input[type=file]').first().setInputFiles({ name: 'typing.txt', mimeType: 'text/plain', buffer: Buffer.from('Label') });
+  // The file input event starts an async read. Move the caret in the imported
+  // document, rather than in the previous blank document before it is replaced.
+  await expect(page.locator('.tiptap')).toHaveText('Label');
   await page.locator('.tiptap').click(); await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowDown' : 'Control+End'); await page.keyboard.press('Tab'); await page.keyboard.type('Value');
   await expect(page.locator('.tiptap')).toBeFocused();
   await expect(page.locator('.tiptap [data-docx-tab]')).toHaveCount(1);
