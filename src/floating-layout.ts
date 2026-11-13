@@ -1,3 +1,4 @@
+import { documentScale } from './document-scale';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import {inlineDrawingAnchor,prepareDrawingGroupAnchors} from './drawing-group';
 import { layoutTextBoxes, textBoxFrame } from './textbox-frame';
@@ -35,7 +36,27 @@ type Picture = {
   cssTop: number;
   geometry: ImageFloating;
 };
-type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number };
+type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number; startPage?: boolean };
+type PageFlow = { starts: Set<number>; backwards: Set<number>; candidates: Set<number> };
+
+/** Read the anchor's paper in document pixels, including CSS zoom. */
+function ownerPaper(image: HTMLImageElement, root: HTMLElement) {
+  const paragraph = image.closest<HTMLElement>('p,h1,h2,h3,h4,h5,h6');
+  if (!paragraph) return;
+  const sheet = paragraph.closest<HTMLElement>('[data-page-height],.print-page') || root;
+  const scale = documentScale(paragraph);
+  const y = (paragraph.getBoundingClientRect().top - sheet.getBoundingClientRect().top) / scale;
+  const height = Number(sheet.dataset.pageHeight) || 1122.52, top = Number(sheet.dataset.margin) || 96;
+  const page = Math.max(0, Math.floor((y - top + .5) / (height + 24)));
+  return { page, y, height, top, bottom: Number(sheet.dataset.bottomMargin) || top };
+}
+
+function layoutHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index++) hash = Math.imul(hash ^ value.charCodeAt(index), 16777619);
+  return hash >>> 0;
+}
+
 const atomic =
   "img,[data-drawing-group-anchor],[data-symbol-font],[data-word-overlap],[data-docx-tab],[data-docx-bookmark],[data-note-reference],[data-page-number]";
 const floatingImages = (root: HTMLElement) =>
@@ -313,7 +334,7 @@ function imagePosition(
 
 /** Plan in a detached copy of the live geometry. The editable document receives
  * only ProseMirror decorations: no split paragraphs, copied text or DOM moves. */
-export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
+export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): ParagraphPlan[] {
   if (!root.querySelector("img[data-image-floating],.document-textbox")) return [];
   const owner = root.closest<HTMLElement>(".document-stack,.print-page");
   const host = (owner?.cloneNode(false) || document.createElement("div")) as HTMLElement;
@@ -327,6 +348,10 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
     pointerEvents: "none",
     width: `${parseFloat(getComputedStyle(owner || root).width)}px`,
   });
+  const ownerStarts = pageFlow ? floatingImages(root).map(img => {
+    const at = ownerPaper(img, root);
+    return at ? at.page + (at.y > at.page * (at.height + 24) + at.top + .5 ? 1 : 0) : 0;
+  }) : [];
   const copy = root.cloneNode(true) as HTMLElement;
   // Caret separators can leave a phantom line before newly inserted block
   // widgets in a clone. They have no authored width, height or model offset.
@@ -367,6 +392,29 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       if (image.closest('td,th,[data-column-count],.document-textbox')) return true;
       return pageSegments.get(image.closest('p,h1,h2,h3,h4,h5,h6')!) === pageSegments.get(paragraph);
     };
+    const imageOwners = images.map(image => image.closest<HTMLElement>('p,h1,h2,h3,h4,h5,h6')!);
+    const forcedOwners = new Map<HTMLElement, number>();
+    for (const index of pageFlow?.starts || []) if (imageOwners[index]) forcedOwners.set(imageOwners[index], index);
+    if (pageFlow) {
+      pageFlow.candidates.clear(); pageFlow.backwards.clear();
+      for (const [index, image] of images.entries()) {
+        const geometry = imageFloating(image.dataset.imageFloating), paragraph = imageOwners[index];
+        if (!geometry || !paragraph || geometry.wrap?.type === 0 || geometry.behindDocument || geometry.drawingGroup || imageOutsidePaper(image) ||
+          !['page', 'margin'].includes(geometry.verticalPosition.relative || '') || paragraph.closest('td,th,[data-column-count],.document-textbox') ||
+          !(paragraph.parentElement === copy || paragraph.parentElement?.classList.contains('section-editable')) ||
+          paragraph.querySelectorAll('img[data-image-floating]').length !== 1) continue;
+        const paper = ownerPaper(image, copy)!, box = paragraph.getBoundingClientRect();
+        const line = parseFloat(getComputedStyle(paragraph).lineHeight) || 24;
+        if (box.height <= line * 1.5 && (Number(image.getAttribute('height')) || 0) + box.height <= paper.height - paper.top - paper.bottom + .5)
+          pageFlow.candidates.add(index);
+      }
+      // An automatic anchor break has the same wrap boundary as a source break.
+      let segment = 0;
+      for (const element of copy.querySelectorAll('p,h1,h2,h3,h4,h5,h6,[data-page-break]')) {
+        if ((element.hasAttribute('data-page-break') && !element.closest('td,th,[data-column-count],.document-textbox')) || forcedOwners.has(element as HTMLElement)) segment++;
+        pageSegments.set(element, segment);
+      }
+    }
     prepareDrawingGroupAnchors(copy);
     layoutTextBoxes(copy);
     const pictures = images
@@ -378,12 +426,23 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
       pictures.push({ index:-1-index,left:box.left,top:box.top,width:box.width,height:box.height,cssLeft:0,cssTop:0,
         geometry:{ horizontalPosition:{relative:'page',offset:0},verticalPosition:{relative:'page',offset:0},wrap:{type:1},margins:{top:(data.wrapMargins?.[0]||0)*9525,right:(data.wrapMargins?.[1]||0)*9525,bottom:(data.wrapMargins?.[2]||0)*9525,left:(data.wrapMargins?.[3]||0)*9525} } });
     }
+    const initialPictures = pageFlow ? new Map(pictures.filter(p=>p.index>=0).map(p=>[p.index,p.top])) : undefined;
     const groupIds=new Set<string>();
     for(const picture of [...pictures])if(picture.index>=0){const group=groupExclusion(picture);if(group && !groupIds.has(group.geometry.drawingGroup!.id)){pictures.push(group);groupIds.add(group.geometry.drawingGroup!.id);}}
     const result: ParagraphPlan[] = [];
     for (let pi = 0; pi < ps.length; pi++) {
-      const p = ps[pi],
-        own = images
+      const p = ps[pi];
+      const forced = forcedOwners.get(p);
+      if (forced !== undefined) {
+        const sheet = p.closest<HTMLElement>('[data-page-height],.print-page') || copy, paper = ownerPaper(images[forced], copy)!;
+        const current = paper.page + (paper.y > paper.page * (paper.height + 24) + paper.top + .5 ? 1 : 0);
+        const target = Math.max(current, ownerStarts[forced] || 0);
+        const gap = Math.max(0, Math.ceil((sheet.getBoundingClientRect().top + target * (paper.height + 24) + paper.top - p.getBoundingClientRect().top) * 64) / 64);
+        if (gap > .1) {
+          const spacer = document.createElement('div'); spacer.dataset.flowWidget = 'true'; spacer.style.height = `${gap}px`; p.before(spacer);
+        }
+      }
+      const own = images
           .flatMap((img, index) =>
             img.closest("p,h1,h2,h3,h4,h5,h6") === p ? [imagePosition(img, index, copy)!] : [],
           )
@@ -531,6 +590,13 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
           lineStart = start;
         let lineHeight = metrics(start, fit(start, end, width - indent)).height;
         const arrange = (height: number) => {
+          // A previous float can move a line into a later float. Observe the
+          // actual attempted line, not only the paragraph's original box.
+          if (pageFlow) for (const picture of flowing) {
+            const image = picture.index >= 0 ? images[picture.index] : undefined;
+            if (image && !p.contains(image) && (p.compareDocumentPosition(image) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+              exclusion(picture, y, height).some(([left, right]) => left < x + width && right > x)) pageFlow.backwards.add(picture.index);
+          }
           const lineWidgets: Widget[] = [];
           const spans = slots(flowing, x + indent, y, width - indent, height);
           let nextStart = lineStart,
@@ -635,6 +701,19 @@ export function planFloatingLayout(root: HTMLElement): ParagraphPlan[] {
     for (const paragraph of result) {
       paragraph.minimumHeight = Math.max(0, ...paragraph.pictures.map(p => p.minimumHeight || 0)) || undefined;
     }
+    // Painted short anchors must not move to another paper after their own
+    // earlier-text exclusion has already been calculated. Start that anchor
+    // on fresh paper and plan again with the new page boundary in place.
+    if (pageFlow) for (const paragraph of result) {
+      for (const picture of paragraph.pictures) {
+        if (pageFlow.starts.has(picture.index)) paragraph.startPage = true;
+        else if (pageFlow.candidates.has(picture.index) && pageFlow.backwards.has(picture.index) &&
+          ps[paragraph.index].textContent?.replace(/[\s\u200b\u2060\ufeff]/gu, '')) {
+          const paper = ownerPaper(images[picture.index], copy)!, initial = initialPictures!.get(picture.index)!;
+          if (picture.top - initial >= paper.height + 24 - .5) pageFlow.starts.add(picture.index);
+        }
+      }
+    }
     return result;
   } finally {
     host.remove();
@@ -678,6 +757,9 @@ export const FloatingLayout = Extension.create({
           let frame = 0,
             signature = "",
             lastDocument = view.state.doc;
+          const pageFlow: PageFlow = { starts: new Set(), backwards: new Set(), candidates: new Set() };
+          const backwardsSeen = new Set<number>(), paperHistory = new Map<number, { page: number; layout: number }[]>();
+          let flowDocument: typeof view.state.doc | undefined = view.state.doc, flowShape = '';
           const calculate = () => {
             cancelAnimationFrame(frame);
             frame = requestAnimationFrame(() => {
@@ -695,8 +777,35 @@ export const FloatingLayout = Extension.create({
                   if (dom instanceof HTMLElement) pos.set(dom, position);
                 }
               });
-              const plan = planFloatingLayout(view.dom),
-                decorations: Decoration[] = [],
+              const sheet=view.dom.closest<HTMLElement>('.document-stack'),shape=sheet?[sheet.dataset.pageHeight,sheet.dataset.margin,sheet.dataset.bottomMargin,getComputedStyle(sheet).width].join('|'):'';
+              if(flowDocument!==view.state.doc || flowShape!==shape) {
+                pageFlow.starts.clear();pageFlow.backwards.clear();pageFlow.candidates.clear();backwardsSeen.clear();paperHistory.clear();flowDocument=view.state.doc;flowShape=shape;
+              }
+              const layout = layoutHash(`${sheet?.dataset.pages}:${view.dom.getBoundingClientRect().height}:${signature}`);
+              floatingImages(view.dom).forEach((image, index) => {
+                if (!pageFlow.candidates.has(index) || pageFlow.starts.has(index)) return;
+                const at = ownerPaper(image, view.dom); if (!at) return;
+                const history = paperHistory.get(index) || [], current = { page: at.page, layout };
+                if (history.at(-1)?.page === at.page) history[history.length - 1] = current;
+                else { history.push(current); if (history.length > 5) history.shift(); }
+                paperHistory.set(index, history);
+                // Require two complete repetitions of the same page/layout
+                // cycle. A transient return during initial pagination is not
+                // evidence that a backward wrap needs an anchor break.
+                const equal = (a: number, b: number) => history[a].page === history[b].page && history[a].layout === history[b].layout;
+                if (backwardsSeen.has(index) && history.length === 5 && equal(0, 2) && equal(2, 4) && equal(1, 3) && history[0].page !== history[1].page)
+                  pageFlow.starts.add(index);
+              });
+              let plan: ParagraphPlan[];
+              // Only add proven source-anchor constraints. The set grows
+              // monotonically and is bounded by the document's pictures;
+              // no iteration cap freezes an unresolved layout.
+              for (;;) {
+                const count = pageFlow.starts.size; plan = planFloatingLayout(view.dom, pageFlow);
+                for (const index of pageFlow.backwards) backwardsSeen.add(index);
+                if (pageFlow.starts.size === count) break;
+              }
+              const decorations: Decoration[] = [],
                 values: string[] = [];
               for (const paragraph of plan) {
                 const p = ps[paragraph.index],
@@ -707,9 +816,10 @@ export const FloatingLayout = Extension.create({
                     Decoration.node(
                       position,
                       position + view.state.doc.nodeAt(position)!.nodeSize,
-                      { style: `position:relative${paragraph.minimumHeight ? `;min-height:${paragraph.minimumHeight}px` : ""}` },
+                      { style: `position:relative${paragraph.minimumHeight ? `;min-height:${paragraph.minimumHeight}px` : ""}`, ...(paragraph.startPage?{'data-floating-start-page':'true'}:{}) },
                     ),
                   );
+                if(paragraph.startPage)values.push(`float-start-page:${position}`);
                 const index = units(p);
                 for (const picture of paragraph.pictures) {
                   const token = index.find(
@@ -754,12 +864,13 @@ export const FloatingLayout = Extension.create({
               }
             });
           };
+          const invalidate=()=>{flowDocument=undefined;calculate();};
           document.addEventListener(editorLayoutResume, calculate);
           const observer = new ResizeObserver(calculate);
           observer.observe(view.dom);
-          view.dom.addEventListener("load", calculate, true);
+          view.dom.addEventListener("load", invalidate, true);
           view.dom.addEventListener("compositionend", calculate);
-          document.fonts.addEventListener("loadingdone", calculate);
+          document.fonts.addEventListener("loadingdone", invalidate);
           calculate();
           return {
             update: calculate,
@@ -767,9 +878,9 @@ export const FloatingLayout = Extension.create({
               cancelAnimationFrame(frame);
               observer.disconnect();
               document.removeEventListener(editorLayoutResume, calculate);
-              view.dom.removeEventListener("load", calculate, true);
+              view.dom.removeEventListener("load", invalidate, true);
               view.dom.removeEventListener("compositionend", calculate);
-              document.fonts.removeEventListener("loadingdone", calculate);
+              document.fonts.removeEventListener("loadingdone", invalidate);
             },
           };
         },

@@ -327,6 +327,22 @@ export const Pagination = Extension.create({
                     }
                   }
                 }
+                // A backward wrap that cannot share paper with its short
+                // anchor starts that paragraph on fresh paper. Use the normal
+                // page-gap budget so the drawing never adds a second spacer.
+                const ownerParagraph = view.nodeDOM(piece.pos);
+                if (ownerParagraph instanceof HTMLElement && ownerParagraph.dataset.floatingStartPage === 'true') {
+                  const ownY = piece.top + extra, ownPage = Math.max(0, Math.floor((ownY - top + .5) / stride));
+                  if (ownY > ownPage * stride + top + .5) {
+                    const gap = Math.max(0, Math.ceil(((ownPage + 1) * stride + top - ownY) * 64) / 64);
+                    dec.push(Decoration.widget(piece.pos, () => {
+                      const spacer = document.createElement('div'); spacer.className = 'pagination-gap';
+                      spacer.dataset.floatingAnchorGap = 'true'; spacer.style.height = `${gap}px`;
+                      spacer.contentEditable = 'false'; spacer.setAttribute('aria-hidden', 'true'); return spacer;
+                    }, { side: -1, key: `float-start-page:${piece.pos}:${gap}` }));
+                    extra += gap; signatures.push(`float-start-page:${piece.pos}:${gap}`);
+                  }
+                }
                 const y = piece.top + extra, page = Math.max(0, Math.floor((y - top + .5) / stride));
                 if (piece.header && !tablePages.has(piece.header.table)) tablePages.set(piece.header.table,
                   Math.max(0, Math.floor(((piece.tableTop ?? piece.top) + extra - top + .5) / stride)));

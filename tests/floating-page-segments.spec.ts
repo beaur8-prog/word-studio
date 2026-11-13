@@ -33,11 +33,11 @@ async function observe(page: Page, duration = 3000) {
   }, duration);
 }
 
-for (const lead of [8, 20]) test(`later picture cannot wrap across a source page break (${lead} leading lines), including two DOCX saves`, async ({ page }) => {
+for (const lead of [8, 20]) for (const forcedBreak of [true, false]) for (const blankAnchor of (lead === 20 && !forcedBreak ? [false, true] : [false])) test(`later picture ${forcedBreak ? 'respects a source page break' : 'moves its ' + (blankAnchor ? 'empty' : 'short') + ' anchor when backward wrap cannot fit'} (${lead} leading lines), including two DOCX saves`, async ({ page }) => {
   test.setTimeout(150000);
   const errors: string[] = []; page.on('pageerror', error => errors.push(String(error)));
   await page.goto('/'); await expect(editor(page)).toBeVisible();
-  const result = await page.evaluate(async lead => {
+  const result = await page.evaluate(async ({lead, forcedBreak, blankAnchor}) => {
     const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
     const { generateHTML } = await import('/node_modules/@tiptap/core/dist/index.js');
     const { defaultPage } = await import('/src/types.ts');
@@ -57,7 +57,7 @@ for (const lead of [8, 20]) test(`later picture cannot wrap across a source page
     const html = paragraph(picture('EARLY DRAWING', 96, 120, raster('red')) + 'EARLY ANCHOR') +
       Array.from({ length: lead }, (_, i) => paragraph('LEADING ' + i)).join('') +
       paragraph('BEFORE ' + 'Ordinary text words for a later anchored picture. '.repeat(18)) +
-      '<div data-page-break="true"></div>' + paragraph(picture('LATER DRAWING', 174, 650, raster('blue')) + 'ANCHOR') +
+      (forcedBreak ? '<div data-page-break="true"></div>' : '') + paragraph(picture('LATER DRAWING', 174, 650, raster('blue')) + (blankAnchor ? '' : 'ANCHOR')) +
       paragraph('AFTER ' + 'Following text must remain visible and in order. '.repeat(8));
     let doc: any = { format: 'word-studio', version: 1, id: 'float-page-break', title: 'Floating page break',
       updatedAt: new Date().toISOString(), comments: [], page: { ...defaultPage, pageNumbers: false }, content: parseDocumentHtml(html) };
@@ -85,11 +85,11 @@ for (const lead of [8, 20]) test(`later picture cannot wrap across a source page
       }
     }
     return { states, saves };
-  }, lead);
-  for (const [index, bytes] of result.saves.entries()) await writeFile(test.info().outputPath(`textbox-save-floating-page-break-${lead}-${index + 1}.docx`), Buffer.from(bytes));
+  }, {lead, forcedBreak, blankAnchor});
+  for (const [index, bytes] of result.saves.entries()) await writeFile(test.info().outputPath(`textbox-save-floating-page-break-${forcedBreak}-${blankAnchor}-${lead}-${index + 1}.docx`), Buffer.from(bytes));
   const observations = [];
   for (const state of result.states) {
-    expect(state.text).toBe(result.states[0].text); expect(state.breaks).toBe(1);
+    expect(state.text).toBe(result.states[0].text); expect(state.breaks).toBe(forcedBreak ? 1 : 0);
     expect(state.images.map(({ src, alt, width, height }) => ({ src, alt, width, height }))).toEqual(result.states[0].images.map(({ src, alt, width, height }) => ({ src, alt, width, height })));
     expect(state.printed.pages).toBe(2); expect(state.printed.beforeHeight).toBeCloseTo(220, 0);
     await load(page, state.doc); await expect(editor(page)).toContainText('AFTER ');
