@@ -1,5 +1,5 @@
 {
-  "utc": "2026-11-13T22:38:30.841585+00:00",
+  "utc": "2026-11-13T22:58:47.573705+00:00",
   "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
   "method": "Separate fixed cohorts and raw-byte proofs, no denominator mixing. New native means isolated compiled Word Studio, not Microsoft Word. OS chooser is mocked; Android is browser simulation, not physical APK/device QA.",
   "government": {
@@ -696,6 +696,217 @@
       }
     ],
     "diagnosticCaution": "The thin first-glyph audit and longer original/undo/zoom native tests retain different local paragraph-box heights despite the same total 135 pages. They are separate observations, not proof that every fresh opening has identical line geometry. No source line spacing or blank lines were changed."
+  },
+  "nativeOriginalFullTextGeometry": {
+    "utc": "2026-11-13T22:58:47.378930+00:00",
+    "sourceCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+    "inputSHA256": "88e3e6769fbf3e310189a23760fb6915b3267caa518382d8be3b8628dd722739",
+    "method": "Every live body text node Range client rectangle plus all floating-image rectangles, rounded to 1/64 CSS px, source furniture/widgets excluded. Read-only original native DOCX, not Microsoft or a layout-accuracy test.",
+    "requiredStableMs": 40000,
+    "achievedStableMs": 40492,
+    "passed": true,
+    "modelUnchanged": true,
+    "modelSHA256": "d458068b5095a106908411aafb9ab6b2420de61eef2c655cbd93707831b0cd97",
+    "pages": 135,
+    "sourceTextNodes": 5177,
+    "lineFragmentRectangles": 6062,
+    "floatingImageRectangles": 40,
+    "samples": [
+      {
+        "elapsedMs": 7536,
+        "stableMs": 0,
+        "signature": "374ab5cf2a85d96b538aaf2e7d57f9afd6a74d983095759957ee3fe64d8e1a0a",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 9659,
+        "stableMs": 0,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 11780,
+        "stableMs": 2121,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 13949,
+        "stableMs": 4290,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 16068,
+        "stableMs": 6409,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 18184,
+        "stableMs": 8525,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 20342,
+        "stableMs": 10683,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 22463,
+        "stableMs": 12804,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 24606,
+        "stableMs": 14947,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 26720,
+        "stableMs": 17061,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 28836,
+        "stableMs": 19177,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 30974,
+        "stableMs": 21315,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 33082,
+        "stableMs": 23423,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 35228,
+        "stableMs": 25569,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 37352,
+        "stableMs": 27693,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 39501,
+        "stableMs": 29842,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 41620,
+        "stableMs": 31961,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 43765,
+        "stableMs": 34106,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 45881,
+        "stableMs": 36222,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 48032,
+        "stableMs": 38373,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      },
+      {
+        "elapsedMs": 50151,
+        "stableMs": 40492,
+        "signature": "b35bccbe47a28d19f916abf2b69875b3780355aac4ae421696761d1a03563215",
+        "pages": 135,
+        "fontStatus": "loaded",
+        "sourceTextNodes": 5177,
+        "lineFragmentRectangles": 6062
+      }
+    ],
+    "hidden": true,
+    "sourcePreserved": true,
+    "errors": [],
+    "rawEvidence": "native-sop-full-glyph-final-6bc49fa.json.gz",
+    "limitation": "Only original source native full-glyph convergence, not every saved/edited phase or Microsoft accuracy. Forty-eight full native phases additionally checked paragraph/image/gap outer geometry. Known image scaling and false wrap remain."
   },
   "knownNativePictureSizeDifferences": {
     "utc": "2026-11-13T22:26:34.993054+00:00",

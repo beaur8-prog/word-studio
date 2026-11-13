@@ -1,0 +1,18 @@
+{
+  "endedUTC": "2026-11-13T23:06:28.898387+00:00",
+  "startedUTC": "2026-11-13T11:05:27+00:00",
+  "plannedDeadlineUTC": "2026-11-13T23:05:27+00:00",
+  "productCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "sourceTreeUnchangedSinceFreeze": true,
+  "version": "1.4.13",
+  "automationId": "word-4",
+  "automationStatus": "PAUSED",
+  "evidenceBytes": 827193099,
+  "underOneGiB": true,
+  "completedValidation": true,
+  "allQualityTargetsMet": false,
+  "governmentAbsolutePageError": 39,
+  "knownSmallerRenderedSOPPictures": 13,
+  "newMicrosoftMeasurement": false,
+  "releasePublished": false
+}

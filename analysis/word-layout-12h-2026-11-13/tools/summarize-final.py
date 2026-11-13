@@ -154,6 +154,9 @@ assert gov_pdf['documents']==gov_pdf['sameGlyphMultiplicity']==gov_pdf['sameImag
 summary['governmentTwoRealDOCXSaves']={k:v for k,v in gov_rt.items() if k!='rows'}
 summary['governmentSaved2ActualPDF']={k:v for k,v in gov_pdf.items() if k!='rows'}
 summary['remainingOrdinaryParagraphReservation']=read('remaining-sop-paragraph-reservation.json')
+glyphs=read('final-native-full-text-geometry.json')
+assert glyphs['passed'] and glyphs['modelUnchanged'] and glyphs['achievedStableMs']>=40000
+summary['nativeOriginalFullTextGeometry']=glyphs
 bounds=read('remaining-sop-picture-bounds.json')
 assert bounds['sourceCommit']==FINAL and bounds['matchedPaintedSourcePictures']==25 and bounds['secondSaveExtentSetDifferences']==0
 summary['knownNativePictureSizeDifferences']={k:v for k,v in bounds.items() if k!='rows'}

@@ -4,7 +4,7 @@
   "productSrcTree": "643248640ed5f468393f5d07f9a11bb7ca6b63d3",
   "currentSrcTree": "643248640ed5f468393f5d07f9a11bb7ca6b63d3",
   "sameProductTree": true,
-  "evidenceBytes": 826932906,
+  "evidenceBytes": 827193034,
   "budgetBytes": 1073741824,
   "underBudget": true,
   "closingCleanupOnly": [
@@ -85,7 +85,7 @@
   ],
   "rawOriginalIntegrity": "final-original-input-integrity.json",
   "qaCheckpointAtMeasurement": "a775654bc6b776d9a528f6658704e14f32892b97",
-  "updatedUTC": "2026-11-13T22:47:20.452461+00:00",
+  "updatedUTC": "2026-11-13T23:00:06.521607+00:00",
   "additionalDiagnosticInputs": [
     "minimal-sop-paragraph-reservation/",
     "minimal-sop-paragraph-reservation-offset/"
@@ -93,5 +93,6 @@
   "additionalUnresolvedEvidence": [
     "remaining-sop-picture-bounds.json",
     "remaining-sop-input-reduction-summary.json"
-  ]
+  ],
+  "finalFullGlyphAudit": "final-native-full-text-geometry.json"
 }

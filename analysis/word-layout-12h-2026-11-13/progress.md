@@ -106,3 +106,7 @@
 - 2026-11-13T22:33:19.948089+00:00 종료전검증에서추가기존차이확인:원본SOPWordpaint25개중13개native가저작모델보다작음(.tiptap img max-width100%). index4원본/모델680.300×839.300·Word680.267×839.253·native642.5×792.656,idx3들여쓰기문단611.2→605.5. 25개원본/실제save2 WP/transform extent동일,그림바이트/저장extent보존과화면폭일치를분리. 현재좌상단에서저작크기를적용하면13개모두물리종이내이나회전/crop/그룹전체검증아님. CSSoverride/새제품후보없음,다음구현최우선으로보고.
 - public사본입력축소11개(원본·fixed29변경0):full135와prefix768의78쪽사본은target329.438px/flowwidgets재현,원본구간4쪽·표지포함6쪽정상23.531. body단독정상/표지첫블록추가재현,주변paging/context의존. 12초국소안정성으로40초전체통과라고하지않고최소실패입력미완료표시. flow배제592.706폭은source그림34오른쪽−문단시작과일치/Word그림100·문단99/native그림98·문단97이라소유쪽/clone좌표다음조사지점으로남김. 단일그림인과완전분리미완료.
 - 원본49개rawSHA최종재검증모두불변,제품srcTree6bc==HEAD,빌드1009assetSHA전부일치. 현재QA커밋a775654원격push완료/제품6bc불변. 자동화word-4 ACTIVE 설정조회만했고종료23:05에PAUSED전환예정,다른자동화미변경. 추가성능후보허가응답없음/동결유지.
+
+- 2026-11-13T22:58:47.381506+00:00 마지막실제원본DOCX native전체글줄안정성추가검증완료. 본문text node5177개/Range줄조각6062개+떠있는그림40개사각형을21샘플/40.492초연속같은좌표(1/64CSSpx)·135쪽·폰트loaded·모델불변·renderer0. 기존48단계는paragraph/image/gap바깥박스검증,이전체글줄검사는원본한실행으로scope분리. 배치안정성통과가39쪽오차/그림13개축소/거짓wrap해결은아님. raw native-sop-full-glyph-final-6bc49fa.json.gz/요약 final-native-full-text-geometry.json. 제품6bc불변,QA실행프로세스종료확인후종료보고/Git/자동화PAUSED예정.
+
+- 2026-11-13T23:06:28.898387+00:00 약12시간 실행 종료. 원본전체glyph6062/40.492초·모델불변까지완료,제품6bc/1.4.13·srcTree불변. 자동화word-4를공식update로PAUSED/로컬TOML재확인,다른자동화변경없음. 마지막증거788.87MiB/1GiB. 39쪽목표미달·13그림CSS축소·거짓wrap·표높이·대형저장·strict5·새Word미측정을최종보고. 추가성능후보auto-review거절및미반영유지. 일반앱은잠금상태라미실행. 남은owned caffeinate는종료정리에서해제/만료확인,공개배포없음.

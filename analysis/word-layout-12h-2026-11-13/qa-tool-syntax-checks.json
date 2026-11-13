@@ -1,5 +1,5 @@
 {
-  "utc": "2026-11-13T22:47:20.451342+00:00",
+  "utc": "2026-11-13T23:00:06.521044+00:00",
   "method": "Static QA-tool parsing only; independent of product functional tests.",
   "rows": [
     {
@@ -197,5 +197,9 @@
       "kind": "python-ast",
       "passed": true
     }
+  ],
+  "lastModifiedToolsRechecked": [
+    "tools/inspect-native-sop-ink.cjs",
+    "tools/summarize-final.py"
   ]
 }
