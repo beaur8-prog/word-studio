@@ -76,3 +76,6 @@
 - 18:56 UTC exact b6edda3 검증완료:PC886/886(25.3분),compiled SOP cover/body-source22 각각24단계 총48단계(각40초연속),두DOCX저장각각완료·편집135/물리135/인쇄133·undo좌표최대1/64px·renderer오류0/원문79406/그림40/9구역보존. 파일선택기는mock이라실제OS패널검사아님. 최종Word10새20DOCX·HWP10새20DOCX 공식SDK40/40오류0,Word고정398=12/12·140=2/2변화없음. 양OS정확b6 CI진행중. 고해상도DPR2·PDF실제그림최종감사계속.
 
 - 2026-11-13T19:01:38.584547+00:00 HWP저장전후글꼴원인확인:source character-shape의한글기본face는명확한데nativeHTML은한글/영문CSSfallback목록으로합침. 기존restoreScriptFonts가영문등nonbase만분리해한글이목록을그대로상속하고저장DOCXsingleface에서다른fallback을사용. source기본face도명시span으로복원하는최소변경을채택하며일반사용자CSS목록선택자는변경하지않음. 독립HWP/HWPX반례원본2실패(한글family가휴먼명조,CourierNew)/후보7통과·제품확장9통과/Node173통과/타입통과. 원본10개후보재파싱+DOCX두저장30렌더모두쪽수일치8→10개,취업규칙157→160에서160→160·업무계획37→38에서38→38. 이것은최초표시를저장후와일치시킨것으로Word대비쪽수오차감소주장아님. 288591본문/BR140/그림638바이트순서/셀논리내용·병합전체보존. 기존strict5문제와분리. 신규행렬·최종원본커밋검사이어감.
+
+- 2026-11-13T19:14:15.720333+00:00 b6 Windows全검사success/Linux general458/532에서50분joblimit취소,실패assertion로그없음. SDK110단계이미통과했으나남은74+PDF본문검사는미완료로표시. 테스트를빼지않고Linuxdeadline65분으로수정하여최종source1012ae8과같은제품으로다시양OS실행.
+- HWP수정후두원본3970문단의저장전후시작쪽불일치:취업규칙2297중1830→8,업무계획1673중1200→0(동일문단key,각첫fragment만채점). Word대비지표아닌동일Studio저장왕복지표다. 기존prepared160/3007은b6에서78/152·1819/3792그대로,원문분모혼합없음.

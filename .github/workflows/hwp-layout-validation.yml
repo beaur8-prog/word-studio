@@ -168,7 +168,10 @@ jobs:
   linux-navigation:
     if: ${{ !inputs.windows_only && !inputs.validator_only }}
     runs-on: ubuntu-22.04
-    timeout-minutes: 50
+    # The complete general group now includes the long terminal matrix and
+    # continuous floating-layout checks. Keep every case; 50 minutes stopped
+    # a passing run at case 458/532 before its final validation steps.
+    timeout-minutes: 65
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
