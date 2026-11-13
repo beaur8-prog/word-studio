@@ -33,7 +33,7 @@ async function observe(page: Page, duration = 3000) {
   }, duration);
 }
 
-for (const lead of [8, 20]) for (const forcedBreak of [true, false]) for (const blankAnchor of (lead === 20 && !forcedBreak ? [false, true] : [false])) test(`later picture ${forcedBreak ? 'respects a source page break' : 'moves its ' + (blankAnchor ? 'empty' : 'short') + ' anchor when backward wrap cannot fit'} (${lead} leading lines), including two DOCX saves`, async ({ page }) => {
+for (const lead of [8, 20]) for (const forcedBreak of [true, false]) for (const blankAnchor of (!forcedBreak ? [false, true] : [false])) test(`later picture ${forcedBreak ? 'respects a source page break' : 'moves its ' + (blankAnchor ? 'empty' : 'short') + ' anchor when backward wrap cannot fit'} (${lead} leading lines), including two DOCX saves`, async ({ page }) => {
   test.setTimeout(Math.max(150000, Number(process.env.FLOAT_STABILITY_MS || 3000) * 3 + 90000));
   const errors: string[] = []; page.on('pageerror', error => errors.push(String(error)));
   await page.goto('/'); await expect(editor(page)).toBeVisible();
@@ -57,7 +57,7 @@ for (const lead of [8, 20]) for (const forcedBreak of [true, false]) for (const 
     const html = paragraph(picture('EARLY DRAWING', 96, 120, raster('red')) + 'EARLY ANCHOR') +
       Array.from({ length: lead }, (_, i) => paragraph('LEADING ' + i)).join('') +
       paragraph('BEFORE ' + 'Ordinary text words for a later anchored picture. '.repeat(18)) +
-      (forcedBreak ? '<div data-page-break="true"></div>' : '') + paragraph(picture('LATER DRAWING', 174, 650, raster('blue')) + (blankAnchor ? '' : 'ANCHOR')) +
+      (forcedBreak ? '<div data-page-break="true"></div>' : '') + (blankAnchor && lead === 8 ? `<p style="font-family:Arial;font-size:12pt;line-height:.75pt;margin:0" data-word-line-rule="exact">${picture('LATER DRAWING', 174, 650, raster('blue'))}</p>` : paragraph(picture('LATER DRAWING', 174, 650, raster('blue')) + (blankAnchor ? '' : 'ANCHOR'))) +
       paragraph('AFTER ' + 'Following text must remain visible and in order. '.repeat(8));
     let doc: any = { format: 'word-studio', version: 1, id: 'float-page-break', title: 'Floating page break',
       updatedAt: new Date().toISOString(), comments: [], page: { ...defaultPage, pageNumbers: false }, content: parseDocumentHtml(html) };

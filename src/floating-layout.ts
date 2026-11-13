@@ -716,14 +716,13 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
       paragraph.minimumHeight = Math.max(paragraph.minimumHeight || 0, reservation.minimumHeight || 0) || undefined;
       paragraph.originalMinimum = reservation.originalMinimum;
     }
-    // Painted short anchors must not move to another paper after their own
+    // Short anchors must not move to another paper after their own
     // earlier-text exclusion has already been calculated. Start that anchor
     // on fresh paper and plan again with the new page boundary in place.
     if (pageFlow) for (const paragraph of result) {
       for (const picture of paragraph.pictures) {
         if (pageFlow.starts.has(picture.index)) paragraph.startPage = true;
-        else if (pageFlow.candidates.has(picture.index) && pageFlow.backwards.has(picture.index) &&
-          ps[paragraph.index].textContent?.replace(/[\s\u200b\u2060\ufeff]/gu, '')) {
+        else if (pageFlow.candidates.has(picture.index) && pageFlow.backwards.has(picture.index)) {
           const paper = ownerPaper(images[picture.index], copy)!, initial = initialPictures!.get(picture.index)!;
           if (picture.top - initial >= paper.height + 24 - .5) pageFlow.starts.add(picture.index);
         }
