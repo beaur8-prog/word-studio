@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
 
-for (const format of ['hwp', 'hwpx'] as const) for (const location of ['cell', 'nested']) test(`${format}, ${location}: printed floating picture positions survive native export and two reopenings`, async ({ page }) => {
+for (const format of ['hwp', 'hwpx'] as const) for (const location of ['cell', 'nested']) test(`${format}, ${location}: printed floating picture positions survive two native saves and two DOCX saves`, async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async ({format, location}) => {
-    const { defaultPage } = await import('/src/types.ts'), { importFile } = await import('/src/document-io.ts');
+    const { defaultPage } = await import('/src/types.ts'), { importFile, exportDocx } = await import('/src/document-io.ts');
     const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
     const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js'), { createPrintLayout } = await import('/src/print-layout.ts');
     const { exportEditableHwp, importEditableHwp } = await import('/src/hwp/editing.ts'), { HwpReaderSession } = await import('/src/hwp/reader.ts');
@@ -16,8 +17,8 @@ for (const format of ['hwp', 'hwpx'] as const) for (const location of ['cell', '
     const cell = (body: string) => `<table style="width:400px"><tr style="height:150px"><td>${location === 'nested' ? `<table style="width:300px"><tr><td>${body}</td></tr></table>` : body}</td></tr></table>`;
     const loaded = await importFile(new File([`${cell(`<p style="font-size:10pt;line-height:20px;margin:0">FIRST${picture(0, 0)}</p><p>Body one</p>`)}<div data-page-break="true"></div>${cell(`<p style="font-size:10pt;line-height:20px;margin:0">SECOND${picture(1, 1)}</p><p>Body two</p>`)}`], 'float.html'));
     let doc = { ...loaded.document, page: { ...defaultPage, pageNumbers: false }, content: parseDocumentHtml(loaded.html!) };
-    const original = doc, states = [];
-    for (let save = 0; save < 3; save++) {
+    const original = doc, states = [], saves = [];
+    for (let save = 0; save < 5; save++) {
       const print = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
       try { states.push({ pages: print.pages, text: [...print.element.querySelectorAll('.print-content')].map(p => p.textContent!.replace(/\s/g, '')), pictures: [...print.element.querySelectorAll<HTMLImageElement>('.print-content img')].map(img => {
         const box = img.getBoundingClientRect(), paper = img.closest<HTMLElement>('.print-page')!, origin = paper.getBoundingClientRect();
@@ -28,9 +29,15 @@ for (const format of ['hwp', 'hwpx'] as const) for (const location of ['cell', '
         try { await session.open(new File([out.blob], 'saved.' + format)); doc = importEditableHwp(await session.editable(), 'saved.' + format); }
         finally { session.close(); }
       }
+      if (save >= 2 && save < 4) {
+        const blob = await exportDocx(doc); saves.push([...new Uint8Array(await blob.arrayBuffer())]);
+        const loaded = await importFile(new File([blob], 'native-cell.docx')); doc = { ...loaded.document, content: parseDocumentHtml(loaded.html!) };
+      }
     }
-    return { states, original };
+    return { states, original, saves };
   }, {format, location});
+  for (const [index, bytes] of result.saves.entries()) await writeFile(test.info().outputPath(`textbox-save-hwp-cell-${format}-${location}-${index + 1}.docx`), Buffer.from(bytes));
+  await writeFile(test.info().outputPath('hwp-cell-coordinates.json'), JSON.stringify(result.states, null, 2));
   const { states } = result;
   for (const state of states) {
     expect(state.pages).toBe(2); expect(state.text).toEqual(states[0].text); expect(state.pictures).toHaveLength(2);

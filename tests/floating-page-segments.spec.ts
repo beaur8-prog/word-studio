@@ -34,7 +34,7 @@ async function observe(page: Page, duration = 3000) {
 }
 
 for (const lead of [8, 20]) for (const forcedBreak of [true, false]) for (const blankAnchor of (lead === 20 && !forcedBreak ? [false, true] : [false])) test(`later picture ${forcedBreak ? 'respects a source page break' : 'moves its ' + (blankAnchor ? 'empty' : 'short') + ' anchor when backward wrap cannot fit'} (${lead} leading lines), including two DOCX saves`, async ({ page }) => {
-  test.setTimeout(150000);
+  test.setTimeout(Math.max(150000, Number(process.env.FLOAT_STABILITY_MS || 3000) * 3 + 90000));
   const errors: string[] = []; page.on('pageerror', error => errors.push(String(error)));
   await page.goto('/'); await expect(editor(page)).toBeVisible();
   const result = await page.evaluate(async ({lead, forcedBreak, blankAnchor}) => {

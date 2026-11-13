@@ -1,3 +1,4 @@
+import { cellRelativePicture, reserveCellPicture, restoreCellPictureReservations, cellPictureReservation } from './floating-cell-relative';
 import { documentScale } from './document-scale';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import {inlineDrawingAnchor,prepareDrawingGroupAnchors} from './drawing-group';
@@ -25,6 +26,7 @@ type Widget = {
 };
 type Picture = {
   wrapCell?: HTMLElement | null;
+  cellRelative?: boolean;
   minimumHeight?: number;
   offPage?: boolean;
   index: number;
@@ -36,7 +38,7 @@ type Picture = {
   cssTop: number;
   geometry: ImageFloating;
 };
-type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number; startPage?: boolean };
+type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number; originalMinimum?: string; startPage?: boolean };
 type PageFlow = { starts: Set<number>; backwards: Set<number>; candidates: Set<number> };
 
 /** Read the anchor's paper in document pixels, including CSS zoom. */
@@ -218,6 +220,8 @@ function imagePosition(
   const p = img.closest<HTMLElement>("p,h1,h2,h3,h4,h5,h6");
   if (!p) return;
   const recovery = recoverableCellImage(img);
+  const cellFrame = cellRelativePicture(img, root);
+  const cellTop = cellFrame ? reserveCellPicture(cellFrame) : undefined;
   // A cell-contained drawing reserves its authored extent without changing the
   // document's coordinates or forcing the picture into the old row height.
   const minimumHeight = recovery ? Math.max(
@@ -304,6 +308,7 @@ function imagePosition(
     !["paragraph", "line"].includes(vertical.relative || "paragraph")
   )
     y = Math.max(py + top, Math.min(y, py + ph - bottom - height));
+  if (cellTop !== undefined) y = cellTop;
   if (recovery) {
     left = Math.max(rect.left, Math.min(left, rect.right - width));
     y = rect.top + (g.verticalPosition.offset || 0) / 9525;
@@ -321,6 +326,7 @@ function imagePosition(
     index,
     minimumHeight,
     wrapCell: g.layoutInCell !== false ? cell : null,
+    cellRelative: !!cellFrame,
     offPage,
     left,
     top: y,
@@ -356,6 +362,7 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
   // Caret separators can leave a phantom line before newly inserted block
   // widgets in a clone. They have no authored width, height or model offset.
   copy.querySelectorAll("[data-flow-widget],.ProseMirror-separator").forEach((el) => el.remove());
+  restoreCellPictureReservations(copy);
   copy.removeAttribute("contenteditable");
   host.append(copy);
   document.body.append(host);
@@ -455,7 +462,7 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
       // A body paragraph containing only floating anchors has no painted
       // inline content for its own artwork to wrap. Preserve its natural
       // source line; paper fitting still includes the drawing's real extent.
-      if (own.length && !p.closest('td,th,.document-textbox,[data-column-count]') &&
+      if (own.length && (!p.closest('td,th,.document-textbox,[data-column-count]') || own.every(picture => picture.cellRelative)) &&
           !p.textContent?.replace(/[\s\u200b\u2060\ufeff]/gu, '') &&
           !p.querySelector('img:not([data-image-floating]):not(.ProseMirror-separator),svg,video,canvas,[data-note-reference],[data-page-number],[data-symbol-font],[data-word-overlap],[data-docx-tab]') &&
           own.every(picture => !picture.geometry.drawingGroup)) {
@@ -701,6 +708,14 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
     for (const paragraph of result) {
       paragraph.minimumHeight = Math.max(0, ...paragraph.pictures.map(p => p.minimumHeight || 0)) || undefined;
     }
+    for (const [index, block] of ps.entries()) {
+      const reservation = cellPictureReservation(block);
+      if (!reservation) continue;
+      let paragraph = result.find(value => value.index === index);
+      if (!paragraph) { paragraph = { index, widgets: [], pictures: [] }; result.push(paragraph); }
+      paragraph.minimumHeight = Math.max(paragraph.minimumHeight || 0, reservation.minimumHeight || 0) || undefined;
+      paragraph.originalMinimum = reservation.originalMinimum;
+    }
     // Painted short anchors must not move to another paper after their own
     // earlier-text exclusion has already been calculated. Start that anchor
     // on fresh paper and plan again with the new page boundary in place.
@@ -722,12 +737,14 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
 
 export function applyFloatingLayout(root: HTMLElement) {
   root.querySelectorAll("[data-flow-widget]").forEach((el) => el.remove());
+  restoreCellPictureReservations(root);
   const plan = planFloatingLayout(root),
     ps = paragraphs(root),
     images = floatingImages(root);
   for (const paragraph of plan) {
     const p = ps[paragraph.index];
     if (paragraph.pictures.length) p.style.position = "relative";
+    if (paragraph.originalMinimum !== undefined) p.setAttribute('data-floating-cell-original-min-height', paragraph.originalMinimum);
     if (paragraph.minimumHeight) {
       p.style.minHeight = `${Math.max(parseFloat(p.style.minHeight) || 0, paragraph.minimumHeight)}px`;
     }
@@ -811,14 +828,15 @@ export const FloatingLayout = Extension.create({
                 const p = ps[paragraph.index],
                   position = pos.get(p);
                 if (position === undefined) continue;
-                if (paragraph.pictures.length)
+                if (paragraph.pictures.length || paragraph.originalMinimum !== undefined)
                   decorations.push(
                     Decoration.node(
                       position,
                       position + view.state.doc.nodeAt(position)!.nodeSize,
-                      { style: `position:relative${paragraph.minimumHeight ? `;min-height:${paragraph.minimumHeight}px` : ""}`, ...(paragraph.startPage?{'data-floating-start-page':'true'}:{}) },
+                      { style: `position:relative${paragraph.minimumHeight ? `;min-height:${paragraph.minimumHeight}px` : ""}`, ...(paragraph.startPage?{'data-floating-start-page':'true'}:{}), ...(paragraph.originalMinimum !== undefined ? {'data-floating-cell-original-min-height': paragraph.originalMinimum} : {}) },
                     ),
                   );
+                if(paragraph.originalMinimum !== undefined)values.push(`cell-picture-min:${position}:${paragraph.minimumHeight}:${paragraph.originalMinimum}`);
                 if(paragraph.startPage)values.push(`float-start-page:${position}`);
                 const index = units(p);
                 for (const picture of paragraph.pictures) {

@@ -278,7 +278,9 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
     horizontalPosition: { relative: 'page', offset: Math.round(position.x * 9525) },
     verticalPosition: { relative: 'page', offset: Math.round(position.y * 9525) },
     wrap: { type: ['BehindText', 'InFrontOfText'].includes(props.textWrap) ? 0 : props.textWrap === 'TopAndBottom' ? 3 : 1 },
-    behindDocument: props.textWrap === 'BehindText', allowOverlap: props.allowOverlap, layoutInCell: true,
+    // The native layout API already resolved these coordinates against the
+    // physical paper. Word's layoutInCell=true would add the cell origin again.
+    behindDocument: props.textWrap === 'BehindText', allowOverlap: props.allowOverlap, layoutInCell: false,
     margins: Object.fromEntries(['left', 'right', 'top', 'bottom'].map(side => [side, Math.round((props['outerMargin' + side[0].toUpperCase() + side.slice(1)] || 0) * 127)])),
   });
   const overlays = new Map<number, any[]>();
@@ -415,7 +417,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const payload = JSON.stringify({ ...node, previewPadding: padding });
       if (payload.length > 4 * 1024 * 1024) return;
       const b = node.bounds;
-      const geometry = cell ? { ...floatingGeometry(position, props),
+      const geometry = cell ? { ...floatingGeometry(position, props), layoutInCell: true,
         horizontalPosition: { relative: 'column', offset: Math.round((px(props.horzOffset || 0) - padding) * 9525) },
         verticalPosition: { relative: 'paragraph', offset: Math.round((px(props.vertOffset || 0) - padding) * 9525) } }
         : floatingGeometry({ x: b.x - padding, y: b.y - padding }, props);
