@@ -1061,7 +1061,15 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     // editor frame must follow the same metadata transaction, while later
     // imported section settings and a single-step undo stay unchanged.
     const tr = editor.state.tr, first = tr.doc.firstChild;
-    if (first?.type.name === 'sectionContent') tr.setNodeMarkup(0, null, { ...first.attrs, page: JSON.stringify(next) });
+    if (first?.type.name === 'sectionContent') {
+      tr.setNodeMarkup(0, null, { ...first.attrs, page: JSON.stringify(next) });
+      // Identical continuous sections share this frame's page controls while
+      // retaining each original boundary and its single-step undo history.
+      first.forEach((node, offset) => {
+        if (node.type.name === 'sectionBreak') tr.setNodeMarkup(1 + offset, null,
+          { ...node.attrs, page: JSON.stringify({ ...next, breakType: 'continuous' }) });
+      });
+    }
     changeMetadata({ page: next }, tr);
   };
   const format = editor.getAttributes("textStyle");

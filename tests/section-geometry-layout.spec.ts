@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
+import JSZip from 'jszip';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeightRule, LineRuleType, BorderStyle, SectionType } from 'docx';
 
 const none = { style: BorderStyle.NONE, size: 0, color: 'auto' };
@@ -177,4 +178,103 @@ test('page settings still update the first framed section and undo preserves lat
   await page.keyboard.press('ControlOrMeta+Shift+z');
   await expect.poll(async()=>Number(await sections.first().getAttribute('data-margin'))).toBeCloseTo(96,4);
   await expect.poll(async()=>Number(await sections.nth(1).getAttribute('data-margin'))).toBeCloseTo(20,0);
+});
+
+test('an identical continuous section does not disable the body geometry of an earlier next-page section', async ({ page }) => {
+  const first = { size: { width: 6000, height: 6000 }, margin: { top: 750, bottom: 750, left: 750, right: 750 } };
+  const body = { ...first, margin: { top: 300, bottom: 300, left: 300, right: 300 } };
+  const bytes = await Packer.toBuffer(new Document({ sections: [
+    { properties: { page: first }, children: [paragraph('FIRST')] },
+    { properties: { type: SectionType.NEXT_PAGE, page: body }, children: [paragraph('LEAD'), row(), paragraph('AFTER')] },
+    { properties: { type: SectionType.CONTINUOUS, page: body }, children: [paragraph('CONTINUED')] },
+  ] }));
+  await page.goto('/');
+  const result = await page.evaluate(async bytes => {
+    const { importFile, exportDocx, validateDocument } = await import('/src/document-io.ts');
+    const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
+    const { generateHTML } = await import('/node_modules/@tiptap/core/dist/index.js');
+    const { createPrintLayout } = await import('/src/print-layout.ts');
+    const { withoutEditorReflow } = await import('/src/editor-layout-task.ts');
+    let input = new File([new Uint8Array(bytes)], 'mixed-sections.docx'); const states = [], saves = [];
+    for (let pass = 0; pass < 3; pass++) {
+      const loaded = await importFile(input), doc = validateDocument({ ...loaded.document, content: parseDocumentHtml(loaded.html!) });
+      const sections: any[] = []; (function walk(n: any) { if (n.type === 'sectionBreak') sections.push(JSON.parse(n.attrs.page)); n.content?.forEach(walk); })(doc.content);
+      const printed = await withoutEditorReflow(async () => {
+        const layout = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+        try { return { pages: layout.pages, paragraphs: [...layout.element.querySelectorAll('.print-content p')].filter(p => p.textContent?.trim()).map(p => {
+          const r = p.getBoundingClientRect(), sheet = p.closest<HTMLElement>('.print-page')!, o = sheet.getBoundingClientRect();
+          return { text: p.textContent, page: Number(sheet.dataset.page), x: r.x - o.x, y: r.y - o.y, height: r.height };
+        }) }; } finally { layout.dispose(); }
+      });
+      states.push({ doc, sections, printed });
+      if (pass < 2) { const blob = await exportDocx(doc); saves.push([...new Uint8Array(await blob.arrayBuffer())]); input = new File([blob], 'again.docx'); }
+    }
+    const invalid = structuredClone(states[0].doc), frame = invalid.content.content.find((n: any) => n.type === 'sectionContent' && n.content.some((c: any) => c.type === 'sectionBreak'));
+    let rejectsChangedGeometry = false;
+    if (frame) { const marker = frame.content.find((n: any) => n.type === 'sectionBreak'), page = JSON.parse(marker.attrs.page); page.margins = { ...(await import('/src/types.ts')).pageMargins(page) }; page.margins.left += 1; marker.attrs.page = JSON.stringify(page); try { validateDocument(invalid); } catch { rejectsChangedGeometry = true; } }
+    return { states, saves, rejectsChangedGeometry };
+  }, [...bytes]);
+  for (const [index, bytes] of result.saves.entries()) await writeFile(test.info().outputPath(`textbox-save-section-mixed-${index + 1}.docx`), Buffer.from(bytes));
+  const xml = [];
+  for (const data of [bytes, ...result.saves.map(data => Buffer.from(data))]) {
+    const zip = await JSZip.loadAsync(data), part = await zip.file('word/document.xml')!.async('string');
+    xml.push({ sections: [...part.matchAll(/<w:sectPr(?:\s|>)/g)].length, continuous: [...part.matchAll(/<w:type\b[^>]*w:val="continuous"/g)].length });
+  }
+  expect(xml).toEqual(Array.from({ length: 3 }, () => ({ sections: 3, continuous: 1 })));
+  expect(result.rejectsChangedGeometry).toBe(true);
+  for (const state of result.states) {
+    expect(state.printed.pages).toBe(2); expect(state.sections).toHaveLength(2);
+    expect(state.sections.map(p => p.breakType)).toEqual(['nextPage', 'continuous']);
+    expect(state.doc.content.content.filter((n: any) => n.type === 'sectionContent')).toHaveLength(2);
+    expect(state.printed.paragraphs.map(p => p.text)).toEqual(['FIRST', 'LEAD', 'CELL', 'AFTER', 'CONTINUED']);
+    await page.locator('input[type=file]').first().setInputFiles({ name: 'mixed-sections.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(state.doc)) });
+    const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true }); await expect(editor).toContainText('CONTINUED');
+    for (const zoom of [100, 50, 125, 100]) {
+      const slider = page.getByRole('slider', { name: '확대 축소' }); await slider.fill(String(zoom)); await slider.dispatchEvent('input'); await slider.dispatchEvent('change');
+      await expect.poll(() => page.locator('.document-stack').getAttribute('data-pages')).toBe('2');
+      await expect.poll(async () => editor.evaluate(async (root, printed) => {
+        const { documentScale } = await import('/src/document-scale.ts'), scale = documentScale(root), all = [...root.querySelectorAll<HTMLElement>('.document-section-content')];
+        const actual = [...root.querySelectorAll('p')].filter(p => p.textContent?.trim() && !p.closest('.document-furniture')).map(p => {
+          const frame = p.closest<HTMLElement>('.document-section-content')!, local = frame.querySelector('.section-editable')!, h = Number(frame.dataset.pageHeight), r = p.getBoundingClientRect(), o = local.getBoundingClientRect();
+          const y = (r.y - o.y) / scale, index = Math.floor((y + .5) / (h + 24)), before = all.slice(0, all.indexOf(frame)).reduce((sum, s) => sum + Number(s.dataset.pages), 0);
+          return { text: p.textContent, page: before + index + 1, x: (r.x - o.x) / scale, y: y - index * (h + 24), height: r.height / scale };
+        });
+        return actual.length === printed.length && actual.every((p, i) => p.page === printed[i].page && p.text === printed[i].text && ['x','y','height'].every(k => Math.abs((p as any)[k] - (printed[i] as any)[k]) < .75));
+      }, state.printed.paragraphs)).toBe(true);
+    }
+    const before = await editor.evaluate((root: any) => root.editor.getJSON()); await editor.locator('p').filter({ hasText: /^CONTINUED$/ }).fill('CONTINUED EDIT');
+    await page.keyboard.press('ControlOrMeta+z'); await expect.poll(() => editor.evaluate((root: any) => root.editor.getJSON())).toEqual(before);
+    await page.keyboard.press('ControlOrMeta+Shift+z'); await expect(editor).toContainText('CONTINUED EDIT'); await page.keyboard.press('ControlOrMeta+z');
+    await expect.poll(() => editor.evaluate((root: any) => root.editor.getJSON())).toEqual(before);
+  }
+});
+
+test('page controls update identical continuous settings in the first shared frame as one undo event', async ({ page }) => {
+  const first = { size: { width: 6000, height: 6000 }, margin: { top: 750, bottom: 750, left: 750, right: 750 } };
+  const second = { ...first, margin: { top: 300, bottom: 300, left: 300, right: 300 } };
+  const input = await Packer.toBuffer(new Document({ sections: [
+    { properties: { page: first }, children: [paragraph('FIRST')] },
+    { properties: { type: SectionType.CONTINUOUS, page: first }, children: [paragraph('FIRST CONTINUED')] },
+    { properties: { type: SectionType.NEXT_PAGE, page: second }, children: [paragraph('SECOND')] },
+  ] }));
+  await page.goto('/'); await page.locator('input[type=file]').first().setInputFiles({ name: 'shared-page-controls.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: input });
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true }); await expect(editor).toContainText('SECOND');
+  const original = await editor.evaluate((root: any) => root.editor.getJSON());
+  await page.getByRole('button', { name: '레이아웃', exact: true }).click(); await page.getByRole('spinbutton', { name: '위 여백', exact: true }).fill('25.4');
+  await expect.poll(() => editor.locator('.document-section-content').first().getAttribute('data-margin')).toBe('96');
+  const result = await editor.evaluate(async (root: any) => {
+    const ed = root.editor, { documentMetadata } = await import('/src/document-history.ts'), { exportDocx, validateDocument } = await import('/src/document-io.ts');
+    const metadata = documentMetadata.getState(ed.state)!;
+    const doc = validateDocument({ format: 'word-studio', version: 1, title: 'Shared controls', updatedAt: new Date().toISOString(), comments: metadata.comments, page: metadata.page, content: ed.getJSON() });
+    const blob = await exportDocx(doc); return [...new Uint8Array(await blob.arrayBuffer())];
+  });
+  await writeFile(test.info().outputPath('textbox-save-shared-section-controls.docx'), Buffer.from(result));
+  const zip = await JSZip.loadAsync(Buffer.from(result)), xml = await zip.file('word/document.xml')!.async('string');
+  const topMargins = [...xml.matchAll(/<w:pgMar\b[^>]*w:top="(\d+)"/g)].map(m => Number(m[1]));
+  expect(topMargins).toEqual([1440, 1440, 300]);
+  await editor.locator('p').filter({ hasText: /^FIRST CONTINUED$/ }).click(); await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(() => editor.evaluate((root: any) => root.editor.getJSON())).toEqual(original);
+  await page.keyboard.press('ControlOrMeta+Shift+z');
+  await expect.poll(() => editor.locator('.document-section-content').first().getAttribute('data-margin')).toBe('96');
+  await page.keyboard.press('ControlOrMeta+z'); await expect.poll(() => editor.evaluate((root: any) => root.editor.getJSON())).toEqual(original);
 });

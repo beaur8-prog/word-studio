@@ -44,6 +44,7 @@ on:
       - 'src/docx-textboxes.ts'
       - 'src/textbox-frame.ts'
       - 'src/docx-stories.ts'
+      - 'src/section-frame-settings.ts'
       - 'src/floating-layout.ts'
       - 'src/floating-cell-relative.ts'
       - 'src/image-floating.ts'

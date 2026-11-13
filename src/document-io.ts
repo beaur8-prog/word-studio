@@ -1,3 +1,4 @@
+import { sameSectionFrameSettings } from './section-frame-settings';
 import { encodeDocxXmlParts } from './docx-package-text';
 import { paragraphTextAlignment } from './paragraph-text-alignment';
 import { exportedRowCantSplit } from './row-split-policy';
@@ -226,12 +227,13 @@ export function validateDocument(input: unknown): StudioDocument {
     for (const key of ['author','initials','html']) if (comment[key] !== undefined && !boundedString(comment[key], key === 'html' ? 1000000 : 512)) fail('검토 메모 정보가 올바르지 않습니다.');
   }
   let nodes = 0;
-  const walk = (value: unknown, parent: string | null, depth: number): void => {
+  const walk = (value: unknown, parent: string | null, depth: number, framePage?: PageSettings): void => {
     if (++nodes > 100000 || depth > 64) fail("문서 구조가 너무 큽니다.");
     if (!object(value) || typeof value.type !== "string")
       fail("문서 본문 구조가 올바르지 않습니다.");
     keysOnly(value, ["type", "attrs", "content", "marks", "text"], "본문 요소");
     const type = value.type;
+    let childFrame: PageSettings | undefined;
     if (parent === null ? type !== "doc" : type === "doc")
       fail("문서 최상위 구조가 올바르지 않습니다.");
     if (
@@ -304,9 +306,11 @@ export function validateDocument(input: unknown): StudioDocument {
     if (type === 'tableRow' && [attrs?.rowSplit, attrs?.wordRowSplit].some(value => value != null && !['allow', 'avoid'].includes(String(value))))
       fail('표 행의 쪽 나누기 설정이 올바르지 않습니다.');
     if (type === 'sectionBreak' || type === 'sectionContent') {
-      if (parent !== 'doc') fail('구역 나누기는 문서의 최상위에 있어야 합니다.');
+      if (parent !== 'doc' && !(type === 'sectionBreak' && parent === 'sectionContent' && framePage)) fail('구역 나누기는 문서의 최상위에 있어야 합니다.');
       if (typeof attrs?.page !== 'string' || attrs.page.length > MAX_FILE_BYTES) fail('구역 설정이 올바르지 않습니다.');
       const sectionPage = JSON.parse(attrs.page);
+      if (parent === 'sectionContent' && (sectionPage.breakType !== 'continuous' || !sameSectionFrameSettings(framePage!, sectionPage))) fail('공유 구역에는 설정이 같은 이어지는 구역만 넣을 수 있습니다.');
+      if (type === 'sectionContent') childFrame = sectionPage;
       validateDocument({ format: 'word-studio', version: 1, title: '', updatedAt: new Date().toISOString(), page: sectionPage,
         comments: [], content: { type: 'doc', content: [{ type: 'paragraph' }] } });
     }
@@ -402,7 +406,7 @@ export function validateDocument(input: unknown): StudioDocument {
       (!object(children[0]) || children[0].type !== "paragraph")
     )
       fail("목록 항목에는 첫 문단이 필요합니다.");
-    children.forEach((child) => walk(child, type, depth + 1));
+    children.forEach((child) => walk(child, type, depth + 1, childFrame));
     if (type === 'table') {
       // Empty rows are valid only when covered completely by earlier rowspans.
       // Validate the grid rather than rejecting all empty rows after a merge.
@@ -1485,7 +1489,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     else if (columnSignature(current.page) === columnSignature(settings)) current.nodes.push(...nodes);
     else groups.push({ page: { ...settings, breakType: 'continuous' }, nodes: [...nodes] });
   };
-  for (const node of document.content.content ?? []) {
+  const sectionNodes = (document.content.content ?? []).flatMap(node => node.type === 'sectionContent' ? node.content || [] : [node]);
+  for (const node of sectionNodes) {
     if (node.type === 'sectionBreak') {
       sectionPage = JSON.parse(node.attrs!.page); groups.push({ page: sectionPage, nodes: [] });
     } else if (node.type === 'columnGroup') {

@@ -1,0 +1,96 @@
+{
+  "checkpoint": "a4685e2",
+  "government29": {
+    "completed": 29,
+    "errors": [],
+    "absolutePageError": 38,
+    "exactTotalPageDocuments": 16,
+    "reference": "historical same-bytes web Word PDF"
+  },
+  "word10": {
+    "pages": [
+      1,
+      7,
+      2,
+      1,
+      2,
+      9,
+      4,
+      1,
+      2,
+      1
+    ],
+    "errors": []
+  },
+  "freshHwp10": {
+    "inputStages": 20,
+    "errors": [],
+    "charactersUTF16": 288591,
+    "images": 638,
+    "hardBreaks": 140,
+    "sourceBodyCellsImagesSame": true,
+    "twoDOCXBodyCellsImagesPreserved": true,
+    "pages": [
+      7,
+      157,
+      4,
+      37,
+      1,
+      37,
+      8,
+      20,
+      15,
+      5
+    ],
+    "note": "Fresh parsing is separate from original-source logical 218937 and old prepared/two-saved DOCX line-anchor cohorts. This inventory does not add paragraph-count/grid constraints and does not resolve five pre-existing strict failures."
+  },
+  "nativeSOP": {
+    "sourceRef": "eee8aa0",
+    "passes": 3,
+    "stablePhases": 24,
+    "requiredContinuousMs": 40000,
+    "editorPages": [
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155,
+      155
+    ],
+    "printPages": 134,
+    "bodyLength": 79406,
+    "sourcePreserved": true,
+    "images": 40,
+    "errors": [],
+    "limitation": "Native open/save file IPC and menu; OS picker mocked, hidden isolated app. Cell metric scheduling and 155/134 editor/print difference remain under investigation."
+  },
+  "focusedTests": {
+    "passed": 41,
+    "hwpTwoNativeThenTwoDocxPassed": 4
+  },
+  "openXmlSdk": {
+    "focused": 46,
+    "freshHwp": 20,
+    "nativeSop": 2,
+    "hwpNativeThenDocx": 8,
+    "allErrors": 0
+  }
+}

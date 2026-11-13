@@ -1,3 +1,4 @@
+import { sameSectionFrameSettings } from './section-frame-settings';
 import { prepareTextBoxes } from './docx-textboxes';
 import JSZip from 'jszip';
 import mammoth from 'mammoth';
@@ -62,10 +63,12 @@ export function structureDocxSections(html: string, pages: PageSettings[]) {
   // Equal paper names can still have different physical dimensions or body
   // margins. Flat editing would keep the first section's page geometry while
   // print correctly changes it. Independent next-page sections need frames.
-  // Continuous and parity boundaries keep their existing path until a frame
-  // can represent their shared page or intentional blank page as well.
-  const nextPageSections = pages.slice(1).every(page => !page.breakType || page.breakType === 'nextPage');
-  const separateGeometry = nextPageSections && new Set(pages.map(geometry)).size > 1;
+  // Identical continuous settings share their existing frame. A continuous
+  // geometry/story change and parity boundaries keep the existing flat path.
+  const compatibleBoundaries = pages.slice(1).every((page, index) =>
+    !page.breakType || page.breakType === 'nextPage' ||
+    page.breakType === 'continuous' && sameSectionFrameSettings(pages[index], page));
+  const separateGeometry = compatibleBoundaries && new Set(pages.map(geometry)).size > 1;
   const sectionFrames = differentSizes || separateGeometry;
   let page = pages[0], children: Element[] = [];
   const notes: Element[] = [];
@@ -80,7 +83,7 @@ export function structureDocxSections(html: string, pages: PageSettings[]) {
       const output: Element[] = [];
       let columns: HTMLDivElement | undefined;
       for (const child of nodes) {
-        if (child.hasAttribute('data-page-break')) { columns = undefined; output.push(child); continue; }
+        if (child.hasAttribute('data-page-break') || child.hasAttribute('data-section-page')) { columns = undefined; output.push(child); continue; }
         if (!columns) {
           columns = document.createElement('div'); columns.dataset.columnCount = String(page.columns!.count);
           columns.dataset.columnSpace = String(page.columns!.space); columns.dataset.columnBalance = String(page.columns!.balance !== false);
@@ -97,7 +100,15 @@ export function structureDocxSections(html: string, pages: PageSettings[]) {
   };
   for (const element of [...template.content.children]) {
     if (element.hasAttribute('data-document-note')) { notes.push(element); continue; }
-    if (element.hasAttribute('data-section-page')) { flush(); output.append(element); page = JSON.parse(element.getAttribute('data-section-page')!); }
+    if (element.hasAttribute('data-section-page')) {
+      const next = JSON.parse(element.getAttribute('data-section-page')!) as PageSettings;
+      if (sectionFrames && compatibleBoundaries && next.breakType === 'continuous' && sameSectionFrameSettings(page, next)) {
+        // Retain the exact standard section boundary inside its shared frame.
+        // A later identical continuous section must not disable the geometry
+        // change at an earlier independent next-page boundary.
+        children.push(element);
+      } else { flush(); output.append(element); page = next; }
+    }
     else children.push(element);
   }
   flush(); output.append(...notes); return output.innerHTML;
