@@ -1,0 +1,9 @@
+{
+  "utc": "2026-11-14T20:07:36.004995+00:00",
+  "evidenceBytes": 95013149,
+  "ownedPrivateBuildBytes": 139002146,
+  "totalMiB": 223.17,
+  "retainedOwnedBuilds": 3,
+  "limitMiB": 1024,
+  "cleanupThresholdMiB": 800
+}
