@@ -16,7 +16,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // plus7 row-policy and15 paragraph-keep inputs, each with two saved copies,
 // and3 Korean-serif states (original export and two DOCX round trips),
 // plus4 merge-continuation,12 fwSpace,8 off-paper drawing and2 tab exports plus2 bookmark-range and2 media-barrier exports.
-let count = 187;
+// The authored-empty-footer fixture contributes two more real DOCX exports.
+let count = 189;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);
