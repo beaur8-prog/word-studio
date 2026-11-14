@@ -1,6 +1,6 @@
 {
   "status": "active-validation",
-  "utc": "2026-11-14T16:17:44.326811+00:00",
+  "utc": "2026-11-14T16:39:31.601798+00:00",
   "branch": "codex/word-docx-layout-priority-20261114",
   "productCommit": "5c3bd568a2f553891026df03f5f1e1d3deeda856",
   "sourceTree": "b54238561da612f1887b25a4bd264195b1d3bd00",
@@ -79,13 +79,8 @@
     "representative Studio-saved copies reopen in Word",
     "one actual Word-edit and DOCX download/Studio return"
   ],
-  "pendingProcesses": [
-    {
-      "session": 94607,
-      "log": "pc-recheck-5c3bd56.log"
-    }
-  ],
-  "nextAction": "Finish recheck, keep first failure/trace and isolate if reproduced; proceed with normal Word UI only after observed unlock. No repeated whole test without new failure/change.",
+  "pendingProcesses": [],
+  "nextAction": "Check final CI for test-output-path change, continue actual Word saved-copy UI only after observed unlock. Do not rerun completed local suites without new change/failure.",
   "nativeZoomAll30StatesStable": true,
   "nativeTwoSaveCoordinateStability": {
     "documents": 10,
@@ -95,5 +90,22 @@
     "existing03YDriftAfterSave2CSSpx": 0.25,
     "sameDriftInBaseline6bc49fa": true
   },
-  "cleanupReclaimedMiB": 133.76
+  "cleanupReclaimedMiB": 133.76,
+  "pcRecheck": {
+    "passed": 901,
+    "failed": 0,
+    "minutes": 25.8,
+    "initialFocusFailureStatus": "Not reproduced in standalone12 and full901; initial failure retained, root cause unresolved, no speculative product fix."
+  },
+  "pcRecheckSDK": {
+    "files": 430,
+    "errors": 0,
+    "hardcodedPathExportsCopiedFromSameRun": 3
+  },
+  "schemaPathFix": {
+    "focusedTestsPassed": 3,
+    "newOutputFiles": 3,
+    "sdkErrors": 0,
+    "productSourceChanged": false
+  }
 }

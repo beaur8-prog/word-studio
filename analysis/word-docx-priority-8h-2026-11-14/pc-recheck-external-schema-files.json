@@ -1,0 +1,23 @@
+{
+  "method": "Three actual exports from the same full recheck at16:18:59 were written by an existing hardcoded test-results path. Copy identical bytes into recheck scope, fixed expected430 unchanged. SDK first count mismatch expected430/found427 recorded; no missing export.",
+  "rows": [
+    {
+      "source": "test-results/korean-font-schema/textbox-save-korean-serif-0.docx",
+      "target": "analysis/word-docx-priority-8h-2026-11-14/pc-recheck-results/korean-font-schema/textbox-save-korean-serif-0.docx",
+      "mtimeUTC": "2026-11-14T16:18:59.822822+00:00",
+      "sha256": "9cd701edec4422dfcfcd3c7b041058b6c6f2f96fe114bdf8e8339dbfcdbb7fd8"
+    },
+    {
+      "source": "test-results/korean-font-schema/textbox-save-korean-serif-1.docx",
+      "target": "analysis/word-docx-priority-8h-2026-11-14/pc-recheck-results/korean-font-schema/textbox-save-korean-serif-1.docx",
+      "mtimeUTC": "2026-11-14T16:18:59.823846+00:00",
+      "sha256": "9130f84719267aed7db6b8b019e9c880c2620021b3030787e43b705ffe126856"
+    },
+    {
+      "source": "test-results/korean-font-schema/textbox-save-korean-serif-2.docx",
+      "target": "analysis/word-docx-priority-8h-2026-11-14/pc-recheck-results/korean-font-schema/textbox-save-korean-serif-2.docx",
+      "mtimeUTC": "2026-11-14T16:18:59.824586+00:00",
+      "sha256": "7da193c31d806bb7df39d1daecdb8b1442dc4f1da1f48d857ccb9f0dbbd153f2"
+    }
+  ]
+}

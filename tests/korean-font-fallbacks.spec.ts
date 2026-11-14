@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 
 test('missing native Korean serif uses bundled glyph advances without changing the requested face or point size', async ({ page }) => {
   await page.goto('/');
@@ -29,7 +29,7 @@ test('missing native Korean serif uses bundled glyph advances without changing t
   expect(result.control).toBe('BatangChe'); expect(result.authored).toBe('휴먼명조, Arial');
 });
 
-test('Korean serif fallback survives editing, undo, redo, cold print and two DOCX saves with original font names', async ({ page }) => {
+test('Korean serif fallback survives editing, undo, redo, cold print and two DOCX saves with original font names', async ({ page }, testInfo) => {
   await page.goto('/');
   await page.locator('input[type=file]').first().setInputFiles({ name: 'serif.html', mimeType: 'text/html', buffer: Buffer.from('<p style="font-family:휴먼명조;font-size:15pt;line-height:20pt">정부 문서의 ‘본문’과 “표” 내용·123</p>') });
   const p = page.getByRole('textbox', { name: '문서 편집 영역', exact: true }).locator('p').first();
@@ -55,9 +55,8 @@ test('Korean serif fallback survives editing, undo, redo, cold print and two DOC
     }
     return rows;
   });
-  await mkdir('test-results/korean-font-schema', { recursive: true });
   for (const [index, row] of states.entries()) {
-    await writeFile(`test-results/korean-font-schema/textbox-save-korean-serif-${index}.docx`, Buffer.from(row.bytes));
+    await writeFile(testInfo.outputPath(`textbox-save-korean-serif-${index}.docx`), Buffer.from(row.bytes));
     expect(row.text).toBe('정부 문서의 ‘본문’과 “표” 내용·123 EDIT'); expect(row.pages).toBe(1);
     expect(row.family).toContain('휴먼명조'); expect(row.source).not.toContain('Noto Serif');
     expect(row.xml).toContain('휴먼명조'); expect(row.xml).not.toMatch(/Noto Serif|AppleMyungjo|Times New Roman|Studio Korean Serif/);
