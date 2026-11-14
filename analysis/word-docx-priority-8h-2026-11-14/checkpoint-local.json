@@ -1,0 +1,89 @@
+{
+  "status": "active-validation",
+  "utc": "2026-11-14T16:04:10.007471+00:00",
+  "branch": "codex/word-docx-layout-priority-20261114",
+  "productCommit": "5c3bd568a2f553891026df03f5f1e1d3deeda856",
+  "sourceTree": "b54238561da612f1887b25a4bd264195b1d3bd00",
+  "version": "1.4.13",
+  "deployed": false,
+  "fixed398": {
+    "before": {
+      "requested": 398,
+      "matchedBoth": 398,
+      "lostOrAmbiguous": 0,
+      "startPageMismatches": 12,
+      "absolutePageError": 12,
+      "exactLineParagraphs": 341
+    },
+    "after": {
+      "requested": 398,
+      "matchedBoth": 398,
+      "lostOrAmbiguous": 0,
+      "startPageMismatches": 8,
+      "absolutePageError": 8,
+      "exactLineParagraphs": 344
+    }
+  },
+  "separate140": {
+    "before": {
+      "requested": 140,
+      "matchedBoth": 140,
+      "lostOrAmbiguous": 0,
+      "startPageMismatches": 2,
+      "absolutePageError": 2,
+      "exactLineParagraphs": 115
+    },
+    "after": {
+      "requested": 140,
+      "matchedBoth": 140,
+      "lostOrAmbiguous": 0,
+      "startPageMismatches": 1,
+      "absolutePageError": 1,
+      "exactLineParagraphs": 118
+    }
+  },
+  "nativeOriginalAndSavedRuns": 30,
+  "nativeMenuTwoSaves": 2,
+  "nativeOriginalZoomDocuments": 10,
+  "sdkWordAndNativeMenuExports": 22,
+  "sdkFreshHwpExports": 20,
+  "sdkPcFirstExports": 430,
+  "sdkErrors": 0,
+  "pcFirst": {
+    "passed": 900,
+    "failed": 1,
+    "total": 901,
+    "unresolved": "middle merged-cell focus/input after zoom; standalone12/12pass; full isolated recheck running"
+  },
+  "dpr2Passed": 90,
+  "androidBrowserSimulationPassed": 38,
+  "nodePassed": 173,
+  "ci": {
+    "firstRun": 43610557726,
+    "firstFailure": "Expected187 exports but actual189; bothOSfunctional194+repeat3passed",
+    "finalRun": 43612133840,
+    "commit": "1faccf3",
+    "Windows": "success",
+    "Linux": "success",
+    "eachFunctionalPassed": 194,
+    "eachRepeatPassed": 3,
+    "eachSDKExports": 189
+  },
+  "freshMicrosoftOriginalDocuments": [
+    "06-long-body",
+    "08-small-table"
+  ],
+  "freshMicrosoftSameLockedReference": true,
+  "webWordRemaining": [
+    "07/02 fresh original references",
+    "representative Studio-saved copies reopen in Word",
+    "one actual Word-edit and DOCX download/Studio return"
+  ],
+  "pendingProcesses": [
+    {
+      "session": 94607,
+      "log": "pc-recheck-5c3bd56.log"
+    }
+  ],
+  "nextAction": "Finish recheck, keep first failure/trace and isolate if reproduced; proceed with normal Word UI only after observed unlock. No repeated whole test without new failure/change."
+}

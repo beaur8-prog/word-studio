@@ -1,0 +1,126 @@
+{
+  "method": "Same raw HWP10 freshly parsed at 6bc49fa versus 5c3bd56. Logical text, cell contents/merges, raster bytes/order, source float coordinates. Actual two DOCX exports and print after each. Not new Microsoft Word measurement. Strict model grid/styling regressions remain a separate scope.",
+  "rows": [
+    {
+      "id": "01-employment-contract",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 7,
+      "savedPages": [
+        7,
+        7
+      ],
+      "twoSaveTextCellImagePreserved": true
+    },
+    {
+      "id": "02-work-rules",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 160,
+      "savedPages": [
+        160,
+        160
+      ],
+      "twoSaveTextCellImagePreserved": true
+    },
+    {
+      "id": "03-health-table",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 4,
+      "savedPages": [
+        4,
+        4
+      ],
+      "twoSaveTextCellImagePreserved": true
+    },
+    {
+      "id": "04-language-plan",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 38,
+      "savedPages": [
+        38,
+        38
+      ],
+      "twoSaveTextCellImagePreserved": true
+    },
+    {
+      "id": "05-return-form",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 1,
+      "savedPages": [
+        1,
+        1
+      ],
+      "twoSaveTextCellImagePreserved": true
+    },
+    {
+      "id": "06-mixed-document",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 37,
+      "savedPages": [
+        37,
+        37
+      ],
+      "twoSaveTextCellImagePreserved": true
+    },
+    {
+      "id": "07-english-exam",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 8,
+      "savedPages": [
+        8,
+        8
+      ],
+      "twoSaveTextCellImagePreserved": true
+    },
+    {
+      "id": "08-math-exam",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 20,
+      "savedPages": [
+        20,
+        20
+      ],
+      "twoSaveTextCellImagePreserved": true
+    },
+    {
+      "id": "09-korean-exam",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 15,
+      "savedPages": [
+        15,
+        15
+      ],
+      "twoSaveTextCellImagePreserved": true
+    },
+    {
+      "id": "10-lh-plan",
+      "sameOriginalSHA": true,
+      "sameFreshSourceInventory": true,
+      "sameOriginalPrintPages": true,
+      "pages": 5,
+      "savedPages": [
+        5,
+        5
+      ],
+      "twoSaveTextCellImagePreserved": true
+    }
+  ],
+  "errors": []
+}

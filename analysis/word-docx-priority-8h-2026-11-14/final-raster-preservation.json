@@ -1,0 +1,290 @@
+{
+  "method": "Actual Studio PDF raster at96DPI, baseline versus final same input. Independent of DOM/glyph matching, includes raster/vector/text ink. Pixel identity in unchanged documents proves unchanged rendering at this resolution; changed07/08 need separate visual review. Not a Word accuracy score.",
+  "rows": [
+    {
+      "id": "01-body",
+      "pages": 1,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 1,
+      "changes": [
+        {
+          "page": 1,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        }
+      ]
+    },
+    {
+      "id": "02-tables",
+      "pages": 7,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 7,
+      "changes": [
+        {
+          "page": 1,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 2,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 3,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 4,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 5,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 6,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 7,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        }
+      ]
+    },
+    {
+      "id": "03-floating",
+      "pages": 2,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 2,
+      "changes": [
+        {
+          "page": 1,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 2,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        }
+      ]
+    },
+    {
+      "id": "04-nested",
+      "pages": 1,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 1,
+      "changes": [
+        {
+          "page": 1,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        }
+      ]
+    },
+    {
+      "id": "05-styles",
+      "pages": 2,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 2,
+      "changes": [
+        {
+          "page": 1,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 2,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        }
+      ]
+    },
+    {
+      "id": "06-long-body",
+      "pages": 9,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 9,
+      "changes": [
+        {
+          "page": 1,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 2,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 3,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 4,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 5,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 6,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 7,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 8,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 9,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        }
+      ]
+    },
+    {
+      "id": "07-characters",
+      "pages": 4,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 0,
+      "changes": [
+        {
+          "page": 1,
+          "identical": false,
+          "differenceBoundsPx": [
+            95,
+            948,
+            99,
+            989
+          ],
+          "differentPixels": 54
+        },
+        {
+          "page": 2,
+          "identical": false,
+          "differenceBoundsPx": [
+            95,
+            914,
+            703,
+            989
+          ],
+          "differentPixels": 3268
+        },
+        {
+          "page": 3,
+          "identical": false,
+          "differenceBoundsPx": [
+            95,
+            100,
+            714,
+            989
+          ],
+          "differentPixels": 105154
+        },
+        {
+          "page": 4,
+          "identical": false,
+          "differenceBoundsPx": [
+            95,
+            100,
+            710,
+            989
+          ],
+          "differentPixels": 40239
+        }
+      ]
+    },
+    {
+      "id": "08-small-table",
+      "pages": 1,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 0,
+      "changes": [
+        {
+          "page": 1,
+          "identical": false,
+          "differenceBoundsPx": [
+            96,
+            200,
+            442,
+            604
+          ],
+          "differentPixels": 33976
+        }
+      ]
+    },
+    {
+      "id": "09-theme",
+      "pages": 2,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 2,
+      "changes": [
+        {
+          "page": 1,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        },
+        {
+          "page": 2,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        }
+      ]
+    },
+    {
+      "id": "10-references",
+      "pages": 1,
+      "samePageCount": true,
+      "pagesWithIdenticalRaster": 1,
+      "changes": [
+        {
+          "page": 1,
+          "identical": true,
+          "differenceBoundsPx": null,
+          "differentPixels": 0
+        }
+      ]
+    }
+  ]
+}

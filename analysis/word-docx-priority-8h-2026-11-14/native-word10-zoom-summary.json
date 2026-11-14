@@ -1,0 +1,85 @@
+{
+  "method": "Compiled native original Word10; each edit/undo/redo plus50/125/100 percent; normalized actual glyph coordinates against original100 percent, model byte-level JSON equality. Separate from Microsoft accuracy comparison.",
+  "rows": [
+    {
+      "id": "01-body",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 0
+    },
+    {
+      "id": "02-tables",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 0
+    },
+    {
+      "id": "03-floating",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 8.544921877273737e-05
+    },
+    {
+      "id": "04-nested",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 0
+    },
+    {
+      "id": "05-styles",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 0
+    },
+    {
+      "id": "06-long-body",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 0
+    },
+    {
+      "id": "07-characters",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 0
+    },
+    {
+      "id": "08-small-table",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 0
+    },
+    {
+      "id": "09-theme",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 0
+    },
+    {
+      "id": "10-references",
+      "states": 3,
+      "allSamePages": true,
+      "sameTextAndModel": true,
+      "pageMismatches": 0,
+      "maxNormalizedXYCSSpx": 0
+    }
+  ]
+}
