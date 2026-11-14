@@ -2081,6 +2081,9 @@ button:hover:not(:disabled) {
 .document-furniture:has(*) { white-space: normal; }
 .print-footer > .document-furniture { flex: 1; min-width: 0; }
 .document-furniture p { margin: 0; }
+/* An authored empty Word story paragraph owns a line too. Static HTML would
+   collapse it, lowering the footer and incorrectly enlarging the body area. */
+.document-furniture p[data-word-paragraph-style]:empty { min-height: 1lh; }
 .document-furniture img { max-width: 100%; object-fit: contain; }
 .document-furniture table, .print-footnotes table { margin: 0; border-collapse: collapse; table-layout: fixed; max-width: 100%; }
 .document-symbol { font-family: 'Studio Symbols 2', 'Studio Symbols', 'Studio Math', 'Studio Text', 'Studio Devanagari', 'Studio Emoji', 'Apple Symbols', 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Noto Sans Symbols', sans-serif; }
