@@ -1,0 +1,953 @@
+{
+  "status": "planning-only; existing results reclassified, no new product run or Microsoft measurement",
+  "createdUTC": "2026-11-14T13:56:57.925525+00:00",
+  "repoHEAD": "fc801907c9aa89a95c0876d584bdcce6f0791948",
+  "productCommit": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "sources": [
+    {
+      "path": "analysis/word-layout-12h-2026-11-13/word-native-word-6bc49fa-original-scores.json.gz",
+      "sha256": "bad385a887731387ad73767ccefc6865e8ee6f84aa00497c0f1bb72614b5f952"
+    },
+    {
+      "path": "analysis/word-pagination-3h-2026-11-05/paragraph-comparison-final.json.gz",
+      "sha256": "8ae6b21b596f6e7880dead6ee0b391322fd9fe11bdafac2397fef591d6f0ee79"
+    }
+  ],
+  "cohortNotes": "common402 is the legacy label for the frozen 398 matched keys; fixed150 separately contains 140 locked matched keys. Original unresolved 4/10 and document10 zero anchors must not be called full coverage.",
+  "summary": {
+    "common402": {
+      "before": {
+        "requested": 398,
+        "matchedBoth": 398,
+        "lostOrAmbiguous": 0,
+        "startPageMismatches": 12,
+        "absolutePageError": 12,
+        "exactLineParagraphs": 341
+      },
+      "after": {
+        "requested": 398,
+        "matchedBoth": 398,
+        "lostOrAmbiguous": 0,
+        "startPageMismatches": 12,
+        "absolutePageError": 12,
+        "exactLineParagraphs": 341
+      }
+    },
+    "fixed150": {
+      "before": {
+        "requested": 140,
+        "matchedBoth": 140,
+        "lostOrAmbiguous": 0,
+        "startPageMismatches": 2,
+        "absolutePageError": 2,
+        "exactLineParagraphs": 115
+      },
+      "after": {
+        "requested": 140,
+        "matchedBoth": 140,
+        "lostOrAmbiguous": 0,
+        "startPageMismatches": 2,
+        "absolutePageError": 2,
+        "exactLineParagraphs": 115
+      }
+    }
+  },
+  "documents": [
+    {
+      "id": "01-body",
+      "pages": {
+        "before": 1,
+        "after": 1,
+        "word": 1
+      },
+      "fixedParagraphs": 16,
+      "pageMismatchCount": 0,
+      "lineMismatchCount": 0,
+      "samePageMedianYErrorPt": 1.8399790156250333,
+      "pageMismatches": [],
+      "firstLineMismatch": []
+    },
+    {
+      "id": "02-tables",
+      "pages": {
+        "before": 7,
+        "after": 7,
+        "word": 7
+      },
+      "fixedParagraphs": 127,
+      "pageMismatchCount": 2,
+      "lineMismatchCount": 3,
+      "samePageMedianYErrorPt": 4.169990749999897,
+      "pageMismatches": [
+        {
+          "key": "word/document.xml:p114",
+          "text": "Customers with POs (mostly corporations)",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 4,
+              "x": 77.775,
+              "y": 714.725
+            },
+            "pages": [
+              4
+            ],
+            "lineEnds": [
+              36
+            ],
+            "firstFont": "BCDEEE+GillSansMT",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 5,
+              "x": 78.14062174414062,
+              "y": 83.24999653124996
+            },
+            "pages": [
+              5
+            ],
+            "lineEnds": [
+              23,
+              36
+            ],
+            "firstFont": "DAAAAA+GillSans",
+            "firstSize": 10.994999391875012
+          }
+        },
+        {
+          "key": "word/document.xml:p115",
+          "text": "Invoice, net 30",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 4,
+              "x": 283.38,
+              "y": 714.725
+            },
+            "pages": [
+              4
+            ],
+            "lineEnds": [
+              13
+            ],
+            "firstFont": "BCDEEE+GillSansMT",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 5,
+              "x": 283.6406131816406,
+              "y": 83.24999653124996
+            },
+            "pages": [
+              5
+            ],
+            "lineEnds": [
+              13
+            ],
+            "firstFont": "DAAAAA+GillSans",
+            "firstSize": 10.994999391875012
+          }
+        }
+      ],
+      "firstLineMismatch": [
+        {
+          "key": "word/document.xml:p21",
+          "text": "The front office space consists of a counter with three stations, each with phones and computer terminals with high-speed connections. The lobby provides a package preparation area and bins of retail items (envelopes, tape, marking pens, etc.) for customers, and a bank of mailboxes. The waste receptacles in the package preparation area should be emptied every night or more often as needed to ensure a neat appearance. The retail bins should be checked and restocked throughout the day as needed. The office employees are responsible for both of these activities.",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 72.025,
+              "y": 654.7
+            },
+            "pages": [
+              1,
+              2
+            ],
+            "lineEnds": [
+              80,
+              169,
+              248,
+              332,
+              412,
+              476
+            ],
+            "firstFont": "BCDEEE+GillSansMT",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 71.999997,
+              "y": 666.7499722187499
+            },
+            "pages": [
+              1,
+              2
+            ],
+            "lineEnds": [
+              80,
+              169,
+              259,
+              339,
+              422,
+              476
+            ],
+            "firstFont": "DAAAAA+GillSans",
+            "firstSize": 10.994999391875012
+          }
+        }
+      ]
+    },
+    {
+      "id": "03-floating",
+      "pages": {
+        "before": 2,
+        "after": 2,
+        "word": 2
+      },
+      "fixedParagraphs": 16,
+      "pageMismatchCount": 0,
+      "lineMismatchCount": 10,
+      "samePageMedianYErrorPt": 8.735014578124947,
+      "pageMismatches": [],
+      "firstLineMismatch": [
+        {
+          "key": "word/document.xml:p4",
+          "text": "With the Room Planner, you’ll never make a design mistake again. Created by acclaimed interior designers to simplify the redecorating process, this planning tool incorporates elements of color, dimension, and style to guide your project. It includes a furniture location guide; room grid; drawing tools; and miniature furniture, rugs, accessories, and color swatches that match our large in-store selection. Here’s how to use the planner to create the room of your dreams!",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 72.025,
+              "y": 201.08000000000004
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              80,
+              166,
+              246,
+              326,
+              401
+            ],
+            "firstFont": "BCDGEE+Calibri",
+            "firstSize": 12.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 71.999997,
+              "y": 194.24999190625
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              72,
+              150,
+              231,
+              306,
+              381,
+              401
+            ],
+            "firstFont": "BAAAAA+AppleSDGothicNeo-Regular",
+            "firstSize": 11.999999499999944
+          }
+        }
+      ]
+    },
+    {
+      "id": "04-nested",
+      "pages": {
+        "before": 1,
+        "after": 1,
+        "word": 1
+      },
+      "fixedParagraphs": 5,
+      "pageMismatchCount": 0,
+      "lineMismatchCount": 0,
+      "samePageMedianYErrorPt": 1.9499928124999997,
+      "pageMismatches": [],
+      "firstLineMismatch": []
+    },
+    {
+      "id": "05-styles",
+      "pages": {
+        "before": 2,
+        "after": 2,
+        "word": 2
+      },
+      "fixedParagraphs": 22,
+      "pageMismatchCount": 0,
+      "lineMismatchCount": 1,
+      "samePageMedianYErrorPt": 4.7700196562499855,
+      "pageMismatches": [],
+      "firstLineMismatch": [
+        {
+          "key": "word/document.xml:p26",
+          "text": "Book Design and Layout Our book production team can help you design the cover, graphic presentation, and interior look of the book. We convert files to the appropriate format, apply styles as necessary, place art, and create any necessary front and back matter. We work with you and your writers to resolve any outstanding content layout issues, and prepare interim files for review before final delivery.",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 2,
+              "x": 54.025,
+              "y": 375.87
+            },
+            "pages": [
+              2
+            ],
+            "lineEnds": [
+              96,
+              191,
+              289,
+              340
+            ],
+            "firstFont": "BCDEEE+Candara-Bold",
+            "firstSize": 10.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 2,
+              "x": 53.99999775,
+              "y": 371.24998453125
+            },
+            "pages": [
+              2
+            ],
+            "lineEnds": [
+              88,
+              188,
+              282,
+              340
+            ],
+            "firstFont": "GAAAAA+AppleSDGothicNeo-Bold",
+            "firstSize": 9.9974995084375
+          }
+        }
+      ]
+    },
+    {
+      "id": "06-long-body",
+      "pages": {
+        "before": 9,
+        "after": 9,
+        "word": 9
+      },
+      "fixedParagraphs": 117,
+      "pageMismatchCount": 6,
+      "lineMismatchCount": 22,
+      "samePageMedianYErrorPt": 59.10000999999977,
+      "pageMismatches": [
+        {
+          "key": "word/document.xml:p48",
+          "text": "\t\t6.7\tNo repairs to or maintenance of any vehicle (other than washing) shall be performed in any Common Area, except in the case of an emergency and then only to the extent necessary to enable movement of the vehicle to a proper repair facility.",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 4,
+              "x": 72.025,
+              "y": 83.02999999999997
+            },
+            "pages": [
+              4
+            ],
+            "lineEnds": [
+              64,
+              124,
+              191,
+              200
+            ],
+            "firstFont": "BCDEEE+CenturyGothic",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 3,
+              "x": 71.999997,
+              "y": 686.9999713749999
+            },
+            "pages": [
+              3
+            ],
+            "lineEnds": [
+              64,
+              124,
+              191,
+              200
+            ],
+            "firstFont": "AAAAAA+TeXGyreAdventor-Regular",
+            "firstSize": 10.994999391875012
+          }
+        },
+        {
+          "key": "word/document.xml:p61",
+          "text": "8.3\tFor aesthetic reasons, Owners are encouraged to use cable for TV reception; however, with prior written approval of the Board, a small satellite dish may be placed on a roof or balcony that is not visible to the street or in direct line of sight of a neighbor.",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 5,
+              "x": 72.025,
+              "y": 83.02999999999997
+            },
+            "pages": [
+              5
+            ],
+            "lineEnds": [
+              67,
+              134,
+              206,
+              216
+            ],
+            "firstFont": "BCDEEE+CenturyGothic",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 4,
+              "x": 71.999997,
+              "y": 654.7499727187496
+            },
+            "pages": [
+              4
+            ],
+            "lineEnds": [
+              67,
+              134,
+              206,
+              216
+            ],
+            "firstFont": "AAAAAA+TeXGyreAdventor-Regular",
+            "firstSize": 10.994999391875012
+          }
+        },
+        {
+          "key": "word/document.xml:p77",
+          "text": "\t\tIf the responsibility for the maintenance is in question or subject to interpretation, the Maintenance Committee shall refer the request to the Board. The Maintenance Committee shall then communicate the Board's decision about whether the Association will assume responsibility for the maintenance to the Owner.",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 6,
+              "x": 126.05,
+              "y": 83.02999999999997
+            },
+            "pages": [
+              6
+            ],
+            "lineEnds": [
+              74,
+              131,
+              194,
+              261,
+              267
+            ],
+            "firstFont": "BCDEEE+CenturyGothic",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 5,
+              "x": 126.74999471874999,
+              "y": 665.2499722812499
+            },
+            "pages": [
+              5
+            ],
+            "lineEnds": [
+              74,
+              131,
+              189,
+              256,
+              267
+            ],
+            "firstFont": "AAAAAA+TeXGyreAdventor-Regular",
+            "firstSize": 10.994999391875012
+          }
+        },
+        {
+          "key": "word/document.xml:p93",
+          "text": "10.6\tTo requesting emergency maintenance or repairs, an Owner should contact a member of the Maintenance Committee by phone and initiate an emergency request.",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 7,
+              "x": 72.025,
+              "y": 120.04999999999995
+            },
+            "pages": [
+              7
+            ],
+            "lineEnds": [
+              67,
+              127,
+              135
+            ],
+            "firstFont": "BCDEEE+CenturyGothic",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 6,
+              "x": 71.999997,
+              "y": 697.4999709374997
+            },
+            "pages": [
+              6
+            ],
+            "lineEnds": [
+              67,
+              127,
+              135
+            ],
+            "firstFont": "AAAAAA+TeXGyreAdventor-Regular",
+            "firstSize": 10.994999391875012
+          }
+        },
+        {
+          "key": "word/document.xml:p108",
+          "text": "11.3\tFrom time to time, a special assessment might be necessary to pay for expenses for which there is insufficient money in a particular group's reserve account.",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 8,
+              "x": 72.025,
+              "y": 83.02999999999997
+            },
+            "pages": [
+              8
+            ],
+            "lineEnds": [
+              72,
+              136
+            ],
+            "firstFont": "BCDEEE+CenturyGothic",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 7,
+              "x": 71.999997,
+              "y": 675.7499718437493
+            },
+            "pages": [
+              7
+            ],
+            "lineEnds": [
+              72,
+              136
+            ],
+            "firstFont": "AAAAAA+TeXGyreAdventor-Regular",
+            "firstSize": 10.994999391875012
+          }
+        },
+        {
+          "key": "word/document.xml:p122",
+          "text": "\t13.\tComplaints and Rule Enforcement",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 9,
+              "x": 72.025,
+              "y": 120.04999999999995
+            },
+            "pages": [
+              9
+            ],
+            "lineEnds": [
+              31
+            ],
+            "firstFont": "BCDIEE+CenturyGothic-Bold",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 8,
+              "x": 71.999997,
+              "y": 732.7499694687494
+            },
+            "pages": [
+              8
+            ],
+            "lineEnds": [
+              31
+            ],
+            "firstFont": "CAAAAA+TeXGyreAdventor-Bold",
+            "firstSize": 10.994999391875012
+          }
+        }
+      ],
+      "firstLineMismatch": [
+        {
+          "key": "word/document.xml:p9",
+          "text": "These rules and regulations may be amended at any time by written notice from the Board.",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 72.025,
+              "y": 371.62
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              67,
+              73
+            ],
+            "firstFont": "BCDEEE+CenturyGothic",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 71.999997,
+              "y": 371.24998453125
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              73
+            ],
+            "firstFont": "AAAAAA+TeXGyreAdventor-Regular",
+            "firstSize": 10.994999391875012
+          }
+        }
+      ]
+    },
+    {
+      "id": "07-characters",
+      "pages": {
+        "before": 4,
+        "after": 4,
+        "word": 4
+      },
+      "fixedParagraphs": 70,
+      "pageMismatchCount": 4,
+      "lineMismatchCount": 14,
+      "samePageMedianYErrorPt": 5.85001281250004,
+      "pageMismatches": [
+        {
+          "key": "word/document.xml:p43",
+          "text": "Pre-writing to allow employees to reflect on their experiences and ideas about populations in need",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 3,
+              "x": 108.05,
+              "y": 83.02999999999997
+            },
+            "pages": [
+              3
+            ],
+            "lineEnds": [
+              80,
+              84
+            ],
+            "firstFont": "BCDEEE+Calibri",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 2,
+              "x": 108.74999546875,
+              "y": 695.24997103125
+            },
+            "pages": [
+              2
+            ],
+            "lineEnds": [
+              78,
+              84
+            ],
+            "firstFont": "EAAAAA+AppleSDGothicNeo-Regular",
+            "firstSize": 10.994999391875012
+          }
+        },
+        {
+          "key": "word/document.xml:p67",
+          "text": "Making posters to promote the project",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 4,
+              "x": 108.05,
+              "y": 83.02999999999997
+            },
+            "pages": [
+              4
+            ],
+            "lineEnds": [
+              32
+            ],
+            "firstFont": "BCDEEE+Calibri",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 3,
+              "x": 108.74999546875,
+              "y": 678.7499717187497
+            },
+            "pages": [
+              3
+            ],
+            "lineEnds": [
+              32
+            ],
+            "firstFont": "EAAAAA+AppleSDGothicNeo-Regular",
+            "firstSize": 10.994999391875012
+          }
+        },
+        {
+          "key": "word/document.xml:p68",
+          "text": "Tracking progress",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 4,
+              "x": 108.05,
+              "y": 99.02999999999997
+            },
+            "pages": [
+              4
+            ],
+            "lineEnds": [
+              16
+            ],
+            "firstFont": "BCDEEE+Calibri",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 3,
+              "x": 108.74999546875,
+              "y": 695.24997103125
+            },
+            "pages": [
+              3
+            ],
+            "lineEnds": [
+              16
+            ],
+            "firstFont": "EAAAAA+AppleSDGothicNeo-Regular",
+            "firstSize": 10.994999391875012
+          }
+        },
+        {
+          "key": "word/document.xml:p69",
+          "text": "Making announcements to the entire company",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 4,
+              "x": 108.05,
+              "y": 115.02999999999997
+            },
+            "pages": [
+              4
+            ],
+            "lineEnds": [
+              37
+            ],
+            "firstFont": "BCDEEE+Calibri",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 3,
+              "x": 108.74999546875,
+              "y": 712.4999703125
+            },
+            "pages": [
+              3
+            ],
+            "lineEnds": [
+              37
+            ],
+            "firstFont": "EAAAAA+AppleSDGothicNeo-Regular",
+            "firstSize": 10.994999391875012
+          }
+        }
+      ],
+      "firstLineMismatch": [
+        {
+          "key": "word/document.xml:p23",
+          "text": "What type of project do you see as being successful for these employees (collection, activity, fundraising; see Resource notebook)?",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 108.05,
+              "y": 639.7
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              80,
+              113
+            ],
+            "firstFont": "BCDEEE+Calibri",
+            "firstSize": 11.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 108.74999546875,
+              "y": 640.4999733125
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              71,
+              113
+            ],
+            "firstFont": "EAAAAA+AppleSDGothicNeo-Regular",
+            "firstSize": 10.994999391875012
+          }
+        }
+      ]
+    },
+    {
+      "id": "08-small-table",
+      "pages": {
+        "before": 1,
+        "after": 1,
+        "word": 1
+      },
+      "fixedParagraphs": 7,
+      "pageMismatchCount": 0,
+      "lineMismatchCount": 4,
+      "samePageMedianYErrorPt": 78.91998568749995,
+      "pageMismatches": [],
+      "firstLineMismatch": [
+        {
+          "key": "word/document.xml:p5",
+          "text": "Elastomeric Decks",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 77.775,
+              "y": 175.79999999999995
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              16
+            ],
+            "firstFont": "BCDGEE+Calibri",
+            "firstSize": 10.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 78.14062174414062,
+              "y": 185.24999228125
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              11,
+              16
+            ],
+            "firstFont": "BAAAAA+AppleSDGothicNeo-Regular",
+            "firstSize": 10.994999391875012
+          }
+        }
+      ]
+    },
+    {
+      "id": "09-theme",
+      "pages": {
+        "before": 2,
+        "after": 2,
+        "word": 2
+      },
+      "fixedParagraphs": 18,
+      "pageMismatchCount": 0,
+      "lineMismatchCount": 3,
+      "samePageMedianYErrorPt": 13.920022812499951,
+      "pageMismatches": [],
+      "firstLineMismatch": [
+        {
+          "key": "word/document.xml:p5",
+          "text": "Document Management. We safely and efficiently handle huge numbers of files. We archive files throughout the life of a project, creating daily backups to ensure quick recovery from hazards such as power outages or hardware failures.",
+          "word": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 54.025,
+              "y": 291.1
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              99,
+              197
+            ],
+            "firstFont": "BCDEEE+Candara-Bold",
+            "firstSize": 10.0
+          },
+          "studio": {
+            "status": "matched",
+            "origin": {
+              "page": 1,
+              "x": 53.99999775,
+              "y": 283.4999881875
+            },
+            "pages": [
+              1
+            ],
+            "lineEnds": [
+              97,
+              197
+            ],
+            "firstFont": "EAAAAA+AppleSDGothicNeo-Bold",
+            "firstSize": 9.9974995084375
+          }
+        }
+      ]
+    },
+    {
+      "id": "10-references",
+      "pages": {
+        "before": 1,
+        "after": 1,
+        "word": 1
+      },
+      "fixedParagraphs": 0,
+      "pageMismatchCount": 0,
+      "lineMismatchCount": 0,
+      "samePageMedianYErrorPt": null,
+      "pageMismatches": [],
+      "firstLineMismatch": []
+    }
+  ]
+}
