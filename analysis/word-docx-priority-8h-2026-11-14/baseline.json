@@ -1,0 +1,99 @@
+{
+  "status": "active",
+  "startedUTC": "2026-11-14T13:59:21+00:00",
+  "newImplementationFreezeUTC": "2026-11-14T19:29:21+00:00",
+  "deadlineUTC": "2026-11-14T21:59:21+00:00",
+  "baselineCommit": "8859303f65e2030dcc3e959e2c8794b5629f2216",
+  "baselineProduct": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+  "version": "1.4.13",
+  "branch": "codex/word-docx-layout-priority-20261114",
+  "scope": "Word authored DOCX10; HWP only regression; same locked398/140",
+  "pageMismatches": 12,
+  "exactLineParagraphs": 341,
+  "separate140PageMismatches": 2,
+  "rows": [
+    {
+      "id": "01-body",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/01-body.docx",
+      "inputSHA256": "5bd1e50381c1c1d18b7855789bf579662cbc7e171fa117781d9c4a67967e75a8",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/01-body.pdf",
+      "wordPDFSHA256": "839c10c7ab70a50e2186e2781251b520a4cfc72a2f7b5f0ff1adeabe2dfa5f0d",
+      "wordPages": 1
+    },
+    {
+      "id": "02-tables",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/02-tables.docx",
+      "inputSHA256": "f724ffb96b922a9d72ef56f175cb09d8de806ffaee7cfa58ed3e9180f3578ed3",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/02-tables.pdf",
+      "wordPDFSHA256": "878926e0b66ef9cdefbd7a3ff31073ed500c60ab7caf1e9553ac526eb7c30658",
+      "wordPages": 7
+    },
+    {
+      "id": "03-floating",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/03-floating.docx",
+      "inputSHA256": "c0bed46c4da5e88f8809e1ef8c4fa0c3d0e3f07094e1429fa39697586195d8c2",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/03-floating.pdf",
+      "wordPDFSHA256": "92f5b899f59569f0deba44a713c057021338ca27a2acaa6f7f33ea998ad1badd",
+      "wordPages": 2
+    },
+    {
+      "id": "04-nested",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/04-nested.docx",
+      "inputSHA256": "15fa3e772dbb7b5a12179dff85b40a4568b55ab317d4dbac789e15af71caa3d2",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/04-nested.pdf",
+      "wordPDFSHA256": "b6393e2dfee6df8502dcbebd3f7fd0fb47bfd55450b6dedfc168462921085097",
+      "wordPages": 1
+    },
+    {
+      "id": "05-styles",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/05-styles.docx",
+      "inputSHA256": "beb0875c1247b4171f1eca5ea7e850aece6e326cb373867a5e0550da5c6f8ba7",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/05-styles.pdf",
+      "wordPDFSHA256": "8c3d284739b9392642e8404bdcfef2f6eee0c5841e3cf9abc49b1bacf8cc5a77",
+      "wordPages": 2
+    },
+    {
+      "id": "06-long-body",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/06-long-body.docx",
+      "inputSHA256": "f28bea7272ec9438d4d688e555a2912b655bb50d0e5a63ffe54f82c4d460651a",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/06-long-body.pdf",
+      "wordPDFSHA256": "8a544ecb2827b76daf8d2cbecdc14a5cad74adae8bffe5d74e767def20587749",
+      "wordPages": 9
+    },
+    {
+      "id": "07-characters",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/07-characters.docx",
+      "inputSHA256": "b76a0d8042a2b1bfd828e3dc7951caaa159ce40f43df10a72d75d07b42e6b699",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/07-characters.pdf",
+      "wordPDFSHA256": "63fb6cb7540eaff5e6cc0f507f84c962729e664a3c1e8878bd4cc828b56295da",
+      "wordPages": 4
+    },
+    {
+      "id": "08-small-table",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/08-small-table.docx",
+      "inputSHA256": "7bd01eb80a18462c1d14ee17273085285db566c448948fac3acc816b7cf46c2c",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/08-small-table.pdf",
+      "wordPDFSHA256": "e535ba17edfce1405f06594bc8a55b6fffd5e422fc33025e630380364657cadd",
+      "wordPages": 1
+    },
+    {
+      "id": "09-theme",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/09-theme.docx",
+      "inputSHA256": "596b0d7ff68f3dc6b11722be53f1cf410162860a3fc2c45d27c436a464c1ef32",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/09-theme.pdf",
+      "wordPDFSHA256": "9f341eb4f45e4a692982ac0915c86fe921c54769bb424f85bf6075e8fae2b186",
+      "wordPages": 2
+    },
+    {
+      "id": "10-references",
+      "input": "analysis/docx-word-layout-2026-10-31/inputs/10-references.docx",
+      "inputSHA256": "6ae6688971eac742a198f6a66433770105d3713b0e4c220ce30955394a3ea594",
+      "wordPDF": "analysis/docx-word-layout-2026-10-31/baseline-word-web/10-references.pdf",
+      "wordPDFSHA256": "9aae3dff65f775c7d4ea80c74bc78c9516dfc2c4f071ca15400ab778bddc487b",
+      "wordPages": 1
+    }
+  ],
+  "historicalMicrosoftReference": true,
+  "newMicrosoftMeasurement": false,
+  "sourceTriage": "analysis/word-docx-priority-plan-2026-11-14/existing-word10-triage.json"
+}

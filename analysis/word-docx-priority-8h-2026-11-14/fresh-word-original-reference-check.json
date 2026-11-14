@@ -1,0 +1,32 @@
+[
+  {
+    "id": "08-small-table",
+    "method": "Actual Microsoft UI File > Export > Download PDF > final Download; source byte-identical upload. Fresh reference retained separately from original scoring reference.",
+    "path": "analysis/word-docx-priority-8h-2026-11-14/word-web-original/08-small-table.pdf",
+    "sha256": "383d7737d7cc38e9f7ccfc62650e3aa987a8f0f6ad84ff62e0612cd9ae119a99",
+    "pages": {
+      "old": 1,
+      "fresh": 1
+    },
+    "fixedRequested": 7,
+    "bothMatched": 7,
+    "changedStartPages": 0,
+    "changedLineBoundaries": 0,
+    "maxOriginYChangePt": 0.0
+  },
+  {
+    "id": "06-long-body",
+    "method": "Actual Microsoft UI File > Export > Download PDF > final Download; source byte-identical upload. Fresh reference retained separately from original scoring reference.",
+    "path": "analysis/word-docx-priority-8h-2026-11-14/word-web-original/06-long-body.pdf",
+    "sha256": "ca266577e7d29d502966c8b5f8bcf1d1e9ab8f3b5f76af70c5667cbc53051100",
+    "pages": {
+      "old": 9,
+      "fresh": 9
+    },
+    "fixedRequested": 117,
+    "bothMatched": 117,
+    "changedStartPages": 0,
+    "changedLineBoundaries": 0,
+    "maxOriginYChangePt": 0.0
+  }
+]

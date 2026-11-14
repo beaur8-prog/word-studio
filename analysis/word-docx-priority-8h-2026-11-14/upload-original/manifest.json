@@ -1,0 +1,22 @@
+[
+  {
+    "id": "02-tables",
+    "path": "analysis/word-docx-priority-8h-2026-11-14/upload-original/WS-WD8-20261114-02-tables-original.docx",
+    "sha256": "f724ffb96b922a9d72ef56f175cb09d8de806ffaee7cfa58ed3e9180f3578ed3"
+  },
+  {
+    "id": "06-long-body",
+    "path": "analysis/word-docx-priority-8h-2026-11-14/upload-original/WS-WD8-20261114-06-long-body-original.docx",
+    "sha256": "f28bea7272ec9438d4d688e555a2912b655bb50d0e5a63ffe54f82c4d460651a"
+  },
+  {
+    "id": "07-characters",
+    "path": "analysis/word-docx-priority-8h-2026-11-14/upload-original/WS-WD8-20261114-07-characters-original.docx",
+    "sha256": "b76a0d8042a2b1bfd828e3dc7951caaa159ce40f43df10a72d75d07b42e6b699"
+  },
+  {
+    "id": "08-small-table",
+    "path": "analysis/word-docx-priority-8h-2026-11-14/upload-original/WS-WD8-20261114-08-small-table-original.docx",
+    "sha256": "7bd01eb80a18462c1d14ee17273085285db566c448948fac3acc816b7cf46c2c"
+  }
+]

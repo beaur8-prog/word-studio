@@ -1,0 +1,14 @@
+{
+  "measuredUTC": "2026-11-14T14:17:31.856320+00:00",
+  "sourceManifest": "upload-original/manifest.json",
+  "id": "08-small-table",
+  "method": "Actual Chrome native accessibility UI; opened uploaded byte-identical public original, clicked Elastomeric Decks cell; no document edit",
+  "cellText": "Elastomeric Decks",
+  "fontFamily": "Calibri",
+  "fontSizePt": 10,
+  "editorPageCount": 1,
+  "uploadCount": 4,
+  "UIAccess": "native AX fallback after tab binding failure",
+  "authentication": "normal existing-session reauthentication succeeded",
+  "signedURLsStored": false
+}

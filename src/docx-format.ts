@@ -96,7 +96,9 @@ export async function docxFormat(zip: JSZip) {
   }
   function runCss(layers: (Element | undefined)[], script: 'ascii' | 'eastAsia' = 'ascii') {
     const style = document.createElement('span').style;
-    style.fontSize = '11pt'; style.color = '#000000';
+    // With no size anywhere in the hierarchy, use Word's consumer fallback.
+    // Authored document/style/run sizes below retain their normal precedence.
+    style.fontSize = '10pt'; style.color = '#000000';
     const resolved: Record<string, string> = {};
     let language = themeLanguage || '';
     let underline = '', strike = '', decorationStyle = '';
