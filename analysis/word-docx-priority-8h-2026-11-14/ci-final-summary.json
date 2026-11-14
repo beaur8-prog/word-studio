@@ -1,0 +1,23 @@
+{
+  "run": 43616806748,
+  "commit": "b783ce98119f2c517713143294d964cfcf9338eb",
+  "productSource": "5c3bd56",
+  "jobs": [
+    {
+      "os": "Windows",
+      "sourceCommitSeen": true,
+      "functionalTests": 194,
+      "lateFontRepeats": 3,
+      "sdkExports": 189,
+      "sdkErrors": 0
+    },
+    {
+      "os": "Linux",
+      "sourceCommitSeen": true,
+      "functionalTests": 194,
+      "lateFontRepeats": 3,
+      "sdkExports": 189,
+      "sdkErrors": 0
+    }
+  ]
+}

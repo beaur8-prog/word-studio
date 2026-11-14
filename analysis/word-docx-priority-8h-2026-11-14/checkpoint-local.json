@@ -1,6 +1,6 @@
 {
   "status": "active-validation",
-  "utc": "2026-11-14T16:39:31.601798+00:00",
+  "utc": "2026-11-14T17:07:11.851363+00:00",
   "branch": "codex/word-docx-layout-priority-20261114",
   "productCommit": "5c3bd568a2f553891026df03f5f1e1d3deeda856",
   "sourceTree": "b54238561da612f1887b25a4bd264195b1d3bd00",
@@ -80,7 +80,7 @@
     "one actual Word-edit and DOCX download/Studio return"
   ],
   "pendingProcesses": [],
-  "nextAction": "Check final CI for test-output-path change, continue actual Word saved-copy UI only after observed unlock. Do not rerun completed local suites without new change/failure.",
+  "nextAction": "All local and OS CI gates complete. Continue representative saved DOCX normal Word UI and actual external edit return only after observed unlock; no repeated completed suites or speculative third product cause.",
   "nativeZoomAll30StatesStable": true,
   "nativeTwoSaveCoordinateStability": {
     "documents": 10,
@@ -107,5 +107,28 @@
     "newOutputFiles": 3,
     "sdkErrors": 0,
     "productSourceChanged": false
+  },
+  "finalCI": {
+    "run": 43616806748,
+    "commit": "b783ce98119f2c517713143294d964cfcf9338eb",
+    "productSource": "5c3bd56",
+    "jobs": [
+      {
+        "os": "Windows",
+        "sourceCommitSeen": true,
+        "functionalTests": 194,
+        "lateFontRepeats": 3,
+        "sdkExports": 189,
+        "sdkErrors": 0
+      },
+      {
+        "os": "Linux",
+        "sourceCommitSeen": true,
+        "functionalTests": 194,
+        "lateFontRepeats": 3,
+        "sdkExports": 189,
+        "sdkErrors": 0
+      }
+    ]
   }
 }
