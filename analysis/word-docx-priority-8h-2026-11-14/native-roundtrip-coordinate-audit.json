@@ -1,0 +1,515 @@
+{
+  "method": "Same compiled Studio source5c3bd56, original Word10 versus two actual production DOCX export/reopen inputs from b5744c1, independent native glyph coordinates. This is Studio save stability, not a Microsoft accuracy claim for changed input bytes.",
+  "rows": [
+    {
+      "id": "01-body",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "02-tables",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 7,
+              "pagesAfter": 7,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 7,
+              "pagesAfter": 7,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 7,
+              "pagesAfter": 7,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 7,
+              "pagesAfter": 7,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "03-floating",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0.125,
+              "glyphsMovedOverPointOneCSSpx": 1408
+            },
+            "print": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0.125,
+              "glyphsMovedOverPointOneCSSpx": 1408
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0.25,
+              "glyphsMovedOverPointOneCSSpx": 2043
+            },
+            "print": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0.25,
+              "glyphsMovedOverPointOneCSSpx": 2043
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "04-nested",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "05-styles",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "06-long-body",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 9,
+              "pagesAfter": 9,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 9,
+              "pagesAfter": 9,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 9,
+              "pagesAfter": 9,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 9,
+              "pagesAfter": 9,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "07-characters",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 4,
+              "pagesAfter": 4,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 4,
+              "pagesAfter": 4,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 4,
+              "pagesAfter": 4,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 4,
+              "pagesAfter": 4,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "08-small-table",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "09-theme",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 2,
+              "pagesAfter": 2,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "10-references",
+      "saves": [
+        {
+          "save": 1,
+          "modes": {
+            "editor": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        },
+        {
+          "save": 2,
+          "modes": {
+            "editor": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            },
+            "print": {
+              "pagesBefore": 1,
+              "pagesAfter": 1,
+              "sameGlyphTextOrder": true,
+              "glyphPageChanges": 0,
+              "maxXCSSpx": 0,
+              "maxYCSSpx": 0,
+              "glyphsMovedOverPointOneCSSpx": 0
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

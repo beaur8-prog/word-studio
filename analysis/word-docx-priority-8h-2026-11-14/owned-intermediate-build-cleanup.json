@@ -1,0 +1,41 @@
+{
+  "utc": "2026-11-14T16:11:06.387971+00:00",
+  "scope": "Only completed task-owned intermediate compiled builds; native final5c3bd56, previous baseline build, input/public originals, source overrides, failed PDFs/measurements, user apps and recovery preserved. All owned corpus app processes closed; no open handles in each removed build.",
+  "removed": [
+    {
+      "record": "native-build-furniture-shared-lines-diagnostic.json",
+      "dist": "/private/tmp/ws-layout-native-candidate-P9qUF9",
+      "app": "/Users/swryu/Developer/word-studio/analysis/word-docx-priority-8h-2026-11-14/native-app-furniture-shared-lines-diagnostic",
+      "bytes": 46334236,
+      "sourceRef": "b5744c1469b689a5df5b9cb752ef31b601fecc28",
+      "sourceHashCount": 134
+    },
+    {
+      "record": "native-build-century-ceil-lines-diagnostic.json",
+      "dist": "/private/tmp/ws-layout-native-candidate-zMKZ5S",
+      "app": "/Users/swryu/Developer/word-studio/analysis/word-docx-priority-8h-2026-11-14/native-app-century-ceil-lines-diagnostic",
+      "bytes": 46334060,
+      "sourceRef": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+      "sourceHashCount": 134
+    },
+    {
+      "record": "native-build-calibri-partial-registered.json",
+      "dist": "/private/tmp/ws-layout-native-candidate-HBMdJN",
+      "app": "/Users/swryu/Developer/word-studio/analysis/word-docx-priority-8h-2026-11-14/native-app-calibri-partial-registered",
+      "bytes": 47594051,
+      "sourceRef": "6bc49fae11068d43b258f5568ceccd3c3cb8da30",
+      "sourceHashCount": 134
+    }
+  ],
+  "skipped": [
+    {
+      "record": "native-build-default-size.json",
+      "reason": "open files or unavailable open-file check"
+    },
+    {
+      "record": "native-build-century-native-lines-diagnostic.json",
+      "reason": "open files or unavailable open-file check"
+    }
+  ],
+  "reclaimedBytes": 140262347
+}

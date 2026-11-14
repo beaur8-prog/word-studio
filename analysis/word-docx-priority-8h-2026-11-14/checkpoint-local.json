@@ -1,6 +1,6 @@
 {
   "status": "active-validation",
-  "utc": "2026-11-14T16:04:10.007471+00:00",
+  "utc": "2026-11-14T16:17:44.326811+00:00",
   "branch": "codex/word-docx-layout-priority-20261114",
   "productCommit": "5c3bd568a2f553891026df03f5f1e1d3deeda856",
   "sourceTree": "b54238561da612f1887b25a4bd264195b1d3bd00",
@@ -85,5 +85,15 @@
       "log": "pc-recheck-5c3bd56.log"
     }
   ],
-  "nextAction": "Finish recheck, keep first failure/trace and isolate if reproduced; proceed with normal Word UI only after observed unlock. No repeated whole test without new failure/change."
+  "nextAction": "Finish recheck, keep first failure/trace and isolate if reproduced; proceed with normal Word UI only after observed unlock. No repeated whole test without new failure/change.",
+  "nativeZoomAll30StatesStable": true,
+  "nativeTwoSaveCoordinateStability": {
+    "documents": 10,
+    "pageChanges": 0,
+    "glyphTextOrderChanged": 0,
+    "exactCoordinateDocuments": 9,
+    "existing03YDriftAfterSave2CSSpx": 0.25,
+    "sameDriftInBaseline6bc49fa": true
+  },
+  "cleanupReclaimedMiB": 133.76
 }
