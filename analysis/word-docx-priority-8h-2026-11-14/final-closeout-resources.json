@@ -1,0 +1,83 @@
+{
+  "utc": "2026-11-14T22:00:34.788508+00:00",
+  "scope": "Only task-owned temporary resources; user apps/documents and previous baseline untouched.",
+  "server": {
+    "pid": 22139,
+    "command": "node /Users/swryu/Developer/word-studio/node_modules/.bin/vite --host 127.0.0.1 --port 5191 --strictPort",
+    "action": "SIGTERM",
+    "exited": true
+  },
+  "idleAssertion": {
+    "pid": 33958,
+    "action": "expired"
+  },
+  "removedBuilds": [
+    {
+      "record": "native-build-default-size.json",
+      "dist": "/private/tmp/ws-layout-native-candidate-FgB0np",
+      "bytes": 46334012
+    },
+    {
+      "record": "native-build-century-native-lines-diagnostic.json",
+      "dist": "/private/tmp/ws-layout-native-candidate-l8IKZb",
+      "bytes": 46334052
+    }
+  ],
+  "preservedBuilds": [],
+  "reclaimedBytes": 92668064,
+  "totalBuildReclaimedBytes": 232930411,
+  "sourcePreservation": [
+    {
+      "id": "01-body",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    },
+    {
+      "id": "02-tables",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    },
+    {
+      "id": "03-floating",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    },
+    {
+      "id": "04-nested",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    },
+    {
+      "id": "05-styles",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    },
+    {
+      "id": "06-long-body",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    },
+    {
+      "id": "07-characters",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    },
+    {
+      "id": "08-small-table",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    },
+    {
+      "id": "09-theme",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    },
+    {
+      "id": "10-references",
+      "inputUnchanged": true,
+      "wordReferenceUnchanged": true
+    }
+  ],
+  "productSourceUnchangedAfterFreeze": true,
+  "evidencePlusOwnedBuildMiB": 133.53
+}
