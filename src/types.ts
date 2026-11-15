@@ -1,4 +1,7 @@
 import type { JSONContent } from "@tiptap/react";
+/** Global DOCX background, carried with each imported section's page settings.
+ * Cached RGB and a bounded VML fill preserve appearance across different themes. */
+export interface WordBackground { color: string; display: boolean; drawingXml?: string; }
 export interface PageSettings {
   size: "A4" | "Letter" | "Custom";
   /** Unrotated physical paper dimensions in millimetres. */
@@ -29,6 +32,7 @@ export interface PageSettings {
   /** OOXML document compatibility: allow the final exact line's empty leading
    * below the body edge. Unset retains native Studio/HWP layout. */
   suppressBottomSpacing?: boolean;
+  wordBackground?: WordBackground;
   headerHtml?: string;
   footerHtml?: string;
   firstHeaderHtml?: string;

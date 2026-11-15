@@ -1,3 +1,4 @@
+import { readWordBackground, validWordBackground, writeWordBackground } from './docx-background';
 import { sameSectionFrameSettings } from './section-frame-settings';
 import { encodeDocxXmlParts } from './docx-package-text';
 import { paragraphTextAlignment } from './paragraph-text-alignment';
@@ -169,7 +170,7 @@ export function validateDocument(input: unknown): StudioDocument {
     ["size", "width", "height", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
       'differentFirstPage', 'differentOddEven', 'firstHeader', 'firstFooter', 'evenHeader', 'evenFooter',
       'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop', 'breakType', 'columns', 'hideEmptyLines', 'suppressBottomSpacing',
-      'headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'],
+      'headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml','wordBackground'],
     "용지 설정",
   );
   if (
@@ -203,6 +204,7 @@ export function validateDocument(input: unknown): StudioDocument {
   }
   for (const key of ['headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml'])
     if (page[key] !== undefined && !boundedString(page[key], MAX_FILE_BYTES)) fail('머리글·바닥글 본문이 너무 큽니다.');
+  if (page.wordBackground !== undefined && !validWordBackground(page.wordBackground)) fail('페이지 배경 정보가 올바르지 않습니다.');
   if (!Array.isArray(input.comments) || input.comments.length > 10000)
     fail("검토 메모 목록이 올바르지 않습니다.");
   const ids = new Set<string>();
@@ -723,6 +725,9 @@ export async function importFile(file: File): Promise<ImportResult> {
     }
   }
   doc.page = pages[0] ?? { ...defaultPage };
+  const backgroundSettings = zip.file('word/settings.xml');
+  const background = readWordBackground(body, backgroundSettings ? xml(await backgroundSettings.async('string')) : undefined, warnings);
+  if (background) for (const page of new Set([doc.page, ...pages])) page.wordBackground = background;
   const textboxes = await prepareTextBoxes(zip, body, pages);
   if (textboxes.count) warnings.push(`텍스트상자 ${textboxes.count}개의 내용을 배경·크기와 함께 편집 가능한 별도 영역으로 가져왔습니다.`);
   const metadata = await prepareDocxMetadata(zip, body, pages);
@@ -1607,10 +1612,17 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     sections,
   });
   const blob = await Packer.toBlob(docx);
-  if (!bookmarkNames.size && !document.comments.length && !geometries.size && !textBoxes.length && groups.length === 1) return blob;
+  if (!bookmarkNames.size && !document.comments.length && !geometries.size && !textBoxes.length && groups.length === 1 && !page.wordBackground) return blob;
   // docx 9.12 emits resolution metadata only for replies. Standalone comments
   // need the same standard OOXML part; use its generated paragraph IDs.
   const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+  if (page.wordBackground) {
+    const main = xml(await zip.file('word/document.xml')!.async('string'));
+    const settings = xml(await zip.file('word/settings.xml')!.async('string'));
+    writeWordBackground(main, settings, page.wordBackground);
+    zip.file('word/document.xml', new XMLSerializer().serializeToString(main));
+    zip.file('word/settings.xml', new XMLSerializer().serializeToString(settings));
+  }
   if (bookmarkNames.size) {
     // Web Word can replace a collapsed named destination with a copy of its
     // following text, duplicating a heading. Give authored point bookmarks a
