@@ -61,6 +61,7 @@ export const wordFontMetricsChanged = 'studio-word-font-metrics-changed';
 
 let calibriSpaceProbe: CanvasRenderingContext2D | null = null;
 const calibriSpaceRatios = new Map<string, number | null>();
+const calibriNormalBoxes = new Map<string, number>();
 const appleRegularProbeFamily = 'Studio Apple Gothic space probe';
 const calibriRegularSpaceEm = 463 / 2048;
 
@@ -117,6 +118,21 @@ export function wordFallbackSpaceAdjustment(paragraph: HTMLElement, css: CSSStyl
   if (ratio == null) return null;
   const adjustment = parseFloat(css.fontSize) * (calibriRegularSpaceEm - ratio);
   return Number.isFinite(adjustment) && adjustment < 0 ? adjustment : null;
+}
+
+export function wordFallbackCanvasStrut(paragraph: HTMLElement, css: CSSStyleDeclaration) {
+  if (wordFallbackSpaceAdjustment(paragraph, css) === null) return null;
+  const probe = calibriSpaceProbe;
+  if (!probe) return null;
+  const cached = calibriNormalBoxes.get(css.fontSize);
+  if (cached !== undefined) return cached;
+  probe.font = `${css.fontSize} ${JSON.stringify(appleRegularProbeFamily)}`;
+  const box = probe.measureText('Ag');
+  const height = box.fontBoundingBoxAscent + box.fontBoundingBoxDescent;
+  if (!Number.isFinite(height) || height <= 0) return null;
+  if (calibriNormalBoxes.size >= 64) calibriNormalBoxes.clear();
+  calibriNormalBoxes.set(css.fontSize, height);
+  return height;
 }
 
 export function wordFallbackLineHeight(css: CSSStyleDeclaration, text: string, bodyStrut = false) {

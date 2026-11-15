@@ -5,7 +5,7 @@ import { documentMetadata } from './document-history';
 import { isOrdinaryWordBodyParagraph, isWordAlignedBulletParagraph, isWordGroupedTextBoxParagraph } from './word-trailing-spaces';
 import { wordFlowHasWrappingAnchors } from './word-keep-policy';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { wordFallbackLineHeight, wordFallbackSpaceAdjustment, wordFontMetricsChanged } from './word-font-fallbacks';
+import { wordFallbackCanvasStrut, wordFallbackLineHeight, wordFallbackSpaceAdjustment, wordFontMetricsChanged } from './word-font-fallbacks';
 import { nativeWordListIndents, wordListGeometry, unresolvedWordListMarker } from './word-list-layout';
 
 const metrics = new Map<string, number>();
@@ -129,6 +129,30 @@ export function measuredBodySpaceAdjustment(paragraph: HTMLElement) {
   }
   return hasSpace ? delta : null;
 }
+// Select a stable strut only for a complete homogeneous fallback paragraph.
+function measuredCalibriLineHeight(paragraph: HTMLElement) {
+  const multiplier = Number(paragraph.dataset.wordLine);
+  if (paragraph.dataset.wordLineRule !== 'auto' || !(multiplier > 0) || !Number.isFinite(multiplier) ||
+      (paragraph.dataset.wordOutlineLevel !== undefined && paragraph.dataset.wordOutlineLevel !== '9') ||
+      paragraph.querySelector('br:not(.ProseMirror-trailingBreak),[data-docx-tab],[data-symbol-font],[data-word-overlap],sup,sub')) return null;
+  const style = getComputedStyle(paragraph);
+  if (style.direction !== 'ltr' || style.writingMode !== 'horizontal-tb' || style.letterSpacing !== 'normal') return null;
+  const strut = wordFallbackCanvasStrut(paragraph, style);
+  if (strut === null) return null;
+  const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+  let hasText = false;
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (!node.data || !node.parentElement) continue;
+    if (!/^[\x20-\x7e]+$/.test(node.data)) return null;
+    const run = getComputedStyle(node.parentElement);
+    if (run.fontFamily !== style.fontFamily || run.fontSize !== style.fontSize ||
+        run.fontWeight !== style.fontWeight || run.fontStyle !== style.fontStyle ||
+        run.letterSpacing !== 'normal') return null;
+    hasText ||= Boolean(node.data.trim());
+  }
+  return hasText ? strut * multiplier : null;
+}
 function isMeasuredSymbolItem(item: HTMLElement, paragraph: HTMLElement) {
   return item.dataset.listFont?.toLowerCase() === 'symbol' && item.dataset.listFormat === 'bullet' &&
     item.dataset.listLabel === '\uf0b7' && item.dataset.listGlyph === '•' &&
@@ -216,9 +240,11 @@ export function layoutWordLines(root: HTMLElement) {
     // Do not rerun this new, full-paragraph policy on split fragments.
     // Empty means the full paragraph matched no measured body profile.
     let frozen = p.getAttribute('data-print-word-body-line');
-    if (p.dataset.wordBodyStrut === 'true' && !p.hasAttribute('data-print-paragraph-fragment') && frozen === null) {
+    const ordinary = p.dataset.wordBodyStrut === 'true';
+    const alignedBullet = p.parentElement?.hasAttribute(symbolStrutFlag) && isWordAlignedBulletParagraph(p);
+    if ((ordinary || alignedBullet) && !p.hasAttribute('data-print-paragraph-fragment') && frozen === null) {
       const normal = wordLineHeight(p);
-      const measured = wordLineHeight(p, true);
+      const measured = measuredCalibriLineHeight(p) ?? (ordinary ? wordLineHeight(p, true) : null);
       frozen = measured !== null && measured !== normal ? String(measured) : '';
       p.setAttribute('data-print-word-body-line', frozen);
     }
@@ -301,7 +327,10 @@ export const WordLineMetrics = Extension.create({
           if (!node.attrs.wordLineRule) return;
           const dom = view.nodeDOM(pos);
           if (!(dom instanceof HTMLElement)) return;
-          const height = wordLineHeight(dom, useWordStrut && isOrdinaryWordBodyParagraph(dom, view.dom));
+          const ordinary = useWordStrut && isOrdinaryWordBodyParagraph(dom, view.dom);
+          const bullet = useWordStrut && isWordAlignedBulletParagraph(dom) && isMeasuredSymbolItem(dom.parentElement!, dom);
+          const measured = ordinary || bullet ? measuredCalibriLineHeight(dom) : null;
+          const height = measured ?? wordLineHeight(dom, ordinary);
           if (height === null) return;
           decorations.push(Decoration.node(pos, pos + node.nodeSize, { style: `line-height:${height}px` }));
           values.push(`${pos}:${height}`);
