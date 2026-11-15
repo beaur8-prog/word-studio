@@ -14,6 +14,11 @@ if (typeof document !== 'undefined') document.fonts?.addEventListener('loadingdo
 export function layoutWordAutoFitTables(root: HTMLElement, freeze = false) {
   for (const table of [...root.querySelectorAll<HTMLTableElement>('table[data-word-table-layout="autofit"][data-word-table-width-auto="true"]')].reverse()) {
     if (table.dataset.printAutoFitFrozen === 'true') continue;
+    // An editor created read-only can switch to the ordinary table renderer
+    // when editing is enabled, without a column-resize NodeView. Writing live
+    // widths there makes DOMObserver redraw the node forever. Only TableView
+    // owns and ignores these view-only mutations; print trees are independent.
+    if (table.closest('.ProseMirror') && !table.parentElement?.classList.contains('tableWrapper')) continue;
     if (table.querySelector('table') || table.parentElement?.closest('table')) continue;
     if (table.dataset.tableAnchor || table.closest('.table-overlay-frame,.table-wrap-frame')) continue;
     const cols = [...table.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')];

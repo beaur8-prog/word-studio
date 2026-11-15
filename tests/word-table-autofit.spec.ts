@@ -124,3 +124,25 @@ test('autofit retains explicit cell width preferences instead of treating them a
   await page.getByRole('button', { name: '보기', exact: true }).click(); await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
   expect(await page.locator('.print-content table').first().locator('col').first().evaluate(el => parseFloat((el as HTMLElement).style.width))).toBe(70);
 });
+
+test('a table remains stable and editable after a read-only editor switches to edit mode', async ({ page }) => {
+  await page.goto('/');
+  await page.evaluate(async bytes => {
+    const { Editor } = await import('/node_modules/.vite/deps/@tiptap_react.js');
+    const { editorExtensions, parseDocumentHtml } = await import('/src/extensions.ts');
+    const { importFile } = await import('/src/document-io.ts');
+    const imported = await importFile(new File([new Uint8Array(bytes)], 'readonly.docx'));
+    const host = document.createElement('div'); host.className = 'document-stack'; host.dataset.testid = 'readonly-table-editor';
+    Object.assign(host.dataset, { pageHeight: '1122.52', margin: '96', bottomMargin: '96', leftMargin: '96', rightMargin: '96' });
+    host.style.cssText = 'position:fixed;left:0;top:0;z-index:1000;width:816px;height:800px;overflow:auto;background:white;--page-padding:96px';
+    const mount = document.createElement('div'); host.append(mount); document.body.append(host);
+    const editor = new Editor({ element: mount, extensions: editorExtensions, content: parseDocumentHtml(imported.html!), editable: false });
+    editor.setEditable(true);
+    (window as any).readonlyTableQA = { editor, host, cell: host.querySelector('td') };
+  }, await fixture(page));
+  const cell = page.getByTestId('readonly-table-editor').locator('td').first();
+  await cell.click(); await page.keyboard.press('End'); await page.keyboard.type(' READONLY TO EDIT');
+  await expect(cell).toContainText('READONLY TO EDIT');
+  expect(await page.evaluate(() => { const qa = (window as any).readonlyTableQA; return qa.cell.isConnected && qa.cell === qa.host.querySelector('td'); })).toBe(true);
+  await page.evaluate(() => { const qa = (window as any).readonlyTableQA; qa.editor.destroy(); qa.host.remove(); });
+});
