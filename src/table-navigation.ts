@@ -1,13 +1,24 @@
 import { Extension } from '@tiptap/core';
-import { TextSelection } from '@tiptap/pm/state';
+import { Plugin, TextSelection } from '@tiptap/pm/state';
 import { GapCursor } from '@tiptap/pm/gapcursor';
-import { TableMap } from '@tiptap/pm/tables';
+import { cellAround, TableMap } from '@tiptap/pm/tables';
 
 /** A trailing table has no synthetic paragraph. PC table arrow navigation
  * otherwise resolves back into the last cell when no following text exists. */
 export const TableNavigation = Extension.create({
   name: 'tableNavigation',
   priority: 1100,
+  addProseMirrorPlugins() {
+    return [new Plugin({ props: {
+      handleTripleClick(view, pos) {
+        // tableEditing selects the cell and prevents the native mousedown.
+        // Restore keyboard focus first when a toolbar still owns it; leave
+        // the actual cell selection to tableEditing.
+        if (view.editable && !view.hasFocus() && cellAround(view.state.doc.resolve(pos))) view.focus();
+        return false;
+      },
+    } })];
+  },
   addKeyboardShortcuts() {
     return { ArrowDown: () => {
       const { state, view } = this.editor, selection = state.selection;

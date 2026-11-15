@@ -37,6 +37,10 @@ test('repeated header with ' + alignment + ' vertical merge ' + (continuing ? 'c
     return result;
   }, {alignment,continuing});
   for (const state of states) {
+    // Each saved input is a fresh user editing session. Retaining the view
+    // across rapid imports can turn three independent single clicks into
+    // ProseMirror's cell-selecting triple click. That gesture has its own test.
+    if (state !== states[0]) await page.reload();
     expect(state.starts).toHaveLength(9);
     expect(state.starts.map(p=>p.text).sort()).toEqual(['LEAD','TAIL','LABEL A','LABEL B',...Array.from({length:5},(_,i)=>'BODY ROW '+i)].sort());
     expect(state.pages).toBe(continuing ? 2 : 3);
