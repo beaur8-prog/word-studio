@@ -158,7 +158,7 @@ export function validateDocument(input: unknown): StudioDocument {
   if (!object(input)) fail("Word Studio 문서가 올바른 JSON 객체가 아닙니다.");
   keysOnly(
     input,
-    ["id", "format", "version", "title", "content", "page", "wordAutoHyphenation", "comments", "updatedAt"],
+    ["id", "format", "version", "title", "content", "page", "wordAutoHyphenation", "wordWrapTrailSpaces", "comments", "updatedAt"],
     "문서",
   );
   if (input.format !== "word-studio" || input.version !== 1)
@@ -166,6 +166,8 @@ export function validateDocument(input: unknown): StudioDocument {
   if (input.id !== undefined && (typeof input.id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(input.id))) fail('문서 ID가 올바르지 않습니다.');
   if (input.wordAutoHyphenation !== undefined && typeof input.wordAutoHyphenation !== 'boolean')
     fail('Word 자동 하이픈 설정이 올바르지 않습니다.');
+  if (input.wordWrapTrailSpaces !== undefined && typeof input.wordWrapTrailSpaces !== 'boolean')
+    fail('Word 줄 끝 공백 설정이 올바르지 않습니다.');
   if (!boundedString(input.title, 512) || !validDate(input.updatedAt))
     fail("문서 제목 또는 저장 날짜가 올바르지 않습니다.");
   const page = input.page;
@@ -735,13 +737,18 @@ export async function importFile(file: File): Promise<ImportResult> {
   const settings = settingsPart ? xml(await settingsPart.async('string')) : undefined;
   const settingsRoot = settings?.documentElement;
   if (settingsRoot?.namespaceURI === W && settingsRoot.localName === 'settings') {
-    const autoHyphenation = Array.from(settingsRoot.children)
-      .find(el => el.namespaceURI === W && el.localName === 'autoHyphenation');
-    if (autoHyphenation) {
-      const value = autoHyphenation.getAttributeNS(W, 'val');
-      if (value === null || value === 'true' || value === '1' || value === 'on') doc.wordAutoHyphenation = true;
-      else if (value === 'false' || value === '0' || value === 'off') doc.wordAutoHyphenation = false;
-    }
+    const wordChild = (parent: Element | undefined, name: string) => parent && Array.from(parent.children)
+      .find(el => el.namespaceURI === W && el.localName === name);
+    const readOption = (element?: Element) => {
+      if (!element) return;
+      const value = element.getAttributeNS(W, 'val');
+      if (value === null || value === 'true' || value === '1' || value === 'on') return true;
+      if (value === 'false' || value === '0' || value === 'off') return false;
+    };
+    const autoHyphenation = readOption(wordChild(settingsRoot, 'autoHyphenation'));
+    if (autoHyphenation !== undefined) doc.wordAutoHyphenation = autoHyphenation;
+    const wrapTrailSpaces = readOption(wordChild(wordChild(settingsRoot, 'compat'), 'wrapTrailSpaces'));
+    if (wrapTrailSpaces !== undefined) doc.wordWrapTrailSpaces = wrapTrailSpaces;
   }
   const background = readWordBackground(body, settings, warnings);
   if (background) for (const page of new Set([doc.page, ...pages])) page.wordBackground = background;
@@ -1633,7 +1640,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     evenAndOddHeaderAndFooters: differentOddEven,
     hyphenation: { autoHyphenation: document.wordAutoHyphenation },
     compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false), doNotBreakWrappedTables: false,
-      suppressBottomSpacing: document.page.suppressBottomSpacing !== false },
+      suppressBottomSpacing: document.page.suppressBottomSpacing !== false, wrapTrailSpaces: document.wordWrapTrailSpaces },
     numbering: { config: numbering },
     footnotes, endnotes,
     comments: { children: comments },
@@ -1650,15 +1657,27 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     sections,
   });
   const blob = await Packer.toBlob(docx);
-  if (!bookmarkNames.size && !document.comments.length && !geometries.size && !textBoxes.length && groups.length === 1 && !page.wordBackground) return blob;
+  const explicitNoWrapTrailSpaces = document.wordWrapTrailSpaces === false;
+  if (!bookmarkNames.size && !document.comments.length && !geometries.size && !textBoxes.length &&
+      groups.length === 1 && !page.wordBackground && !explicitNoWrapTrailSpaces) return blob;
   // docx 9.12 emits resolution metadata only for replies. Standalone comments
   // need the same standard OOXML part; use its generated paragraph IDs.
   const zip = await JSZip.loadAsync(await blob.arrayBuffer());
-  if (page.wordBackground) {
-    const main = xml(await zip.file('word/document.xml')!.async('string'));
+  if (page.wordBackground || explicitNoWrapTrailSpaces) {
     const settings = xml(await zip.file('word/settings.xml')!.async('string'));
-    writeWordBackground(main, settings, page.wordBackground);
-    zip.file('word/document.xml', new XMLSerializer().serializeToString(main));
+    if (page.wordBackground) {
+      const main = xml(await zip.file('word/document.xml')!.async('string'));
+      writeWordBackground(main, settings, page.wordBackground);
+      zip.file('word/document.xml', new XMLSerializer().serializeToString(main));
+    }
+    if (explicitNoWrapTrailSpaces) {
+      // The writer omits false compatibility flags. Restore the authored off
+      // value after the generated legacy flags and before the mode setting.
+      const compat = settings.getElementsByTagNameNS(W, 'compat')[0];
+      const flag = settings.createElementNS(W, 'w:wrapTrailSpaces');
+      flag.setAttributeNS(W, 'w:val', 'false');
+      compat.insertBefore(flag, compat.getElementsByTagNameNS(W, 'compatSetting')[0] ?? null);
+    }
     zip.file('word/settings.xml', new XMLSerializer().serializeToString(settings));
   }
   if (bookmarkNames.size) {

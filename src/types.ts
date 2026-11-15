@@ -59,6 +59,8 @@ export interface StudioDocument {
   page: PageSettings;
   /** Document-wide Word auto hyphenation flag. Undefined keeps the DOCX element absent. */
   wordAutoHyphenation?: boolean;
+  /** Preserve the authored Word trailing-space wrap option, including explicit off. */
+  wordWrapTrailSpaces?: boolean;
   comments: Comment[];
   updatedAt: string;
 }
