@@ -4,7 +4,7 @@ import type JSZip from 'jszip';
 import { W, all, child, ancestor, val } from './docx-format';
 import { storyHtml } from './docx-stories';
 import { pageMargins, paperDimensions, type PageSettings } from './types';
-import { textBoxFrame, type TextBoxFrame } from './textbox-frame';
+import { textBoxFrame, type TextBoxDecoration, type TextBoxFrame } from './textbox-frame';
 const A='http://schemas.openxmlformats.org/drawingml/2006/main';
 const WP='http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
 const WPS='http://schemas.microsoft.com/office/word/2010/wordprocessingShape';
@@ -53,14 +53,24 @@ async function hasGeneratedTextBoxAnchorStyle(zip: JSZip) {
 async function colors(zip:JSZip) {
  const part=zip.file('word/theme/theme1.xml'),theme=part ? new DOMParser().parseFromString(await part.async('string'),'application/xml') : undefined;
  const scheme=theme && descendants(theme,'clrScheme')[0];const aliases:Record<string,string>={bg1:'lt1',bg2:'lt2',tx1:'dk1',tx2:'dk2'};
- function color(el:Element|undefined,placeholder?:string):string|undefined {
+ const settingsPart = zip.file('word/settings.xml');
+ const settings = settingsPart && new DOMParser().parseFromString(await settingsPart.async('string'), 'application/xml');
+ const mapping = settings ? all(settings, 'clrSchemeMapping')[0] : undefined;
+ const themeSlots: Record<string,string> = { dark1:'dk1', dark2:'dk2', light1:'lt1', light2:'lt2', hyperlink:'hlink', followedHyperlink:'folHlink' };
+ const solidAliases = { ...aliases };
+ for (const [drawing, word] of Object.entries({ bg1:'bg1',bg2:'bg2',tx1:'t1',tx2:'t2',accent1:'accent1',accent2:'accent2',
+   accent3:'accent3',accent4:'accent4',accent5:'accent5',accent6:'accent6',hlink:'hyperlink',folHlink:'followedHyperlink' })) {
+  const mapped = val(mapping, word);
+  if (mapped) solidAliases[drawing] = themeSlots[mapped] || mapped;
+ }
+ function color(el:Element|undefined,placeholder?:string,schemeAliases=aliases):string|undefined {
   if(!el)return;let value:string|undefined;
   if(el.localName==='srgbClr')value=hex(el.getAttribute('val')||'');
   else if(el.localName==='sysClr')value=hex(el.getAttribute('lastClr')||'');
   else if(el.localName==='schemeClr') {
    const key=el.getAttribute('val')||'';
    if(key==='phClr')value=placeholder;
-   else {const item=scheme && first(scheme,aliases[key]||key);value=item ? color(item.firstElementChild||undefined) : key==='lt1' ? '#ffffff' : key==='dk1' ? '#000000' : undefined;}
+   else {const item=scheme && first(scheme,schemeAliases[key]||key);value=item ? color(item.firstElementChild||undefined) : key==='lt1' ? '#ffffff' : key==='dk1' ? '#000000' : undefined;}
   }
   if(!value)return;
   let rgb=value.slice(1).match(/../g)!.map(n=>parseInt(n,16)/255);
@@ -88,7 +98,7 @@ async function colors(zip:JSZip) {
   const value=fill?.localName==='solidFill' ? color(fill.firstElementChild||undefined,placeholder) : placeholder;
   return value ? {fill:value} : {};
  }
- return {fill,color};
+ return {fill,color,solidColor(el:Element){ return color(el, undefined, solidAliases); }};
 }
 // Word can put a percentage anchor in Choice and a pixel fallback beside it.
 // Resolve only direct compatibility wrappers; do not pick a child's anchor.
@@ -101,8 +111,8 @@ function anchorPosition(anchor:Element|null,name:string):Element|undefined {
   }
  }
 }
-function modernFrame(box:Element,page:PageSettings,palette:Awaited<ReturnType<typeof colors>>):TextBoxFrame {
- const shape=ancestor(box,'wsp')!,anchor=ancestor(shape,'anchor')||ancestor(shape,'inline');
+function modernFrame(shape:Element,page:PageSettings,palette:Awaited<ReturnType<typeof colors>>):TextBoxFrame {
+ const anchor=ancestor(shape,'anchor')||ancestor(shape,'inline');
  const transform=first(first(shape,'spPr'),'xfrm'),offset=first(transform,'off'),size=first(transform,'ext');
  let x=number(offset,'x'),y=number(offset,'y'),width=number(size,'cx',number(anchor ? first(anchor,'extent') : undefined,'cx',3657600)),height=number(size,'cy',number(anchor ? first(anchor,'extent') : undefined,'cy',914400));
  let parent=shape.parentElement,grouped=false;
@@ -137,6 +147,36 @@ function modernFrame(box:Element,page:PageSettings,palette:Awaited<ReturnType<ty
   ...palette.fill(shape),...(border ? {border,borderWidth:number(line,'w')/EMU}:{}),behind:anchor?.getAttribute('behindDoc')==='1'};
  return textBoxFrame(JSON.stringify(frame)) || {...frame,x:0,y:0,width:400,height:100,position:'inline',padding:[5,10,5,10]};
 }
+function isUnrotated(transform: Element | null | undefined) {
+ return !!transform && number(transform, 'rot') === 0 &&
+   !['1', 'true'].includes(transform.getAttribute('flipH') || '') &&
+   !['1', 'true'].includes(transform.getAttribute('flipV') || '');
+}
+
+/** A plain shape following a text story paints inside the same floating group. */
+function rectangleDecoration(owner: Element, frame: TextBoxFrame, page: PageSettings, palette: Awaited<ReturnType<typeof colors>>): TextBoxDecoration | undefined {
+ const group = owner.parentElement, shape = owner.nextElementSibling;
+ if (!group || group.namespaceURI !== WPG || group.localName !== 'wgp' ||
+     !shape || shape.namespaceURI !== WPS || shape.localName !== 'wsp' ||
+     frame.position !== 'floating' || frame.autoFit && frame.noWrap ||
+     first(shape, 'txbx') || first(shape, 'linkedTxbx')) return;
+ const props = first(shape, 'spPr'), geometry = first(props, 'prstGeom');
+ if (!props || geometry?.getAttribute('prst') !== 'rect' || first(geometry, 'avLst')?.children.length ||
+     !isUnrotated(first(props, 'xfrm')) || !isUnrotated(first(first(group, 'grpSpPr'), 'xfrm')) ||
+     ![...props.children].every(child => child.namespaceURI === A && ['xfrm','prstGeom','solidFill','ln'].includes(child.localName)) ||
+     number(first(first(shape, 'style'), 'effectRef'), 'idx') !== 0) return;
+ const line = first(props, 'ln'), solid = first(props, 'solidFill');
+ const color = solid?.firstElementChild;
+ if (!line || line.children.length !== 1 || !first(line, 'noFill') || solid?.children.length !== 1 ||
+     !color || color.namespaceURI !== A || color.children.length || !['schemeClr','srgbClr'].includes(color.localName)) return;
+ const fill = palette.solidColor(color);
+ const bounds = modernFrame(shape, page, palette);
+ if (!fill || bounds.position !== 'floating') return;
+ const x = bounds.x - frame.x, y = bounds.y - frame.y;
+ if (Math.abs(x) > 100000 || Math.abs(y) > 100000) return;
+ return { x, y, width: bounds.width, height: bounds.height, fill };
+}
+
 function legacyFrame(box:Element,page:PageSettings):TextBoxFrame {
  const shape=ancestor(box,'shape')||ancestor(box,'rect')||ancestor(box,'roundrect')||ancestor(box,'textbox')?.parentElement;
  if(!shape)throw Error('텍스트상자 도형을 찾을 수 없습니다.');
@@ -172,10 +212,15 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
  for(const [container,boxes] of grouped) {
   const page=pageFor.get(ancestor(container,'p')!)||pages[0];const frames=[];
   for(const box of boxes) {
-   const frame=ancestor(box,'wsp') ? modernFrame(box,page,palette):legacyFrame(box,page);
+   const shape = ancestor(box, 'wsp');
+   const frame = shape ? modernFrame(shape, page, palette) : legacyFrame(box, page);
    const raw=ancestor(box,'drawing')?.getAttribute('data-ws-drawing-group');
    if(raw){frame.drawingGroup=JSON.parse(raw);frame.group=frame.drawingGroup!.id;}
-   else if(boxes.length>1 && ancestor(box,'wgp'))frame.group='textbox_group_'+records.length;
+   else if (shape && ancestor(box, 'wgp')) {
+    const decoration = rectangleDecoration(shape, frame, page, palette);
+    if (boxes.length > 1 || decoration) frame.group = 'textbox_group_' + records.length;
+    if (decoration) frame.decoration = decoration;
+   }
    frames.push({frame,html:await storyHtml(zip,'word/document.xml',box,page,depth+1)});
   }
   const marker='ws_textbox_'+crypto.randomUUID().replaceAll('-','');
@@ -233,17 +278,47 @@ export async function writeTextBoxes(zip:JSZip,records:TextBoxExport[]) {
   // makes Word's web editor give each large child another page of its own.
   const groups=new Map<string,typeof written>();
   for(const item of written)if(item.record.frame.group && !item.record.frame.drawingGroup){const items=groups.get(item.record.frame.group)||[];items.push(item);groups.set(item.record.frame.group,items);}
-  for(const members of groups.values()) {
-    if(members.length<2 || members.some((m,i)=>m.record.frame.position!=='floating' || m.record.frame.vertical!==members[0].record.frame.vertical || i>0 && members[i-1].paragraph.nextElementSibling!==m.paragraph))continue;
-    const x=Math.min(...members.map(m=>m.record.frame.x)),y=Math.min(...members.map(m=>m.record.frame.y));
-    const width=Math.max(...members.map(m=>m.record.frame.x+m.record.frame.width))-x,height=Math.max(...members.map(m=>m.record.frame.y+m.record.frame.height))-y;
+  const groupsToWrite: (typeof written)[] = [];
+  for (const members of groups.values()) {
+   if (members.every((m,i) => m.record.frame.position === 'floating' && m.record.frame.vertical === members[0].record.frame.vertical &&
+      (i === 0 || members[i-1].paragraph.nextElementSibling === m.paragraph))) {
+    if (members.length > 1 || members[0].record.frame.decoration) groupsToWrite.push(members);
+   } else for (const member of members) if (member.record.frame.decoration) groupsToWrite.push([member]);
+  }
+  for (const members of groupsToWrite) {
+    const frames = members.flatMap(({record:{frame}}) => {
+      const decoration = frame.decoration;
+      return decoration ? [frame, { ...decoration, x: frame.x + decoration.x, y: frame.y + decoration.y }] : [frame];
+    });
+    const x=Math.min(...frames.map(f=>f.x)),y=Math.min(...frames.map(f=>f.y));
+    const width=Math.max(...frames.map(f=>f.x+f.width))-x,height=Math.max(...frames.map(f=>f.y+f.height))-y;
     const firstParagraph=members[0].paragraph,anchor=firstParagraph.getElementsByTagNameNS(WP,'anchor')[0],graphic=anchor.getElementsByTagNameNS(A,'graphicData')[0];
     const element=(ns:string,name:string,attributes:Record<string,string>={})=>{const el=doc.createElementNS(ns,name);for(const[k,v]of Object.entries(attributes))el.setAttribute(k,v);return el;};
     const emu=(v:number)=>String(Math.round(v*EMU));
     const group=element(WPG,'wpg:wgp'),props=element(WPG,'wpg:grpSpPr'),transform=element(A,'a:xfrm');
     transform.append(element(A,'a:off',{x:'0',y:'0'}),element(A,'a:ext',{cx:emu(width),cy:emu(height)}),element(A,'a:chOff',{x:'0',y:'0'}),element(A,'a:chExt',{cx:emu(width),cy:emu(height)}));
     props.append(transform);group.append(element(WPG,'wpg:cNvGrpSpPr'),props);
-    for(const {record,paragraph} of members){const shape=paragraph.getElementsByTagNameNS(WPS,'wsp')[0],off=first(shape,'spPr') && first(first(shape,'spPr'),'xfrm') && first(first(first(shape,'spPr'),'xfrm'),'off');if(off){off.setAttribute('x',emu(record.frame.x-x));off.setAttribute('y',emu(record.frame.y-y));}group.append(shape);if(paragraph!==members[0].paragraph)paragraph.remove();}
+    for (const {record,paragraph} of members) {
+      const frame = record.frame, shape = paragraph.getElementsByTagNameNS(WPS, 'wsp')[0];
+      const off = first(first(first(shape, 'spPr'), 'xfrm'), 'off');
+      if (off) { off.setAttribute('x', emu(frame.x - x)); off.setAttribute('y', emu(frame.y - y)); }
+      group.append(shape);
+      const decoration = frame.decoration;
+      if (decoration) {
+       const rect = element(WPS, 'wps:wsp'), properties = element(WPS, 'wps:spPr'), transform = element(A, 'a:xfrm');
+       transform.append(element(A, 'a:off', {x:emu(frame.x+decoration.x-x), y:emu(frame.y+decoration.y-y)}),
+         element(A, 'a:ext', {cx:emu(decoration.width), cy:emu(decoration.height)}));
+       const geometry = element(A, 'a:prstGeom', {prst:'rect'});
+       geometry.append(element(A, 'a:avLst'));
+       const fill = element(A, 'a:solidFill'), line = element(A, 'a:ln');
+       fill.append(element(A, 'a:srgbClr', {val:decoration.fill.slice(1)}));
+       line.append(element(A, 'a:noFill'));
+       properties.append(transform, geometry, fill, line);
+       rect.append(element(WPS, 'wps:cNvSpPr'), properties, element(WPS, 'wps:bodyPr'));
+       group.append(rect);
+      }
+      if (paragraph !== members[0].paragraph) paragraph.remove();
+    }
     graphic.replaceChildren(group);graphic.setAttribute('uri',WPG);
     const h=first(anchor,'positionH')!,v=first(anchor,'positionV')!;h.setAttribute('relativeFrom','page');h.replaceChildren(element(WP,'wp:posOffset'));h.firstElementChild!.textContent=emu(x);v.replaceChildren(element(WP,'wp:posOffset'));v.firstElementChild!.textContent=emu(y);
     const extent=first(anchor,'extent')!;extent.setAttribute('cx',emu(width));extent.setAttribute('cy',emu(height));

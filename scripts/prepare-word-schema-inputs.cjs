@@ -26,7 +26,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // Three automatic hyphenation states add two DOCX saves each.
 // The numbering-tab fixture retains two standard DOCX saves.
 // The floating text box carrier fixture retains two standard DOCX saves.
-let count = 294;
+// The native rectangle in a textbox group retains two standard DOCX saves.
+let count = 296;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);

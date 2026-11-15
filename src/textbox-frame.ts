@@ -4,8 +4,10 @@ import { Node, Extension } from '@tiptap/core';
 import { Plugin, TextSelection } from '@tiptap/pm/state';
 import { documentScale } from './document-scale';
 
+export type TextBoxDecoration = { x: number; y: number; width: number; height: number; fill: string };
+
 export type TextBoxFrame = {
-  group?: string; drawingGroup?: DrawingGroup;
+  group?: string; drawingGroup?: DrawingGroup; decoration?: TextBoxDecoration;
   width: number; height: number; x: number; y: number;
   position: 'floating' | 'inline'; wrap?: 'none' | 'square'; noWrap?: boolean; autoFit?: boolean; horizontalAlign?: 'left'|'center'|'right'; horizontalReference?: 'page'|'margin'|'column'; horizontalOffset?: number; vertical: 'page' | 'paragraph';
   padding: [number, number, number, number];
@@ -36,7 +38,11 @@ export function textBoxFrame(value: unknown): TextBoxFrame | undefined {
       v.borderWidth !== undefined && !number(v.borderWidth, 0, 1000) || v.behind !== undefined && typeof v.behind !== 'boolean') return;
     if (v.gradient !== undefined && (!Array.isArray(v.gradient) || !v.gradient.length || v.gradient.length > 16 ||
       !v.gradient.every((s: any) => s && number(s.position, 0, 1) && color(s.color)))) return;
-    return { ...(v.group?{group:v.group}:{}), ...(v.drawingGroup?{drawingGroup:drawingGroup(v.drawingGroup)}:{}), width:v.width, height:v.height, x:v.x, y:v.y, position:v.position, vertical:v.vertical,
+    const decoration = v.decoration as TextBoxDecoration | undefined;
+    if (decoration !== undefined && (!decoration || !v.group || v.drawingGroup || v.position !== 'floating' || v.autoFit && v.noWrap ||
+        !number(decoration.x, -100000, 100000) || !number(decoration.y, -100000, 100000) ||
+        !number(decoration.width, .1, 100000) || !number(decoration.height, .1, 100000) || !color(decoration.fill))) return;
+    return { ...(decoration ? { decoration: { x: decoration.x, y: decoration.y, width: decoration.width, height: decoration.height, fill: decoration.fill } } : {}), ...(v.group?{group:v.group}:{}), ...(v.drawingGroup?{drawingGroup:drawingGroup(v.drawingGroup)}:{}), width:v.width, height:v.height, x:v.x, y:v.y, position:v.position, vertical:v.vertical,
       padding:v.padding, ...(v.wrapMargins?{wrapMargins:v.wrapMargins}:{}), align:v.align, shape:v.shape, ...(v.horizontalReference ? {horizontalReference:v.horizontalReference} : {}), ...(v.horizontalOffset!==undefined ? {horizontalOffset:v.horizontalOffset} : {}), ...(v.autoFit!==undefined ? {autoFit:v.autoFit} : {}), ...(v.horizontalAlign ? {horizontalAlign:v.horizontalAlign} : {}), ...(v.wrap ? {wrap:v.wrap} : {}), ...(v.noWrap!==undefined ? {noWrap:v.noWrap} : {}), ...(v.fill ? { fill:v.fill } : {}),
       ...(v.gradient ? { gradient:v.gradient.map((s: any) => ({ position:s.position, color:s.color })) } : {}),
       ...(v.border ? { border:v.border, borderWidth:v.borderWidth ?? 0 } : {}), ...(v.behind !== undefined ? { behind:v.behind } : {}) };
@@ -44,7 +50,9 @@ export function textBoxFrame(value: unknown): TextBoxFrame | undefined {
 }
 function contentStyle(f: TextBoxFrame) {
   const background = f.gradient ? `linear-gradient(180deg,${f.gradient.map(s => `${s.color} ${s.position*100}%`).join(',')})` : f.fill || 'transparent';
-  return `box-sizing:border-box;width:${f.autoFit && f.noWrap ? 'max-content' : f.width+'px'};min-height:${f.autoFit?0:f.height}px;padding:${f.padding.map(n => `${n}px`).join(' ')};background:${f.shape==='homePlate'?'transparent':background};${f.shape==='homePlate'?`--textbox-shape-fill:${background};--textbox-arrow-inset:${Math.min(f.height/2,f.width/2)}px;isolation:isolate;`:''}color:#000000;${f.noWrap?'white-space:nowrap;':''}${f.align!=='top'?`display:flex;flex-direction:column;justify-content:${f.align==='center'?'center':'flex-end'};`:''}${f.border ? `border:${f.borderWidth || 0}px solid ${f.border};` : ''}${f.shape==='roundRect' ? 'border-radius:12px;' : ''}`;
+  const decoration = f.decoration;
+  const paint = decoration ? `--textbox-decoration-x:${decoration.x}px;--textbox-decoration-y:${decoration.y}px;--textbox-decoration-width:${decoration.width}px;--textbox-decoration-height:${decoration.height}px;--textbox-decoration-fill:${decoration.fill};` : '';
+  return `${paint}box-sizing:border-box;width:${f.autoFit && f.noWrap ? 'max-content' : f.width+'px'};min-height:${f.autoFit?0:f.height}px;padding:${f.padding.map(n => `${n}px`).join(' ')};background:${f.shape==='homePlate'?'transparent':background};${f.shape==='homePlate'?`--textbox-shape-fill:${background};--textbox-arrow-inset:${Math.min(f.height/2,f.width/2)}px;isolation:isolate;`:''}color:#000000;${f.noWrap?'white-space:nowrap;':''}${f.align!=='top'?`display:flex;flex-direction:column;justify-content:${f.align==='center'?'center':'flex-end'};`:''}${f.border ? `border:${f.borderWidth || 0}px solid ${f.border};` : ''}${f.shape==='roundRect' ? 'border-radius:12px;' : ''}`;
 }
 function applyFrame(dom: HTMLElement, content: HTMLElement, frame: TextBoxFrame) {
   dom.className = 'document-textbox'; dom.dataset.documentTextbox = JSON.stringify(frame);
