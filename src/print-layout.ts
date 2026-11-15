@@ -21,6 +21,7 @@ import { layoutTableAnchors, tableAnchor } from './table-anchor';
 import { paragraphFitBottom } from './paragraph-fit';
 import { splitListItem, wholeListItem } from './list-fragments';
 import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
+import { isWordHangingSpaceParagraph } from './word-trailing-spaces';
 
 export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
@@ -28,7 +29,8 @@ const PX = 96 / 25.4;
 const dimensions = paperDimensions;
 
 /** Build one measured page tree used unchanged by preview, PDF and native printing. */
-export async function createPrintLayout(html: string, initialPage: PageSettings, onProgress?: (value: PrintLayoutProgress) => void, signal?: AbortSignal): Promise<PrintLayout> {
+export async function createPrintLayout(html: string, initialPage: PageSettings,
+  onProgress?: (value: PrintLayoutProgress) => void, signal?: AbortSignal, wordHangingSpaces = false): Promise<PrintLayout> {
   signal?.throwIfAborted();
   if (onProgress) { onProgress({ label: '쪽 배치를 준비하는 중…' }); await new Promise(resolve => setTimeout(resolve, 24)); signal?.throwIfAborted(); }
   const host = document.createElement('div');
@@ -37,6 +39,11 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   document.body.append(host);
   const style = document.createElement('style'); host.append(style);
   const source = document.createElement('div'); source.innerHTML = html;
+  const wrappingAnchors = wordFlowHasWrappingAnchors(source);
+  if (wordHangingSpaces && !wrappingAnchors) for (const paragraph of source.querySelectorAll('p[data-word-paragraph-style]')) {
+    if (paragraph instanceof HTMLElement && isWordHangingSpaceParagraph(paragraph, source))
+      paragraph.dataset.wordHangingSpaces = 'true';
+  }
   prepareParagraphEnds(source);
   layoutWordContextualSpacing(source);
   layoutWordListLabels(source);
@@ -54,7 +61,6 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     noteBodies.set(note.dataset.documentNote!, note); note.remove();
   }
   const keepChains = wordKeepChains(source), protectedKeeps = new WeakSet<HTMLElement>();
-  const wrappingAnchors = wordFlowHasWrappingAnchors(source);
   let settings = initialPage, pageNumber = 0, content: HTMLElement, footnotes: HTMLElement;
   let deferredNotes = new Set<string>();
   let sectionNumber = 0;

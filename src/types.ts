@@ -61,6 +61,8 @@ export interface StudioDocument {
   wordAutoHyphenation?: boolean;
   /** Preserve the authored Word trailing-space wrap option, including explicit off. */
   wordWrapTrailSpaces?: boolean;
+  /** The Word default layout applies when the source omitted the compatibility option. */
+  wordDefaultHangingSpaces?: true;
   comments: Comment[];
   updatedAt: string;
 }

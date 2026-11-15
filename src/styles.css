@@ -744,6 +744,8 @@ button:hover:not(:disabled) {
   color: #242932;
   caret-color: #2864a8;
 }
+/* Imported Word body paragraphs keep trailing spaces on a filled line. */
+.tiptap p[data-word-hanging-spaces] { white-space: pre-wrap; }
 .tiptap > :first-child {
   margin-top: 0;
 }

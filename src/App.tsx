@@ -11,6 +11,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
 import { EditorState } from '@tiptap/pm/state';
 import { DocumentHistory, documentMetadata, changeDocumentMetadata, dispatchHistoryEvent } from './document-history';
+import { usesWordHangingSpaces } from './word-trailing-spaces';
 import {
   Save,
   Undo2,
@@ -331,6 +332,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     [page, setPage] = useState<PageSettings>(initial.page),
     [wordAutoHyphenation, setWordAutoHyphenation] = useState(initial.wordAutoHyphenation),
     [wordWrapTrailSpaces, setWordWrapTrailSpaces] = useState(initial.wordWrapTrailSpaces),
+    [wordDefaultHangingSpaces, setWordDefaultHangingSpaces] = useState(initial.wordDefaultHangingSpaces),
     [comments, setComments] = useState<Comment[]>(initial.comments),
     [tab, setTab] = useState("홈"),
     [revision, setRevision] = useState(0),
@@ -402,6 +404,11 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     immediatelyRender: androidSession ? false : undefined,
     extensions: [...editorExtensions, DocumentHistory],
     content: initial.content,
+    onCreate({ editor }) {
+      if (usesWordHangingSpaces(initial)) editor.view.dispatch(editor.state.tr
+        .setMeta(documentMetadata, { page: initial.page, comments: initial.comments, wordHangingSpaces: true })
+        .setMeta('addToHistory', false));
+    },
     onUpdate({ editor }) {
       // Editor initialization can emit an update without changing the blank
       // body. Only a real edit makes the startup document recoverable.
@@ -456,17 +463,18 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     page,
     wordAutoHyphenation,
     wordWrapTrailSpaces,
+    wordDefaultHangingSpaces,
     comments,
     updatedAt: new Date().toISOString(),
   };
   const lastSessionDocument = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!editor || !session.current) return;
-    const doc = currentRef.current, signature = JSON.stringify([doc.id, doc.title, doc.page, doc.wordAutoHyphenation, doc.wordWrapTrailSpaces, doc.comments, doc.content]);
+    const doc = currentRef.current, signature = JSON.stringify([doc.id, doc.title, doc.page, doc.wordAutoHyphenation, doc.wordWrapTrailSpaces, doc.wordDefaultHangingSpaces, doc.comments, doc.content]);
     if (lastSessionDocument.current === signature) return;
     const changed = lastSessionDocument.current !== undefined;
     lastSessionDocument.current = signature; session.current.onDocument(structuredClone(doc), changed);
-  }, [editor, documentId, title, page, wordAutoHyphenation, wordWrapTrailSpaces, comments, revision]);
+  }, [editor, documentId, title, page, wordAutoHyphenation, wordWrapTrailSpaces, wordDefaultHangingSpaces, comments, revision]);
   const overlays = useRef({ modal, command, fileMenu }); overlays.current = { modal, command, fileMenu };
   useEffect(() => {
     if (!editor || !session.current) return;
@@ -491,7 +499,8 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   }, [editor, androidSession?.active]);
   const unusedStartupDocument = (doc: StudioDocument) => !startupTouched.current && doc.id === initial.id &&
     doc.title === initial.title && doc.wordAutoHyphenation === initial.wordAutoHyphenation &&
-    doc.wordWrapTrailSpaces === initial.wordWrapTrailSpaces && JSON.stringify(doc.page) === JSON.stringify(initial.page) &&
+    doc.wordWrapTrailSpaces === initial.wordWrapTrailSpaces && doc.wordDefaultHangingSpaces === initial.wordDefaultHangingSpaces &&
+    JSON.stringify(doc.page) === JSON.stringify(initial.page) &&
     JSON.stringify(doc.comments) === JSON.stringify(initial.comments) &&
     !!editor?.schema.nodeFromJSON(doc.content).eq(editor.schema.nodeFromJSON(initial.content));
   useEffect(() => {
@@ -519,7 +528,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       });
     }, 600);
     return () => clearTimeout(id);
-  }, [editor, documentId, title, page, wordAutoHyphenation, wordWrapTrailSpaces, comments, revision]);
+  }, [editor, documentId, title, page, wordAutoHyphenation, wordWrapTrailSpaces, wordDefaultHangingSpaces, comments, revision]);
   useEffect(() => {
     const persist = (event: BeforeUnloadEvent) => {
       if (pendingRecovery.current) {
@@ -628,7 +637,8 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     editor.view.updateState(EditorState.create({
       schema: editor.schema, doc: editor.schema.nodeFromJSON(doc.content), plugins: editor.state.plugins,
     }));
-    editor.view.dispatch(editor.state.tr.setMeta(documentMetadata, { page: doc.page, comments: doc.comments }).setMeta('addToHistory', false));
+    editor.view.dispatch(editor.state.tr.setMeta(documentMetadata, { page: doc.page, comments: doc.comments,
+      wordHangingSpaces: usesWordHangingSpaces(doc) }).setMeta('addToHistory', false));
     ++recoveryEpoch.current;
     startupTouched.current = true;
     pendingRecovery.current = true;
@@ -641,6 +651,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     setPage(doc.page);
     setWordAutoHyphenation(doc.wordAutoHyphenation);
     setWordWrapTrailSpaces(doc.wordWrapTrailSpaces);
+    setWordDefaultHangingSpaces(doc.wordDefaultHangingSpaces);
     setComments(doc.comments);
     setRevision(value => value + 1);
     setModal(null);
@@ -836,7 +847,8 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   const preview = async () => {
     if (session.current) { setFileMenu(false); session.current.onViewer(); return; }
     outputLayout.current?.dispose();
-    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), currentRef.current.page));
+    const doc = currentRef.current;
+    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), doc.page, undefined, undefined, usesWordHangingSpaces(doc)));
     outputLayout.current = layout;
     layout.element.classList.replace('measuring', 'preview');
     document.body.classList.add('studio-printing');

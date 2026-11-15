@@ -1,5 +1,8 @@
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { documentMetadata } from './document-history';
+import { isWordHangingSpaceParagraph } from './word-trailing-spaces';
+import { wordFlowHasWrappingAnchors } from './word-keep-policy';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { wordFallbackLineHeight, wordFontMetricsChanged } from './word-font-fallbacks';
 import { nativeWordListIndents, wordListGeometry, unresolvedWordListMarker } from './word-list-layout';
@@ -138,7 +141,15 @@ export const WordLineMetrics = Extension.create({
       const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
         if (!view.dom.isConnected || view.composing) return;
         const decorations: Decoration[] = [], values: string[] = [];
+        const hangWordSpaces = documentMetadata.getState(view.state)?.wordHangingSpaces && !wordFlowHasWrappingAnchors(view.dom);
         view.state.doc.descendants((node, pos) => {
+          if (hangWordSpaces && node.type.name === 'paragraph') {
+            const paragraph = view.nodeDOM(pos);
+            if (paragraph instanceof HTMLElement && isWordHangingSpaceParagraph(paragraph, view.dom)) {
+              decorations.push(Decoration.node(pos, pos + node.nodeSize, { 'data-word-hanging-spaces': 'true' }));
+              values.push(`${pos}:word-hanging-spaces`);
+            }
+          }
           if (node.type.name === 'listItem' && node.attrs.wordListId && node.firstChild?.attrs.wordLineRule) {
             const paragraph = view.nodeDOM(pos + 1);
             if (paragraph instanceof HTMLElement && unresolvedWordListMarker(node.attrs.wordListLabel || node.attrs.wordListPattern)) {

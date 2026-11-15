@@ -1,6 +1,7 @@
 import { countDocxCheckboxes } from './docx-checkboxes';
 import { readWordBackground, validWordBackground, writeWordBackground } from './docx-background';
 import { W } from './docx-format';
+import { wordDefaultHangingSpacesProperty } from './word-trailing-spaces';
 import { sameSectionFrameSettings } from './section-frame-settings';
 import { encodeDocxXmlParts } from './docx-package-text';
 import { paragraphTextAlignment } from './paragraph-text-alignment';
@@ -78,6 +79,8 @@ import { tableAnchor, tableWrapFits } from './table-anchor';
 import { encodeHwpBodyLine, hwpBodyTextLine, hwpBodyFallback, type HwpBodyLine } from './hwp-body-line';
 import documentLimits from '../electron/document-limits.json';
 const bookmarkNamesProperty = 'WordStudio.BookmarkNames';
+const wordStudioCreator = 'Word Studio';
+const wordStudioDescription = 'Created with Word Studio';
 
 export interface ImportResult {
   document: StudioDocument;
@@ -158,7 +161,7 @@ export function validateDocument(input: unknown): StudioDocument {
   if (!object(input)) fail("Word Studio 문서가 올바른 JSON 객체가 아닙니다.");
   keysOnly(
     input,
-    ["id", "format", "version", "title", "content", "page", "wordAutoHyphenation", "wordWrapTrailSpaces", "comments", "updatedAt"],
+    ["id", "format", "version", "title", "content", "page", "wordAutoHyphenation", "wordWrapTrailSpaces", "wordDefaultHangingSpaces", "comments", "updatedAt"],
     "문서",
   );
   if (input.format !== "word-studio" || input.version !== 1)
@@ -168,6 +171,8 @@ export function validateDocument(input: unknown): StudioDocument {
     fail('Word 자동 하이픈 설정이 올바르지 않습니다.');
   if (input.wordWrapTrailSpaces !== undefined && typeof input.wordWrapTrailSpaces !== 'boolean')
     fail('Word 줄 끝 공백 설정이 올바르지 않습니다.');
+  if (input.wordDefaultHangingSpaces !== undefined && input.wordDefaultHangingSpaces !== true)
+    fail('Word 기본 공백 조판 설정이 올바르지 않습니다.');
   if (!boundedString(input.title, 512) || !validDate(input.updatedAt))
     fail("문서 제목 또는 저장 날짜가 올바르지 않습니다.");
   const page = input.page;
@@ -704,11 +709,16 @@ export async function importFile(file: File): Promise<ImportResult> {
   // DOCX has no equivalent of Hancom's conditional two-line section rule.
   // Keep just that policy in a standard custom property, without replacing
   // real paragraphs or freezing their heights to the current pagination.
+  let defaultHangingSpaces = false;
   const customPart = zip.file('docProps/custom.xml');
   if (customPart) {
     const raw = await customPart.async('string');
     if (raw.length <= 65536) {
       const properties = elements(xml(raw), 'property');
+      const hangingSpaces = properties.find(p => p.getAttribute('name') === wordDefaultHangingSpacesProperty &&
+        p.namespaceURI === 'http://schemas.openxmlformats.org/officeDocument/2006/custom-properties')?.firstElementChild;
+      defaultHangingSpaces = hangingSpaces?.namespaceURI === 'http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes' &&
+        hangingSpaces.localName === 'lpwstr' && hangingSpaces.textContent === 'hang';
       const names = properties.find(p => p.getAttribute('name') === bookmarkNamesProperty);
       if (names) try {
         const pairs = JSON.parse(names.textContent || 'null');
@@ -749,6 +759,18 @@ export async function importFile(file: File): Promise<ImportResult> {
     if (autoHyphenation !== undefined) doc.wordAutoHyphenation = autoHyphenation;
     const wrapTrailSpaces = readOption(wordChild(wordChild(settingsRoot, 'compat'), 'wrapTrailSpaces'));
     if (wrapTrailSpaces !== undefined) doc.wordWrapTrailSpaces = wrapTrailSpaces;
+  }
+  if (doc.wordWrapTrailSpaces === undefined) {
+    // Older Studio exports of HWP and Word share the same package signature.
+    // Its existing whitespace policy stays in effect unless the file carries
+    // the Word default, with explicit Word settings taking precedence.
+    const corePart = zip.file('docProps/core.xml');
+    const coreText = await corePart?.async('string');
+    const core = coreText && coreText.length <= 65536 ? xml(coreText).documentElement : undefined;
+    const dc = 'http://purl.org/dc/elements/1.1/';
+    const legacyStudio = core?.getElementsByTagNameNS(dc, 'creator')[0]?.textContent === wordStudioCreator &&
+      core.getElementsByTagNameNS(dc, 'description')[0]?.textContent === wordStudioDescription;
+    if (defaultHangingSpaces || !legacyStudio) doc.wordDefaultHangingSpaces = true;
   }
   const background = readWordBackground(body, settings, warnings);
   if (background) for (const page of new Set([doc.page, ...pages])) page.wordBackground = background;
@@ -1631,9 +1653,11 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph({ children: [documentTextRun({ text })] })) })));
   const docx = new DocxDocument({
     title: document.title,
-    creator: 'Word Studio',
-    description: 'Created with Word Studio',
+    creator: wordStudioCreator,
+    description: wordStudioDescription,
     customProperties: [
+      ...(document.wordWrapTrailSpaces === undefined && document.wordDefaultHangingSpaces
+        ? [{ name: wordDefaultHangingSpacesProperty, value: 'hang' }] : []),
       ...(groups.some(group => group.page.hideEmptyLines) ? [{ name: emptyLineDocxProperty, value: JSON.stringify(groups.flatMap((group, index) => group.page.hideEmptyLines ? [index] : [])) }] : []),
       ...(bookmarkAliases.size ? [{ name: bookmarkNamesProperty, value: JSON.stringify([...bookmarkAliases].map(([name, alias]) => [alias, name])) }] : []),
     ],
