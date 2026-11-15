@@ -204,6 +204,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - name: Measure matching fallback overrides in actual Chromium
+        shell: pwsh
+        run: |
+          node analysis/word-docx-local-8h-2026-11-15/tools/measure-fallback-browser.cjs | Set-Content -Encoding utf8 browser-word-font-metrics.json
+          if ($LASTEXITCODE) { throw 'Browser font measurement failed' }
+          $report = Get-Content browser-word-font-metrics.json -Raw | ConvertFrom-Json
+          if ($report.rows.Count -ne 72) { throw 'Expected four faces, nine sizes and two DPR controls' }
       - name: Compile local diagnostic with the installed Windows SDK
         shell: pwsh
         run: |
@@ -229,5 +242,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: native-word-font-metrics
-          path: native-word-font-metrics.json
+          path: |
+            native-word-font-metrics.json
+            browser-word-font-metrics.json
           retention-days: 3
