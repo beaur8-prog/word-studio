@@ -2,7 +2,7 @@ import { parseTabStops } from './document-tabs';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { documentMetadata } from './document-history';
-import { isOrdinaryWordBodyParagraph } from './word-trailing-spaces';
+import { isOrdinaryWordBodyParagraph, isWordAlignedBulletParagraph } from './word-trailing-spaces';
 import { wordFlowHasWrappingAnchors } from './word-keep-policy';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { wordFallbackLineHeight, wordFontMetricsChanged } from './word-font-fallbacks';
@@ -223,7 +223,7 @@ export const WordLineMetrics = Extension.create({
         view.state.doc.descendants((node, pos) => {
           if (hangWordSpaces && node.type.name === 'paragraph') {
             const paragraph = view.nodeDOM(pos);
-            if (paragraph instanceof HTMLElement && isOrdinaryWordBodyParagraph(paragraph, view.dom)) {
+            if (paragraph instanceof HTMLElement && (isOrdinaryWordBodyParagraph(paragraph, view.dom) || isWordAlignedBulletParagraph(paragraph))) {
               decorations.push(Decoration.node(pos, pos + node.nodeSize, { 'data-word-hanging-spaces': 'true' }));
               values.push(`${pos}:word-hanging-spaces`);
             }

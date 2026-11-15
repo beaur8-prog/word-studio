@@ -21,7 +21,7 @@ import { layoutTableAnchors, tableAnchor } from './table-anchor';
 import { paragraphFitBottom } from './paragraph-fit';
 import { splitListItem, wholeListItem } from './list-fragments';
 import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
-import { isOrdinaryWordBodyParagraph, type WordLayoutOptions } from './word-trailing-spaces';
+import { isOrdinaryWordBodyParagraph, isWordAlignedBulletParagraph, type WordLayoutOptions } from './word-trailing-spaces';
 
 export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
@@ -42,9 +42,10 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   const wrappingAnchors = wordFlowHasWrappingAnchors(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
     for (const paragraph of source.querySelectorAll<HTMLParagraphElement>('p[data-word-paragraph-style]')) {
-      if (!isOrdinaryWordBodyParagraph(paragraph, source)) continue;
-      if (wordLayout.wordHangingSpaces) paragraph.dataset.wordHangingSpaces = 'true';
-      if (wordLayout.wordBodyStrut) paragraph.dataset.wordBodyStrut = 'true';
+      const ordinary = isOrdinaryWordBodyParagraph(paragraph, source);
+      if (wordLayout.wordHangingSpaces && (ordinary || isWordAlignedBulletParagraph(paragraph)))
+        paragraph.dataset.wordHangingSpaces = 'true';
+      if (wordLayout.wordBodyStrut && ordinary) paragraph.dataset.wordBodyStrut = 'true';
     }
   }
   prepareParagraphEnds(source);
