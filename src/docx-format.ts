@@ -258,6 +258,14 @@ export async function docxFormat(zip: JSZip) {
       }
       return result;
     },
+    outlineLevel(p: Element) {
+      let level: number | null = null;
+      for (const props of paragraphProperties(p)) {
+        const value = val(child(props, 'outlineLvl'));
+        if (/^[0-9]$/.test(value)) level = Number(value);
+      }
+      return level;
+    },
     paragraphKeeps(p: Element) {
       const result: { next: boolean | null; lines: boolean | null } = { next: null, lines: null };
       for (const props of paragraphProperties(p)) {

@@ -291,6 +291,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         p.style.cssText = format.paragraph(marker.paragraph);
         p.dataset.wordParagraphStyle = format.paragraphStyle(marker.paragraph);
         p.dataset.wordParagraphStyleName = format.paragraphStyleName(marker.paragraph);
+        const outline = format.outlineLevel(marker.paragraph);
+        if (outline !== null) p.dataset.wordOutlineLevel = String(outline);
         const keeps = format.paragraphKeeps(marker.paragraph);
         if (keeps.next !== null) p.dataset.wordKeepNext = String(keeps.next);
         if (keeps.lines !== null) p.dataset.wordKeepLines = String(keeps.lines);

@@ -42,6 +42,14 @@ export const ImportedFormat = Extension.create({
           renderHTML: (a: Record<string, unknown>) => paragraphTextAlignment(a.wordTextAlignment)
             ? { 'data-word-text-alignment': a.wordTextAlignment } : {},
         },
+        // An outline level supplies TOC/navigation metadata. It is separate
+        // from the visible heading tag and never implies keep-with-next.
+        wordOutlineLevel: {
+          default: null,
+          parseHTML: (el: HTMLElement) => /^[0-9]$/.test(el.dataset.wordOutlineLevel ?? '') ? Number(el.dataset.wordOutlineLevel) : null,
+          renderHTML: (a: Record<string, unknown>) => Number.isInteger(a.wordOutlineLevel) && Number(a.wordOutlineLevel) >= 0 && Number(a.wordOutlineLevel) <= 9
+            ? { 'data-word-outline-level': String(a.wordOutlineLevel) } : {},
+        },
         wordParagraphStyle: {
           default: null, parseHTML: (el: HTMLElement) => el.getAttribute('data-word-paragraph-style'),
           renderHTML: (a: Record<string, unknown>) => typeof a.wordParagraphStyle === 'string' && a.wordParagraphStyle

@@ -292,6 +292,7 @@ export function validateDocument(input: unknown): StudioDocument {
     const attrs = value.attrs as Record<string, unknown> | undefined;
     for (const key of ['wordParagraphStyle', 'wordParagraphStyleName'])
       if (attrs?.[key] != null && (!boundedString(attrs[key], 1000) || !attrs[key] || /[\u0000-\u001f]/.test(String(attrs[key])))) fail('문단 스타일 정보가 올바르지 않습니다.');
+    if (attrs?.wordOutlineLevel != null && (!Number.isInteger(attrs.wordOutlineLevel) || Number(attrs.wordOutlineLevel) < 0 || Number(attrs.wordOutlineLevel) > 9)) fail('문단 개요 수준이 올바르지 않습니다.');
     if (attrs?.wordParagraphStyleKind != null && !/^(?:paragraph|heading[1-6])$/.test(String(attrs.wordParagraphStyleKind))) fail('문단 스타일 종류가 올바르지 않습니다.');
     for (const key of ['wordKeepNext', 'wordKeepLines']) if (attrs?.[key] != null && typeof attrs[key] !== 'boolean') fail('문단 묶음 정책이 올바르지 않습니다.');
     if (attrs?.wordContextualSpacing != null && typeof attrs.wordContextualSpacing !== 'boolean') fail('문단 간격 정책이 올바르지 않습니다.');
@@ -1254,6 +1255,10 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             ...(node.type === "heading"
               ? sourceStyle ? { outlineLevel: (node.attrs?.level ?? 1) - 1 } : { heading: headings[(node.attrs?.level ?? 1) - 1] }
               : {}),
+            // Explicit0–8 and body-text9 override a heading style's default
+            // outline, while leaving the source keep and visual kind intact.
+            ...(node.attrs?.wordOutlineLevel != null ? { outlineLevel: node.attrs.wordOutlineLevel }
+              : node.type === 'heading' ? { outlineLevel: (node.attrs?.level ?? 1) - 1 } : {}),
             ...(node.type === "codeBlock"
               ? {
                   run: { font: "Consolas", size: 20 },
