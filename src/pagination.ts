@@ -1,3 +1,4 @@
+import { layoutWordAutoFitTables } from './word-table-autofit';
 import { canMeasureMergedFragments } from './editor-merged-fragments';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import { wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
@@ -206,6 +207,7 @@ export const Pagination = Extension.create({
             // Column prefixes depend on the previous page gaps. Resolve them
             // before measuring; min-height can keep the root's ResizeObserver
             // silent even when column fragments have moved inside the sheet.
+            layoutWordAutoFitTables(view.dom);
             layoutTableAnchors(view.dom); layoutColumns(view.dom); layoutTableAnchors(view.dom);
             view.dom.classList.add('pagination-measuring-cells');
             try {

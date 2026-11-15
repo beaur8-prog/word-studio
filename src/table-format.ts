@@ -27,7 +27,9 @@ export function cellStyleValue(name: CellStyle, value: unknown): string | null {
 export const CellAppearance = Extension.create({
   name: 'cellAppearance',
   addGlobalAttributes() {
-    return [{ types: ['tableCell', 'tableHeader'], attributes: { cellSplit: { default: null, parseHTML: (el: HTMLElement) => el.dataset.cellSplit === 'allow' ? 'allow' : null,
+    return [{ types: ['tableCell', 'tableHeader'], attributes: { wordCellWidthAuto: { default: null,
+      parseHTML: (el: HTMLElement) => el.dataset.wordCellWidthAuto === 'true' ? true : null,
+      renderHTML: (a: Record<string, unknown>) => a.wordCellWidthAuto === true ? { 'data-word-cell-width-auto': 'true' } : {} }, cellSplit: { default: null, parseHTML: (el: HTMLElement) => el.dataset.cellSplit === 'allow' ? 'allow' : null,
       renderHTML: (a: Record<string, unknown>) => a.cellSplit === 'allow' ? { 'data-cell-split': 'allow' } : {} }, ...Object.fromEntries(
       Object.entries(cellStyleProperties).map(([name, property]) => [name, {
         default: null,

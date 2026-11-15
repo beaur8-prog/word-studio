@@ -17,7 +17,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // and3 Korean-serif states (original export and two DOCX round trips),
 // plus4 merge-continuation,12 fwSpace,8 off-paper drawing and2 tab exports plus2 bookmark-range and2 media-barrier exports.
 // The authored-empty-footer fixture contributes two more real DOCX exports.
-let count = 189;
+// Empty-bookmark line geometry and auto-width grid fixtures add two saves each.
+let count = 193;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);

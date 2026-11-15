@@ -81,6 +81,9 @@ export const ImportedFormat = Extension.create({
         renderHTML: (a: Record<string, unknown>) => ['solid','double','dotted','dashed','wavy'].includes(String(a.decorationStyle)) ? { style: `text-decoration-style:${a.decorationStyle}` } : {} },
       } },
       { types: ['table'], attributes: {
+        wordTableWidthAuto: { default: null,
+          parseHTML: (el: HTMLElement) => el.dataset.wordTableWidthAuto === 'true' ? true : null,
+          renderHTML: (a: Record<string, unknown>) => a.wordTableWidthAuto === true ? { 'data-word-table-width-auto': 'true' } : {} },
         wordTableLayout: { default: null,
           parseHTML: (el: HTMLElement) => ['fixed', 'autofit'].includes(el.dataset.wordTableLayout || '') ? el.dataset.wordTableLayout : null,
           renderHTML: (a: Record<string, unknown>) => ['fixed', 'autofit'].includes(String(a.wordTableLayout)) ? { 'data-word-table-layout': a.wordTableLayout } : {} },
@@ -101,6 +104,9 @@ export const ImportedFormat = Extension.create({
 export class StudioTableView extends TableView {
   constructor(...args: ConstructorParameters<typeof TableView>) { super(...args); this.applyFormat(); }
   applyFormat() {
+    if (this.node.attrs.wordTableWidthAuto === true) this.table.dataset.wordTableWidthAuto = 'true'; else delete this.table.dataset.wordTableWidthAuto;
+    const layout = this.node.attrs.wordTableLayout;
+    if (layout === 'fixed' || layout === 'autofit') this.table.dataset.wordTableLayout = layout; else delete this.table.dataset.wordTableLayout;
     const anchor = tableAnchor(this.node.attrs.tableAnchor);
     if (anchor) this.table.dataset.tableAnchor = JSON.stringify(anchor); else { delete this.table.dataset.tableAnchor; this.dom.style.removeProperty('margin-top'); }
     this.dom.style.marginBottom = css('margin-bottom', this.node.attrs.tableSpacing);

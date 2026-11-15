@@ -216,11 +216,15 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const cell = p.closest<HTMLElement>('td,th');
         if (cell && marker.cell) {
           format.cell(cell, marker.cell);
+          const cellWidth = child(child(marker.cell, 'tcPr'), 'tcW');
+          if (!cellWidth || val(cellWidth, 'type') === 'auto') cell.dataset.wordCellWidthAuto = 'true';
           sizedCells.set(cell, marker.cell);
           const sourceTable = ancestor(marker.cell, 'tbl'), table = cell.closest('table');
           if (sourceTable && table && !sizedTables.has(table)) {
             sizedTables.set(table, sourceTable);
             table.dataset.wordTableLayout = format.tableLayout(sourceTable);
+            const preferredWidth = child(child(sourceTable, 'tblPr'), 'tblW');
+            if (!preferredWidth || val(preferredWidth, 'type') === 'auto') table.dataset.wordTableWidthAuto = 'true';
             table.style.marginLeft = `${Number(val(child(child(sourceTable, 'tblPr'), 'tblInd'), 'w')) / 15}px`;
             const alignment = val(child(child(sourceTable, 'tblPr'), 'jc'), 'val');
             if (['center', 'right', 'end'].includes(alignment)) {

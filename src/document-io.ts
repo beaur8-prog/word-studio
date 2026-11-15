@@ -1415,6 +1415,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             cells.push(
               new PreservedTableCell({
                 children,
+                ...(cell.attrs?.wordCellWidthAuto === true ? { width: { size: 0, type: WidthType.AUTO } } : {}),
                 columnSpan: Number(cell.attrs?.colspan) || 1,
                 rowSpan: Number(cell.attrs?.rowspan) || 1,
                 ...(color || cell.attrs?.backgroundColor === 'transparent' ? { shading: { fill: color ?? 'auto' } } : {}),
@@ -1456,7 +1457,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         const table = new PreservedTable({
             rows,
             layout: autofit ? TableLayoutType.AUTOFIT : TableLayoutType.FIXED,
-            width: { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+            width: node.attrs?.wordTableWidthAuto === true ? { size: 0, type: WidthType.AUTO } : { size: columnWidths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
             ...(paragraphAnchor || anchor?.wrap ? { alignment: AlignmentType.LEFT } : ['center', 'right'].includes(node.attrs?.tableAlignment) ? { alignment: node.attrs?.tableAlignment === 'center' ? AlignmentType.CENTER : AlignmentType.RIGHT } : {}),
             ...(anchor?.wrap ? { indent: { size: 0, type: WidthType.DXA } } : inlineIndent !== undefined || node.attrs?.tableIndent ? { indent: { size: Math.round((inlineIndent ?? Number.parseFloat(node.attrs!.tableIndent)) * 15) || 0, type: WidthType.DXA } } : {}),
             columnWidths,

@@ -1,3 +1,4 @@
+import { layoutWordAutoFitTables } from './word-table-autofit';
 import { preparePrintFonts, type PrintFontRequest } from './print-fonts';
 import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
 import { rowSplitPolicy } from './row-split-policy';
@@ -134,6 +135,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   function fits() {
     refreshNotes();
     layoutTableAnchors(content);
+    layoutWordAutoFitTables(content, true);
     layoutWordLines(content);
     layoutHwpCellLines(content);
     layoutHwpBodyLines(content);
@@ -187,6 +189,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     bodyHeight: () => content.getBoundingClientRect().height, hasDeferredNote, deferredNotes: () => deferredNotes,
   });
   function appendTable(table: HTMLTableElement) {
+    // Measure the complete source table once. Every printed continuation must
+    // retain the same columns, including when its widest cell appears later.
+    content.append(table); layoutWordAutoFitTables(content, true); table.remove();
     const rows = Array.from(table.rows);
     const headers: HTMLTableRowElement[] = [];
     while (rows.length && rows[0].cells.length > 0 && [...rows[0].cells].every(cell => cell.tagName === 'TH')) headers.push(rows.shift()!);
