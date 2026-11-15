@@ -51,7 +51,7 @@ function ownerPaper(image: HTMLImageElement, root: HTMLElement) {
   const y = (paragraph.getBoundingClientRect().top - sheet.getBoundingClientRect().top) / scale;
   const height = Number(sheet.dataset.pageHeight) || 1122.52, top = paperInset(sheet.dataset.margin, 96);
   const page = Math.max(0, Math.floor((y - top + .5) / (height + 24)));
-  return { page, y, height, top, bottom: paperInset(sheet.dataset.bottomMargin, top) };
+  return { page, y, height, top, sheet, bottom: paperInset(sheet.dataset.bottomMargin, top) };
 }
 
 function layoutHash(value: string) {
@@ -352,10 +352,11 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
     pointerEvents: "none",
     width: `${parseFloat(getComputedStyle(owner || root).width)}px`,
   });
-  const ownerStarts = pageFlow ? floatingImages(root).map(img => {
+  const liveImages = pageFlow ? floatingImages(root) : [];
+  const ownerStarts = liveImages.map(img => {
     const at = ownerPaper(img, root);
     return at ? at.page + (at.y > at.page * (at.height + 24) + at.top + .5 ? 1 : 0) : 0;
-  }) : [];
+  });
   const copy = root.cloneNode(true) as HTMLElement;
   // Caret separators can leave a phantom line before newly inserted block
   // widgets in a clone. They have no authored width, height or model offset.
@@ -440,6 +441,26 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
         geometry:{ horizontalPosition:{relative:'page',offset:0},verticalPosition:{relative:'page',offset:0},wrap:{type:1},margins:{top:(data.wrapMargins?.[0]||0)*9525,right:(data.wrapMargins?.[1]||0)*9525,bottom:(data.wrapMargins?.[2]||0)*9525,left:(data.wrapMargins?.[3]||0)*9525} } });
     }
     const initialPictures = pageFlow ? new Map(pictures.filter(p=>p.index>=0).map(p=>[p.index,p.top])) : undefined;
+
+    // Removing the old floating widgets can move a blank anchor before a
+    // table gap in this copy. When its live paper is later, its temporary
+    // position must not wrap content already wholly on an earlier paper.
+    const laterLivePapers = new Map<number, { sheet: HTMLElement; previousPaperBottom: number }>();
+    for (const picture of pictures) {
+      if (!pageFlow?.candidates.has(picture.index) || pageFlow.starts.has(picture.index) ||
+          picture.geometry.wrap?.type !== 1 || picture.geometry.verticalPosition.relative !== 'page') continue;
+      const owner = imageOwners[picture.index];
+      if (!tableDependentParagraphs.has(owner) || owner.textContent?.replace(/[\s\u200b\u2060\ufeff]/gu, '')) continue;
+      const actual = ownerPaper(liveImages[picture.index], root);
+      const planned = ownerPaper(images[picture.index], copy);
+      if (actual && planned && actual.page > planned.page) {
+        const pageEnd = actual.page * (actual.height + 24) - 24;
+        const previousPaperBottom = actual.sheet.getBoundingClientRect().top + (pageEnd + .5) * documentScale(actual.sheet);
+        laterLivePapers.set(picture.index, { sheet: actual.sheet, previousPaperBottom });
+      }
+    }
+    const liveParagraphs = laterLivePapers.size ? paragraphs(root) : [];
+
     const groupIds=new Set<string>();
     for(const picture of [...pictures])if(picture.index>=0){const group=groupExclusion(picture);if(group && !groupIds.has(group.geometry.drawingGroup!.id)){pictures.push(group);groupIds.add(group.geometry.drawingGroup!.id);}}
     const result: ParagraphPlan[] = [];
@@ -481,7 +502,18 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
       // line endings even though every line still has its full width.
       // A cell-bound drawing must not reflow paragraphs in another cell.
       // Otherwise page-anchored artwork can chase an earlier row as its page moves.
+      const liveParagraph = liveParagraphs[pi];
+      const liveSheet = liveParagraph?.closest('[data-page-height],.print-page');
+      let liveBottom: number | undefined;
+      const wrapsOnlyLaterPaper = (picture: Picture) => {
+        const later = laterLivePapers.get(picture.index);
+        if (!liveParagraph || !later || liveSheet !== later.sheet || p === imageOwners[picture.index] ||
+            !(p.compareDocumentPosition(images[picture.index]) & Node.DOCUMENT_POSITION_FOLLOWING)) return false;
+        liveBottom ??= liveParagraph.getBoundingClientRect().bottom;
+        return liveBottom <= later.previousPaperBottom;
+      };
       const flowing = pictures.filter(pic => samePageSegment(pic, p) && !pic.offPage && pic.geometry.wrap?.type !== 0 &&
+        !wrapsOnlyLaterPaper(pic) &&
         (!pic.wrapCell || pic.wrapCell === p.closest('td,th')) && !(pic.index<0 && p.closest('.document-textbox')));
       const style = getComputedStyle(p),
         box = p.getClientRects()[0] || p.getBoundingClientRect();
