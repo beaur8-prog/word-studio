@@ -12,6 +12,7 @@ import { isOrdinaryWordBodyParagraph } from './word-trailing-spaces';
 import { tableAnchor } from './table-anchor-data';
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { imageOutsidePaper, recoverableCellImage, imageFloating, type ImageFloating } from "./image-floating";
 
@@ -59,6 +60,62 @@ function ownerPaper(element: HTMLElement, root: HTMLElement) {
   const height = Number(sheet.dataset.pageHeight) || 1122.52, top = paperInset(sheet.dataset.margin, 96);
   const page = Math.max(0, Math.floor((y - top + .5) / (height + 24)));
   return { page, y, height, top, sheet, scale, bottom: paperInset(sheet.dataset.bottomMargin, top) };
+}
+
+type OwnerPageStep = { page: number; layout: number; pass: number };
+type RepeatedOwner = {
+  index: number;
+  image: HTMLImageElement;
+  paper: NonNullable<ReturnType<typeof ownerPaper>>;
+  history: OwnerPageStep[];
+};
+
+function pageSquareBounds({ image, paper }: RepeatedOwner) {
+  const geometry = imageFloating(image.dataset.imageFloating);
+  if (!geometry || geometry.drawingGroup || geometry.behindDocument || geometry.wrap?.type !== 1 ||
+      geometry.wrap.side !== 'bothSides' || geometry.horizontalPosition.relative !== 'page' ||
+      geometry.verticalPosition.relative !== 'page' ||
+      geometry.horizontalPosition.align || geometry.verticalPosition.align ||
+      (geometry.margins && Object.values(geometry.margins).some(value => value !== 0))) return;
+  const horizontal = geometry.horizontalPosition.offset, vertical = geometry.verticalPosition.offset;
+  if (horizontal === undefined || vertical === undefined) return;
+  const x = horizontal / 9525, y = vertical / 9525;
+  const width = Number(image.getAttribute('width')), height = Number(image.getAttribute('height'));
+  if (!(width > 0 && height > 0) || x < 0 || x + width > paper.sheet.clientWidth ||
+      y < paper.top || y + height > paper.height - paper.bottom) return;
+  return { left: x, right: x + width, top: y, bottom: y + height };
+}
+
+/** Two image-only anchors can share one repeated wrap state. When they
+ * collide on the earlier paper, try moving the later source anchor first. */
+function coupledOwnerPair(earlier: RepeatedOwner, later: RepeatedOwner, positions: Map<HTMLElement, number>, doc: ProseMirrorNode) {
+  if (later.index !== earlier.index + 1 || earlier.paper.sheet !== later.paper.sheet) return false;
+  const a = earlier.image.closest<HTMLElement>('p'), b = later.image.closest<HTMLElement>('p');
+  if (!a || !b || a === b || a.parentElement !== b.parentElement) return false;
+  const left = positions.get(a), right = positions.get(b);
+  if (left === undefined || right === undefined || left >= right) return false;
+  const from = doc.resolve(left), to = doc.resolve(right);
+  if (from.parent !== to.parent) return false;
+  for (const block of [from.nodeAfter, to.nodeAfter])
+    if (!block || block.type.name !== 'paragraph' || block.childCount !== 1 || block.firstChild?.type.name !== 'inlineImage') return false;
+  for (let index = from.index() + 1; index < to.index(); index++) {
+    const block = from.parent.child(index);
+    if (block.type.name !== 'paragraph' || block.childCount) return false;
+  }
+
+  // Require the same observations in the same layout passes. A coincident
+  // report from a different cycle must retain its independent start decision.
+  const first = earlier.history, second = later.history;
+  if (!first.every((step, index) => step.pass === second[index].pass && step.layout === second[index].layout)) return false;
+  const common = first[0].page < first[1].page ? 0 : 1, advanced = 1 - common;
+  if (first[common].page !== second[common].page || first[advanced].page <= first[common].page ||
+      first[advanced].page >= second[advanced].page) return false;
+  const bounds = pageSquareBounds(earlier), other = pageSquareBounds(later);
+  if (!bounds || !other) return false;
+  // Edges that only meet can round in opposite directions when scaled from EMUs.
+  const horizontal = Math.min(bounds.right, other.right) - Math.max(bounds.left, other.left);
+  const vertical = Math.min(bounds.bottom, other.bottom) - Math.max(bounds.top, other.top);
+  return horizontal > 1 / 64 && vertical > 1 / 64;
 }
 
 function layoutHash(value: string) {
@@ -1020,7 +1077,8 @@ export const FloatingLayout = Extension.create({
             signature = "",
             lastDocument = view.state.doc;
           const pageFlow: PageFlow = { starts: new Set(), backwards: new Set(), candidates: new Set() };
-          const backwardsSeen = new Set<number>(), paperHistory = new Map<number, { page: number; layout: number }[]>();
+          const backwardsSeen = new Set<number>(), paperHistory = new Map<number, OwnerPageStep[]>();
+          let layoutPass = 0;
           let flowDocument: typeof view.state.doc | undefined = view.state.doc, flowShape = '';
           const calculate = () => {
             cancelAnimationFrame(frame);
@@ -1044,10 +1102,11 @@ export const FloatingLayout = Extension.create({
                 pageFlow.starts.clear();pageFlow.backwards.clear();pageFlow.candidates.clear();backwardsSeen.clear();paperHistory.clear();flowDocument=view.state.doc;flowShape=shape;
               }
               const layout = layoutHash(`${sheet?.dataset.pages}:${view.dom.getBoundingClientRect().height}:${signature}`);
+              const pass = ++layoutPass, repeated: RepeatedOwner[] = [];
               floatingImages(view.dom).forEach((image, index) => {
                 if (!pageFlow.candidates.has(index) || pageFlow.starts.has(index)) return;
                 const at = ownerPaper(image, view.dom); if (!at) return;
-                const history = paperHistory.get(index) || [], current = { page: at.page, layout };
+                const history = paperHistory.get(index) || [], current = { page: at.page, layout, pass };
                 if (history.at(-1)?.page === at.page) history[history.length - 1] = current;
                 else { history.push(current); if (history.length > 5) history.shift(); }
                 paperHistory.set(index, history);
@@ -1056,8 +1115,16 @@ export const FloatingLayout = Extension.create({
                 // evidence that a backward wrap needs an anchor break.
                 const equal = (a: number, b: number) => history[a].page === history[b].page && history[a].layout === history[b].layout;
                 if (backwardsSeen.has(index) && history.length === 5 && equal(0, 2) && equal(2, 4) && equal(1, 3) && history[0].page !== history[1].page)
-                  pageFlow.starts.add(index);
+                  repeated.push({ index, image, paper: at, history });
               });
+              if (repeated.length === 2 && coupledOwnerPair(repeated[0], repeated[1], pos, view.state.doc)) {
+                const [earlier, later] = repeated;
+                pageFlow.starts.add(later.index);
+                paperHistory.delete(earlier.index);
+                backwardsSeen.delete(earlier.index);
+              } else {
+                for (const owner of repeated) pageFlow.starts.add(owner.index);
+              }
               let plan: ParagraphPlan[];
               const wordHangingSpaces = documentMetadata.getState(view.state)?.wordHangingSpaces === true &&
                 !view.dom.querySelector('[data-note-reference]');
