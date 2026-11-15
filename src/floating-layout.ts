@@ -4,6 +4,7 @@ import { documentScale } from './document-scale';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import {inlineDrawingAnchor,prepareDrawingGroupAnchors} from './drawing-group';
 import { layoutTextBoxes, textBoxFrame } from './textbox-frame';
+import { tableAnchor } from './table-anchor-data';
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
@@ -43,15 +44,15 @@ type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; mi
 type PageFlow = { starts: Set<number>; backwards: Set<number>; candidates: Set<number> };
 
 /** Read the anchor's paper in document pixels, including CSS zoom. */
-function ownerPaper(image: HTMLImageElement, root: HTMLElement) {
-  const paragraph = image.closest<HTMLElement>('p,h1,h2,h3,h4,h5,h6');
+function ownerPaper(element: HTMLElement, root: HTMLElement) {
+  const paragraph = element.closest<HTMLElement>('p,h1,h2,h3,h4,h5,h6');
   if (!paragraph) return;
   const sheet = paragraph.closest<HTMLElement>('[data-page-height],.print-page') || root;
   const scale = documentScale(paragraph);
   const y = (paragraph.getBoundingClientRect().top - sheet.getBoundingClientRect().top) / scale;
   const height = Number(sheet.dataset.pageHeight) || 1122.52, top = paperInset(sheet.dataset.margin, 96);
   const page = Math.max(0, Math.floor((y - top + .5) / (height + 24)));
-  return { page, y, height, top, sheet, bottom: paperInset(sheet.dataset.bottomMargin, top) };
+  return { page, y, height, top, sheet, scale, bottom: paperInset(sheet.dataset.bottomMargin, top) };
 }
 
 function layoutHash(value: string) {
@@ -339,6 +340,10 @@ function imagePosition(
 /** Plan in a detached copy of the live geometry. The editable document receives
  * only ProseMirror decorations: no split paragraphs, copied text or DOM moves. */
 export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): ParagraphPlan[] {
+  return planFloatingLayoutPass(root, pageFlow, true) ?? planFloatingLayoutPass(root, pageFlow, false)!;
+}
+
+function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefined, allowRebase: boolean): ParagraphPlan[] | null {
   if (!root.querySelector("img[data-image-floating],.document-textbox")) return [];
   const owner = root.closest<HTMLElement>(".document-stack,.print-page");
   const host = (owner?.cloneNode(false) || document.createElement("div")) as HTMLElement;
@@ -445,7 +450,9 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
     // Removing the old floating widgets can move a blank anchor before a
     // table gap in this copy. When its live paper is later, its temporary
     // position must not wrap content already wholly on an earlier paper.
-    const laterLivePapers = new Map<number, { sheet: HTMLElement; previousPaperBottom: number }>();
+    const laterLivePapers = new Map<number, {
+      sheet: HTMLElement; previousPaperBottom: number; anchor: NonNullable<ReturnType<typeof ownerPaper>>;
+    }>();
     for (const picture of pictures) {
       if (!pageFlow?.candidates.has(picture.index) || pageFlow.starts.has(picture.index) ||
           picture.geometry.wrap?.type !== 1 || picture.geometry.verticalPosition.relative !== 'page') continue;
@@ -456,10 +463,60 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
       if (actual && planned && actual.page > planned.page) {
         const pageEnd = actual.page * (actual.height + 24) - 24;
         const previousPaperBottom = actual.sheet.getBoundingClientRect().top + (pageEnd + .5) * documentScale(actual.sheet);
-        laterLivePapers.set(picture.index, { sheet: actual.sheet, previousPaperBottom });
+        laterLivePapers.set(picture.index, { sheet: actual.sheet, previousPaperBottom, anchor: actual });
       }
     }
     const liveParagraphs = laterLivePapers.size ? paragraphs(root) : [];
+
+    type Projection = {
+      picture: Picture; anchorY: number; recipientY: number; page: number; shift: number; bottom: number;
+    };
+    const proposals = new Map<HTMLElement, Projection>();
+    const applied = new Map<number, Projection>();
+    const overlapsOrdinaryFlow = () => {
+      if (copy.querySelector('.table-overlay-active,.table-wrap-frame,[data-textbox-position="floating"]')) return true;
+      if ([...copy.querySelectorAll<HTMLElement>('table[data-table-anchor]')].some(table => {
+        const anchor = tableAnchor(table.dataset.tableAnchor);
+        return !!(anchor?.wrap || anchor?.overlay);
+      })) return true;
+      return [...copy.querySelectorAll<HTMLElement>('[style*="margin"]')].some(block =>
+        parseFloat(block.style.marginTop) < 0 || parseFloat(block.style.marginBottom) < 0);
+    };
+    const projectOrdinaryBody = allowRebase && laterLivePapers.size > 0 && !overlapsOrdinaryFlow();
+    function firstTextAfterAnchor(anchor: HTMLElement | null | undefined) {
+      let p = anchor?.nextElementSibling;
+      while (p instanceof HTMLElement && p.tagName === 'P' &&
+             !p.querySelector('img,svg,table,video,canvas,[data-note-reference],[data-page-number]')) {
+        if (p.textContent?.trim()) return p;
+        p = p.nextElementSibling;
+      }
+    }
+    function proposeProjection(picture: Picture) {
+      if (!projectOrdinaryBody) return;
+      const liveAnchor = laterLivePapers.get(picture.index)?.anchor;
+      const img = liveImages[picture.index];
+      if (!liveAnchor || !img || getComputedStyle(img).position !== 'absolute') return;
+      const owner = imageOwners[picture.index];
+      const cloneAnchor = ownerPaper(owner, copy);
+      if (!cloneAnchor || cloneAnchor.page !== liveAnchor.page) return;
+      const receiver = firstTextAfterAnchor(owner), liveReceiver = firstTextAfterAnchor(img.closest('p'));
+      if (!receiver || !liveReceiver || proposals.has(receiver)) return;
+      const inCopy = ownerPaper(receiver, copy), inLive = ownerPaper(liveReceiver, root);
+      if (!inCopy || !inLive || inCopy.sheet !== cloneAnchor.sheet || inLive.sheet !== liveAnchor.sheet ||
+          inCopy.page !== cloneAnchor.page || inLive.page !== liveAnchor.page ||
+          Math.abs((inLive.y - liveAnchor.y) - (inCopy.y - cloneAnchor.y)) > .5) return;
+      const shift = liveAnchor.y - cloneAnchor.y;
+      if (shift <= .5) return;
+      const translated = { ...picture, top: picture.top - shift, cssTop: picture.cssTop - shift };
+      const margin = picture.geometry.margins;
+      const top = Math.min(translated.top, picture.top) - (margin?.top || 0) / 9525;
+      const bottom = Math.max(translated.top, picture.top) + picture.height + (margin?.bottom || 0) / 9525;
+      const rect = receiver.getBoundingClientRect(), height = liveReceiver.getBoundingClientRect().height / inLive.scale;
+      if (top < rect.top - .5 || bottom > rect.top + height + .5 ||
+          inLive.y + height > inLive.page * (inLive.height + 24) + inLive.height + .5) return;
+      proposals.set(receiver, { picture: translated, anchorY: cloneAnchor.y, recipientY: inCopy.y,
+        page: cloneAnchor.page, shift, bottom });
+    }
 
     const groupIds=new Set<string>();
     for(const picture of [...pictures])if(picture.index>=0){const group=groupExclusion(picture);if(group && !groupIds.has(group.geometry.drawingGroup!.id)){pictures.push(group);groupIds.add(group.geometry.drawingGroup!.id);}}
@@ -484,6 +541,7 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
       for (const picture of own) {
         const i = pictures.findIndex((v) => v.index === picture.index);
         if (i >= 0) pictures[i] = picture;
+        proposeProjection(picture);
         const group=groupExclusion(picture);if(group){const gi=pictures.findIndex(v=>v.index<=-100000 && v.geometry.drawingGroup?.id===group.geometry.drawingGroup!.id);if(gi>=0)pictures[gi]=group;}
       }
       // A body paragraph containing only floating anchors has no painted
@@ -512,9 +570,15 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
         liveBottom ??= liveParagraph.getBoundingClientRect().bottom;
         return liveBottom <= later.previousPaperBottom;
       };
+      const projection = proposals.get(p);
+      if (projection) {
+        const receiver = ownerPaper(p, copy);
+        if (!receiver || receiver.page !== projection.page || Math.abs(receiver.y - projection.recipientY) > .5) return null;
+      }
       const flowing = pictures.filter(pic => samePageSegment(pic, p) && !pic.offPage && pic.geometry.wrap?.type !== 0 &&
         !wrapsOnlyLaterPaper(pic) &&
-        (!pic.wrapCell || pic.wrapCell === p.closest('td,th')) && !(pic.index<0 && p.closest('.document-textbox')));
+        (!pic.wrapCell || pic.wrapCell === p.closest('td,th')) && !(pic.index<0 && p.closest('.document-textbox')))
+        .map(pic => projection && projection.picture.index === pic.index ? projection.picture : pic);
       const style = getComputedStyle(p),
         box = p.getClientRects()[0] || p.getBoundingClientRect();
       const lh = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.3,
@@ -535,6 +599,7 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
       if (
         !flowing.some((pic) => pic.top + pic.height >= y - 0.5 && pic.top < box.bottom + 0.5)
       ) {
+        if (projection && flowing.includes(projection.picture)) return null;
         if (own.length) result.push({ index: pi, widgets: [], pictures: own });
         continue;
       }
@@ -736,13 +801,32 @@ export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): Para
         }
       }
       insertWidgets(p, widgets);
+      if (projection && flowing.includes(projection.picture)) {
+        // If either band can reach the next block, keep placement and wrap
+        // together by discarding this pass, before applying any decorations.
+        const receiver = ownerPaper(p, copy), rect = p.getBoundingClientRect();
+        if (!receiver || receiver.page !== projection.page || rect.bottom < projection.bottom - .5 ||
+            receiver.y + rect.height / receiver.scale > receiver.page * (receiver.height + 24) + receiver.height + .5) return null;
+        applied.set(projection.picture.index, projection);
+      }
       result.push({ index: pi, widgets, pictures: own });
     }
     // Flow widgets can change a vertically aligned cell's content height and
     // move its anchor paragraph. Resolve absolute picture offsets against
     // that final geometry, not the paragraph's pre-wrap position.
-    for (const paragraph of result) paragraph.pictures = paragraph.pictures.map(picture =>
-      imagePosition(images[picture.index], picture.index, copy) || picture);
+    for (const paragraph of result) {
+      const resolved: Picture[] = [];
+      for (const picture of paragraph.pictures) {
+        const placed = imagePosition(images[picture.index], picture.index, copy) || picture;
+        const projection = applied.get(picture.index);
+        if (projection) {
+          const paper = ownerPaper(images[picture.index], copy);
+          if (!paper || paper.page !== projection.page || Math.abs(paper.y - projection.anchorY) > 1 / 64) return null;
+        }
+        resolved.push(projection ? { ...placed, cssTop: placed.cssTop - projection.shift } : placed);
+      }
+      paragraph.pictures = resolved;
+    }
     for (const paragraph of result) {
       paragraph.minimumHeight = Math.max(0, ...paragraph.pictures.map(p => p.minimumHeight || 0)) || undefined;
     }
