@@ -1,7 +1,7 @@
 import { layoutWordAutoFitTables } from './word-table-autofit';
 import { canMeasureMergedFragments } from './editor-merged-fragments';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
-import { wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
+import { wordFlowHasWrappingAnchors, wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
 import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { documentScale } from './document-scale';
 import { Extension } from '@tiptap/core';
@@ -226,6 +226,7 @@ export const Pagination = Extension.create({
             else contexts.push({ node: view.state.doc, start: 0, dom: view.dom, sheet });
             let totalCount = 0;
             const placedNotes = new Set<string>();
+            const wrappingAnchors = wordFlowHasWrappingAnchors(view.dom);
             for (const context of contexts) {
               const h = Number(context.sheet.dataset.pageHeight) || Number(sheet.dataset.pageHeight) || 1122.52;
               const top = Number(context.sheet.dataset.margin ?? sheet.dataset.margin ?? 96);
@@ -396,7 +397,7 @@ export const Pagination = Extension.create({
                 if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
                   if (paragraph instanceof HTMLElement && /^(P|H[1-6])$/.test(paragraph.tagName)) {
-                    const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed,
+                    const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed, wrappingAnchors,
                       references: (piece.references ?? []).filter(ref => refs.some(r => r.id === ref.id)).map(ref => ({ id: ref.id, top: piece.top + ref.offset })),
                       reserveAt: (page, own) => reserve(page, own) });
                     if (flow) { assignNotes(flow.references); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }

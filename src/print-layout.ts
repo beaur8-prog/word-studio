@@ -1,6 +1,6 @@
 import { layoutWordAutoFitTables } from './word-table-autofit';
 import { preparePrintFonts, type PrintFontRequest } from './print-fonts';
-import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
+import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight, wordFlowHasWrappingAnchors, wordWidowSplitBounds } from './word-keep-policy';
 import { rowSplitPolicy } from './row-split-policy';
 import { layoutTextBoxes } from './textbox-frame';
 import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
@@ -54,6 +54,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     noteBodies.set(note.dataset.documentNote!, note); note.remove();
   }
   const keepChains = wordKeepChains(source), protectedKeeps = new WeakSet<HTMLElement>();
+  const wrappingAnchors = wordFlowHasWrappingAnchors(source);
   let settings = initialPage, pageNumber = 0, content: HTMLElement, footnotes: HTMLElement;
   let deferredNotes = new Set<string>();
   let sectionNumber = 0;
@@ -444,8 +445,14 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // Explicit empty lines have flow even when the paragraph has no letters.
     if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && ((element.textContent?.length ?? 0) > 1 || element.querySelector('br'))) {
       const offsets = paragraphLineOffsets(element);
-      const keepTogether = keepShortWordParagraphTogether(element, offsets.length + 1, content.getBoundingClientRect().height);
-      let low = 0, high = keepTogether ? -1 : offsets.length - 1, best = 0;
+      const bodyHeight = content.getBoundingClientRect().height;
+      const lineCount = offsets.length + 1;
+      const keepTogether = keepShortWordParagraphTogether(element, lineCount, bodyHeight);
+      const bounds = wrappingAnchors ? undefined : wordWidowSplitBounds(element, lineCount, bodyHeight);
+      // Offset zero is the cut following line one.
+      let low = bounds ? bounds.minimumHead - 1 : 0;
+      let high = keepTogether ? -1 : (bounds ? bounds.maximumHead - 1 : offsets.length - 1);
+      let best = 0;
       element.remove();
       while (low <= high) {
         const mid = (low + high) >> 1;
