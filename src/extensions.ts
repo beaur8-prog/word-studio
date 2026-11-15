@@ -17,6 +17,7 @@ import { Pagination } from './pagination';
 import { ImportedFormat, StudioTableView } from './imported-format';
 import { DocumentTab, DocumentTabs } from './document-tabs';
 import { WordLineMetrics } from './word-line-metrics';
+import { WordCellSpacing } from './word-cell-spacing';
 import { WordContextualSpacing } from './word-contextual-spacing';
 import { WordParagraphBottomBorderLayout } from './word-paragraph-border-layout';
 import { WordListLabels } from './word-list-labels';
@@ -137,6 +138,7 @@ export const editorExtensions = [
   ParagraphFormat,
   ImportedFormat,
   WordLineMetrics,
+  WordCellSpacing,
   WordContextualSpacing,
   WordParagraphBottomBorderLayout,
   WordListLabels,

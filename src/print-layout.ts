@@ -1,3 +1,4 @@
+import { layoutWordCellSpacing } from './word-cell-spacing';
 import { layoutWordAutoFitTables } from './word-table-autofit';
 import { preparePrintFonts, type PrintFontRequest } from './print-fonts';
 import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight, wordFlowHasWrappingAnchors, wordWidowSplitBounds } from './word-keep-policy';
@@ -551,6 +552,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // Named @page rules affect output paper, not screen measurement. Publish
     // them once so every new sheet does not invalidate the live editor's styles.
     style.textContent = [...new Set(pageStyles)].join('\n');
+    await layoutWordCellSpacing(host);
+    signal?.throwIfAborted();
     return { element: host, pages: pageNumber, pageSettings, warnings: [...warnings], dispose: () => host.remove() };
   } catch (error) { host.remove(); throw error; }
 }
