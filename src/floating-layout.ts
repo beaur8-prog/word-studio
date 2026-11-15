@@ -6,6 +6,7 @@ import {inlineDrawingAnchor,prepareDrawingGroupAnchors} from './drawing-group';
 import { layoutTextBoxes, textBoxFrame } from './textbox-frame';
 import { documentMetadata } from './document-history';
 import { wordFontMetricsChanged } from './word-font-fallbacks';
+import { applyFloatingBottomBorder, clearFloatingBottomBorders, floatingBottomBorderDimensions, floatingBottomBorderPaint, wordBottomBorderEnd } from './word-paragraph-border-layout';
 import { measuredBodySpaceAdjustment } from './word-line-metrics';
 import { isOrdinaryWordBodyParagraph } from './word-trailing-spaces';
 import { tableAnchor } from './table-anchor-data';
@@ -44,7 +45,7 @@ type Picture = {
   cssTop: number;
   geometry: ImageFloating;
 };
-type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number; originalMinimum?: string; startPage?: boolean; wordSpaceAdjustment?: number };
+type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number; originalMinimum?: string; startPage?: boolean; wordSpaceAdjustment?: number; bottomBorderInset?: number };
 type PageFlow = { starts: Set<number>; backwards: Set<number>; candidates: Set<number> };
 type WordFloatingSpacePass = { skip: ReadonlySet<number>; rejected: Set<number> };
 
@@ -414,6 +415,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
   copy.querySelectorAll("[data-flow-widget],.ProseMirror-separator").forEach((el) => el.remove());
   restoreCellPictureReservations(copy);
   clearFloatSpaceRules(copy);
+  clearFloatingBottomBorders(copy);
   copy.removeAttribute("contenteditable");
   host.append(copy);
   document.body.append(host);
@@ -753,6 +755,13 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
         }
         return best;
       };
+      let bottomBorderInset: number | undefined;
+      let bottomBorderLineHeight = 0;
+      const bottomBorder = !own.length && !p.hasAttribute('data-print-paragraph-fragment') && !p.hasAttribute('data-print-soft-end') &&
+        p.hasAttribute(wordBottomBorderEnd) && firstIndent === 0 && ['left', 'start'].includes(style.textAlign) &&
+        style.direction === 'ltr' && style.writingMode === 'horizontal-tb' && !projection &&
+        !root.querySelector('[data-note-reference],table[data-table-anchor],[data-column-count]:not([data-column-count="1"])')
+        ? floatingBottomBorderDimensions(p) : null;
       let start = 0,
         line = 0;
       while (start < tokens.length && line++ < 10000) {
@@ -817,7 +826,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
             nextStart = last;
             if (nextStart >= end) break;
           }
-          return { lineWidgets, nextStart, cursor, hanging, blocked: !spans.length, supported };
+          return { lineWidgets, nextStart, cursor, hanging, blocked: !spans.length, supported, spans };
         };
         let arranged = arrange(lineHeight);
         // Exclusions depend on line height, and the selected words determine
@@ -829,6 +838,10 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
           arranged = arrange(lineHeight);
         }
         if (wordSpaceAdjustment !== null && !arranged.supported) wordSpaces?.rejected.add(pi);
+        if (bottomBorder && line === 1 && arranged.supported && arranged.nextStart === tokens.length) {
+          bottomBorderInset = arranged.spans[0][0] - x;
+          bottomBorderLineHeight = lineHeight;
+        }
         if (arranged.blocked) {
           const jump = Math.max(
             lineHeight,
@@ -877,6 +890,26 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
         }
       }
       insertWidgets(p, widgets);
+      if (bottomBorderInset !== undefined && bottomBorder) {
+        const paper = ownerPaper(p, copy), rect = p.getBoundingClientRect();
+        const strokeTop = rect.bottom + bottomBorder.gap;
+        const strokeLeft = x + bottomBorderInset;
+        const band = slots(flowing, x, strokeTop, width, bottomBorder.stroke);
+        // Pictures with no text wrap do not contribute to slots, but their
+        // painted rectangles can still cross the proposed line.
+        const crossesPicture = pictures.some(picture => !picture.offPage &&
+          picture.left < x + width && picture.left + picture.width > strokeLeft &&
+          picture.top < strokeTop + bottomBorder.stroke && picture.top + picture.height > strokeTop);
+        const reserve = bottomBorder.gap + bottomBorder.stroke + Math.max(0, parseFloat(style.marginBottom) || 0);
+        // Use the verified interval at the stroke, not a block-wide border
+        // through a nearby picture or a line whose clear interval changes.
+        if (paper && !crossesPicture && rect.height / paper.scale <= bottomBorderLineHeight + .5 &&
+            isRightSlot(band, 0) && Math.abs(band[0][0] - x - bottomBorderInset) < .1 &&
+            paper.y + rect.height / paper.scale + reserve <=
+              paper.page * (paper.height + 24) + paper.height - paper.bottom - .5)
+          applyFloatingBottomBorder(p, bottomBorderInset);
+        else bottomBorderInset = undefined;
+      }
       if (wordSpaceAdjustment !== null) {
         const paper = ownerPaper(p, copy);
         const after = Math.max(0, parseFloat(style.marginBottom) || 0);
@@ -895,7 +928,8 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
             receiver.y + rect.height / receiver.scale > receiver.page * (receiver.height + 24) + receiver.height + .5) return null;
         applied.set(projection.picture.index, projection);
       }
-      result.push({ index: pi, widgets, pictures: own, ...(wordSpaceAdjustment !== null ? { wordSpaceAdjustment } : {}) });
+      result.push({ index: pi, widgets, pictures: own, ...(wordSpaceAdjustment !== null ? { wordSpaceAdjustment } : {}),
+        ...(bottomBorderInset !== undefined ? { bottomBorderInset } : {}) });
     }
     // Flow widgets can change a vertically aligned cell's content height and
     // move its anchor paragraph. Resolve absolute picture offsets against
@@ -945,6 +979,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
 export function applyFloatingLayout(root: HTMLElement, wordHangingSpaces = false) {
   root.querySelectorAll("[data-flow-widget]").forEach((el) => el.remove());
   clearFloatSpaceRules(root);
+  clearFloatingBottomBorders(root);
   restoreCellPictureReservations(root);
   const plan = planFloatingLayout(root, undefined, wordHangingSpaces),
     ps = paragraphs(root),
@@ -952,6 +987,7 @@ export function applyFloatingLayout(root: HTMLElement, wordHangingSpaces = false
   for (const paragraph of plan) {
     const p = ps[paragraph.index];
     if (paragraph.wordSpaceAdjustment !== undefined) setFloatSpaceRules(p, paragraph.wordSpaceAdjustment);
+    if (paragraph.bottomBorderInset !== undefined) applyFloatingBottomBorder(p, paragraph.bottomBorderInset);
     if (paragraph.pictures.length) p.style.position = "relative";
     if (paragraph.originalMinimum !== undefined) p.setAttribute('data-floating-cell-original-min-height', paragraph.originalMinimum);
     if (paragraph.minimumHeight) {
@@ -1043,6 +1079,13 @@ export const FloatingLayout = Extension.create({
                   decorations.push(Decoration.node(position, position + view.state.doc.nodeAt(position)!.nodeSize,
                     { [floatSpaceRule]: 'true', style: floatSpaceStyle(paragraph.wordSpaceAdjustment) }));
                   values.push(`float-word-space:${position}:${paragraph.wordSpaceAdjustment}`);
+                }
+                if (paragraph.bottomBorderInset !== undefined) {
+                  const paint = floatingBottomBorderPaint(p, paragraph.bottomBorderInset);
+                  if (paint) {
+                    decorations.push(Decoration.node(position, position + view.state.doc.nodeAt(position)!.nodeSize, paint));
+                    values.push(`bottom-border:${position}:${paint.style}`);
+                  }
                 }
                 if (paragraph.pictures.length || paragraph.originalMinimum !== undefined)
                   decorations.push(

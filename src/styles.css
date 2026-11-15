@@ -924,6 +924,19 @@ button:hover:not(:disabled) {
 .word-overlap { display: inline-grid; vertical-align: baseline; text-indent: 0; }
 .word-overlap > span { grid-area: 1 / 1; align-self: center; justify-self: center; }
 .tiptap p:empty::after { content: '\200b'; }
+.tiptap [data-word-bottom-border-layout]:not([data-print-soft-end]) {
+  position: relative;
+  padding-bottom: calc(var(--word-bottom-border-space) + var(--word-bottom-border-width));
+}
+.tiptap [data-word-bottom-border-layout]:not([data-print-soft-end])::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 var(--word-bottom-border-inset, 0px);
+  height: var(--word-bottom-border-width);
+  background-color: var(--word-bottom-border-color);
+  print-color-adjust: exact;
+  pointer-events: none;
+}
 .tiptap [data-print-trailing-break]::after { content: '\200b'; }
 /* Restore natural line boxes while measuring pagination. The document model,
    paragraph marks and undo history retain the original blank paragraphs. */

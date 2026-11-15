@@ -15,6 +15,7 @@ import { layoutHwpBodyLines } from './hwp-body-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns, columnGroupFits } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
+import { layoutWordParagraphBottomBorders } from './word-paragraph-border-layout';
 import { imageOutsidePaper, imageFloating } from './image-floating';
 import { layoutFurnitureImages } from './furniture-layout';
 import { layoutTableAnchors, tableAnchor } from './table-anchor';
@@ -57,6 +58,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       if (isWordGroupedTextBoxParagraph(paragraph)) paragraph.dataset.wordHangingSpaces = 'true';
   }
   prepareParagraphEnds(source);
+  layoutWordParagraphBottomBorders(source);
   layoutWordContextualSpacing(source);
   layoutWordListLabels(source);
   if (wordLayout.wordBodyStrut && !wrappingAnchors) markMeasuredWordSymbolItems(source);

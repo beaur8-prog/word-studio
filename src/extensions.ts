@@ -18,6 +18,7 @@ import { ImportedFormat, StudioTableView } from './imported-format';
 import { DocumentTab, DocumentTabs } from './document-tabs';
 import { WordLineMetrics } from './word-line-metrics';
 import { WordContextualSpacing } from './word-contextual-spacing';
+import { WordParagraphBottomBorderLayout } from './word-paragraph-border-layout';
 import { WordListLabels } from './word-list-labels';
 import { WordHeadingDefaults } from './word-heading-defaults';
 import { HwpCellLineMetrics } from './hwp-cell-line-metrics';
@@ -137,6 +138,7 @@ export const editorExtensions = [
   ImportedFormat,
   WordLineMetrics,
   WordContextualSpacing,
+  WordParagraphBottomBorderLayout,
   WordListLabels,
   WordHeadingDefaults,
   HwpCellLineMetrics,
