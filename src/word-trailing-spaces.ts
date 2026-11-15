@@ -1,6 +1,7 @@
 import type { StudioDocument } from './types';
 import { parseTabStops, parseWordNumberingTabs } from './document-tabs';
 import { cssPixels } from './hwp-cell-line';
+import { isWordGroupedRectTextBox, textBoxFrame } from './textbox-frame';
 
 export const wordDefaultHangingSpacesProperty = 'WordStudio.DefaultTrailingSpaces';
 
@@ -48,4 +49,16 @@ export function isWordAlignedBulletParagraph(paragraph: HTMLElement): boolean {
   const stops = parseWordNumberingTabs(paragraph.dataset.wordNumberingTabs);
   return left !== null && left > 0 && paragraph.style.textIndent.startsWith('-') &&
     (stops.length === 0 || (stops.length === 1 && Math.round(left * 15) === stops[0]));
+}
+
+export function isWordGroupedTextBoxParagraph(paragraph: HTMLElement): boolean {
+  const content = paragraph.parentElement;
+  const box = content?.parentElement;
+  if (!content?.hasAttribute('data-textbox-content') || !box?.dataset.documentTextbox ||
+      !paragraph.matches('p[data-word-paragraph-style]') ||
+      box.closest('.document-furniture,[data-document-note],td,th,[data-column-count]') ||
+      paragraph.querySelector('img:not(.ProseMirror-separator),svg,[data-docx-tab],[data-note-reference],[data-page-number],[data-flow-widget],[data-document-field]'))
+    return false;
+  const frame = textBoxFrame(box.dataset.documentTextbox);
+  return !!frame && isWordGroupedRectTextBox(frame);
 }

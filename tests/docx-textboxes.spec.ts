@@ -291,3 +291,84 @@ test('an externally added keepNext on the floating textbox anchor style preserve
   }, [...await zip.generateAsync({ type: 'nodebuffer' })]);
   expect(carrier).toEqual({ boxIndex: 3, type: 'paragraph', keepNext: true });
 });
+
+async function scaledGroupFixture(wrapTrailSpaces: boolean) {
+  const zip = await JSZip.loadAsync(await groupedFixture());
+  const documentPart = 'word/document.xml';
+  const xml = await zip.file(documentPart)!.async('string');
+  const shapes = xml.match(/<wps:wsp>[\s\S]*?<\/wps:wsp>/g)!;
+  expect(shapes).toHaveLength(2);
+  const [first, second] = shapes;
+  const positive = first.replace('FIRST GROUP STORY', 'FIRST GROUP STORY with ordinary word spaces')
+    .replace('<a:ln><a:noFill/></a:ln>', '<a:ln w="6350"><a:solidFill><a:srgbClr val="AC2202"/></a:solidFill></a:ln>')
+    .replace('lIns="91440" tIns="0" rIns="91440" bIns="0" anchor="ctr"',
+      'lIns="91440" tIns="190500" rIns="182880" bIns="38100" anchor="t"');
+  const noWrap = second.replace('wrap="square"', 'wrap="none"').replace('anchor="ctr"', 'anchor="t"')
+    .replace('<a:ln><a:noFill/></a:ln>', '<a:ln w="6350"><a:solidFill><a:srgbClr val="AC2202"/></a:solidFill></a:ln>');
+  zip.file(documentPart, xml.replace(first, positive).replace(second, noWrap)
+    .replace('<a:ext cx="4667250" cy="762000"/>', '<a:ext cx="3733800" cy="838200"/>')
+    .replace('<wp:extent cx="2286000" cy="762000"/>', '<wp:extent cx="3733800" cy="838200"/>'));
+  const types = await zip.file('[Content_Types].xml')!.async('string');
+  zip.file('[Content_Types].xml', types.replace('</Types>',
+    '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>'));
+  const relsPart = 'word/_rels/document.xml.rels';
+  const rels = await zip.file(relsPart)!.async('string');
+  zip.file(relsPart, rels.replace('</Relationships>',
+    '<Relationship Id="settings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/></Relationships>'));
+  const styles = await zip.file('word/styles.xml')!.async('string');
+  zip.file('word/styles.xml', styles.replace('</w:styles>',
+    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>'));
+  zip.file('word/settings.xml', `<w:settings xmlns:w="${W}"><w:compat>${wrapTrailSpaces ? '<w:wrapTrailSpaces w:val="true"/>' : ''}</w:compat></w:settings>`);
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+test('grouped Word textbox scales horizontal insets, paints stroke outside line measurement and honors wrapTrailSpaces', async ({ page }) => {
+  const assertLayout = async (root: ReturnType<Page['locator']>, wrapTrailSpaces: boolean) => {
+    const boxes = root.locator('.document-textbox-content');
+    await expect(boxes).toHaveCount(2);
+    const box = boxes.filter({ hasText: 'FIRST GROUP STORY' });
+    const paragraph = box.locator('p');
+    await expect(paragraph).toHaveText('FIRST GROUP STORY with ordinary word spaces');
+    await expect(paragraph).toHaveCSS('white-space', wrapTrailSpaces ? 'break-spaces' : 'pre-wrap');
+    const geometry = await box.evaluate(element => {
+      const frame = JSON.parse(element.parentElement!.dataset.documentTextbox!);
+      const style = getComputedStyle(element);
+      const paragraph = getComputedStyle(element.querySelector('p')!);
+      return { frame, width: parseFloat(style.width), paragraphWidth: parseFloat(paragraph.width),
+        leftBorder: style.borderLeftWidth, rightBorder: style.borderRightWidth,
+        topBorder: parseFloat(style.borderTopWidth), shadow: style.boxShadow };
+    });
+    // The source child is 240 × 80 px, group transform is 0.8 × 1.1.
+    // Explicit left and right insets are 9.6 and 19.2 px in the child coordinates.
+    expect(geometry.frame.width).toBeCloseTo(192, 2);
+    expect(geometry.frame.height).toBeCloseTo(88, 2);
+    expect(geometry.frame.padding).toEqual([20, expect.closeTo(15.36, 2), 4, expect.closeTo(7.68, 2)]);
+    expect(geometry.frame.borderWidth).toBeCloseTo(2 / 3, 3);
+    expect(geometry.width).toBeCloseTo(192, 2);
+    expect(geometry.paragraphWidth).toBeCloseTo(192 - 15.36 - 7.68, 1);
+    expect(geometry.leftBorder).toBe('0px');
+    expect(geometry.rightBorder).toBe('0px');
+    expect(geometry.topBorder).toBeGreaterThan(0);
+    expect(geometry.shadow.match(/inset/g)).toHaveLength(2);
+    expect(geometry.shadow).toContain('rgb(172, 34, 2)');
+
+    const sibling = boxes.filter({ hasText: 'SECOND GROUP STORY' });
+    await expect(sibling.locator('p')).toHaveCSS('white-space', 'nowrap');
+    await expect(sibling).toHaveCSS('padding-left', '9.6px');
+    await expect(sibling).toHaveCSS('box-shadow', 'none');
+    expect(await sibling.evaluate(element => parseFloat(getComputedStyle(element).borderLeftWidth))).toBeGreaterThan(0);
+  };
+
+  for (const wrapTrailSpaces of [false, true]) {
+    await page.goto('/');
+    await page.locator('input[type=file]').first().setInputFiles({
+      name: wrapTrailSpaces ? 'word-group-wrap-trailing.docx' : 'word-group-default.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buffer: await scaledGroupFixture(wrapTrailSpaces),
+    });
+    await assertLayout(page.getByRole('textbox', { name: '문서 편집 영역', exact: true }), wrapTrailSpaces);
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    await assertLayout(page.locator('.print-content'), wrapTrailSpaces);
+  }
+});

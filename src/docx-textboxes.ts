@@ -111,15 +111,19 @@ function anchorPosition(anchor:Element|null,name:string):Element|undefined {
   }
  }
 }
-function modernFrame(shape:Element,page:PageSettings,palette:Awaited<ReturnType<typeof colors>>):TextBoxFrame {
+function modernFrame(shape:Element,page:PageSettings,palette:Awaited<ReturnType<typeof colors>>,
+  normalizeGroupedInsets = false):TextBoxFrame {
  const anchor=ancestor(shape,'anchor')||ancestor(shape,'inline');
  const transform=first(first(shape,'spPr'),'xfrm'),offset=first(transform,'off'),size=first(transform,'ext');
  let x=number(offset,'x'),y=number(offset,'y'),width=number(size,'cx',number(anchor ? first(anchor,'extent') : undefined,'cx',3657600)),height=number(size,'cy',number(anchor ? first(anchor,'extent') : undefined,'cy',914400));
  let parent=shape.parentElement,grouped=false;
+ let insetScale=1, simpleHorizontalTransform=isUnrotated(transform);
  while(parent && parent!==anchor) {
   if(parent.localName==='wgp') {grouped=true;
    const t=first(first(parent,'grpSpPr'),'xfrm'),off=first(t,'off'),ext=first(t,'ext'),childOff=first(t,'chOff'),childExt=first(t,'chExt');
    const sx=number(ext,'cx',1)/number(childExt,'cx',number(ext,'cx',1)),sy=number(ext,'cy',1)/number(childExt,'cy',number(ext,'cy',1));
+   simpleHorizontalTransform &&= parent.namespaceURI === WPG && isUnrotated(t) && Number.isFinite(sx) && sx > 0;
+   insetScale *= sx;
    x=number(off,'x')+(x-number(childOff,'x'))*sx;y=number(off,'y')+(y-number(childOff,'y'))*sy;width*=sx;height*=sy;
   }
   parent=parent.parentElement;
@@ -145,6 +149,17 @@ function modernFrame(shape:Element,page:PageSettings,palette:Awaited<ReturnType<
   autoFit:!!first(properties,'spAutoFit'),horizontalReference:hReference,horizontalOffset:hp.offset+x/EMU-(hReference==='page'?0:margins.left*96/25.4),horizontalAlign:!grouped && ['center','right'].includes(hAlign)?hAlign as 'center'|'right':'left',
   wrap:anchor && Array.from(anchor.children).some(c=>['wrapSquare','wrapTight','wrapThrough','wrapTopAndBottom'].includes(c.localName))?'square':'none',noWrap:properties?.getAttribute('wrap')==='none',
   ...palette.fill(shape),...(border ? {border,borderWidth:number(line,'w')/EMU}:{}),behind:anchor?.getAttribute('behindDoc')==='1'};
+ // Shape extents are flattened to page coordinates. Normalize explicit
+ // horizontal text insets with the same group transform before export.
+ if (normalizeGroupedInsets && grouped && simpleHorizontalTransform && frame.position === 'floating' &&
+     frame.shape === 'rect' && !frame.autoFit && !frame.noWrap && frame.align === 'top' &&
+     frame.border && (frame.borderWidth ?? 0) > 0 && properties?.hasAttribute('rIns') && properties.hasAttribute('lIns') &&
+     number(properties,'rot') === 0 && ['','horz'].includes(properties.getAttribute('vert') ?? '')) {
+   // This provenance is rebuilt from the standard group shape upon reopening.
+   frame.groupedHorizontalInsets = true;
+   frame.padding[1] *= insetScale;
+   frame.padding[3] *= insetScale;
+ }
  return textBoxFrame(JSON.stringify(frame)) || {...frame,x:0,y:0,width:400,height:100,position:'inline',padding:[5,10,5,10]};
 }
 function isUnrotated(transform: Element | null | undefined) {
@@ -213,8 +228,8 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
   const page=pageFor.get(ancestor(container,'p')!)||pages[0];const frames=[];
   for(const box of boxes) {
    const shape = ancestor(box, 'wsp');
-   const frame = shape ? modernFrame(shape, page, palette) : legacyFrame(box, page);
    const raw=ancestor(box,'drawing')?.getAttribute('data-ws-drawing-group');
+   const frame = shape ? modernFrame(shape, page, palette, !raw && boxes.length > 1) : legacyFrame(box, page);
    if(raw){frame.drawingGroup=JSON.parse(raw);frame.group=frame.drawingGroup!.id;}
    else if (shape && ancestor(box, 'wgp')) {
     const decoration = rectangleDecoration(shape, frame, page, palette);
