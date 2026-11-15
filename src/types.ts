@@ -57,6 +57,8 @@ export interface StudioDocument {
   title: string;
   content: JSONContent;
   page: PageSettings;
+  /** Document-wide Word auto hyphenation flag. Undefined keeps the DOCX element absent. */
+  wordAutoHyphenation?: boolean;
   comments: Comment[];
   updatedAt: string;
 }

@@ -23,7 +23,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // Outline input/two saves and three real UI exports add six files.
 // Checkbox input/two saves and two real UI exports add five files.
 // Eighteen independent empty-heading cases retain two DOCX saves each.
-let count = 284;
+// Three automatic hyphenation states add two DOCX saves each.
+let count = 290;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);

@@ -1,5 +1,6 @@
 import { countDocxCheckboxes } from './docx-checkboxes';
 import { readWordBackground, validWordBackground, writeWordBackground } from './docx-background';
+import { W } from './docx-format';
 import { sameSectionFrameSettings } from './section-frame-settings';
 import { encodeDocxXmlParts } from './docx-package-text';
 import { paragraphTextAlignment } from './paragraph-text-alignment';
@@ -156,12 +157,14 @@ export function validateDocument(input: unknown): StudioDocument {
   if (!object(input)) fail("Word Studio 문서가 올바른 JSON 객체가 아닙니다.");
   keysOnly(
     input,
-    ["id", "format", "version", "title", "content", "page", "comments", "updatedAt"],
+    ["id", "format", "version", "title", "content", "page", "wordAutoHyphenation", "comments", "updatedAt"],
     "문서",
   );
   if (input.format !== "word-studio" || input.version !== 1)
     fail("지원하지 않는 Word Studio 문서 버전입니다.");
   if (input.id !== undefined && (typeof input.id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(input.id))) fail('문서 ID가 올바르지 않습니다.');
+  if (input.wordAutoHyphenation !== undefined && typeof input.wordAutoHyphenation !== 'boolean')
+    fail('Word 자동 하이픈 설정이 올바르지 않습니다.');
   if (!boundedString(input.title, 512) || !validDate(input.updatedAt))
     fail("문서 제목 또는 저장 날짜가 올바르지 않습니다.");
   const page = input.page;
@@ -727,8 +730,19 @@ export async function importFile(file: File): Promise<ImportResult> {
     }
   }
   doc.page = pages[0] ?? { ...defaultPage };
-  const backgroundSettings = zip.file('word/settings.xml');
-  const background = readWordBackground(body, backgroundSettings ? xml(await backgroundSettings.async('string')) : undefined, warnings);
+  const settingsPart = zip.file('word/settings.xml');
+  const settings = settingsPart ? xml(await settingsPart.async('string')) : undefined;
+  const settingsRoot = settings?.documentElement;
+  if (settingsRoot?.namespaceURI === W && settingsRoot.localName === 'settings') {
+    const autoHyphenation = Array.from(settingsRoot.children)
+      .find(el => el.namespaceURI === W && el.localName === 'autoHyphenation');
+    if (autoHyphenation) {
+      const value = autoHyphenation.getAttributeNS(W, 'val');
+      if (value === null || value === 'true' || value === '1' || value === 'on') doc.wordAutoHyphenation = true;
+      else if (value === 'false' || value === '0' || value === 'off') doc.wordAutoHyphenation = false;
+    }
+  }
+  const background = readWordBackground(body, settings, warnings);
   if (background) for (const page of new Set([doc.page, ...pages])) page.wordBackground = background;
   const checkboxCount = await countDocxCheckboxes(zip, body);
   if (checkboxCount) warnings.push(`체크 상자 ${checkboxCount}개를 선택 상태가 유지되는 기호로 가져왔습니다. Word 양식 컨트롤은 기호로 변환됩니다.`);
@@ -1605,6 +1619,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       ...(bookmarkAliases.size ? [{ name: bookmarkNamesProperty, value: JSON.stringify([...bookmarkAliases].map(([name, alias]) => [alias, name])) }] : []),
     ],
     evenAndOddHeaderAndFooters: differentOddEven,
+    hyphenation: { autoHyphenation: document.wordAutoHyphenation },
     compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false), doNotBreakWrappedTables: false,
       suppressBottomSpacing: document.page.suppressBottomSpacing !== false },
     numbering: { config: numbering },

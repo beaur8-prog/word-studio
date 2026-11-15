@@ -329,6 +329,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     [documentId, setDocumentId] = useState(initial.id || crypto.randomUUID()),
     [title, setTitle] = useState(initial.title),
     [page, setPage] = useState<PageSettings>(initial.page),
+    [wordAutoHyphenation, setWordAutoHyphenation] = useState(initial.wordAutoHyphenation),
     [comments, setComments] = useState<Comment[]>(initial.comments),
     [tab, setTab] = useState("홈"),
     [revision, setRevision] = useState(0),
@@ -452,17 +453,18 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     title,
     content: editor?.getJSON() ?? initial.content,
     page,
+    wordAutoHyphenation,
     comments,
     updatedAt: new Date().toISOString(),
   };
   const lastSessionDocument = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!editor || !session.current) return;
-    const doc = currentRef.current, signature = JSON.stringify([doc.id, doc.title, doc.page, doc.comments, doc.content]);
+    const doc = currentRef.current, signature = JSON.stringify([doc.id, doc.title, doc.page, doc.wordAutoHyphenation, doc.comments, doc.content]);
     if (lastSessionDocument.current === signature) return;
     const changed = lastSessionDocument.current !== undefined;
     lastSessionDocument.current = signature; session.current.onDocument(structuredClone(doc), changed);
-  }, [editor, documentId, title, page, comments, revision]);
+  }, [editor, documentId, title, page, wordAutoHyphenation, comments, revision]);
   const overlays = useRef({ modal, command, fileMenu }); overlays.current = { modal, command, fileMenu };
   useEffect(() => {
     if (!editor || !session.current) return;
@@ -486,7 +488,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     return () => cancelAnimationFrame(frame);
   }, [editor, androidSession?.active]);
   const unusedStartupDocument = (doc: StudioDocument) => !startupTouched.current && doc.id === initial.id &&
-    doc.title === initial.title && JSON.stringify(doc.page) === JSON.stringify(initial.page) &&
+    doc.title === initial.title && doc.wordAutoHyphenation === initial.wordAutoHyphenation && JSON.stringify(doc.page) === JSON.stringify(initial.page) &&
     JSON.stringify(doc.comments) === JSON.stringify(initial.comments) &&
     !!editor?.schema.nodeFromJSON(doc.content).eq(editor.schema.nodeFromJSON(initial.content));
   useEffect(() => {
@@ -514,7 +516,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       });
     }, 600);
     return () => clearTimeout(id);
-  }, [editor, documentId, title, page, comments, revision]);
+  }, [editor, documentId, title, page, wordAutoHyphenation, comments, revision]);
   useEffect(() => {
     const persist = (event: BeforeUnloadEvent) => {
       if (pendingRecovery.current) {
@@ -634,6 +636,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     setDocumentId(doc.id || crypto.randomUUID());
     setTitle(doc.title);
     setPage(doc.page);
+    setWordAutoHyphenation(doc.wordAutoHyphenation);
     setComments(doc.comments);
     setRevision(value => value + 1);
     setModal(null);
