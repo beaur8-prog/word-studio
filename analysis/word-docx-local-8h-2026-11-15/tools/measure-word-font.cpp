@@ -30,11 +30,17 @@ int wmain(int argc, wchar_t** argv) {
       std::vector<UINT16> glyphs(codes.size()); check(face->GetGlyphIndices(codes.data(),static_cast<UINT32>(codes.size()),glyphs.data()));
       std::vector<INT32> design(codes.size()); check(face1->GetDesignGlyphAdvances(static_cast<UINT32>(glyphs.size()),glyphs.data(),design.data(),FALSE));
       if(f)std::cout<<',';std::cout<<"{\"style\":\""<<styles[f]<<"\",\"unitsPerEm\":"<<metrics.designUnitsPerEm<<",\"hasLegacyKerning\":"<<(face1->HasKerningPairs()?"true":"false")<<",\"measurements\":[";
+      const auto lineMetrics = [](const DWRITE_FONT_METRICS& m) {
+        std::cout << "{\"unitsPerEm\":" << m.designUnitsPerEm << ",\"ascent\":" << m.ascent
+          << ",\"descent\":" << m.descent << ",\"lineGap\":" << m.lineGap << '}';
+      };
       bool first=true;
       for(float points:{9.f,10.f,11.f,12.f,14.f,16.f,18.f,28.f}) for(float dpi:{96.f,120.f,192.f}) for(int mode=0;mode<3;mode++) {
         std::vector<INT32> advances=design;
+        DWRITE_FONT_METRICS line = metrics;
+        if(mode)check(face->GetGdiCompatibleMetrics(points*96.f/72.f,dpi/96.f,nullptr,&line));
         if(mode)check(face1->GetGdiCompatibleGlyphAdvances(points*96.f/72.f,dpi/96.f,nullptr,mode==2,FALSE,static_cast<UINT32>(glyphs.size()),glyphs.data(),advances.data()));
-        if(!first)std::cout<<',';first=false;std::cout<<"{\"points\":"<<points<<",\"dpi\":"<<dpi<<",\"mode\":\""<<(mode==0?"design":mode==1?"gdiClassic":"gdiNatural")<<"\",\"advances\":[";
+        if(!first)std::cout<<',';first=false;std::cout<<"{\"points\":"<<points<<",\"dpi\":"<<dpi<<",\"mode\":\""<<(mode==0?"design":mode==1?"gdiClassic":"gdiNatural")<<"\",\"lineMetrics\":";lineMetrics(line);std::cout<<",\"advances\":[";
         for(size_t i=0;i<advances.size();i++){if(i)std::cout<<',';std::cout<<"{\"code\":"<<codes[i]<<",\"glyph\":"<<glyphs[i]<<",\"designUnits\":"<<advances[i]<<",\"points\":"<<double(advances[i])*points/metrics.designUnitsPerEm<<'}';}std::cout<<"]}";
       }
       std::cout<<"]}";
