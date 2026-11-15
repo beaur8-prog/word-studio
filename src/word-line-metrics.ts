@@ -5,7 +5,7 @@ import { documentMetadata } from './document-history';
 import { isOrdinaryWordBodyParagraph, isWordAlignedBulletParagraph, isWordGroupedTextBoxParagraph } from './word-trailing-spaces';
 import { wordFlowHasWrappingAnchors } from './word-keep-policy';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { wordFallbackLineHeight, wordFontMetricsChanged } from './word-font-fallbacks';
+import { wordFallbackLineHeight, wordFallbackSpaceAdjustment, wordFontMetricsChanged } from './word-font-fallbacks';
 import { nativeWordListIndents, wordListGeometry, unresolvedWordListMarker } from './word-list-layout';
 
 const metrics = new Map<string, number>();
@@ -106,6 +106,29 @@ function listLineProperties(paragraph: HTMLElement, height?: number | null) {
 const symbolStrutFlag = 'data-word-symbol-body-strut';
 const symbolStrutReady = 'data-word-symbol-body-strut-ready';
 const symbolStrutVar = '--word-symbol-body-strut';
+const fallbackSpaceProperty = '--word-fallback-space-adjustment';
+
+function measuredBodySpaceAdjustment(paragraph: HTMLElement) {
+  if (paragraph.querySelector('br:not(.ProseMirror-trailingBreak),[data-docx-tab],[data-symbol-font],[data-word-overlap],sup,sub')) return null;
+  const css = getComputedStyle(paragraph);
+  if (css.direction !== 'ltr' || css.writingMode !== 'horizontal-tb' ||
+      css.letterSpacing !== 'normal' || paragraph.style.wordSpacing ||
+      (css.wordSpacing !== '0px' && css.wordSpacing !== 'normal' && !paragraph.style.getPropertyValue(fallbackSpaceProperty))) return null;
+  const delta = wordFallbackSpaceAdjustment(paragraph, css);
+  if (delta === null) return null;
+  const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+  let hasSpace = false;
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (!node.data || !node.parentElement) continue;
+    const run = getComputedStyle(node.parentElement);
+    if (!/^[\x20-\x7e]+$/.test(node.data) || run.fontFamily !== css.fontFamily || run.fontSize !== css.fontSize ||
+        run.fontWeight !== css.fontWeight || run.fontStyle !== css.fontStyle || run.letterSpacing !== 'normal' ||
+        run.wordSpacing !== css.wordSpacing) return null;
+    hasSpace ||= node.data.includes(' ');
+  }
+  return hasSpace ? delta : null;
+}
 function isMeasuredSymbolItem(item: HTMLElement, paragraph: HTMLElement) {
   return item.dataset.listFont?.toLowerCase() === 'symbol' && item.dataset.listFormat === 'bullet' &&
     item.dataset.listLabel === '\uf0b7' && item.dataset.listGlyph === '•' &&
@@ -183,6 +206,12 @@ export function layoutWordListLines(root: HTMLElement) {
   }
 }
 export function layoutWordLines(root: HTMLElement) {
+  for (const p of root.querySelectorAll<HTMLElement>('[data-word-body-strut="true"]:not([data-print-word-space],[data-print-paragraph-fragment])')) {
+    const delta = measuredBodySpaceAdjustment(p);
+    if (delta !== null) p.style.setProperty(fallbackSpaceProperty, `${delta}px`);
+    // Freeze eligibility on the full paragraph before the print fitter splits it.
+    p.setAttribute('data-print-word-space', '');
+  }
   for (const p of root.querySelectorAll<HTMLElement>('[data-word-line-rule]')) {
     // Do not rerun this new, full-paragraph policy on split fragments.
     // Empty means the full paragraph matched no measured body profile.
@@ -221,6 +250,17 @@ export const WordLineMetrics = Extension.create({
         const hangWordSpaces = ordinaryFlow && wordLayout?.wordHangingSpaces;
         const useWordStrut = ordinaryFlow && wordLayout?.wordBodyStrut;
         view.state.doc.descendants((node, pos) => {
+          if (useWordStrut && node.type.name === 'paragraph') {
+            const p = view.nodeDOM(pos);
+            if (p instanceof HTMLElement && isOrdinaryWordBodyParagraph(p, view.dom)) {
+              const delta = measuredBodySpaceAdjustment(p);
+              if (delta !== null) {
+                const style = `${fallbackSpaceProperty}:${delta}px`;
+                decorations.push(Decoration.node(pos, pos + node.nodeSize, { style }));
+                values.push(`${pos}:${style}`);
+              }
+            }
+          }
           if (wordLayout?.wordHangingSpaces && node.type.name === 'paragraph') {
             const paragraph = view.nodeDOM(pos);
             if (paragraph instanceof HTMLElement &&

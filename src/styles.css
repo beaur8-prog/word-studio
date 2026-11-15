@@ -907,6 +907,9 @@ button:hover:not(:disabled) {
   z-index: 1;
 }
 .tiptap [data-word-line-rule] { letter-spacing: normal; }
+.tiptap p[style*="--word-fallback-space-adjustment"] {
+  word-spacing: var(--word-fallback-space-adjustment);
+}
 /* Imported heading runs already carry the resolved Word formatting. Studio's
    authored heading weight and extra top padding must not add another layer. */
 .tiptap :is(h1, h2, h3, h4, h5, h6)[data-word-line-rule] {

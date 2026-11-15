@@ -58,6 +58,67 @@ const registeredRegularFamilies = new Map<string, FontFace[]>();
 // Native faces and unrelated web fonts keep their existing normal line boxes.
 const metricFaces = new Map<FontFace, { family: string; weight: string; style: string; ratio: number; bodyRatio?: number }>();
 export const wordFontMetricsChanged = 'studio-word-font-metrics-changed';
+
+let calibriSpaceProbe: CanvasRenderingContext2D | null = null;
+const calibriSpaceRatios = new Map<string, number | null>();
+const appleRegularProbeFamily = 'Studio Apple Gothic space probe';
+const calibriRegularSpaceEm = 463 / 2048;
+
+async function initializeCalibriSpaceProbe(changed: () => void) {
+  const findLocal = (family: string, names: string[]) =>
+    new FontFace(family, names.map(name => `local(${JSON.stringify(name)})`).join(',')).load();
+  try {
+    await findLocal('Studio Calibri presence probe', ['Calibri', 'Calibri Regular', 'Calibri-Regular']);
+    return;
+  } catch { /* Proceed only when the original regular face is unavailable. */ }
+  try {
+    const apple = await findLocal(appleRegularProbeFamily, ['AppleSDGothicNeo-Regular']);
+    calibriSpaceProbe = document.createElement('canvas').getContext('2d');
+    if (!calibriSpaceProbe) return;
+    document.fonts.add(apple);
+    document.fonts.addEventListener('loadingdone', () => calibriSpaceRatios.clear());
+    changed();
+  } catch { /* Other fallback faces retain their own spacing. */ }
+}
+
+/** The retained Word PDFs use the regular Calibri U+0020 design advance
+ * 463/2048 em. Keep the chosen fallback's characters and compensate only
+ * for ordinary spaces after verifying the active face's measured advances. */
+export function wordFallbackSpaceAdjustment(paragraph: HTMLElement, css: CSSStyleDeclaration) {
+  const probe = calibriSpaceProbe;
+  if (!probe || css.fontWeight !== '400' || css.fontStyle !== 'normal' ||
+      css.fontFamily.split(',')[0].replace(/["']/g, '').trim().toLowerCase() !== 'calibri') return null;
+  if ([...document.fonts].some(face => face.family.replace(/["']/g, '').toLowerCase() === 'calibri')) return null;
+  const apple = JSON.stringify(appleRegularProbeFamily);
+  const lang = (paragraph.closest('[lang]') as HTMLElement | null)?.lang ?? '';
+  const key = JSON.stringify([css.fontFamily, lang]);
+  if (!calibriSpaceRatios.has(key)) {
+    // A disconnected canvas resolves a missing name using its own locale.
+    // Match the browser's DOM fallback in the paragraph's actual language.
+    const sample = document.createElement('span');
+    sample.lang = lang;
+    sample.style.cssText = 'position:fixed;visibility:hidden;left:-10000px;white-space:pre;font:64px serif';
+    document.body.append(sample);
+    const widths = (family: string) => {
+      sample.style.fontFamily = family;
+      return ['Wm', 'i', '0', ' '].map(text => {
+        sample.textContent = text;
+        return sample.getBoundingClientRect().width;
+      });
+    };
+    const actual = widths(css.fontFamily), expected = widths(apple);
+    sample.remove();
+    probe.font = `64px ${apple}`;
+    const ratio = actual[3] > 0 && actual.every((width, i) => width === expected[i]) ? probe.measureText(' ').width / 64 : null;
+    if (calibriSpaceRatios.size >= 64) calibriSpaceRatios.clear();
+    calibriSpaceRatios.set(key, ratio);
+  }
+  const ratio = calibriSpaceRatios.get(key);
+  if (ratio == null) return null;
+  const adjustment = parseFloat(css.fontSize) * (calibriRegularSpaceEm - ratio);
+  return Number.isFinite(adjustment) && adjustment < 0 ? adjustment : null;
+}
+
 export function wordFallbackLineHeight(css: CSSStyleDeclaration, text: string, bodyStrut = false) {
   if (!/^[\u0020-\u024f\u2000-\u206f]*$/.test(text)) return null;
   const family = css.fontFamily.split(',')[0].replace(/["']/g, '').trim().toLowerCase();
@@ -189,7 +250,8 @@ export async function initializeWordFontFallbacks(profiles: readonly FontFallbac
         document.fonts.add(fallback); changed();
       } catch { /* An optional font cannot prevent opening or recovering documents. */ }
     }
-  })), ...(profiles === families ? [initializeNativeKoreanSerif(changed), initializeNarrowKoreanGothic(changed), ...regularFamilies.map(profile => initializeRegularFontFallback(profile, changed))] : [])]);
+  })), ...(profiles === families ? [initializeNativeKoreanSerif(changed), initializeNarrowKoreanGothic(changed),
+    initializeCalibriSpaceProbe(changed), ...regularFamilies.map(profile => initializeRegularFontFallback(profile, changed))] : [])]);
   // A stalled optional local-font probe must not leave the startup window
   // blank. Late results still register and notify the measurement owners.
   let timer: ReturnType<typeof setTimeout> | undefined;
