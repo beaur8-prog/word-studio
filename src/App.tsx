@@ -11,7 +11,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
 import { EditorState } from '@tiptap/pm/state';
 import { DocumentHistory, documentMetadata, changeDocumentMetadata, dispatchHistoryEvent } from './document-history';
-import { usesWordHangingSpaces } from './word-trailing-spaces';
+import { wordLayoutOptions } from './word-trailing-spaces';
 import {
   Save,
   Undo2,
@@ -405,8 +405,8 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     extensions: [...editorExtensions, DocumentHistory],
     content: initial.content,
     onCreate({ editor }) {
-      if (usesWordHangingSpaces(initial)) editor.view.dispatch(editor.state.tr
-        .setMeta(documentMetadata, { page: initial.page, comments: initial.comments, wordHangingSpaces: true })
+      editor.view.dispatch(editor.state.tr
+        .setMeta(documentMetadata, { page: initial.page, comments: initial.comments, ...wordLayoutOptions(initial) })
         .setMeta('addToHistory', false));
     },
     onUpdate({ editor }) {
@@ -638,7 +638,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       schema: editor.schema, doc: editor.schema.nodeFromJSON(doc.content), plugins: editor.state.plugins,
     }));
     editor.view.dispatch(editor.state.tr.setMeta(documentMetadata, { page: doc.page, comments: doc.comments,
-      wordHangingSpaces: usesWordHangingSpaces(doc) }).setMeta('addToHistory', false));
+      ...wordLayoutOptions(doc) }).setMeta('addToHistory', false));
     ++recoveryEpoch.current;
     startupTouched.current = true;
     pendingRecovery.current = true;
@@ -848,7 +848,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     if (session.current) { setFileMenu(false); session.current.onViewer(); return; }
     outputLayout.current?.dispose();
     const doc = currentRef.current;
-    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), doc.page, undefined, undefined, usesWordHangingSpaces(doc)));
+    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), doc.page, undefined, undefined, wordLayoutOptions(doc)));
     outputLayout.current = layout;
     layout.element.classList.replace('measuring', 'preview');
     document.body.classList.add('studio-printing');

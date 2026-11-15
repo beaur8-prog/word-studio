@@ -2,6 +2,7 @@
  * resources: requested font names, source point sizes and DOCX stay unchanged. */
 export type FontFallbackFamily = {
   family: string;
+  wordBodyStrut?: true;
   faces: readonly {
     names: readonly string[]; weight: string; style: string; url: string;
     ascent: string; descent: string;
@@ -15,6 +16,7 @@ export type FontFallbackFamily = {
 // See electron/licenses/TeXGyreAdventor-README.txt for scope and known differences.
 const families: readonly FontFallbackFamily[] = [{
   family: 'Century Gothic',
+  wordBodyStrut: true,
   faces: [
     { names: ['Century Gothic', 'CenturyGothic'], weight: '400', style: 'normal',
       url: new URL('./assets/fonts/texgyreadventor-regular.otf', import.meta.url).href,
@@ -54,14 +56,17 @@ const registeredRegularFamilies = new Map<string, FontFace[]>();
 
 // Only our measured fallback faces opt into fractional Word line metrics.
 // Native faces and unrelated web fonts keep their existing normal line boxes.
-const metricFaces = new Map<FontFace, { family: string; weight: string; style: string; ratio: number }>();
+const metricFaces = new Map<FontFace, { family: string; weight: string; style: string; ratio: number; bodyRatio?: number }>();
 export const wordFontMetricsChanged = 'studio-word-font-metrics-changed';
-export function wordFallbackLineHeight(css: CSSStyleDeclaration, text: string) {
+export function wordFallbackLineHeight(css: CSSStyleDeclaration, text: string, bodyStrut = false) {
   if (!/^[\u0020-\u024f\u2000-\u206f]*$/.test(text)) return null;
   const family = css.fontFamily.split(',')[0].replace(/["']/g, '').trim().toLowerCase();
   for (const [face, metric] of metricFaces) {
     if (metric.family === family && metric.weight === css.fontWeight && metric.style === css.fontStyle &&
-      face.status === 'loaded' && document.fonts.has(face)) return parseFloat(css.fontSize) * metric.ratio;
+      face.status === 'loaded' && document.fonts.has(face)) {
+      const ratio = bodyStrut ? metric.bodyRatio : metric.ratio;
+      return ratio === undefined ? null : parseFloat(css.fontSize) * ratio;
+    }
   }
   return null;
 }
@@ -177,7 +182,10 @@ export async function initializeWordFontFallbacks(profiles: readonly FontFallbac
         // Register before the editor mounts, but download only if used. The
         // existing loadingdone handlers remeasure lines and page furniture.
         metricFaces.set(fallback, { family: profile.family.toLowerCase(), weight: face.weight, style: face.style,
-          ratio: (parseFloat(face.ascent) + parseFloat(face.descent)) / 100 });
+          ratio: (parseFloat(face.ascent) + parseFloat(face.descent)) / 100,
+          // The retained Word same-DOCX probes use a shared Latin line strut
+          // across all four cuts. Use this only for the bundled profile.
+          bodyRatio: profile.wordBodyStrut ? Math.max(...profile.faces.map(f => (parseFloat(f.ascent) + parseFloat(f.descent)) / 100)) : undefined });
         document.fonts.add(fallback); changed();
       } catch { /* An optional font cannot prevent opening or recovering documents. */ }
     }

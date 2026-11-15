@@ -2079,6 +2079,8 @@ button:hover:not(:disabled) {
   margin-left: var(--word-native-list-left) !important;
   text-indent: var(--word-native-list-first) !important;
 }
+/* The hidden marker of a continued list fragment has no strut to match. */
+.tiptap li[data-word-symbol-body-strut-ready="yes"]:not([data-print-list-continuation]) { line-height: var(--word-symbol-body-strut); }
 .tiptap li[data-print-list-continuation] > p[data-word-native-list-indent] { text-indent: 0 !important; }
 
 /* An empty anchor has no glyphs. A zero font size still inherits an absolute

@@ -3,7 +3,7 @@ import { editorExtensions } from '../extensions';
 import { createPrintLayout, type PrintLayoutProgress } from '../print-layout';
 import { withoutEditorReflow } from '../editor-layout-task';
 import type { StudioDocument } from '../types';
-import { usesWordHangingSpaces } from '../word-trailing-spaces';
+import { wordLayoutOptions } from '../word-trailing-spaces';
 import { androidServices, type AndroidPrintDocument, type AndroidPrintResult } from './platform';
 
 export const ANDROID_PRINT_HELP = '시스템 인쇄창에서 프린터 또는 PDF로 저장을 선택하세요. 용지 크기와 방향도 그 창에서 설정합니다.';
@@ -14,7 +14,7 @@ export function androidPrintMessage(result: AndroidPrintResult) {
 }
 /** A new print snapshot, independent of viewer virtualization and display zoom. */
 export async function prepareAndroidPrintDocument(doc: StudioDocument, signal?: AbortSignal, progress?: (value: PrintLayoutProgress) => void) {
-  const layout = await withoutEditorReflow(() => createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page, progress, signal, usesWordHangingSpaces(doc)));
+  const layout = await withoutEditorReflow(() => createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page, progress, signal, wordLayoutOptions(doc)));
   try { return await prepareAndroidPrintPages([...layout.element.querySelectorAll<HTMLElement>(':scope > .print-page')], doc.title, signal, progress); }
   finally { layout.dispose(); }
 }
