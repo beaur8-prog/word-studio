@@ -2167,8 +2167,9 @@ button:hover:not(:disabled) {
 
 .document-textbox-content[style*="--textbox-shape-fill"]::before { content:""; position:absolute; inset:0; background:var(--textbox-shape-fill); clip-path:polygon(0 0,calc(100% - var(--textbox-arrow-inset)) 0,100% 50%,calc(100% - var(--textbox-arrow-inset)) 100%,0 100%); z-index:-1; pointer-events:none; }
 
-/* View-only strut for an authored paragraph containing only a grouped anchor. */
-.tiptap [data-print-drawing-anchor]::after { content:''; display:inline-block; width:0; }
+/* View-only paragraph-mark strut where static HTML has no inline line box. */
+.tiptap [data-print-drawing-anchor]::after,
+.tiptap [data-print-empty-heading]::after { content:''; display:inline-block; width:0; }
 
 /* Screen magnification must never change PDF/physical page dimensions. */
 @media screen { .print-layout.preview > .print-page { zoom: var(--print-preview-scale, 1); } }

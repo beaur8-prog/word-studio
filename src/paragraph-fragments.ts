@@ -18,6 +18,12 @@ export function prepareParagraphEnds(root: HTMLElement) {
     const images=[...p.querySelectorAll<HTMLImageElement>('img')];
     if(images.some(img=>imageFloating(img.dataset.imageFloating)?.drawingGroup) && !p.textContent?.trim() && !p.querySelector('br') && images.every(img=>imageFloating(img.dataset.imageFloating)))p.dataset.printDrawingAnchor='true';
     else delete p.dataset.printDrawingAnchor;
+    // Empty headings serialize without the editor's trailing BR. Floating
+    // pictures and empty bookmarks do not supply an inline line box either.
+    // Preserve that authored paragraph mark without adding a document BR.
+    const inlineObject = p.querySelector('svg,video,canvas,table,hr,[data-drawing-group-anchor],[data-note-reference],[data-page-number],[data-symbol-font],[data-word-overlap],[data-docx-tab],[data-document-field]');
+    if (p.matches('h1,h2,h3,h4,h5,h6') && !p.textContent?.trim() && !p.querySelector('br') && !inlineObject && images.every(img => imageFloating(img.dataset.imageFloating))) p.dataset.printEmptyHeading = 'true';
+    else delete p.dataset.printEmptyHeading;
     const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT); let last: Node | undefined;
     while (walker.nextNode()) {
       const node = walker.currentNode;
