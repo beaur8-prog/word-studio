@@ -448,7 +448,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       const bodyHeight = content.getBoundingClientRect().height;
       const lineCount = offsets.length + 1;
       const keepTogether = keepShortWordParagraphTogether(element, lineCount, bodyHeight);
-      const bounds = wrappingAnchors ? undefined : wordWidowSplitBounds(element, lineCount, bodyHeight);
+      const bounds = wrappingAnchors ? undefined : wordWidowSplitBounds(element, lineCount, bodyHeight, 1, () => offsets[0]);
       // Offset zero is the cut following line one.
       let low = bounds ? bounds.minimumHead - 1 : 0;
       let high = keepTogether ? -1 : (bounds ? bounds.maximumHead - 1 : offsets.length - 1);
