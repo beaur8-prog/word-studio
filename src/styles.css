@@ -746,6 +746,10 @@ button:hover:not(:disabled) {
 }
 /* Imported Word body paragraphs keep trailing spaces on a filled line. */
 .tiptap p[data-word-hanging-spaces] { white-space: pre-wrap; }
+.tiptap p[data-word-floating-spaces] {
+  white-space: pre-wrap;
+  word-spacing: var(--word-floating-space-adjustment);
+}
 .tiptap > :first-child {
   margin-top: 0;
 }

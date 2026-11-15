@@ -108,7 +108,7 @@ const symbolStrutReady = 'data-word-symbol-body-strut-ready';
 const symbolStrutVar = '--word-symbol-body-strut';
 const fallbackSpaceProperty = '--word-fallback-space-adjustment';
 
-function measuredBodySpaceAdjustment(paragraph: HTMLElement) {
+export function measuredBodySpaceAdjustment(paragraph: HTMLElement) {
   if (paragraph.querySelector('br:not(.ProseMirror-trailingBreak),[data-docx-tab],[data-symbol-font],[data-word-overlap],sup,sub')) return null;
   const css = getComputedStyle(paragraph);
   if (css.direction !== 'ltr' || css.writingMode !== 'horizontal-tb' ||

@@ -4,6 +4,10 @@ import { documentScale } from './document-scale';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import {inlineDrawingAnchor,prepareDrawingGroupAnchors} from './drawing-group';
 import { layoutTextBoxes, textBoxFrame } from './textbox-frame';
+import { documentMetadata } from './document-history';
+import { wordFontMetricsChanged } from './word-font-fallbacks';
+import { measuredBodySpaceAdjustment } from './word-line-metrics';
+import { isOrdinaryWordBodyParagraph } from './word-trailing-spaces';
 import { tableAnchor } from './table-anchor-data';
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
@@ -40,8 +44,9 @@ type Picture = {
   cssTop: number;
   geometry: ImageFloating;
 };
-type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number; originalMinimum?: string; startPage?: boolean };
+type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number; originalMinimum?: string; startPage?: boolean; wordSpaceAdjustment?: number };
 type PageFlow = { starts: Set<number>; backwards: Set<number>; candidates: Set<number> };
+type WordFloatingSpacePass = { skip: ReadonlySet<number>; rejected: Set<number> };
 
 /** Read the anchor's paper in document pixels, including CSS zoom. */
 function ownerPaper(element: HTMLElement, root: HTMLElement) {
@@ -339,11 +344,52 @@ function imagePosition(
 
 /** Plan in a detached copy of the live geometry. The editable document receives
  * only ProseMirror decorations: no split paragraphs, copied text or DOM moves. */
-export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow): ParagraphPlan[] {
-  return planFloatingLayoutPass(root, pageFlow, true) ?? planFloatingLayoutPass(root, pageFlow, false)!;
+const floatSpaceRule = 'data-word-floating-spaces';
+const floatSpaceProperty = '--word-floating-space-adjustment';
+const floatSpaceStyle = (delta: number) => `${floatSpaceProperty}:${delta}px`;
+function setFloatSpaceRules(p: HTMLElement, delta: number) {
+  p.setAttribute(floatSpaceRule, 'true');
+  p.style.setProperty(floatSpaceProperty, `${delta}px`);
+}
+function clearFloatSpaceRule(p: HTMLElement) {
+  p.removeAttribute(floatSpaceRule);
+  p.style.removeProperty(floatSpaceProperty);
+}
+function clearFloatSpaceRules(root: HTMLElement) {
+  for (const p of root.querySelectorAll<HTMLElement>(`[${floatSpaceRule}]`)) clearFloatSpaceRule(p);
+}
+function usesFloatSpaceRules(p: HTMLElement, delta: number) {
+  const matches = (element: HTMLElement) => {
+    const css = getComputedStyle(element);
+    return css.whiteSpace === 'pre-wrap' && Math.abs(parseFloat(css.wordSpacing) - delta) < 0.001;
+  };
+  if (!matches(p)) return false;
+  const runs = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+  while (runs.nextNode()) {
+    const run = runs.currentNode;
+    if (run.textContent && run.parentElement && !matches(run.parentElement)) return false;
+  }
+  return true;
+}
+export function planFloatingLayout(root: HTMLElement, pageFlow?: PageFlow, wordHangingSpaces = false): ParagraphPlan[] {
+  const measure = (flow?: PageFlow, spaces?: WordFloatingSpacePass) =>
+    planFloatingLayoutPass(root, flow, true, spaces) ?? planFloatingLayoutPass(root, flow, false, spaces)!;
+  if (!wordHangingSpaces) return measure(pageFlow);
+  const probe = (skip: ReadonlySet<number>) => {
+    const rejected = new Set<number>();
+    // A rejected view pass must not carry altered paper constraints into
+    // the existing float planner. Only publish the accepted evidence.
+    const flow = pageFlow && { starts: new Set(pageFlow.starts), backwards: new Set<number>(), candidates: new Set<number>() };
+    return { plan: measure(flow, { skip, rejected }), flow, rejected };
+  };
+  let result = probe(new Set());
+  if (result.rejected.size) result = probe(result.rejected);
+  if (result.rejected.size) return measure(pageFlow);
+  if (pageFlow && result.flow) Object.assign(pageFlow, result.flow);
+  return result.plan;
 }
 
-function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefined, allowRebase: boolean): ParagraphPlan[] | null {
+function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefined, allowRebase: boolean, wordSpaces?: WordFloatingSpacePass): ParagraphPlan[] | null {
   if (!root.querySelector("img[data-image-floating],.document-textbox")) return [];
   const owner = root.closest<HTMLElement>(".document-stack,.print-page");
   const host = (owner?.cloneNode(false) || document.createElement("div")) as HTMLElement;
@@ -367,6 +413,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
   // widgets in a clone. They have no authored width, height or model offset.
   copy.querySelectorAll("[data-flow-widget],.ProseMirror-separator").forEach((el) => el.remove());
   restoreCellPictureReservations(copy);
+  clearFloatSpaceRules(copy);
   copy.removeAttribute("contenteditable");
   host.append(copy);
   document.body.append(host);
@@ -603,6 +650,23 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
         if (own.length) result.push({ index: pi, widgets: [], pictures: own });
         continue;
       }
+      const firstIndent = parseFloat(style.textIndent) || 0;
+      const firstSlots = wordSpaces && !wordSpaces.skip.has(pi) && p.parentElement === copy && !own.length &&
+        (!copy.classList.contains('print-content') || p.dataset.wordFloatingSpaceSource === 'true') &&
+        !p.hasAttribute('data-print-paragraph-fragment') && style.whiteSpace === 'break-spaces' &&
+        style.textAlignLast === 'auto' && ['left', 'start', 'justify'].includes(style.textAlign) &&
+        isOrdinaryWordBodyParagraph(p, copy) && relevant()
+          ? slots(flowing, x + firstIndent, y, width - firstIndent, lh) : [];
+      const isRightSlot = (spans: [number, number][], indent: number) =>
+        spans.length === 1 && spans[0][0] > x + indent + .2 && Math.abs(spans[0][1] - (x + width)) < .1;
+      let wordSpaceAdjustment = isRightSlot(firstSlots, firstIndent) ? measuredBodySpaceAdjustment(p) : null;
+      if (wordSpaceAdjustment !== null) {
+        setFloatSpaceRules(p, wordSpaceAdjustment);
+        if (!usesFloatSpaceRules(p, wordSpaceAdjustment)) {
+          clearFloatSpaceRule(p);
+          wordSpaceAdjustment = null;
+        }
+      }
       const tokens = units(p),
         widgets: Widget[] = [],
         cache = new Map<string, { width: number; height: number }>();
@@ -651,19 +715,27 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
         cache.set(key, value);
         return value;
       };
-      const size = (start: number, end: number) => metrics(start, end).width;
+      const size = (start: number, end: number, hangSpace = false) => {
+        if (hangSpace && end > start) {
+          const originalEnd = end;
+          while (end > start && tokens[end - 1].text === ' ') end--;
+          // Retain actual fit requirements for an all-space range.
+          if (end === start) return metrics(start, originalEnd).width;
+        }
+        return metrics(start, end).width;
+      };
       // A measured range must really fit. Allowing a positive tolerance can
       // wrap its final whole word onto an extra native line without that
       // line's picture-exclusion widget. Reserve one Chromium layout unit;
       // text size and the document's wrap geometry remain unchanged.
       const fitReserve = 1 / 64;
-      const fit = (start: number, end: number, available: number) => {
+      const fit = (start: number, end: number, available: number, hangSpace = false) => {
         let low = start,
           high = end,
           best = start;
         while (low <= high) {
           const mid = (low + high) >> 1;
-          if (size(start, mid) <= available - fitReserve) {
+          if (size(start, mid, hangSpace) <= available - fitReserve) {
             best = mid;
             low = mid + 1;
           } else high = mid - 1;
@@ -694,7 +766,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
             )
         )
           break;
-        const indent = line === 1 ? parseFloat(style.textIndent) || 0 : 0;
+        const indent = line === 1 ? firstIndent : 0;
         const hard = tokens.findIndex((token, i) => i >= start && token.hard);
         const end = hard < 0 ? tokens.length : hard,
           lineStart = start;
@@ -710,9 +782,11 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
           const lineWidgets: Widget[] = [];
           const spans = slots(flowing, x + indent, y, width - indent, height);
           let nextStart = lineStart,
-            cursor = x + indent;
+            cursor = x + indent, hanging = false;
+          const supported = isRightSlot(spans, indent);
           for (const [left, right] of spans) {
-            const next = fit(nextStart, end, right - left);
+            const hangSpace = wordSpaceAdjustment !== null && supported;
+            const next = fit(nextStart, end, right - left, hangSpace);
             if (
               next === nextStart &&
               right - left < Math.min(width, size(nextStart, Math.min(nextStart + 1, end)))
@@ -725,7 +799,8 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
               if(size(nextStart,wordEnd)<=width-indent && size(nextStart,wordEnd)>right-left-fitReserve)continue;
             }
             const last = next === nextStart && nextStart < end ? nextStart + 1 : next;
-            const textWidth = size(nextStart, last);
+            hanging = hangSpace && last > nextStart && tokens[last - 1].text === ' ';
+            const textWidth = size(nextStart, last, hanging);
             const alignment =
               style.textAlign === "right" || style.textAlign === "end"
                 ? 1
@@ -742,7 +817,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
             nextStart = last;
             if (nextStart >= end) break;
           }
-          return { lineWidgets, nextStart, cursor, blocked: !spans.length };
+          return { lineWidgets, nextStart, cursor, hanging, blocked: !spans.length, supported };
         };
         let arranged = arrange(lineHeight);
         // Exclusions depend on line height, and the selected words determine
@@ -753,6 +828,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
           lineHeight = actual;
           arranged = arrange(lineHeight);
         }
+        if (wordSpaceAdjustment !== null && !arranged.supported) wordSpaces?.rejected.add(pi);
         if (arranged.blocked) {
           const jump = Math.max(
             lineHeight,
@@ -773,7 +849,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
         // Reserve unused width so native center/right alignment cannot shift
         // a measured gap over a picture. The unplanned tail keeps its alignment.
         const remaining = x + width - arranged.cursor - 0.4;
-        if (remaining > 0.2)
+        if (remaining > 0.2 && !arranged.hanging)
           widgets.push({
             offset: tokens[start]?.from ?? tokens.at(-1)!.to,
             width: remaining,
@@ -801,6 +877,16 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
         }
       }
       insertWidgets(p, widgets);
+      if (wordSpaceAdjustment !== null) {
+        const paper = ownerPaper(p, copy);
+        const after = Math.max(0, parseFloat(style.marginBottom) || 0);
+        // A split would clone a plan into a different slot on the next page.
+        // Only retain a paragraph whose complete adjusted flow needs no split.
+        if (start < tokens.length || !paper ||
+            paper.y + p.getBoundingClientRect().height / paper.scale + after >
+              paper.page * (paper.height + 24) + paper.height - paper.bottom - 0.5)
+          wordSpaces?.rejected.add(pi);
+      }
       if (projection && flowing.includes(projection.picture)) {
         // If either band can reach the next block, keep placement and wrap
         // together by discarding this pass, before applying any decorations.
@@ -809,7 +895,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
             receiver.y + rect.height / receiver.scale > receiver.page * (receiver.height + 24) + receiver.height + .5) return null;
         applied.set(projection.picture.index, projection);
       }
-      result.push({ index: pi, widgets, pictures: own });
+      result.push({ index: pi, widgets, pictures: own, ...(wordSpaceAdjustment !== null ? { wordSpaceAdjustment } : {}) });
     }
     // Flow widgets can change a vertically aligned cell's content height and
     // move its anchor paragraph. Resolve absolute picture offsets against
@@ -856,14 +942,16 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
   }
 }
 
-export function applyFloatingLayout(root: HTMLElement) {
+export function applyFloatingLayout(root: HTMLElement, wordHangingSpaces = false) {
   root.querySelectorAll("[data-flow-widget]").forEach((el) => el.remove());
+  clearFloatSpaceRules(root);
   restoreCellPictureReservations(root);
-  const plan = planFloatingLayout(root),
+  const plan = planFloatingLayout(root, undefined, wordHangingSpaces),
     ps = paragraphs(root),
     images = floatingImages(root);
   for (const paragraph of plan) {
     const p = ps[paragraph.index];
+    if (paragraph.wordSpaceAdjustment !== undefined) setFloatSpaceRules(p, paragraph.wordSpaceAdjustment);
     if (paragraph.pictures.length) p.style.position = "relative";
     if (paragraph.originalMinimum !== undefined) p.setAttribute('data-floating-cell-original-min-height', paragraph.originalMinimum);
     if (paragraph.minimumHeight) {
@@ -935,11 +1023,13 @@ export const FloatingLayout = Extension.create({
                   pageFlow.starts.add(index);
               });
               let plan: ParagraphPlan[];
+              const wordHangingSpaces = documentMetadata.getState(view.state)?.wordHangingSpaces === true &&
+                !view.dom.querySelector('[data-note-reference]');
               // Only add proven source-anchor constraints. The set grows
               // monotonically and is bounded by the document's pictures;
               // no iteration cap freezes an unresolved layout.
               for (;;) {
-                const count = pageFlow.starts.size; plan = planFloatingLayout(view.dom, pageFlow);
+                const count = pageFlow.starts.size; plan = planFloatingLayout(view.dom, pageFlow, wordHangingSpaces);
                 for (const index of pageFlow.backwards) backwardsSeen.add(index);
                 if (pageFlow.starts.size === count) break;
               }
@@ -949,6 +1039,11 @@ export const FloatingLayout = Extension.create({
                 const p = ps[paragraph.index],
                   position = pos.get(p);
                 if (position === undefined) continue;
+                if (paragraph.wordSpaceAdjustment !== undefined) {
+                  decorations.push(Decoration.node(position, position + view.state.doc.nodeAt(position)!.nodeSize,
+                    { [floatSpaceRule]: 'true', style: floatSpaceStyle(paragraph.wordSpaceAdjustment) }));
+                  values.push(`float-word-space:${position}:${paragraph.wordSpaceAdjustment}`);
+                }
                 if (paragraph.pictures.length || paragraph.originalMinimum !== undefined)
                   decorations.push(
                     Decoration.node(
@@ -1010,6 +1105,7 @@ export const FloatingLayout = Extension.create({
           view.dom.addEventListener("load", invalidate, true);
           view.dom.addEventListener("compositionend", calculate);
           document.fonts.addEventListener("loadingdone", invalidate);
+          document.addEventListener(wordFontMetricsChanged, invalidate);
           calculate();
           return {
             update: calculate,
@@ -1020,6 +1116,7 @@ export const FloatingLayout = Extension.create({
               view.dom.removeEventListener("load", invalidate, true);
               view.dom.removeEventListener("compositionend", calculate);
               document.fonts.removeEventListener("loadingdone", invalidate);
+              document.removeEventListener(wordFontMetricsChanged, invalidate);
             },
           };
         },

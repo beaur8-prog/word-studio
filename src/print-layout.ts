@@ -39,6 +39,10 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   document.body.append(host);
   const style = document.createElement('style'); host.append(style);
   const source = document.createElement('div'); source.innerHTML = html;
+  const wordFloatingSpaces = wordLayout.wordHangingSpaces && !source.querySelector('[data-note-reference]');
+  if (wordFloatingSpaces) for (const paragraph of source.children)
+    if (paragraph instanceof HTMLParagraphElement && isOrdinaryWordBodyParagraph(paragraph, source))
+      paragraph.dataset.wordFloatingSpaceSource = 'true';
   const wrappingAnchors = wordFlowHasWrappingAnchors(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
     for (const paragraph of source.querySelectorAll<HTMLParagraphElement>('p[data-word-paragraph-style]')) {
@@ -161,7 +165,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // column. Resolve its coordinates against the final column geometry.
     layoutTableAnchors(content);
     layoutTextBoxes(content);
-    applyFloatingLayout(content);
+    applyFloatingLayout(content, wordFloatingSpaces);
     layoutTextBoxes(content);
     const last = content.lastElementChild as HTMLElement | null;
     return !hasDeferredNote(content) && (!last || paragraphFitBottom(last, settings.suppressBottomSpacing !== false) <= content.getBoundingClientRect().bottom + 0.5)
@@ -451,7 +455,13 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         element.style.marginTop = '0'; append(element); return;
       }
     }
-    const fitsPage = fits();
+    let fitsPage = fits();
+    if (!fitsPage && element.dataset.wordFloatingSpaces === 'true') {
+      // Once a whole-paragraph fit fails, measure the original line layout
+      // again before finding offsets for fragments with different geometry.
+      delete element.dataset.wordFloatingSpaceSource;
+      fitsPage = fits();
+    }
     if (!fitsPage && settings.hideEmptyLines && content.children.length > 1 && hiddenEmptyLines < 2 &&
       element.getBoundingClientRect().height <= content.getBoundingClientRect().height && canHideEmptyPageLine(element)) {
       hiddenEmptyLines++; element.classList.add(hiddenEmptyLineClass); fits(); return;
