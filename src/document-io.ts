@@ -8,7 +8,7 @@ import { exportedRowCantSplit } from './row-split-policy';
 import {parseDrawingGroup} from './drawing-group';
 import {writeDrawingGroups} from './docx-drawing-groups';
 import { wordListFontName } from './word-list-marker';
-import { prepareTextBoxes, writeTextBoxes, type TextBoxExport } from './docx-textboxes';
+import { prepareTextBoxes, textBoxAnchorStyle, writeTextBoxes, type TextBoxExport } from './docx-textboxes';
 import { textBoxFrame } from './textbox-frame';
 import { wordHeadingMarks } from './word-heading-defaults';
 import { sanitizeImportedHtml, validImage, safeLink, RASTER_DATA } from "./document-html";
@@ -1641,6 +1641,9 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       paragraphStyles: [
         ...[...paragraphStyles.values()].filter(style => !style.builtIn),
         ...[TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : id === SECTION_BOUNDARY_STYLE ? 'Section boundary' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })),
+        ...(textBoxes.some(({frame}) => frame.position === 'floating' && !frame.drawingGroup)
+          ? [textBoxAnchorStyle]
+          : []),
         ...(hasTableEnd ? [{ id: TABLE_END_STYLE, name: 'Table end', next: 'Normal', semiHidden: true, run: { size: 2 },
           paragraph: { spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT } } }] : []),
       ] },

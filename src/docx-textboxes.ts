@@ -1,7 +1,7 @@
 import {inlineDrawingAnchor} from './drawing-group';
 import { normalizeDrawingGroups } from './docx-drawing-groups';
 import type JSZip from 'jszip';
-import { W, all, child, ancestor } from './docx-format';
+import { W, all, child, ancestor, val } from './docx-format';
 import { storyHtml } from './docx-stories';
 import { pageMargins, paperDimensions, type PageSettings } from './types';
 import { textBoxFrame, type TextBoxFrame } from './textbox-frame';
@@ -14,7 +14,41 @@ const descendants=(root:Element|Document,name:string)=>Array.from(root.getElemen
 const number=(el:Element|null|undefined,key:string,fallback=0)=>{const n=Number(el?.getAttribute(key)??fallback);return Number.isFinite(n)?n:fallback;};
 const first=(el:Element|null|undefined,name:string)=>el && Array.from(el.children).find(c=>c.localName===name);
 const hex=(v:string|undefined)=>v && /^#?[\da-f]{6}$/i.test(v) ? '#'+v.replace('#','') : undefined;
-type PreparedBox={ marker:string; frames:{ frame:TextBoxFrame; html:string }[] };
+export const textBoxAnchorStyle = {
+ id: 'WordStudioTextBoxAnchor', name: 'Text box anchor', next: 'Normal', semiHidden: true,
+};
+type PreparedBox={ marker:string; frames:{ frame:TextBoxFrame; html:string }[]; generatedCarrier: boolean };
+
+function isGeneratedTextBoxCarrier(drawing: Element) {
+ const run = drawing.parentElement, paragraph = run?.parentElement;
+ if (drawing.namespaceURI !== W || drawing.localName !== 'drawing' ||
+     drawing.children.length !== 1 || drawing.firstElementChild?.namespaceURI !== WP || drawing.firstElementChild.localName !== 'anchor' ||
+     run?.namespaceURI !== W || run.localName !== 'r' || run.children.length !== 1 ||
+     paragraph?.namespaceURI !== W || paragraph.localName !== 'p' || paragraph.children.length !== 2) return false;
+ const properties = paragraph.firstElementChild;
+ if (properties?.namespaceURI !== W || properties.localName !== 'pPr' || properties.children.length !== 2) return false;
+ const style = child(properties, 'pStyle'), spacing = child(properties, 'spacing');
+ // An editor can retain a style while editing the anchor. Only remove the
+ // exact generated spacer, leaving authored content and formatting intact.
+ return style?.namespaceURI === W && style.attributes.length === 1 && val(style) === textBoxAnchorStyle.id &&
+   spacing?.namespaceURI === W && spacing.attributes.length === 4 && val(spacing, 'before') === '0' &&
+   val(spacing, 'after') === '0' && val(spacing, 'line') === '1' && val(spacing, 'lineRule') === 'exact';
+}
+
+async function hasGeneratedTextBoxAnchorStyle(zip: JSZip) {
+ const part = zip.file('word/styles.xml');
+ if (!part) return false;
+ const styles = new DOMParser().parseFromString(await part.async('string'), 'application/xml');
+ const matches = all(styles, 'style').filter(style => val(style, 'styleId') === textBoxAnchorStyle.id);
+ if (matches.length !== 1) return false;
+ const style = matches[0], name = child(style, 'name'), next = child(style, 'next'), hidden = child(style, 'semiHidden');
+ // If another editor changed the style itself, the carrier may now have
+ // deliberate paragraph formatting even without direct formatting edits.
+ return val(style, 'type') === 'paragraph' && style.attributes.length === 2 && style.children.length === 3 &&
+   name?.namespaceURI === W && name.attributes.length === 1 && val(name) === textBoxAnchorStyle.name &&
+   next?.namespaceURI === W && next.attributes.length === 1 && val(next) === textBoxAnchorStyle.next &&
+   hidden?.namespaceURI === W && hidden.attributes.length === 0;
+}
 
 async function colors(zip:JSZip) {
  const part=zip.file('word/theme/theme1.xml'),theme=part ? new DOMParser().parseFromString(await part.async('string'),'application/xml') : undefined;
@@ -131,6 +165,8 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
   if(!container || ancestor(box,'txbxContent'))continue;
   const boxes=grouped.get(container)||[];boxes.push(box);grouped.set(container,boxes);
  }
+ const possibleCarriers = new Set([...grouped.keys()].filter(isGeneratedTextBoxCarrier));
+ const generatedStyle = possibleCarriers.size > 0 && await hasGeneratedTextBoxAnchorStyle(zip);
  let section=0;const pageFor=new Map<Element,PageSettings>();
  for(const paragraph of all(body,'p')) {pageFor.set(paragraph,pages[Math.min(section,pages.length-1)]||pages[0]);if(first(first(paragraph,'pPr'),'sectPr') && !ancestor(paragraph,'txbxContent'))section++;}
  for(const [container,boxes] of grouped) {
@@ -145,7 +181,9 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
   const marker='ws_textbox_'+crypto.randomUUID().replaceAll('-','');
   const bookmark=body.createElementNS(W,'w:bookmarkStart');bookmark.setAttributeNS(W,'w:id',String(800000+records.length));bookmark.setAttributeNS(W,'w:name',marker);
   const end=body.createElementNS(W,'w:bookmarkEnd');end.setAttributeNS(W,'w:id',String(800000+records.length));
-  container.before(bookmark,end);container.remove();records.push({marker,frames});
+  const generatedCarrier = generatedStyle && possibleCarriers.has(container) &&
+    frames.every(item => item.frame.position === 'floating' && !item.frame.drawingGroup);
+  container.before(bookmark,end);container.remove();records.push({marker,frames,generatedCarrier});
  }
  return {count:records.reduce((n,r)=>n+r.frames.length,0),decorate(html:string) {
   const template=document.createElement('template');template.innerHTML=html;const last=new Map<Element,Element>();
@@ -157,7 +195,10 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
     if(item.frame.drawingGroup?.position==='inline' && !inlineDrawingAnchor(template.content,item.frame.drawingGroup.id)){const anchor=document.createElement('span');anchor.dataset.drawingGroupAnchor=JSON.stringify(item.frame.drawingGroup);marker.before(anchor);}
     const box=document.createElement('div'),content=document.createElement('div');box.dataset.documentTextbox=JSON.stringify(item.frame);content.dataset.textboxContent='true';content.innerHTML=item.html;box.append(content);after.after(box);after=box;
    }
-   if(paragraph)last.set(paragraph,after);marker.remove();
+   marker.remove();
+   if (record.generatedCarrier && paragraph?.tagName === 'P' && !paragraph.textContent?.trim() &&
+       !paragraph.querySelector('br,img,[data-docx-bookmark]')) paragraph.remove();
+   else if (paragraph) last.set(paragraph,after);
   }
   return template.innerHTML;
  }};
@@ -179,8 +220,9 @@ export async function writeTextBoxes(zip:JSZip,records:TextBoxExport[]) {
    while(next && next!==finish) {const following=next.nextElementSibling;children.push(next);next=following;}
    if(next!==finish)throw Error('텍스트상자 구조가 올바르지 않습니다.');
    const f=record.frame,emu=(v:number)=>String(Math.round(v*EMU));
+   const syntheticStyle = f.position === 'floating' && !f.drawingGroup ? `<w:pStyle w:val="${textBoxAnchorStyle.id}"/>` : '';
    const gradient=f.gradient ? `<a:gradFill><a:gsLst>${f.gradient.map(s=>`<a:gs pos="${Math.round(s.position*100000)}"><a:srgbClr val="${s.color.slice(1)}"/></a:gs>`).join('')}</a:gsLst><a:lin ang="5400000" scaled="1"/></a:gradFill>`:f.fill?`<a:solidFill><a:srgbClr val="${f.fill.slice(1)}"/></a:solidFill>`:'<a:noFill/>';
-   const xml=`<w:p xmlns:w="${W}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}"><w:pPr><w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/></w:pPr><w:r><w:drawing><wp:anchor distT="${emu(f.wrapMargins?.[0]||0)}" distB="${emu(f.wrapMargins?.[2]||0)}" distL="${emu(f.wrapMargins?.[3]||0)}" distR="${emu(f.wrapMargins?.[1]||0)}" simplePos="0" relativeHeight="${100000+index}" behindDoc="${f.behind?1:0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="${f.horizontalReference||'page'}">${f.horizontalReference && f.horizontalAlign && f.horizontalAlign!=='left'?`<wp:align>${f.horizontalAlign}</wp:align>`:`<wp:posOffset>${emu(f.horizontalOffset??f.x)}</wp:posOffset>`}</wp:positionH><wp:positionV relativeFrom="${f.vertical}"><wp:posOffset>${emu(f.y)}</wp:posOffset></wp:positionV><wp:extent cx="${emu(f.width)}" cy="${emu(f.height)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${f.wrap==='square'?'<wp:wrapSquare wrapText="bothSides"/>':'<wp:wrapNone/>'}<wp:docPr id="${100000+index}" name="Text Box ${index+1}"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri="${WPS}"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(f.width)}" cy="${emu(f.height)}"/></a:xfrm><a:prstGeom prst="${f.shape}"><a:avLst/></a:prstGeom>${gradient}<a:ln w="${emu(f.borderWidth||0)}">${f.border?`<a:solidFill><a:srgbClr val="${f.border.slice(1)}"/></a:solidFill>`:'<a:noFill/>'}</a:ln></wps:spPr><wps:txbx><w:txbxContent/></wps:txbx><wps:bodyPr rot="0" vert="horz" wrap="${f.noWrap?'none':'square'}" lIns="${emu(f.padding[3])}" tIns="${emu(f.padding[0])}" rIns="${emu(f.padding[1])}" bIns="${emu(f.padding[2])}" anchor="${f.align==='center'?'ctr':f.align==='bottom'?'b':'t'}">${f.autoFit?'<a:spAutoFit/>':'<a:noAutofit/>'}</wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
+   const xml=`<w:p xmlns:w="${W}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}"><w:pPr>${syntheticStyle}<w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/></w:pPr><w:r><w:drawing><wp:anchor distT="${emu(f.wrapMargins?.[0]||0)}" distB="${emu(f.wrapMargins?.[2]||0)}" distL="${emu(f.wrapMargins?.[3]||0)}" distR="${emu(f.wrapMargins?.[1]||0)}" simplePos="0" relativeHeight="${100000+index}" behindDoc="${f.behind?1:0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="${f.horizontalReference||'page'}">${f.horizontalReference && f.horizontalAlign && f.horizontalAlign!=='left'?`<wp:align>${f.horizontalAlign}</wp:align>`:`<wp:posOffset>${emu(f.horizontalOffset??f.x)}</wp:posOffset>`}</wp:positionH><wp:positionV relativeFrom="${f.vertical}"><wp:posOffset>${emu(f.y)}</wp:posOffset></wp:positionV><wp:extent cx="${emu(f.width)}" cy="${emu(f.height)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${f.wrap==='square'?'<wp:wrapSquare wrapText="bothSides"/>':'<wp:wrapNone/>'}<wp:docPr id="${100000+index}" name="Text Box ${index+1}"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri="${WPS}"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(f.width)}" cy="${emu(f.height)}"/></a:xfrm><a:prstGeom prst="${f.shape}"><a:avLst/></a:prstGeom>${gradient}<a:ln w="${emu(f.borderWidth||0)}">${f.border?`<a:solidFill><a:srgbClr val="${f.border.slice(1)}"/></a:solidFill>`:'<a:noFill/>'}</a:ln></wps:spPr><wps:txbx><w:txbxContent/></wps:txbx><wps:bodyPr rot="0" vert="horz" wrap="${f.noWrap?'none':'square'}" lIns="${emu(f.padding[3])}" tIns="${emu(f.padding[0])}" rIns="${emu(f.padding[1])}" bIns="${emu(f.padding[2])}" anchor="${f.align==='center'?'ctr':f.align==='bottom'?'b':'t'}">${f.autoFit?'<a:spAutoFit/>':'<a:noAutofit/>'}</wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
    const parsed=new DOMParser().parseFromString(xml,'application/xml');if(parsed.getElementsByTagName('parsererror').length)throw Error('텍스트상자 XML을 만들 수 없습니다.');
    const p=doc.importNode(parsed.documentElement,true),target=all(p,'txbxContent')[0];target.append(...children);
    if(f.position==='inline'){const anchor=p.getElementsByTagNameNS(WP,'anchor')[0],inline=doc.createElementNS(WP,'wp:inline');for(const c of [...anchor.children])if(['extent','effectExtent','docPr','cNvGraphicFramePr','graphic'].includes(c.localName))inline.append(c);anchor.replaceWith(inline);}

@@ -25,7 +25,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // Eighteen independent empty-heading cases retain two DOCX saves each.
 // Three automatic hyphenation states add two DOCX saves each.
 // The numbering-tab fixture retains two standard DOCX saves.
-let count = 292;
+// The floating text box carrier fixture retains two standard DOCX saves.
+let count = 294;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);
