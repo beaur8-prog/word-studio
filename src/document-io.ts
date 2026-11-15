@@ -1,3 +1,4 @@
+import { countDocxCheckboxes } from './docx-checkboxes';
 import { readWordBackground, validWordBackground, writeWordBackground } from './docx-background';
 import { sameSectionFrameSettings } from './section-frame-settings';
 import { encodeDocxXmlParts } from './docx-package-text';
@@ -729,6 +730,8 @@ export async function importFile(file: File): Promise<ImportResult> {
   const backgroundSettings = zip.file('word/settings.xml');
   const background = readWordBackground(body, backgroundSettings ? xml(await backgroundSettings.async('string')) : undefined, warnings);
   if (background) for (const page of new Set([doc.page, ...pages])) page.wordBackground = background;
+  const checkboxCount = await countDocxCheckboxes(zip, body);
+  if (checkboxCount) warnings.push(`체크 상자 ${checkboxCount}개를 선택 상태가 유지되는 기호로 가져왔습니다. Word 양식 컨트롤은 기호로 변환됩니다.`);
   const textboxes = await prepareTextBoxes(zip, body, pages);
   if (textboxes.count) warnings.push(`텍스트상자 ${textboxes.count}개의 내용을 배경·크기와 함께 편집 가능한 별도 영역으로 가져왔습니다.`);
   const metadata = await prepareDocxMetadata(zip, body, pages);

@@ -21,7 +21,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // Twelve additional tab/widow cases each retain the input and two DOCX saves.
 // Two background controls retain input and two saves; UI switching adds two saves.
 // Outline input/two saves and three real UI exports add six files.
-let count = 243;
+// Checkbox input/two saves and two real UI exports add five files.
+let count = 248;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);

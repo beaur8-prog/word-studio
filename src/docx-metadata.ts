@@ -1,3 +1,4 @@
+import { flattenDocxCheckboxes, restoreDocxCheckboxInputs } from './docx-checkboxes';
 import { encodeDocxXmlParts } from './docx-package-text';
 import { tablePixelGrid } from './table-grid-widths';
 import { rowSplitPolicy } from './row-split-policy';
@@ -25,6 +26,7 @@ export const TABLE_END_STYLE = 'WordStudioTableEnd';
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
 export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
+  flattenDocxCheckboxes(body);
   const format = await docxFormat(zip);
   // Word requires a final paragraph after a body table. Our small structural
   // carrier is not an authored blank line. Keep it if an external editor has
@@ -173,6 +175,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       const template = document.createElement('template');
       template.innerHTML = html.replace(/<a\s+id="(ws_marker_\d+)"\s*><\/a>/g, '<span data-ws-marker="$1"></span>')
         .replace(/<a\s+id="([^"]+)"\s*><\/a>/g, '<span data-docx-bookmark="$1"></span>');
+      restoreDocxCheckboxInputs(template.content);
       const sizedTables = new Map<HTMLTableElement, Element>();
       const sizedCells = new WeakMap<HTMLElement, Element>();
       const tableGaps = new Map<HTMLElement, number>();
