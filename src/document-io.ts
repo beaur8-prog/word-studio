@@ -12,6 +12,7 @@ import { wordListFontName } from './word-list-marker';
 import { prepareTextBoxes, textBoxAnchorStyle, writeTextBoxes, type TextBoxExport } from './docx-textboxes';
 import { textBoxFrame } from './textbox-frame';
 import { wordHeadingMarks } from './word-heading-defaults';
+import { parseWordParagraphBottomBorder } from './word-paragraph-border';
 import { sanitizeImportedHtml, validImage, safeLink, RASTER_DATA } from "./document-html";
 import { activeHwpCellLine, cssPixels, encodeHwpCellLine, hwpCellFont, parseHwpCellLine } from './hwp-cell-line';
 import { HwpCellParagraph } from './docx-hwp-cell-line';
@@ -308,6 +309,9 @@ export function validateDocument(input: unknown): StudioDocument {
     if (attrs?.wordParagraphStyleKind != null && !/^(?:paragraph|heading[1-6])$/.test(String(attrs.wordParagraphStyleKind))) fail('문단 스타일 종류가 올바르지 않습니다.');
     for (const key of ['wordKeepNext', 'wordKeepLines']) if (attrs?.[key] != null && typeof attrs[key] !== 'boolean') fail('문단 묶음 정책이 올바르지 않습니다.');
     if (attrs?.wordContextualSpacing != null && typeof attrs.wordContextualSpacing !== 'boolean') fail('문단 간격 정책이 올바르지 않습니다.');
+    if (attrs?.wordParagraphBottomBorder != null &&
+        (!['paragraph', 'heading'].includes(type) || !parseWordParagraphBottomBorder(attrs.wordParagraphBottomBorder)))
+      fail('문단 하단 테두리 정보가 올바르지 않습니다.');
     if (attrs?.wordTextAlignment != null && !paragraphTextAlignment(attrs.wordTextAlignment)) fail('문단 글줄 정렬이 올바르지 않습니다.');
     if (attrs?.hwpCellLine != null && !parseHwpCellLine(attrs.hwpCellLine)) fail('한글 셀의 줄 간격 정보가 올바르지 않습니다.');
     if (type === 'documentSymbol' && (!boundedString(attrs?.font, 100) || !attrs?.font || !/^\d{1,5}$/.test(String(attrs?.code)) || !finite(Number(attrs?.code), 0, 65535) || !boundedString(attrs?.glyph, 100))) fail('기호 글자가 올바르지 않습니다.');
@@ -988,6 +992,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
   // large glyphs and inline pictures to grow; imported Word rules stay intact.
   const authoredDefault = node.type === 'paragraph' && !lineHeight;
   const headingDefaults = wordHeadingMarks(node.attrs?.wordHeadingMarks);
+  const bottomBorder = parseWordParagraphBottomBorder(node.attrs?.wordParagraphBottomBorder);
   const defaultLine = Math.round(Math.max(fontPoints(node.attrs?.paragraphSize) ?? 11,
     ...(node.content ?? []).flatMap(n => (n.marks ?? []).filter(m => m.type === 'textStyle')
       .map(m => fontPoints(m.attrs?.fontSize) ?? 0))) * 1.65 * 20);
@@ -1017,6 +1022,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
         : {}),
     },
     ...(typeof node.attrs?.wordContextualSpacing === 'boolean' ? { contextualSpacing: node.attrs.wordContextualSpacing } : {}),
+    ...(bottomBorder ? { border: { bottom: bottomBorder } } : {}),
     // Flatten the visible policy. Native/HWP headings have no Word keep
     // attributes; do not acquire docx's built-in heading keeps on reopen.
     keepNext: node.attrs?.wordKeepNext === true,

@@ -3,6 +3,7 @@ import { TableView } from '@tiptap/extension-table';
 import type { Node } from '@tiptap/pm/model';
 import { tableAnchor } from './table-anchor';
 import { paragraphTextAlignment } from './paragraph-text-alignment';
+import { parseWordParagraphBottomBorder } from './word-paragraph-border';
 
 const properties = {
   spaceBefore: 'margin-top', spaceAfter: 'margin-bottom', rightIndent: 'margin-right', firstLineIndent: 'text-indent',
@@ -54,6 +55,17 @@ export const ImportedFormat = Extension.create({
           default: null, parseHTML: (el: HTMLElement) => el.getAttribute('data-word-paragraph-style'),
           renderHTML: (a: Record<string, unknown>) => typeof a.wordParagraphStyle === 'string' && a.wordParagraphStyle
             ? { 'data-word-paragraph-style': a.wordParagraphStyle } : {},
+        },
+        wordParagraphBottomBorder: {
+          default: null,
+          parseHTML: (el: HTMLElement) => {
+            const border = parseWordParagraphBottomBorder(el.dataset.wordParagraphBottomBorder);
+            return border ? JSON.stringify(border) : null;
+          },
+          renderHTML: (attrs: Record<string, unknown>) => {
+            const border = parseWordParagraphBottomBorder(attrs.wordParagraphBottomBorder);
+            return border ? { 'data-word-paragraph-bottom-border': JSON.stringify(border) } : {};
+          },
         },
         wordParagraphStyleName: {
           default: null, parseHTML: (el: HTMLElement) => el.getAttribute('data-word-paragraph-style-name'),
