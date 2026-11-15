@@ -1,8 +1,43 @@
 import { documentScale } from './document-scale';
+import { parseTabStops, parseWordNumberingTabs } from './document-tabs';
+import { cssPixels } from './hwp-cell-line';
 
 // Legacy glyph metrics remain separate from paragraph font metrics. Keep
 // their native strut/geometry while rendering the resolved Unicode label.
 export const unresolvedWordListMarker = (label: unknown) => typeof label === 'string' && /[\uE000-\uF8FF]/.test(label);
+
+/** A source list tab at the body margin removes the browser's extra gutter
+ * from continued lines. Keep the native marker and the first glyph in place. */
+export function nativeWordListIndents(item: HTMLElement, paragraph: HTMLElement) {
+  if (!paragraph.dataset.wordNumberingTabs || !item.dataset.listGlyph || item.dataset.listFormat !== 'bullet' ||
+      (item.dataset.listSuffix && item.dataset.listSuffix !== 'tab') ||
+      paragraph.tagName !== 'P' ||
+      item.closest('li li,td,th,.document-furniture,[data-document-note],[data-document-textbox],[data-column-count]:not([data-column-count="1"])') ||
+      paragraph.querySelector('[data-docx-tab],img:not(.ProseMirror-separator),[data-note-reference]') ||
+      parseTabStops(paragraph.dataset.tabStops).length) return null;
+  let first = item.firstElementChild;
+  while (first?.matches('.pagination-gap,.pagination-cell-gap,[data-flow-widget]')) first = first.nextElementSibling;
+  if (paragraph !== first) return null;
+  // A split can put an explicit tab or other blocker in the other fragment.
+  // A fragment keeps the full paragraph's eligibility during fitting probes.
+  if (paragraph.hasAttribute('data-print-paragraph-fragment') &&
+      !paragraph.hasAttribute('data-word-native-list-indent')) return null;
+  const stops = parseWordNumberingTabs(paragraph.dataset.wordNumberingTabs);
+  const left = cssPixels(paragraph.style.marginLeft);
+  if (stops.length !== 1 || left === null || Math.round(left * 15) !== stops[0]) return null;
+  const continuation = item.hasAttribute('data-print-list-continuation');
+  const originalIndent = paragraph.style.textIndent;
+  const hanging = continuation ? 0 : originalIndent.startsWith('-') ? cssPixels(originalIndent.slice(1)) : null;
+  const list = item.parentElement;
+  if (!list?.matches('ol,ul') || hanging === null) return null;
+  const paragraphStyle = getComputedStyle(paragraph);
+  const markerStyle = getComputedStyle(item);
+  if (paragraphStyle.direction !== 'ltr' || paragraphStyle.writingMode !== 'horizontal-tb' ||
+      !['left', 'start'].includes(paragraphStyle.textAlign) || markerStyle.listStylePosition !== 'outside') return null;
+  const gutter = parseFloat(getComputedStyle(list).paddingLeft) || 0;
+  if (gutter <= 0 || left < gutter) return null;
+  return { left: left - gutter, first: continuation ? 0 : gutter - hanging };
+}
 
 let markerContext: CanvasRenderingContext2D | null | undefined;
 /** Word's hanging indent positions the label, not the first body text.

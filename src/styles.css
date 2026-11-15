@@ -2073,6 +2073,11 @@ button:hover:not(:disabled) {
 :is(.tiptap, .document-furniture) li[data-word-list-layout][data-list-glyph]::before { content: attr(data-list-glyph); }
 :is(.tiptap, .document-furniture) li[data-word-list-layout][data-print-list-continuation]::before { content: none; }
 :is(.tiptap, .document-furniture) [data-word-list-paragraph] { text-indent: 0 !important; }
+.tiptap li > p[data-word-native-list-indent] {
+  margin-left: var(--word-native-list-left) !important;
+  text-indent: var(--word-native-list-first) !important;
+}
+.tiptap li[data-print-list-continuation] > p[data-word-native-list-indent] { text-indent: 0 !important; }
 
 /* An empty anchor has no glyphs. A zero font size still inherits an absolute
    paragraph leading, which adds descent and can push a table onto the next

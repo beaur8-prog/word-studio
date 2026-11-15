@@ -51,6 +51,7 @@ import {
   VerticalAlignTable,
   HeightRule,
   Tab,
+  TabStopType,
   SimpleField,
   FootnoteReferenceRun, EndnoteReferenceRun, SectionType, SymbolRun,
 } from "docx";
@@ -65,7 +66,7 @@ import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
 import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE, TABLE_END_STYLE } from './docx-metadata';
 import { emptyLineDocxProperty, emptyLineCompatibilityWarning } from './page-empty-lines';
 import { normalizeDocxTables } from './docx-table-grid';
-import { parseTabStops } from './document-tabs';
+import { parseTabStops, parseWordNumberingTabs } from './document-tabs';
 import { overlapParts } from './word-overlap';
 import { rowHeight, MAX_ROW_HEIGHT } from './table-row-resize';
 import { storyHtml, documentNotes, attachDocumentNotes, structureDocxSections } from './docx-stories';
@@ -1204,6 +1205,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     tableGap?: number;
     width?: number;
     list?: { reference: string; level: number };
+    importedList?: boolean;
   };
   // Consumers coalesce adjacent tables when no paragraph separates them. The
   // later narrow table can then resize every preceding row of the long table.
@@ -1250,6 +1252,16 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         ];
         const bodyLine = context.cellRun ? null : hwpBodyTextLine(node);
         let paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150, cellLineHeights.get(node), bodyLine);
+        if (context.importedList) {
+          const textStops = paragraph.tabStops ?? [];
+          const textPositions = new Set(textStops.map(stop => stop.position));
+          // Numbering levels are regenerated on export. Materialize effective
+          // list stops per paragraph so a direct override stays local.
+          const numberingStops = parseWordNumberingTabs(node.attrs?.wordNumberingTabs)
+            .filter(position => !textPositions.has(position))
+            .map(position => ({ position, type: TabStopType.NUM }));
+          if (numberingStops.length) paragraph = { ...paragraph, tabStops: [...textStops, ...numberingStops].sort((a, b) => a.position - b.position) };
+        }
         const sourceStyle = paragraphStyles.get(node.attrs?.wordParagraphStyle);
         if (sourceStyle) paragraph = { ...paragraph, style: sourceStyle.id };
         const cellLine = activeHwpCellLine(node.attrs);
@@ -1355,7 +1367,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             output.push(...await blocks([child], {
               cellRun: context.cellRun, width: context.width, tableGap: context.tableGap,
               depth: level + 1,
-              ...(first && isParagraph ? { list: { reference, level } } : {}),
+              ...(first && isParagraph ? { list: { reference, level }, importedList: !!imported?.wordListId } : {}),
               ...(!first && isParagraph ? { indent: 720 * (level + 1) } : {}),
             }));
             if (isParagraph) first = false;

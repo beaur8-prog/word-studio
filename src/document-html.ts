@@ -91,7 +91,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-image-floating", "data-drawing-group-anchor",
       "data-document-textbox", "data-textbox-content",
       "data-table-anchor",
-      "data-docx-tab", "data-tab-stops",
+      "data-docx-tab", "data-tab-stops", "data-word-numbering-tabs",
       "data-word-line-rule", "data-word-line", "data-word-heading-marks",
       "data-word-auto-space-de", "data-word-auto-space-dn",
       "data-word-paragraph-style", "data-word-paragraph-style-name", "data-word-outline-level", "data-word-contextual-spacing", "data-word-keep-next", "data-word-keep-lines",

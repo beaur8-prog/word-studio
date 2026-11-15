@@ -1,4 +1,5 @@
 import { paragraphTextAlignment } from './paragraph-text-alignment';
+import { isWordNumberingTabPosition, normalizeWordNumberingTabs } from './document-tabs';
 import type JSZip from 'jszip';
 import { wordNumberText } from './word-numbering';
 
@@ -285,16 +286,25 @@ export async function docxFormat(zip: JSZip) {
     },
     run(run: Element, script: 'ascii' | 'eastAsia' = 'ascii') { return runCss(runLayers(ancestor(run, 'p')!, run), script); },
     tabs(p: Element) {
-      const stops = new Map<number, { position: number; type: string; leader: string }>();
+      const stops = new Map<number, { type: string; leader: string }>();
       for (const props of paragraphProperties(p)) {
         for (const tab of Array.from(child(props, 'tabs')?.children ?? [])) {
-          const position = Number(val(tab, 'pos')) / 15, type = val(tab);
+          const sourcePosition = val(tab, 'pos').trim(), type = val(tab);
+          const position = Number(sourcePosition);
+          if (!sourcePosition || !Number.isFinite(position)) continue;
+          // A tab stop of either kind can replace or clear a lower-layer stop.
           if (type === 'clear') stops.delete(position);
-          else if (['left', 'right', 'center', 'decimal'].includes(type) && Number.isFinite(position))
-            stops.set(position, { position, type, leader: val(tab, 'leader') });
+          else if (['left', 'right', 'center', 'decimal'].includes(type) ||
+            (type === 'num' && /^[+-]?\d+$/.test(sourcePosition) && isWordNumberingTabPosition(position)))
+            stops.set(position, { type, leader: val(tab, 'leader') });
         }
       }
-      return JSON.stringify([...stops.values()]);
+      const ordinary = [], numbering = [];
+      for (const [position, stop] of stops) {
+        if (stop.type === 'num') numbering.push(position);
+        else ordinary.push({ position: position / 15, ...stop });
+      }
+      return { ordinary, numbering: normalizeWordNumberingTabs(numbering) };
     },
     paragraph(p: Element) {
       const style = document.createElement('p').style;

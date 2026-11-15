@@ -363,7 +363,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           } catch { /* Standard Word spacing remains usable without our optional policy. */ }
         }
         const tabs = format.tabs(marker.paragraph);
-        if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
+        if (tabs.ordinary.length) p.dataset.tabStops = JSON.stringify(tabs.ordinary);
+        if (tabs.numbering.length) p.dataset.wordNumberingTabs = JSON.stringify(tabs.numbering);
         if (cell && marker.cell && !all(marker.cell, 't').some(t => t.textContent) && !all(marker.cell, 'tbl').length) {
           for (const property of ['font-family', 'font-size', 'color']) cell.style.setProperty(property, p.style.getPropertyValue(property));
         }

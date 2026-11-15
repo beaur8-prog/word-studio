@@ -2,7 +2,7 @@ import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import { wordFallbackLineHeight, wordFontMetricsChanged } from './word-font-fallbacks';
-import { wordListGeometry, unresolvedWordListMarker } from './word-list-layout';
+import { nativeWordListIndents, wordListGeometry, unresolvedWordListMarker } from './word-list-layout';
 
 const metrics = new Map<string, number>();
 // The shared LRU bounds retained samples, but documents can contain more unique
@@ -84,8 +84,19 @@ function listLineProperties(paragraph: HTMLElement, height?: number | null) {
 export function layoutWordListLines(root: HTMLElement) {
   for (const item of root.querySelectorAll<HTMLElement>('li[data-list-id]')) {
     const paragraph = item.firstElementChild;
-    if (unresolvedWordListMarker(item.dataset.listLabel || item.dataset.listPattern)) continue;
     if (!(paragraph instanceof HTMLElement) || !paragraph.matches('p,h1,h2,h3,h4,h5,h6') || !paragraph.dataset.wordLineRule) continue;
+    const legacyMarker = unresolvedWordListMarker(item.dataset.listLabel || item.dataset.listPattern);
+    const indents = legacyMarker ? nativeWordListIndents(item, paragraph) : null;
+    if (indents) {
+      paragraph.dataset.wordNativeListIndent = 'true';
+      paragraph.style.setProperty('--word-native-list-left', `${indents.left}px`);
+      paragraph.style.setProperty('--word-native-list-first', `${indents.first}px`);
+    } else if (paragraph.hasAttribute('data-word-native-list-indent')) {
+      delete paragraph.dataset.wordNativeListIndent;
+      paragraph.style.removeProperty('--word-native-list-left');
+      paragraph.style.removeProperty('--word-native-list-first');
+    }
+    if (legacyMarker) continue;
     for (const [property, value] of Object.entries(listLineProperties(paragraph)))
       if (item.style.getPropertyValue(property) !== value) item.style.setProperty(property, value);
     const original = paragraph.dataset.wordListHanging ?? paragraph.style.textIndent;
@@ -128,10 +139,16 @@ export const WordLineMetrics = Extension.create({
         if (!view.dom.isConnected || view.composing) return;
         const decorations: Decoration[] = [], values: string[] = [];
         view.state.doc.descendants((node, pos) => {
-          if (node.type.name === 'listItem' && node.attrs.wordListId && node.firstChild?.attrs.wordLineRule &&
-            !unresolvedWordListMarker(node.attrs.wordListLabel || node.attrs.wordListPattern)) {
+          if (node.type.name === 'listItem' && node.attrs.wordListId && node.firstChild?.attrs.wordLineRule) {
             const paragraph = view.nodeDOM(pos + 1);
-            if (paragraph instanceof HTMLElement) {
+            if (paragraph instanceof HTMLElement && unresolvedWordListMarker(node.attrs.wordListLabel || node.attrs.wordListPattern)) {
+              const indents = nativeWordListIndents(paragraph.parentElement!, paragraph);
+              if (indents) {
+                const style = `--word-native-list-left:${indents.left}px;--word-native-list-first:${indents.first}px`;
+                decorations.push(Decoration.node(pos + 1, pos + 1 + node.firstChild.nodeSize, { 'data-word-native-list-indent': 'true', style }));
+                values.push(`${pos + 1}:native-list:${style}`);
+              }
+            } else if (paragraph instanceof HTMLElement) {
               let style = Object.entries(listLineProperties(paragraph, wordLineHeight(paragraph))).map(([p, v]) => `${p}:${v}`).join(';');
               const geometry = wordListGeometry(paragraph.parentElement!, paragraph, node.firstChild.attrs.firstLineIndent);
               if (geometry) {
