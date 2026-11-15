@@ -1,0 +1,37 @@
+name: Native Word fallback font metrics diagnostic
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  windows-font-metrics:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile local diagnostic with the installed Windows SDK
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $studio = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $studio) { throw 'Visual C++ compiler unavailable' }
+          @"
+          @echo off
+          call "$studio\Common7\Tools\VsDevCmd.bat" -no_logo -arch=x64 -host_arch=x64
+          if errorlevel 1 exit /b %errorlevel%
+          cl /nologo /EHsc /std:c++17 analysis\word-docx-local-8h-2026-11-15\tools\measure-word-font.cpp /Fe:word-font-metrics.exe /link dwrite.lib
+          "@ | Set-Content -Encoding ascii build-font-metrics.bat
+          & cmd.exe /d /c build-font-metrics.bat
+          if ($LASTEXITCODE) { throw 'Diagnostic compilation failed' }
+      - name: Measure only bundled licensed fallback fonts
+        shell: pwsh
+        run: |
+          & .\word-font-metrics.exe src/assets/fonts | Set-Content -Encoding utf8 native-word-font-metrics.json
+          if ($LASTEXITCODE) { throw 'Font metric measurement failed' }
+          $report = Get-Content native-word-font-metrics.json -Raw | ConvertFrom-Json
+          if ($report.fonts.Count -ne 4) { throw 'Expected four font faces' }
+          foreach ($font in $report.fonts) { if ($font.measurements.Count -ne 72) { throw 'Missing size/DPI/mode controls' } }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-word-font-metrics
+          path: native-word-font-metrics.json
+          retention-days: 3
