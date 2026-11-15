@@ -13,7 +13,7 @@ import { tableAnchor } from './table-anchor-data';
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
-import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 import { imageOutsidePaper, recoverableCellImage, imageFloating, type ImageFloating } from "./image-floating";
 
 type Boundary = [globalThis.Node, number];
@@ -70,7 +70,7 @@ type RepeatedOwner = {
   history: OwnerPageStep[];
 };
 
-function pageSquareBounds({ image, paper }: RepeatedOwner) {
+function pageSquareBounds({ image, paper }: Pick<RepeatedOwner, "image" | "paper">) {
   const geometry = imageFloating(image.dataset.imageFloating);
   if (!geometry || geometry.drawingGroup || geometry.behindDocument || geometry.wrap?.type !== 1 ||
       geometry.wrap.side !== 'bothSides' || geometry.horizontalPosition.relative !== 'page' ||
@@ -84,6 +84,49 @@ function pageSquareBounds({ image, paper }: RepeatedOwner) {
   if (!(width > 0 && height > 0) || x < 0 || x + width > paper.sheet.clientWidth ||
       y < paper.top || y + height > paper.height - paper.bottom) return;
   return { left: x, right: x + width, top: y, bottom: y + height };
+}
+
+/** A source page containing only one drawing has no text to wrap. If the
+ * detached flow places it on the preceding paper, paint on the already laid
+ * out editor paper without changing its anchor, exclusion, or pagination. */
+function isolatedPagePictureTop(picture: Picture, image: HTMLImageElement, view: EditorView, position: number) {
+  const root = view.dom;
+  if (picture.cssTop >= 0 || picture.offPage || picture.geometry.verticalPosition.relative !== 'page') return picture.cssTop;
+  const paragraph = image.parentElement;
+  if (paragraph?.tagName !== 'P' || !(paragraph.parentElement === root || paragraph.parentElement?.classList.contains('section-editable')))
+    return picture.cssTop;
+  const paper = ownerPaper(image, root);
+  if (!paper?.page) return picture.cssTop;
+  const stride = paper.height + 24, pageTop = paper.page * stride;
+  const paintedTop = paper.y + picture.cssTop;
+  if (paintedTop >= pageTop - .5 || paintedTop < pageTop - stride - .5 ||
+      paintedTop + picture.height > pageTop - 24 + .5 || paper.y > pageTop + paper.height - paper.bottom + .5)
+    return picture.cssTop;
+  const bounds = pageSquareBounds({ image, paper });
+  if (!bounds || paragraph.getClientRects().length !== 1 || parseFloat(getComputedStyle(paragraph).borderTopWidth)) return picture.cssTop;
+  const anchor = view.state.doc.resolve(position), parent = anchor.parent, block = anchor.nodeAfter;
+  if (block?.type.name !== 'paragraph' || block.childCount !== 1 || block.firstChild?.type.name !== 'inlineImage') return picture.cssTop;
+  const boundedByPageBreak = (step: -1 | 1) => {
+    let offset = step === -1 ? position : position + block.nodeSize;
+    for (let index = anchor.index() + step; index >= 0 && index < parent.childCount; index += step) {
+      const sibling = parent.child(index);
+      if (step === -1) offset -= sibling.nodeSize;
+      if (sibling.type.name === 'pageBreak') {
+        const pageBreak = view.nodeDOM(offset);
+        if (!(pageBreak instanceof HTMLElement)) return false;
+        const box = pageBreak.getBoundingClientRect();
+        // A break coalesced with a section start does not isolate a paper.
+        if (box.height / paper.scale <= .5) return false;
+        return step === 1 || Math.abs(
+          (box.bottom - paper.sheet.getBoundingClientRect().top) / paper.scale - pageTop - paper.top
+        ) <= .5;
+      }
+      if (sibling.type.name !== 'paragraph' || sibling.childCount) return false;
+      if (step === 1) offset += sibling.nodeSize;
+    }
+    return false;
+  };
+  return boundedByPageBreak(-1) && boundedByPageBreak(1) ? pageTop + bounds.top - paper.y : picture.cssTop;
 }
 
 /** Two image-only anchors can share one repeated wrap state. When they
@@ -1173,7 +1216,9 @@ export const FloatingLayout = Extension.create({
                   );
                   if (!token) continue;
                   const g = picture.geometry;
-                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${picture.cssTop}px;z-index:${g.behindDocument ? -1 : 1}${picture.offPage ? ";display:none" : ""}`;
+                  const img = token.start[0].childNodes[token.start[1]] as HTMLImageElement;
+                  const top = paragraph.startPage ? picture.cssTop : isolatedPagePictureTop(picture, img, view, position);
+                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${top}px;z-index:${g.behindDocument ? -1 : 1}${picture.offPage ? ";display:none" : ""}`;
                   decorations.push(
                     Decoration.node(position + 1 + token.from, position + 1 + token.to, { style }),
                   );
