@@ -18,7 +18,8 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // plus4 merge-continuation,12 fwSpace,8 off-paper drawing and2 tab exports plus2 bookmark-range and2 media-barrier exports.
 // The authored-empty-footer fixture contributes two more real DOCX exports.
 // Empty-bookmark line geometry and auto-width grid fixtures add two saves each.
-let count = 193;
+// Twelve additional tab/widow cases each retain the input and two DOCX saves.
+let count = 229;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);

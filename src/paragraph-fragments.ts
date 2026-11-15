@@ -134,12 +134,12 @@ export function paragraphPrefixHeight(paragraph: HTMLElement, offset: number, sc
  * paragraph also cannot satisfy both sides of a widow-controlled break
  * when its line count is below orphans + widows. Move these intact. Oversized paragraphs and other flow contexts retain
  * their own continuation rules, so protection never forces text to shrink.
- * Tab stops also keep their existing flow until their line budget is shared. */
+ * A fitting short tabbed paragraph moves intact, so its tab fields never
+ * need a new cut or a different trailing-field width. */
 export function keepShortWordParagraphTogether(paragraph: HTMLElement, lineCount: number, bodyHeight: number, scale = 1) {
   if (!paragraph.matches('p[data-word-paragraph-style],h1[data-word-paragraph-style],h2[data-word-paragraph-style],h3[data-word-paragraph-style],h4[data-word-paragraph-style],h5[data-word-paragraph-style],h6[data-word-paragraph-style]') || lineCount < 2 ||
       paragraph.closest('li,td,th,[data-document-textbox],[data-textbox-content],[data-column-count]:not([data-column-count="1"])') ||
-      paragraph.textContent?.includes('\t') ||
-      paragraph.querySelector('img:not(.ProseMirror-separator),svg,table,[data-note-reference],[data-page-number],[data-flow-widget],[data-docx-tab]')) return false;
+      paragraph.querySelector('img:not(.ProseMirror-separator),svg,table,[data-note-reference],[data-page-number],[data-flow-widget]')) return false;
   const orphans = Math.max(1, Number(paragraph.style.orphans) || 1), widows = Math.max(1, Number(paragraph.style.widows) || 1);
   const before = Math.max(0, parseFloat(getComputedStyle(paragraph).marginTop) || 0);
   return (paragraph.dataset.wordKeepLines === 'true' || paragraph.tagName === 'P' && lineCount < orphans + widows) && paragraph.getBoundingClientRect().height / scale + before <= bodyHeight + .5;
