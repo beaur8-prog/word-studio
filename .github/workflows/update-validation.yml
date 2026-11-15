@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ inputs.installer_only && fromJSON('["windows-latest"]') || fromJSON('["ubuntu-22.04", "windows-latest"]') }}
+        os: [windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     steps:
