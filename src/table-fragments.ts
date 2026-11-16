@@ -34,6 +34,28 @@ export function ordinaryHwpTerminalCells(rows: HTMLTableRowElement[]) {
     cell.firstElementChild.dataset.hwpCellTerminal === 'true'));
 }
 
+// Only HWP owners with two plain, nonempty paragraphs take this path.
+function hwpOwnerParagraphs(cell: HTMLTableCellElement) {
+  const paragraphs = [...cell.children];
+  if (cell.tagName !== 'TD' || cell.colSpan !== 1 || paragraphs.length !== 2 ||
+    getComputedStyle(cell).verticalAlign !== 'middle' ||
+    paragraphs[0].hasAttribute('data-hwp-cell-line') ||
+    !paragraphs[1].hasAttribute('data-hwp-cell-line')) return null;
+  if (!paragraphs.every(paragraph => {
+    if (!(paragraph instanceof HTMLParagraphElement) || !paragraph.textContent?.trim() ||
+      paragraph.dataset.wordLineRule !== 'exact' || paragraphLineOffsets(paragraph).length !== 0 ||
+      paragraph.querySelector('br:not(.ProseMirror-trailingBreak),sup,sub,img:not(.ProseMirror-separator),svg,' +
+        '[data-document-field],[data-docx-tab],[data-docx-bookmark],[data-word-overlap],[data-symbol-font]')) return false;
+    const style = getComputedStyle(paragraph);
+    return parseFloat(style.marginTop) === 0 && parseFloat(style.marginBottom) === 0;
+  })) return null;
+  return paragraphs as HTMLParagraphElement[];
+}
+
+export function multiParagraphHwpOwners(rows: HTMLTableRowElement[]) {
+  return rows.flatMap(row => [...row.cells].filter(cell => cell.rowSpan > 1 && hwpOwnerParagraphs(cell)));
+}
+
 export function precedingSourceRow(row: HTMLTableRowElement) {
   let previous = row.previousElementSibling;
   while (previous?.classList.contains('ProseMirror-widget')) previous = previous.previousElementSibling;
@@ -89,7 +111,9 @@ function canMoveHwpCellParagraph(paragraph: HTMLElement) {
   const cell = paragraph.parentElement;
   if (!(cell instanceof HTMLTableCellElement) || cell.colSpan !== 1 ||
     (cell.tagName === 'TH' && cell.rowSpan !== 1) ||
-    centeredContinuationParagraph(cell) !== paragraph || getComputedStyle(cell).verticalAlign !== 'middle') return false;
+    getComputedStyle(cell).verticalAlign !== 'middle' ||
+    (centeredContinuationParagraph(cell) !== paragraph &&
+      !(cell.rowSpan > 1 && hwpOwnerParagraphs(cell)?.includes(paragraph)))) return false;
 
   const line = parseHwpCellLine(paragraph.dataset.hwpCellLine);
   const size = cssPixels(paragraph.dataset.hwpCellAuthoredSize), exact = cssPixels(paragraph.dataset.wordLine);
@@ -145,14 +169,15 @@ export function canSplitProtectedMergedRows(rows: HTMLTableRowElement[]) {
   const previous = precedingSourceRow(body[0]);
   // The print plan for a wrapped ordinary cell starts at the table edge.
   // An earlier body row can change the collapsed borders of that plan.
-  if (previous && !headerRow(previous) && ordinaryHwpTerminalCells(body).length) return false;
+  if (previous && !headerRow(previous) &&
+    (ordinaryHwpTerminalCells(body).length || multiParagraphHwpOwners(body).length)) return false;
   return columns > 0 &&
     (!previous || !previous.querySelector(':scope > [data-print-merge-continuation]') &&
       [...previous.cells].reduce((width, cell) => width + cell.colSpan, 0) === columns) &&
     body.every(row => [...row.cells].every(cell => {
       if (cell.rowSpan === 1) return centeredContinuationParagraph(cell);
       const paragraph = cell.firstElementChild, alignment = getComputedStyle(cell).verticalAlign;
-      return paragraph instanceof HTMLParagraphElement && cell.childElementCount === 1 &&
+      return !!hwpOwnerParagraphs(cell) || paragraph instanceof HTMLParagraphElement && cell.childElementCount === 1 &&
         (alignment === 'top' || alignment === 'middle');
     }));
 }
@@ -172,10 +197,9 @@ function mergeContentFitsOwnerRow(cell: HTMLTableCellElement, row: HTMLTableRowE
   return contentBottom + margin + padding + border <= row.getBoundingClientRect().bottom + .5;
 }
 
-export function measureCenteredParagraph(cell: HTMLTableCellElement) {
-  const paragraph = cell.firstElementChild;
-  if (getComputedStyle(cell).verticalAlign !== 'middle' || cell.children.length !== 1 || !(paragraph instanceof HTMLParagraphElement) ||
-    !paragraph.textContent?.trim() || paragraph.querySelector('[data-docx-tab],[data-docx-bookmark],[data-word-overlap],[data-symbol-font]')) return null;
+function measureCenteredParagraph(paragraph: HTMLParagraphElement) {
+  if (!paragraph.textContent?.trim() ||
+    paragraph.querySelector('[data-docx-tab],[data-docx-bookmark],[data-word-overlap],[data-symbol-font]')) return null;
   const walker = paragraphTextWalker(paragraph), range = document.createRange(), ink: DOMRect[] = [];
   while (walker.nextNode()) {
     if (!(walker.currentNode instanceof Text)) continue;
@@ -193,15 +217,22 @@ export function measureCenteredParagraph(cell: HTMLTableCellElement) {
     top: Math.min(blockTop, ...ink.map(rect => rect.top)), bottom: Math.max(blockBottom, ...ink.map(rect => rect.bottom)) };
 }
 
-export function centeredParagraphFits(
-  cell: HTMLTableCellElement, before: NonNullable<ReturnType<typeof measureCenteredParagraph>>,
+export function measureCenteredCell(cell: HTMLTableCellElement) {
+  if (getComputedStyle(cell).verticalAlign !== 'middle') return null;
+  const first = cell.firstElementChild;
+  const paragraphs = cell.childElementCount === 1 && first instanceof HTMLParagraphElement ?
+    [first] : hwpOwnerParagraphs(cell);
+  if (!paragraphs) return null;
+  const bands = paragraphs.map(measureCenteredParagraph);
+  return bands.every(band => band !== null) ? bands : null;
+}
+
+export function centeredCellFits(
+  cell: HTMLTableCellElement, before: NonNullable<ReturnType<typeof measureCenteredCell>>,
   borderFactor: number, allowInkInVerticalPadding = false,
 ) {
-  const after = measureCenteredParagraph(cell);
-  if (!after || after.lines.length !== before.lines.length || after.lines.some((line, index) => line !== before.lines[index]) ||
-    after.ink.length !== before.ink.length || Math.abs(after.box.width - before.box.width) > .5 ||
-    Math.abs(after.box.height - before.box.height) > .5) return false;
-  if (before.terminal ? !sameHwpTerminalParagraph(before.terminal, after.terminal) : after.terminal) return false;
+  const bands = measureCenteredCell(cell);
+  if (!bands || bands.length !== before.length) return false;
   const bounds = cell.getBoundingClientRect(), css = getComputedStyle(cell);
   const innerTop = bounds.top + (parseFloat(css.borderTopWidth) || 0) * borderFactor;
   const innerBottom = bounds.bottom - (parseFloat(css.borderBottomWidth) || 0) * borderFactor;
@@ -209,14 +240,35 @@ export function centeredParagraphFits(
   const bottom = innerBottom - (parseFloat(css.paddingBottom) || 0);
   const left = bounds.left + (parseFloat(css.paddingLeft) || 0) + (parseFloat(css.borderLeftWidth) || 0) * borderFactor;
   const right = bounds.right - (parseFloat(css.paddingRight) || 0) - (parseFloat(css.borderRightWidth) || 0) * borderFactor;
-  // A compressed line's glyph bounds can extend slightly past its line box.
-  // Keep the paragraph in the padded content and the glyphs inside the border.
-  if (allowInkInVerticalPadding ? after.blockTop < top - .5 || after.blockBottom > bottom + .5 ||
-      after.top < innerTop - .5 || after.bottom > innerBottom + .5 :
-    after.top < top - .5 || after.bottom > bottom + .5) return false;
+  const inkTop = allowInkInVerticalPadding ? innerTop : top;
+  const inkBottom = allowInkInVerticalPadding ? innerBottom : bottom;
+  return bands.every((after, i) => {
+    const source = before[i];
+    if (i > 0) {
+      const previous = bands[i - 1];
+      if (after.blockTop < previous.blockBottom - .5 ||
+        Math.min(...after.ink.map(ink => ink.top)) < Math.max(...previous.ink.map(ink => ink.bottom)) - .5 ||
+        Math.abs(after.box.top - bands[0].box.top - (source.box.top - before[0].box.top)) > .5) return false;
+    }
+    // A compressed line's glyph bounds can extend slightly past its line box.
+    if (after.blockTop < top - .5 || after.blockBottom > bottom + .5) return false;
+    return centeredParagraphFits(after, source, { left, right, top: inkTop, bottom: inkBottom });
+  });
+}
+
+type MeasuredParagraph = NonNullable<ReturnType<typeof measureCenteredParagraph>>;
+
+function centeredParagraphFits(after: MeasuredParagraph, before: MeasuredParagraph, bounds: {
+  left: number; right: number; top: number; bottom: number;
+}) {
+  if (!after || after.lines.length !== before.lines.length || after.lines.some((line, index) => line !== before.lines[index]) ||
+    after.ink.length !== before.ink.length || Math.abs(after.box.width - before.box.width) > .5 ||
+    Math.abs(after.box.height - before.box.height) > .5) return false;
+  if (before.terminal ? !sameHwpTerminalParagraph(before.terminal, after.terminal) : after.terminal) return false;
+  if (after.top < bounds.top - .5 || after.bottom > bounds.bottom + .5) return false;
   return after.ink.every((ink, index) => {
     const source = before.ink[index];
-    return ink.left >= left - .5 && ink.right <= right + .5 &&
+    return ink.left >= bounds.left - .5 && ink.right <= bounds.right + .5 &&
       Math.abs(ink.x - after.box.x - (source.x - before.box.x)) <= .5 &&
       Math.abs(ink.y - after.box.y - (source.y - before.box.y)) <= .5 &&
       Math.abs(ink.width - source.width) <= .5 && Math.abs(ink.height - source.height) <= .5;
@@ -379,13 +431,13 @@ export function tableFragmenter(context: FragmentContext) {
       if (!crossings.length) continue;
       const tails = group.slice(cut);
       if (protectedFit) {
-        // Keep the owner paragraph intact. A centered paragraph is measured
+        // Keep all owner paragraphs intact. Their layout is measured
         // again in the shortened cell because its unsplit center cannot be
-        // used to decide whether its ink fits in the retained fragment.
-        const centered = new Map<HTMLTableCellElement, NonNullable<ReturnType<typeof measureCenteredParagraph>>>();
+        // used to decide whether their ink fits in the retained fragment.
+        const centered = new Map<HTMLTableCellElement, NonNullable<ReturnType<typeof measureCenteredCell>>>();
         for (const { cell } of crossings) {
-          const paragraph = measureCenteredParagraph(cell);
-          if (paragraph) centered.set(cell, paragraph);
+          const bands = measureCenteredCell(cell);
+          if (bands) centered.set(cell, bands);
         }
         if (crossings.some(({ cell, row }) => !centered.has(cell) && !mergeContentFitsOwnerRow(cell, group[row], borderFactor))) continue;
         const headRows = group.slice(0, cut);
@@ -409,7 +461,7 @@ export function tableFragmenter(context: FragmentContext) {
           headRows.every((row, index) => Math.abs(row.getBoundingClientRect().height - rowHeights[index]) <= .5) &&
           spans.every(({ cell, row }) => {
             const prior = centered.get(cell);
-            return prior ? centeredParagraphFits(cell, prior, borderFactor) : mergeContentFitsOwnerRow(cell, group[row], borderFactor);
+            return prior ? centeredCellFits(cell, prior, borderFactor) : mergeContentFitsOwnerRow(cell, group[row], borderFactor);
           });
         if (centered.size ? fitsCentered() : fitsTop()) {
           group.splice(cut);

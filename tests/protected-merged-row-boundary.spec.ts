@@ -27,6 +27,8 @@ const hwpGuards = {
   'mixed-header': { policy: percentCellLine, line: 200, single: true, allowed: false },
   'ordinary-terminal': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: true, allowed: true },
   'ordinary-terminal-three': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: true, allowed: false },
+  'paired-owner': { policy: percentCellLine, line: 200, single: true, allowed: true },
+  'paired-owner-mixed': { policy: percentCellLine, line: 200, single: true, allowed: false },
 } as const;
 type HwpGuardFixture = keyof typeof hwpGuards;
 
@@ -46,14 +48,18 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
   const ownerGuard = hwpGuard === 'compact-owner' || hwpGuard === 'terminal-owner' || naturalOwner;
   const ordinaryTerminal = hwpGuard === 'ordinary-terminal' || hwpGuard === 'ordinary-terminal-three';
   const row03Suffix = ordinaryTerminal ? (hwpGuard === 'ordinary-terminal-three' ? ' WIDEPARTA WIDEPARTB' : ' WIDEPARTA') : '';
+  const pairedOwner = hwpGuard === 'paired-owner' || hwpGuard === 'paired-owner-mixed';
+  const secondOwnerParagraph = hwpGuard === 'paired-owner-mixed' ? 'OWNER-A X' : 'OWNER-A';
   const paragraph = (text: string, line = 300) => {
-    const marked = ordinaryTerminal ? text === 'ROW-03' + row03Suffix : headerGuard ? text === (hwpGuard === 'mixed-header' ? 'HEAD-A X' : 'HEAD-A') :
+    const marked = pairedOwner ? text === secondOwnerParagraph : ordinaryTerminal ? text === 'ROW-03' + row03Suffix : headerGuard ? text === (hwpGuard === 'mixed-header' ? 'HEAD-A X' : 'HEAD-A') :
       hwpGuard === 'compact-owner' || naturalOwner ? text === ownerA :
       hwpGuard === 'terminal-owner' ? text.startsWith('MERGE-C\n') : /^ROW-03(?:\n|$)/.test(text);
     const guard = hwpGuard && marked ? hwpGuards[hwpGuard] : undefined;
     const textElements = text.split('\n').map(value => `<w:t>${value}</w:t>`);
     const run = (content: string, halfPoints = 20) => `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="${halfPoints}"/></w:rPr>${content}</w:r>`;
-    const runs = !text ? '' : guard && hwpGuard === 'mixed-header'
+    const runs = !text ? '' : guard && hwpGuard === 'paired-owner-mixed'
+      ? run('<w:t xml:space="preserve">OWNER-A </w:t>') + run('<w:t>X</w:t>', 16)
+      : guard && hwpGuard === 'mixed-header'
       ? run('<w:t xml:space="preserve">HEAD-A </w:t>') + run('<w:t>X</w:t>', 16)
       : guard && hwpGuard === 'mixed'
       ? run(textElements[0] + '<w:br/>') + run(textElements[1], 16)
@@ -72,16 +78,16 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
     '<w:tcBorders><w:bottom w:val="single" w:sz="32" w:color="000000"/></w:tcBorders>';
   const ownerMargins = edge === 'thick-asym' ?
     '<w:tcMar><w:top w:w="90" w:type="dxa"/><w:bottom w:w="15" w:type="dxa"/></w:tcMar>' : '';
-  const cell = (column: number, text: string, merge = '', align = 'top', extraProps = '') => `<w:tc><w:tcPr>
+  const cell = (column: number, text: string, merge = '', align = 'top', extraProps = '', nextParagraph = '') => `<w:tc><w:tcPr>
     <w:tcW w:w="${widths[column]}" w:type="dxa"/>${merge ? `<w:vMerge w:val="${merge}"/>` : ''}${extraProps}<w:vAlign w:val="${align}"/>
-    </w:tcPr>${paragraph(text)}</w:tc>`;
+    </w:tcPr>${paragraph(text, nextParagraph ? 320 : 300)}${nextParagraph ? paragraph(nextParagraph) : ''}</w:tc>`;
   const row = (cells: string[], header = false) => `<w:tr><w:trPr><w:cantSplit/>
     <w:trHeight w:val="${header ? 480 : 1080}" w:hRule="atLeast"/>${header ? '<w:tblHeader/>' : ''}
     </w:trPr>${cells.join('')}</w:tr>`;
   const bodyRows = rows.map((id, index) => {
     const merge = index === 0 ? 'restart' : 'continue';
     return row([
-      cell(0, index === 0 ? ownerA : '', merge, index === 0 && edge !== 'thick-mixed' ? alignment : 'top', index === 0 ? ownerMargins : ''),
+      cell(0, index === 0 ? ownerA : '', merge, index === 0 && edge !== 'thick-mixed' ? alignment : 'top', index === 0 ? ownerMargins : '', index === 0 && pairedOwner ? secondOwnerParagraph : ''),
       cell(1, `ROW-${id}${index === 2 ? row03Suffix : ''}${ordinary && index === 2 && !ownerGuard && (!hwpGuard || !hwpGuards[hwpGuard].single) ? '\nR3-LINE-02' : ''}`, '',
         index === 2 && (edge === 'bottom-on-continuation' || edge === 'thick-ordinary-bottom') ? 'bottom' : ordinaryAlign,
         index === 2 ? continuationMargins(90, 15) : ''),
@@ -979,3 +985,112 @@ test('live print paper rolls back a planned ordinary terminal split if its geome
   await force.evaluate(el => el.remove());
   await seam([1,1,2,2,2]);
 });
+
+
+function pairedOwnerVisibleGlyphs(root: Locator, print: boolean, split: boolean) {
+  return root.evaluate(async (scope, { print, split }) => {
+    const { documentScale } = await import('/src/document-scale.ts');
+    const paper = scope as HTMLElement;
+    const origins = print ? [...paper.querySelectorAll<HTMLElement>('.print-page')]
+      : [paper.querySelector<HTMLElement>('.tiptap[contenteditable=true]')!];
+    const stride = Number(paper.dataset.pageHeight) + 24;
+    const glyphs: { text: string; page: number; geometry: number[] }[] = [];
+    for (const view of origins) {
+      const body = print ? view.querySelector('.print-content')! : view;
+      const origin = view.getBoundingClientRect(), scale = documentScale(view);
+      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+      const range = document.createRange();
+      while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        if (node.parentElement?.closest('.pagination-headers,.pagination-gap,.pagination-cell-gap,.section-papers,[data-flow-widget]') ||
+          print && split && Number(view.dataset.page) > 1 && node.parentElement?.closest('th')) continue;
+        // This fixture contains ASCII labels only, with one source table.
+        for (const match of node.data.matchAll(/\S/g)) {
+          range.setStart(node, match.index!);
+          range.setEnd(node, match.index! + 1);
+          const ink = range.getBoundingClientRect();
+          const localY = (ink.top - origin.top) / scale;
+          const page = print ? Number(view.dataset.page) : 1 + Math.floor((localY + .5) / stride);
+          glyphs.push({
+            text: match[0], page,
+            geometry: [(ink.left - origin.left) / scale, print ? localY : localY - (page - 1) * stride,
+              ink.width / scale, ink.height / scale],
+          });
+        }
+      }
+    }
+    return glyphs;
+  }, { print, split });
+}
+
+for (const name of ['paired-owner', 'paired-owner-mixed'] as const) {
+  test(`protected merged HWP ${name} retains adjacent compact paragraphs together`, async ({ page }) => {
+    const split = name === 'paired-owner';
+    const expectedRows = split ? [1, 1, 2, 2, 2] : [2, 2, 2, 2, 2];
+    const rowPages = async (root: Locator, print: boolean) => (await snapshot(root, print)).markers
+      .filter(marker => marker.text.startsWith('ROW-')).map(marker => marker.page);
+    await openFixture(page, 'center', 'none', 2, 'thick-ordinary', name);
+    const stack = page.locator('.document-stack');
+    await expect.poll(() => rowPages(stack, false)).toEqual(expectedRows);
+    const read = async (root: Locator, print: boolean) => {
+      const active = root.locator('td').filter({ has: root.page().locator('p[data-hwp-cell-line]') })
+        .locator(':scope > p');
+      await expect(active).toHaveText(['MERGE-A', split ? 'OWNER-A' : 'OWNER-A X']);
+      expect(await active.evaluateAll(([first, second]) => first.parentElement === second.parentElement &&
+        first.nextElementSibling === second && first.parentElement?.childElementCount === 2)).toBe(true);
+      const boxes = await Promise.all([0, 1].map(async index => {
+        const paragraph = active.nth(index);
+        if (index) await expect(paragraph).toHaveAttribute('data-hwp-cell-line', hwpGuards[name].policy);
+        else expect(await paragraph.getAttribute('data-hwp-cell-line')).toBeNull();
+        await expect(paragraph).toHaveAttribute('data-word-line-rule', 'exact');
+        const box = await compactOwnerBox(paragraph);
+        expect(box).toMatchObject({ breaks: 0, terminal: false, prefix: false, visible: true });
+        expect(await paragraph.evaluate(p => [getComputedStyle(p).marginTop, getComputedStyle(p).marginBottom]))
+          .toEqual(['0px', '0px']);
+        if (split) expect(box.height).toBeCloseTo(index ? 13.3 : 64 / 3, 1);
+        return box;
+      }));
+      if (!split) {
+        const sizes = await active.nth(1).evaluate(p => {
+          const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT), sizes = new Set<number>();
+          while (walker.nextNode()) if (walker.currentNode.textContent?.trim())
+            sizes.add(parseFloat(getComputedStyle(walker.currentNode.parentElement!).fontSize));
+          return [...sizes];
+        });
+        expect(sizes).toHaveLength(2);
+        expect(sizes[0]).toBeCloseTo(40 / 3, 1);
+        expect(sizes[1]).toBeCloseTo(32 / 3, 1);
+      }
+      const owners = await ownerLinePositions(root, print, true);
+      expect(owners.map(owner => [owner.text, owner.page, owner.inside])).toEqual(
+        ['MERGE-A', 'OWNER-A', 'MERGE-C', 'C-LINE-02'].map(label => [label, split ? 1 : 2, true]),
+      );
+      if (split) expect(owners[1].y - owners[0].y).toBeGreaterThan(12);
+      const header = await repeatingHeaderInk(root);
+      expect(header.map(mark => [mark.page, mark.text])).toEqual(
+        (split ? [1, 2] : [2]).flatMap(p => heads.map(label => [p, label])),
+      );
+      expect(header.filter(mark => mark.overlay).map(mark => mark.page))
+        .toEqual(!print && split ? [2, 2, 2, 2] : []);
+      return { boxes, header, glyphs: await pairedOwnerVisibleGlyphs(root, print, split) };
+    };
+    const edited = await read(stack, false);
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    const preview = page.locator('.print-layout');
+    await expect(preview.locator('.print-page')).toHaveCount(2);
+    expect(await rowPages(preview, true)).toEqual(expectedRows);
+    const printed = await read(preview, true);
+    expect(printed.boxes.map(box => box.rowSpan)).toEqual(split ? [2, 2] : [5, 5]);
+    expect(printed.glyphs.map(glyph => [glyph.text, glyph.page]))
+      .toEqual(edited.glyphs.map(glyph => [glyph.text, glyph.page]));
+    expect(edited.glyphs.every(g => g.geometry[2] > 0 && g.geometry[3] > 0)).toBe(true);
+    for (const [i, glyph] of edited.glyphs.entries())
+      expect(Math.max(...glyph.geometry.map((v, axis) => Math.abs(v - printed.glyphs[i].geometry[axis]))),
+        glyph.text + ' on paper ' + glyph.page).toBeLessThan(.5);
+    for (const [i, label] of edited.header.entries()) {
+      expect(Math.abs(label.x - printed.header[i].x)).toBeLessThan(.5);
+      expect(Math.abs(label.y - printed.header[i].y)).toBeLessThan(.5);
+    }
+  });
+}

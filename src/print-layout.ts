@@ -5,7 +5,7 @@ import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight, wordFlowHasWra
 import { rowSplitPolicy } from './row-split-policy';
 import { layoutTextBoxes } from './textbox-frame';
 import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
-import { canPlaceProtectedTable, canSplitProtectedMergedRows, centeredParagraphFits, hasCenteredOrdinaryCell, hasHwpCellLines, measureCenteredParagraph, ordinaryHwpTerminalCells, tableFragmenter } from './table-fragments';
+import { canPlaceProtectedTable, canSplitProtectedMergedRows, centeredCellFits, hasCenteredOrdinaryCell, hasHwpCellLines, measureCenteredCell, multiParagraphHwpOwners, ordinaryHwpTerminalCells, tableFragmenter } from './table-fragments';
 import { hasUniformTablePageBody, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines, layoutWordListLines, markMeasuredWordSymbolItems } from './word-line-metrics';
@@ -212,20 +212,24 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   const { splitMergedGroup, splitElement } = tableFragmenter({
     bodyHeight: () => content.getBoundingClientRect().height, hasDeferredNote, deferredNotes: () => deferredNotes,
   });
-  type TerminalCell = { cell: HTMLTableCellElement; before: NonNullable<ReturnType<typeof measureCenteredParagraph>> };
-  type ProtectedTablePlan = { fragments: HTMLTableRowElement[][]; terminals: TerminalCell[] };
+  type MeasuredCell = {
+    cell: HTMLTableCellElement;
+    before: NonNullable<ReturnType<typeof measureCenteredCell>>;
+    ordinaryTerminal: boolean;
+  };
+  type ProtectedTablePlan = { fragments: HTMLTableRowElement[][]; measured: MeasuredCell[] };
 
-  function terminalCellsFit(rows: HTMLTableRowElement[], terminals: TerminalCell[]) {
-    return terminals.every(({ cell, before }) => {
+  function measuredCellsFit(rows: HTMLTableRowElement[], measured: MeasuredCell[]) {
+    return measured.every(({ cell, before, ordinaryTerminal }) => {
       if (!rows.includes(cell.parentElement as HTMLTableRowElement)) return true;
       const border = getComputedStyle(cell.closest('table')!).borderCollapse === 'collapse' ? .5 : 1;
-      return centeredParagraphFits(cell, before, border, true);
+      return centeredCellFits(cell, before, border, ordinaryTerminal);
     });
   }
 
   function planProtectedGroup(
     table: HTMLTableElement, headers: HTMLTableRowElement[], rows: HTMLTableRowElement[], firstCapacity: number, capacity: number,
-    ordinaryTerminals: HTMLTableCellElement[],
+    ordinaryTerminals: HTMLTableCellElement[], multiParagraphOwners: HTMLTableCellElement[],
   ): ProtectedTablePlan | null {
     const width = table.getBoundingClientRect().width;
     if (!(width > 0) || !(firstCapacity > 0) || !(capacity > 0)) return null;
@@ -243,12 +247,13 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     const repeats = headers.map(copyRow);
     const fragments: HTMLTableRowElement[][] = [];
     let pending = rows.map(copyRow);
-    const terminals: TerminalCell[] = [];
-    for (const cell of ordinaryTerminals) {
-      const before = measureCenteredParagraph(cell);
+    const measured: MeasuredCell[] = [];
+    for (const cell of [...ordinaryTerminals, ...multiParagraphOwners]) {
+      const before = measureCenteredCell(cell);
       const row = pending[rows.indexOf(cell.parentElement as HTMLTableRowElement)];
-      if (!before?.terminal || !row?.cells[cell.cellIndex]) return null;
-      terminals.push({ cell: row.cells[cell.cellIndex], before });
+      const ordinaryTerminal = ordinaryTerminals.includes(cell);
+      if (!before || ordinaryTerminal && !before[0].terminal || !row?.cells[cell.cellIndex]) return null;
+      measured.push({ cell: row.cells[cell.cellIndex], before, ordinaryTerminal });
     }
     content.append(holder);
     try {
@@ -261,11 +266,11 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         const height = pass ? capacity : firstCapacity;
         const fitsHere = () => {
           refresh();
-          return probe.getBoundingClientRect().height <= height + .5 && terminalCellsFit([...body.rows], terminals);
+          return probe.getBoundingClientRect().height <= height + .5 && measuredCellsFit([...body.rows], measured);
         };
         if (fitsHere()) {
           fragments.push(pending);
-          return fragments.length > 1 ? { fragments, terminals } : null;
+          return fragments.length > 1 ? { fragments, measured } : null;
         }
         const tail = splitMergedGroup(pending, probe.getBoundingClientRect().top + height, fitsHere);
         if (!tail) return null;
@@ -298,20 +303,20 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (!rows.length) { if (!fits() && content.children.length > 1) { part.table.remove(); newPage(); part = shell(); } scaleOversized(part.table); return; }
     let bodyRows = 0;
     const protectedStarts = new WeakSet<HTMLTableRowElement>();
-    const applyProtectedPlan = (group: HTMLTableRowElement[], { fragments, terminals }: ProtectedTablePlan) => {
+    const applyProtectedPlan = (group: HTMLTableRowElement[], { fragments, measured }: ProtectedTablePlan) => {
       const source = { part, content, footnotes, pageNumber, sectionPage, hiddenEmptyLines, deferredNotes };
       const styleCount = pageStyles.length;
       const pages: Element[] = [];
       group.forEach(row => row.remove());
       part.body.append(...fragments[0]);
-      let complete = fits() && terminalCellsFit(fragments[0], terminals);
+      let complete = fits() && measuredCellsFit(fragments[0], measured);
       for (const pageRows of fragments.slice(1)) {
         if (!complete) break;
         newPage();
         pages.push(content.closest('.print-page')!);
         part = shell(true);
         part.body.append(...pageRows);
-        complete = fits() && terminalCellsFit(pageRows, terminals);
+        complete = fits() && measuredCellsFit(pageRows, measured);
       }
       if (complete) return true;
 
@@ -335,7 +340,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       const split = () => {
         const paper = content.getBoundingClientRect();
         let protectedFit: typeof fits | undefined;
-        if (group.length > 1 && protectedTableFlow && hasUniformTablePageBody(settings) && !ordinaryHwpTerminalCells(group).length) {
+        if (group.length > 1 && protectedTableFlow && hasUniformTablePageBody(settings) && !ordinaryHwpTerminalCells(group).length && !multiParagraphHwpOwners(group).length) {
           const repeated = [...part.body.rows].slice(0, headers.length);
           if (canSplitProtectedMergedRows([...repeated, ...group])) {
             const tableBox = part.table.getBoundingClientRect();
@@ -368,11 +373,12 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         const paper = content.getBoundingClientRect(), tableBox = part.table.getBoundingClientRect();
         const repeats = [...part.body.rows].slice(0, headers.length);
         const ordinaryTerminals = ordinaryHwpTerminalCells(group);
+        const multiParagraphOwners = multiParagraphHwpOwners(group);
         const fitsFresh = tableBox.height <= paper.height + .5;
-        const canPlan = ordinaryTerminals.length ? fitsFresh :
+        const canPlan = ordinaryTerminals.length || multiParagraphOwners.length ? fitsFresh :
           !fitsFresh && headers.length > 0 && !hasCenteredOrdinaryCell(group) && !hasHwpCellLines([...repeats, ...group]);
         if (canPlan && canSplitProtectedMergedRows([...repeats, ...group])) {
-          const plan = planProtectedGroup(part.table, repeats, group, paper.bottom - tableBox.top, paper.height, ordinaryTerminals);
+          const plan = planProtectedGroup(part.table, repeats, group, paper.bottom - tableBox.top, paper.height, ordinaryTerminals, multiParagraphOwners);
           if (plan && applyProtectedPlan(group, plan)) {
             bodyRows = plan.fragments.at(-1)!.length; i = end; continue;
           }

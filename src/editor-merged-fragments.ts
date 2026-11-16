@@ -115,9 +115,10 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       for (const entry of owners) entry.copy.style.verticalAlign = 'top';
       prepareParagraphEnds(probe); layoutWordLines(probe); layoutHwpCellLines(probe);
       for (const { cell, copy, row } of owners) {
-        const inset = paragraphInset(copy, row);
-        if (inset === undefined) return null;
-        const margin = parseFloat(getComputedStyle(copy.firstElementChild!).marginTop) || 0;
+        const first = copy.firstElementChild;
+        if (!(first instanceof HTMLParagraphElement)) return null;
+        const inset = first.getBoundingClientRect().top - row.getBoundingClientRect().top;
+        const margin = parseFloat(getComputedStyle(first).marginTop) || 0;
         ownerInsets.set(cell, inset - margin);
       }
       for (const { copy, alignment } of owners) copy.style.verticalAlign = alignment;
