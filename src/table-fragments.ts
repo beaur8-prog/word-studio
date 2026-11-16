@@ -17,6 +17,17 @@ function previousBodyBlock(element: Element) {
   return previous;
 }
 
+function isLiteralFenceParagraph(block: Element | null) {
+  if (!(block instanceof HTMLParagraphElement) ||
+      !block.textContent?.replace(/[\s\u200b\u2060\ufeff]/gu, '') ||
+      block.matches('[data-word-keep-next="true"],[data-word-keep-lines="true"],' +
+        '[data-word-outline-level]:not([data-word-outline-level="9"]),[data-section-page],[data-page-break],[data-column-break],[data-column-count]'))
+    return false;
+  return [...block.querySelectorAll('*')].every(child => child.matches('img.ProseMirror-separator,br.ProseMirror-trailingBreak') ||
+    (child.matches('span,strong,em,b,i,u,s') &&
+      !child.matches('[data-document-field],[data-note-reference],[data-page-number],[data-docx-tab],[data-symbol-font],[data-docx-bookmark]')));
+}
+
 /** Read authored body order before print moves any source node to a sheet. */
 export function protectedTablePlacement(root: HTMLElement): (table: HTMLTableElement, paper: TablePaper) => boolean {
   if (root.querySelector('[data-note-reference],table[data-table-anchor],[data-document-textbox]')) return () => false;
@@ -30,11 +41,12 @@ export function protectedTablePlacement(root: HTMLElement): (table: HTMLTableEle
       flow.classList.contains('section-editable') && flow.parentElement?.classList.contains('document-section-content') &&
       flow.parentElement.parentElement === root)) return () => false;
 
-  // A real table immediately before this top-level break ensures it cannot
-  // be absorbed into the section start. The next block owns the only picture.
+  // Source content before a top-level break keeps it from being absorbed
+  // into a section start. The next block owns the only picture.
   const fence = previousBodyBlock(owner);
   if (!fence?.matches('div[data-page-break="true"]:not([data-column-break],[data-section-page])')) return () => false;
-  const block = previousBodyBlock(fence);
+  const preceding = previousBodyBlock(fence);
+  const block = preceding && isLiteralFenceParagraph(preceding) ? previousBodyBlock(preceding) : preceding;
   const table = block instanceof HTMLTableElement ? block :
     block?.classList.contains('tableWrapper') ? block.querySelector<HTMLTableElement>(':scope > table') : null;
   if (!table?.rows.length) return () => false;
