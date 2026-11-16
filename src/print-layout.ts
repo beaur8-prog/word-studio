@@ -212,6 +212,48 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   const { splitMergedGroup, splitElement } = tableFragmenter({
     bodyHeight: () => content.getBoundingClientRect().height, hasDeferredNote, deferredNotes: () => deferredNotes,
   });
+  function planLongProtectedGroup(
+    table: HTMLTableElement, headers: HTMLTableRowElement[], rows: HTMLTableRowElement[], firstCapacity: number, capacity: number,
+  ) {
+    const width = table.getBoundingClientRect().width;
+    if (!(width > 0) || !(firstCapacity > 0) || !(capacity > 0)) return null;
+    const holder = document.createElement('div');
+    holder.className = 'tiptap';
+    holder.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;left:-100000px;top:0;margin:0;padding:0;min-height:0;width:${width}px`;
+    const probe = table.cloneNode(false) as HTMLTableElement;
+    probe.style.margin = '0';
+    probe.style.width = `${width}px`;
+    table.querySelectorAll(':scope > colgroup').forEach(columns => probe.append(columns.cloneNode(true)));
+    const body = probe.createTBody();
+    holder.append(probe);
+    content.append(holder);
+    const refresh = () => { layoutWordLines(probe); layoutHwpCellLines(probe); layoutTabs(probe); };
+    const copyRow = (row: HTMLTableRowElement) => row.cloneNode(true) as HTMLTableRowElement;
+    const repeats = headers.map(copyRow);
+    const plan: HTMLTableRowElement[][] = [];
+    let pending = rows.map(copyRow);
+    try {
+      // Plan every continuation before changing the visible page. A failure
+      // on any later whole row leaves the source table untouched.
+      for (let pass = 0; pending.length && pass < 512; pass++) {
+        body.replaceChildren(...repeats, ...pending);
+        prepareParagraphEnds(probe);
+        refresh();
+        const height = pass ? capacity : firstCapacity;
+        const fitsHere = () => {
+          refresh();
+          return probe.getBoundingClientRect().height <= height + .5;
+        };
+        if (fitsHere()) { plan.push(pending); return plan.length > 1 ? plan : null; }
+        const tail = splitMergedGroup(pending, probe.getBoundingClientRect().top + height, fitsHere);
+        if (!tail) return null;
+        plan.push(pending);
+        pending = tail;
+      }
+      return null;
+    } finally { holder.remove(); }
+  }
+
   function appendTable(table: HTMLTableElement) {
     // Measure the complete source table once. Every printed continuation must
     // retain the same columns, including when its widest cell appears later.
@@ -234,6 +276,34 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (!rows.length) { if (!fits() && content.children.length > 1) { part.table.remove(); newPage(); part = shell(); } scaleOversized(part.table); return; }
     let bodyRows = 0;
     const protectedStarts = new WeakSet<HTMLTableRowElement>();
+    const applyProtectedPlan = (group: HTMLTableRowElement[], plan: HTMLTableRowElement[][]) => {
+      const source = { part, content, footnotes, pageNumber, sectionPage, hiddenEmptyLines, deferredNotes };
+      const styleCount = pageStyles.length;
+      const pages: Element[] = [];
+      group.forEach(row => row.remove());
+      part.body.append(...plan[0]);
+      let complete = fits();
+      for (const pageRows of plan.slice(1)) {
+        if (!complete) break;
+        newPage();
+        pages.push(content.closest('.print-page')!);
+        part = shell(true);
+        part.body.append(...pageRows);
+        complete = fits();
+      }
+      if (complete) return true;
+
+      // Recheck against the real page shells even after the detached proof.
+      // Roll back paper numbering as well as the source rows on failure.
+      pages.forEach(page => page.remove());
+      part = source.part; content = source.content; footnotes = source.footnotes;
+      pageNumber = source.pageNumber; sectionPage = source.sectionPage;
+      hiddenEmptyLines = source.hiddenEmptyLines; deferredNotes = source.deferredNotes;
+      pageStyles.length = styleCount;
+      plan[0].forEach(row => row.remove());
+      part.body.append(...group);
+      return false;
+    };
     for (let i = 0; i < rows.length;) {
       if (protectedStarts.has(rows[i])) { newPage(); part = shell(true); bodyRows = 0; }
       let end = i + 1;
@@ -271,6 +341,18 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       // every normalizer three times made large-table DOCX saves stall. A
       // split or a move changes geometry and always needs a new measurement.
       let groupFits = fits();
+      if (!groupFits && i === 0 && headers.length && group.length > 1 && protectedTableFlow && hasUniformTablePageBody(settings) &&
+        group.some(row => [...row.cells].some(cell => cell.rowSpan > 1 && getComputedStyle(cell).verticalAlign === 'middle'))) {
+        const paper = content.getBoundingClientRect(), tableBox = part.table.getBoundingClientRect();
+        const repeats = [...part.body.rows].slice(0, headers.length);
+        if (tableBox.height > paper.height + .5 && canSplitProtectedMergedRows([...repeats, ...group])) {
+          const plan = planLongProtectedGroup(part.table, repeats, group, paper.bottom - tableBox.top, paper.height);
+          if (plan && applyProtectedPlan(group, plan)) {
+            bodyRows = plan.at(-1)!.length; i = end; continue;
+          }
+          if (plan) groupFits = fits();
+        }
+      }
       // cantSplit also governs oversized rows: move their start to a fresh
       // body before continuing them, rather than shrinking or filling a tail.
       if (!groupFits && group.length === 1 && rowSplitPolicy(group[0].dataset) === 'avoid' &&

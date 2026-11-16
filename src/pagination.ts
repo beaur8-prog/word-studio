@@ -399,6 +399,7 @@ export const Pagination = Extension.create({
                     } : repeatAt,
                     measureRepeatAt: header ? measureHeader : measureRepeatAt,
                     continuationHeaders: protectedRows ? (header ?? piece.header)?.rows : undefined,
+                    longProtectedGroup: Boolean(header),
                     reserveAt: page => reserve(page, refs) }, protectedRows);
                   if (flow) {
                     if (header) {

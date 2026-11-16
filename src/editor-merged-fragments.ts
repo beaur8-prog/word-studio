@@ -7,7 +7,7 @@ import { centeredContinuationParagraph, precedingSourceRow, tableFragmenter } fr
 import { prepareParagraphEnds } from './paragraph-fragments';
 
 type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number;
-  removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; reserveAt?: (page: number) => number; continuationHeaders?: HTMLTableRowElement[] };
+  removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; reserveAt?: (page: number) => number; continuationHeaders?: HTMLTableRowElement[]; longProtectedGroup?: boolean };
 
 /** Plain continuing merges can use the actual print-fragment geometry. More
  * complex objects keep the existing general flow until they can be mapped. */
@@ -84,6 +84,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const rowTargets: { top: number; height: number }[] = [], usedPages = new Set<number>();
   const repeatAt = g.measureRepeatAt ?? g.repeatAt;
   const stride = g.height + 24, usable = g.height - g.top - g.bottom;
+  const canPlanLongGroup = g.longProtectedGroup && hasCenteredOwner && originalBottom - originalTop > usable + .5;
   let currentTop = originalTop, page = Math.max(0, Math.floor((currentTop - g.top + .5) / stride));
   let rowAnchor = true;
   let pending = copies, finalBottom = originalBottom;
@@ -134,7 +135,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       const fitsHere = () => probe.getBoundingClientRect().height <= boundary - tableTop + .5;
       if (!fitsHere()) {
         const fragmentHeight = probe.getBoundingClientRect().height - (prefix.length ? inset : 0);
-        if (protectedRows && (repeated || fragmentHeight + (repeatAt?.(page + 1) ?? 0) > usable + .5)) return null;
+        if (protectedRows && !canPlanLongGroup && (repeated || fragmentHeight + (repeatAt?.(page + 1) ?? 0) > usable + .5)) return null;
         const verifyProtectedFit = () => {
           layoutWordLines(probe);
           layoutHwpCellLines(probe);
@@ -144,7 +145,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
         if (!tail) {
           // Like print, a group with no fitting first row starts on a fresh
           // sheet. An oversized unsplittable group retains the old fallback.
-          if (protectedRows && !usedPages.size) return null;
+          if (protectedRows && (!usedPages.size || canPlanLongGroup)) return null;
           if (currentTop <= page * stride + g.top + (repeatAt?.(page) ?? 0) + .5) return null;
           page++; const header = repeatAt?.(page) ?? 0;
           currentTop = page * stride + g.top + header; rowAnchor = header > 0; continue;
