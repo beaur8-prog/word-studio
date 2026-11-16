@@ -18,7 +18,7 @@ import { layoutColumns, columnGroupFits } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
 import { layoutWordParagraphBottomBorders } from './word-paragraph-border-layout';
 import { imageOutsidePaper, imageFloating } from './image-floating';
-import { layoutFurnitureImages } from './furniture-layout';
+import { layoutFurnitureImages, tableStoryExtent } from './furniture-layout';
 import { layoutTableAnchors, tableAnchor } from './table-anchor';
 import { paragraphFitBottom } from './paragraph-fit';
 import { splitListItem, wholeListItem } from './list-fragments';
@@ -145,8 +145,15 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutWordListLines(header); layoutWordListLines(footer);
     layoutFurnitureImages(paper);
     const meaningful = (element: HTMLElement) => element.textContent?.trim() || element.querySelector('img,table');
-    const top = Math.max(margins.top * PX, meaningful(header) ? header.offsetTop + header.getBoundingClientRect().height + 2 : 0);
-    const bottom = Math.max(margins.bottom * PX, meaningful(footer) ? parseFloat(footer.style.bottom) + footer.getBoundingClientRect().height + 2 : 0);
+    const story = {
+      top: meaningful(header) ? header.offsetTop + header.getBoundingClientRect().height + 2 : 0,
+      bottom: meaningful(footer) ? parseFloat(footer.style.bottom) + footer.getBoundingClientRect().height + 2 : 0,
+    };
+    const top = Math.max(margins.top * PX, story.top), bottom = Math.max(margins.bottom * PX, story.bottom);
+    paper.dataset.uniformTablePageBody = String(hasUniformTablePageBody(settings, {
+      top: Math.max(story.top, tableStoryExtent(header, 'top')),
+      bottom: Math.max(story.bottom, tableStoryExtent(footer, 'bottom')),
+    }));
     content.style.top = `${top}px`; content.style.height = `${Math.max(1, height * PX - top - bottom)}px`;
     content.dataset.bodyHeight = String(Math.max(1, height * PX - top - bottom));
     paper.dataset.pageHeight = String(height * PX);
@@ -281,6 +288,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     } finally { holder.remove(); }
   }
 
+  const uniformTablePageBody = () => content.closest<HTMLElement>('.print-page')?.dataset.uniformTablePageBody === 'true';
+
   function appendTable(table: HTMLTableElement) {
     const [width, height] = dimensions(settings), { top, bottom } = pageMargins(settings);
     const protectedTableFlow = canPlaceProtectedTable(table, { width: width * PX, height: height * PX, top: top * PX, bottom: bottom * PX });
@@ -318,7 +327,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         pages.push(content.closest('.print-page')!);
         part = shell(true);
         part.body.append(...pageRows);
-        complete = fits() && measuredCellsFit(pageRows, measured);
+        complete = uniformTablePageBody() && fits() && measuredCellsFit(pageRows, measured);
       }
       if (complete) return true;
 
@@ -342,7 +351,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       const split = () => {
         const paper = content.getBoundingClientRect();
         let protectedFit: typeof fits | undefined;
-        if (group.length > 1 && protectedTableFlow && hasUniformTablePageBody(settings) && !ordinaryHwpTerminalCells(group).length && !multiParagraphHwpOwners(group).length) {
+        if (group.length > 1 && protectedTableFlow && uniformTablePageBody() && !ordinaryHwpTerminalCells(group).length && !multiParagraphHwpOwners(group).length) {
           const repeated = [...part.body.rows].slice(0, headers.length);
           if (canSplitProtectedMergedRows([...repeated, ...group])) {
             const tableBox = part.table.getBoundingClientRect();
@@ -370,7 +379,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       // every normalizer three times made large-table DOCX saves stall. A
       // split or a move changes geometry and always needs a new measurement.
       let groupFits = fits();
-      if (!groupFits && i === 0 && group.length > 1 && protectedTableFlow && hasUniformTablePageBody(settings) &&
+      if (!groupFits && i === 0 && group.length > 1 && protectedTableFlow && uniformTablePageBody() &&
         group.some(row => [...row.cells].some(cell => cell.rowSpan > 1 && getComputedStyle(cell).verticalAlign === 'middle'))) {
         const paper = content.getBoundingClientRect(), tableBox = part.table.getBoundingClientRect();
         const repeats = [...part.body.rows].slice(0, headers.length);
@@ -427,6 +436,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
           const number = document.createElement('span'); number.className = 'print-automatic-number'; number.textContent = String(pageNumber); footer.parentElement!.append(number);
         }
         layoutFurnitureImages(paper);
+        paper.dataset.uniformTablePageBody = String(hasUniformTablePageBody(settings));
         return;
       }
       const meaningful = content.textContent?.trim() || content.querySelector('img,table,[data-note-reference]');

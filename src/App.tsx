@@ -1,7 +1,7 @@
 import { version as APP_VERSION } from "../package.json";
 import { documentScale } from './document-scale';
 import { visibleEditorPages } from './editor-visible-pages';
-import { layoutFurnitureImages } from './furniture-layout';
+import { layoutFurnitureImages, updateUniformTablePageBody } from './furniture-layout';
 import { useEffect, useRef, useState } from "react";
 import { useDocumentZoom } from "./document-zoom-gesture";
 import { usePrintPreviewZoom } from "./print-preview-zoom";
@@ -607,10 +607,14 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
         const scale = documentScale(stack);
         const occupied = (selector: string, distance: number) => Math.max(0, ...[...stack.querySelectorAll<HTMLElement>(selector)].map(el =>
           el.textContent?.trim() || el.querySelector('img,table') ? distance * px + el.getBoundingClientRect().height / scale + 2 : 0));
-        const top = Math.max(margins.top * px, occupied('.paper-header', page.headerDistance ?? Math.max(0, margins.top / 2 - 3)));
-        const bottom = Math.max(margins.bottom * px, occupied('.paper-footer', page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)));
+        const story = {
+          top: occupied('.paper-header', page.headerDistance ?? Math.max(0, margins.top / 2 - 3)),
+          bottom: occupied('.paper-footer', page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)),
+        };
+        const top = Math.max(margins.top * px, story.top), bottom = Math.max(margins.bottom * px, story.bottom);
         stack.style.setProperty('--page-padding', `${top}px ${margins.right * px}px ${bottom}px ${margins.left * px}px`);
         stack.dataset.margin = String(top); stack.dataset.bottomMargin = String(bottom);
+        updateUniformTablePageBody(stack, page, paperStories.length ? undefined : story);
         for (const field of stack.querySelectorAll<HTMLElement>('.paper [data-page-number]')) {
           const index = [...stack.querySelectorAll('.paper')].indexOf(field.closest('.paper')!);
           field.textContent = String(field.dataset.pageNumber === 'NUMPAGES' ? pages : index + 1);
