@@ -23,6 +23,10 @@ export function hasCenteredOrdinaryCell(rows: HTMLTableRowElement[]) {
     cell.tagName === 'TD' && cell.rowSpan === 1 && getComputedStyle(cell).verticalAlign === 'middle'));
 }
 
+export function hasHwpCellLines(rows: HTMLTableRowElement[]) {
+  return rows.some(row => row.querySelector('[data-hwp-cell-line]'));
+}
+
 export function precedingSourceRow(row: HTMLTableRowElement) {
   let previous = row.previousElementSibling;
   while (previous?.classList.contains('ProseMirror-widget')) previous = previous.previousElementSibling;
@@ -34,7 +38,7 @@ function canMoveHwpCellParagraph(paragraph: HTMLElement) {
     paragraph.matches('[data-hwp-cell-terminal],[data-hwp-cell-full-line],[data-hwp-cell-continuation]') ||
     paragraph.querySelector('sup,sub,[data-hwp-cell-prefix],[data-document-field]')) return false;
   const cell = paragraph.parentElement;
-  if (!(cell instanceof HTMLTableCellElement) || cell.tagName !== 'TD' || cell.rowSpan !== 1 || cell.colSpan !== 1 ||
+  if (!(cell instanceof HTMLTableCellElement) || cell.tagName !== 'TD' || cell.colSpan !== 1 ||
     centeredContinuationParagraph(cell) !== paragraph || getComputedStyle(cell).verticalAlign !== 'middle') return false;
 
   const line = parseHwpCellLine(paragraph.dataset.hwpCellLine);
@@ -51,7 +55,8 @@ function canMoveHwpCellParagraph(paragraph: HTMLElement) {
   if (!paragraph.textContent?.trim()) return false;
   // A compact single line keeps its measured end height only while it fits.
   // Wrapped or explicitly broken text can activate a different terminal box.
-  const uniform = line.advance === line.end;
+  // A merged owner must retain its original single line in the shorter cell.
+  const uniform = cell.rowSpan === 1 && line.advance === line.end;
   return uniform || (!paragraph.querySelector('br:not(.ProseMirror-trailingBreak)') && paragraphLineOffsets(paragraph).length === 0);
 }
 

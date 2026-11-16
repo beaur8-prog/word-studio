@@ -3,7 +3,7 @@ import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { layoutWordLines } from './word-line-metrics';
-import { centeredContinuationParagraph, hasCenteredOrdinaryCell, precedingSourceRow, tableFragmenter } from './table-fragments';
+import { centeredContinuationParagraph, hasCenteredOrdinaryCell, hasHwpCellLines, precedingSourceRow, tableFragmenter } from './table-fragments';
 import { paragraphLineOffsets, prepareParagraphEnds } from './paragraph-fragments';
 
 function measureOrdinaryParagraph(paragraph: HTMLParagraphElement) {
@@ -94,7 +94,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const rowTargets: { top: number; height: number }[] = [], usedPages = new Set<number>();
   const repeatAt = g.measureRepeatAt ?? g.repeatAt;
   const stride = g.height + 24, usable = g.height - g.top - g.bottom;
-  const canPlanLongGroup = g.longProtectedGroup && hasCenteredOwner && !hasOrdinaryCenters && originalBottom - originalTop > usable + .5;
+  const canPlanLongGroup = g.longProtectedGroup && hasCenteredOwner && !hasOrdinaryCenters && !hasHwpCellLines(rows) && originalBottom - originalTop > usable + .5;
   let currentTop = originalTop, page = Math.max(0, Math.floor((currentTop - g.top + .5) / stride));
   let rowAnchor = true;
   let pending = copies, finalBottom = originalBottom;

@@ -19,6 +19,8 @@ const hwpGuards = {
   percent: { policy: percentCellLine, line: 200, single: true, allowed: true },
   'percent-break': { policy: percentCellLine, line: 200, single: false, allowed: false },
   mixed: { policy: fixedCellLine, line: 300, single: false, allowed: false },
+  'compact-owner': { policy: percentCellLine, line: 200, single: true, allowed: true },
+  'terminal-owner': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: false, allowed: false },
 } as const;
 type HwpGuardFixture = keyof typeof hwpGuards;
 
@@ -31,8 +33,11 @@ function hwpGuardAttribute(policy: string, line: number) {
 async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: FooterFixture, cLineCount = 1, edge: HeaderEdgeFixture = 'none', hwpGuard?: HwpGuardFixture) {
   const differentFirstPage = footerFixture === 'different-first-page';
   const hasFooter = footerFixture !== 'none';
+  const ownerGuard = hwpGuard === 'compact-owner' || hwpGuard === 'terminal-owner';
   const paragraph = (text: string, line = 300) => {
-    const guard = hwpGuard && /^ROW-03(?:\n|$)/.test(text) ? hwpGuards[hwpGuard] : undefined;
+    const marked = hwpGuard === 'compact-owner' ? text === 'MERGE-A' :
+      hwpGuard === 'terminal-owner' ? text.startsWith('MERGE-C\n') : /^ROW-03(?:\n|$)/.test(text);
+    const guard = hwpGuard && marked ? hwpGuards[hwpGuard] : undefined;
     const textElements = text.split('\n').map(value => `<w:t>${value}</w:t>`);
     const run = (content: string, halfPoints = 20) => `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="${halfPoints}"/></w:rPr>${content}</w:r>`;
     const runs = !text ? '' : guard && hwpGuard === 'mixed'
@@ -62,7 +67,7 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
     const merge = index === 0 ? 'restart' : 'continue';
     return row([
       cell(0, index === 0 ? 'MERGE-A' : '', merge, index === 0 && edge !== 'thick-mixed' ? alignment : 'top', index === 0 ? ownerMargins : ''),
-      cell(1, `ROW-${id}${ordinary && index === 2 && (!hwpGuard || !hwpGuards[hwpGuard].single) ? '\nR3-LINE-02' : ''}`, '',
+      cell(1, `ROW-${id}${ordinary && index === 2 && !ownerGuard && (!hwpGuard || !hwpGuards[hwpGuard].single) ? '\nR3-LINE-02' : ''}`, '',
         index === 2 && (edge === 'bottom-on-continuation' || edge === 'thick-ordinary-bottom') ? 'bottom' : ordinaryAlign,
         index === 2 ? continuationMargins(90, 15) : ''),
       cell(2, index === 0 ? centeredCLines(cLineCount).join('\n') : index === 4 ? 'SINGLE-C' : '',
@@ -647,5 +652,81 @@ for (const name of ['fixed', 'percent', 'percent-break', 'mixed'] as const) {
         breaks: guard.single ? 0 : 1,
       }]);
     }
+  });
+}
+
+function compactOwnerBox(active: Locator) {
+  return active.evaluate(async paragraph => {
+    const { documentScale } = await import('/src/document-scale.ts');
+    const cell = paragraph.closest('td')!, sheet = paragraph.closest<HTMLElement>('.print-page');
+    const paper = sheet ?? paragraph.closest<HTMLElement>('.tiptap[contenteditable=true]')!;
+    const box = cell.getBoundingClientRect(), origin = paper.getBoundingClientRect();
+    const scale = documentScale(paper);
+    const css = getComputedStyle(cell);
+    const border = getComputedStyle(cell.closest('table')!).borderCollapse === 'collapse' ? .5 : 1;
+    const inset = (padding: string, width: string) => ((parseFloat(padding) || 0) + (parseFloat(width) || 0) * border) * scale;
+    const visibleBody = sheet?.querySelector('.print-content')?.getBoundingClientRect();
+    const left = Math.max(box.left + inset(css.paddingLeft, css.borderLeftWidth), visibleBody?.left ?? -Infinity);
+    const top = Math.max(box.top + inset(css.paddingTop, css.borderTopWidth), visibleBody?.top ?? -Infinity);
+    const right = Math.min(box.right - inset(css.paddingRight, css.borderRightWidth), visibleBody?.right ?? Infinity);
+    const bottom = Math.min(box.bottom - inset(css.paddingBottom, css.borderBottomWidth), visibleBody?.bottom ?? Infinity);
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    const ink = range.getBoundingClientRect();
+    return {
+      rowSpan: cell.rowSpan, breaks: paragraph.querySelectorAll('br:not(.ProseMirror-trailingBreak)').length,
+      terminal: (paragraph as HTMLElement).dataset.hwpCellTerminal === 'true',
+      prefix: !!paragraph.querySelector('[data-hwp-cell-prefix]'),
+      advance: Number((paragraph as HTMLElement).dataset.hwpCellAdvance || 0),
+      height: paragraph.getBoundingClientRect().height / scale,
+      x: (ink.left - origin.left) / scale,
+      visible: ink.width > 0 && ink.height > 0 && ink.left >= left - .5 && ink.right <= right + .5 &&
+        ink.top >= top - .5 && ink.bottom <= bottom + .5,
+    };
+  });
+}
+
+for (const name of ['compact-owner', 'terminal-owner'] as const) {
+  test(`protected merged HWP ${name} preserves the physical owner ink`, async ({ page }) => {
+    const terminal = name === 'terminal-owner';
+    const expectedRows = terminal ? [2, 2, 2, 2, 2] : [1, 1, 2, 2, 2];
+    const ownerPaper = terminal ? 2 : 1;
+    const rowPages = async (root: Locator, print: boolean) => (await snapshot(root, print)).markers
+      .filter(marker => marker.text.startsWith('ROW-')).map(marker => marker.page);
+    await openFixture(page, 'center', 'none', 2, 'thick-ordinary', name);
+    const stack = page.locator('.document-stack');
+    await expect.poll(() => rowPages(stack, false)).toEqual(expectedRows);
+    const read = async (root: Locator, print: boolean) => {
+      const active = root.locator('td > p[data-hwp-cell-line]');
+      await expect(active).toHaveCount(1);
+      await expect(active).toHaveAttribute('data-hwp-cell-line', hwpGuards[name].policy);
+      const lines = await ownerLinePositions(root, print);
+      expect(lines.map(line => [line.text, line.page, line.inside])).toEqual(
+        ['MERGE-A', 'MERGE-C', 'C-LINE-02'].map(label => [label, ownerPaper, true]));
+      const box = await compactOwnerBox(active);
+      expect(box).toMatchObject({ breaks: terminal ? 1 : 0, terminal, prefix: terminal, visible: true });
+      expect(Math.abs(box.height - (terminal ? 34.6 : 13.3))).toBeLessThan(.1);
+      expect(lines[2].y - lines[1].y).toBeCloseTo(terminal ? 21.3 : 20, 1);
+      if (terminal) expect(box.advance).toBeCloseTo(21.3, 1);
+      return { box, lines };
+    };
+    const edited = await read(stack, false);
+
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    const preview = page.locator('.print-layout');
+    await expect(preview.locator('.print-page')).toHaveCount(2);
+    expect(await rowPages(preview, true)).toEqual(expectedRows);
+    const printed = await read(preview, true);
+    if (!terminal) {
+      expect(printed.box.rowSpan).toBe(2);
+      const tail = preview.locator('.print-page[data-page="2"] [data-print-merge-continuation]');
+      await expect(tail).toHaveCount(2);
+      await expect(tail).toHaveText(['', '']);
+    }
+    expect(Math.abs(edited.box.x - printed.box.x)).toBeLessThan(.5);
+    // ownerLinePositions normalizes y to the physical paper in both modes.
+    for (const [i, line] of edited.lines.entries())
+      expect(Math.abs(line.y - printed.lines[i].y), line.text).toBeLessThan(.5);
   });
 }
