@@ -27,6 +27,7 @@ import {
   Document as DocxDocument,
   ExternalHyperlink,
   InternalHyperlink,
+  NumberValueElement,
   Bookmark,
   Footer,
   Header,
@@ -883,12 +884,43 @@ function inheritCellText(nodes: JSONContent[], attrs: Record<string, unknown> = 
     return node.content ? { ...node, content: inheritCellText(node.content, inherited) } : node;
   });
 }
+const propertiesBeforeCharacterSpacing = new Set([
+  'rStyle', 'rFonts', 'b', 'bCs', 'i', 'iCs', 'caps', 'smallCaps', 'strike', 'dstrike',
+  'outline', 'shadow', 'emboss', 'imprint', 'noProof', 'snapToGrid', 'vanish', 'webHidden', 'color',
+].map(name => `w:${name}`));
+
+class DocumentTextRun extends TextRun {
+  private readonly explicitZeroSpacing: boolean;
+
+  constructor(options: IRunOptions) {
+    super(options);
+    // docx 9.x omits numeric zero, which explicitly cancels inherited tracking.
+    this.explicitZeroSpacing = options.characterSpacing === 0;
+    if (this.explicitZeroSpacing) this.properties.push(new NumberValueElement('w:spacing', 0));
+  }
+
+  prepForXml(context: Parameters<TextRun['prepForXml']>[0]) {
+    const result = super.prepForXml(context);
+    if (!this.explicitZeroSpacing) return result;
+    const children = result?.['w:r'];
+    if (!Array.isArray(children)) return result;
+    const properties = children.find(child => child && typeof child === 'object' && 'w:rPr' in child)?.['w:rPr'];
+    if (!Array.isArray(properties)) return result;
+    const spacing = properties.findIndex(property => property && Object.hasOwn(property, 'w:spacing'));
+    const position = properties.findIndex(property =>
+      property && Object.keys(property).some(name => !propertiesBeforeCharacterSpacing.has(name)));
+    // Match the library's nonzero spacing order, ahead of size and later properties.
+    if (position >= 0 && position < spacing) properties.splice(position, 0, properties.splice(spacing, 1)[0]);
+    return result;
+  }
+}
+
 /** Word may discard a whitespace-only literal tab inside w:t on save.
  * Emit each authored tab as the standard run control, retaining run marks. */
 function documentTextRun(options: IRunOptions): TextRun {
-  if (!options.text?.includes('\t')) return new TextRun(options);
+  if (!options.text?.includes('\t')) return new DocumentTextRun(options);
   const { text, ...properties } = options;
-  return new TextRun({ ...properties, children: text.split('\t').flatMap((part, i) => [
+  return new DocumentTextRun({ ...properties, children: text.split('\t').flatMap((part, i) => [
     ...(i ? [new Tab()] : []), ...(part ? [part] : []),
   ]) });
 }
