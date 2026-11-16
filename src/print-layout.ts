@@ -5,7 +5,7 @@ import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight, wordFlowHasWra
 import { rowSplitPolicy } from './row-split-policy';
 import { layoutTextBoxes } from './textbox-frame';
 import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
-import { canPlaceProtectedTable, canSplitProtectedMergedRows, tableFragmenter } from './table-fragments';
+import { canPlaceProtectedTable, canSplitProtectedMergedRows, hasCenteredOrdinaryCell, tableFragmenter } from './table-fragments';
 import { hasUniformTablePageBody, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines, layoutWordListLines, markMeasuredWordSymbolItems } from './word-line-metrics';
@@ -345,7 +345,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         group.some(row => [...row.cells].some(cell => cell.rowSpan > 1 && getComputedStyle(cell).verticalAlign === 'middle'))) {
         const paper = content.getBoundingClientRect(), tableBox = part.table.getBoundingClientRect();
         const repeats = [...part.body.rows].slice(0, headers.length);
-        if (tableBox.height > paper.height + .5 && canSplitProtectedMergedRows([...repeats, ...group])) {
+        if (tableBox.height > paper.height + .5 && !hasCenteredOrdinaryCell(group) && canSplitProtectedMergedRows([...repeats, ...group])) {
           const plan = planLongProtectedGroup(part.table, repeats, group, paper.bottom - tableBox.top, paper.height);
           if (plan && applyProtectedPlan(group, plan)) {
             bodyRows = plan.at(-1)!.length; i = end; continue;

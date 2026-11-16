@@ -3,8 +3,16 @@ import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { layoutWordLines } from './word-line-metrics';
-import { centeredContinuationParagraph, precedingSourceRow, tableFragmenter } from './table-fragments';
-import { prepareParagraphEnds } from './paragraph-fragments';
+import { centeredContinuationParagraph, hasCenteredOrdinaryCell, precedingSourceRow, tableFragmenter } from './table-fragments';
+import { paragraphLineOffsets, prepareParagraphEnds } from './paragraph-fragments';
+
+function measureOrdinaryParagraph(paragraph: HTMLParagraphElement) {
+  const rect = paragraph.getBoundingClientRect(), range = document.createRange();
+  range.selectNodeContents(paragraph);
+  const boxes = [...range.getClientRects()].filter(ink => ink.width > .1 && ink.height > .1).map(ink =>
+    [ink.left - rect.left, ink.top - rect.top, ink.width, ink.height]);
+  return { rect, boxes, offsets: paragraphLineOffsets(paragraph) };
+}
 
 type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number;
   removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; reserveAt?: (page: number) => number; continuationHeaders?: HTMLTableRowElement[]; longProtectedGroup?: boolean };
@@ -70,6 +78,8 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const sourceInsets = new Map<HTMLTableCellElement, number>();
   const seamOffsets = new Map<HTMLParagraphElement, number>();
   const hasCenteredOwner = protectedRows && merges.some(cell => getComputedStyle(cell).verticalAlign === 'middle');
+  const hasOrdinaryCenters = hasCenteredOwner && hasCenteredOrdinaryCell(rows);
+  const ordinaryTargets = new Map<HTMLParagraphElement, ReturnType<typeof measureOrdinaryParagraph> & { targetTop: number }>();
   const owners = hasCenteredOwner ? rows.flatMap((row, rowIndex) => [...row.cells].flatMap((cell, columnIndex) => {
     if (!merges.includes(cell)) return [];
     const copy = copies[rowIndex].cells[columnIndex];
@@ -84,7 +94,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const rowTargets: { top: number; height: number }[] = [], usedPages = new Set<number>();
   const repeatAt = g.measureRepeatAt ?? g.repeatAt;
   const stride = g.height + 24, usable = g.height - g.top - g.bottom;
-  const canPlanLongGroup = g.longProtectedGroup && hasCenteredOwner && originalBottom - originalTop > usable + .5;
+  const canPlanLongGroup = g.longProtectedGroup && hasCenteredOwner && !hasOrdinaryCenters && originalBottom - originalTop > usable + .5;
   let currentTop = originalTop, page = Math.max(0, Math.floor((currentTop - g.top + .5) / stride));
   let rowAnchor = true;
   let pending = copies, finalBottom = originalBottom;
@@ -158,7 +168,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       if (repeated) {
         const row = pending[0], source = rows[Number(row.dataset.fragmentRow)];
         for (const cell of row.cells) {
-          if (cell.dataset.fragmentCell === undefined) continue;
+          if (cell.dataset.fragmentCell === undefined || hasOrdinaryCenters && getComputedStyle(cell).verticalAlign === 'middle') continue;
           const original = source.cells[Number(cell.dataset.fragmentCell)];
           const before = sourceInsets.get(original), after = paragraphInset(cell, row);
           if (before === undefined || after === undefined) return null;
@@ -166,9 +176,18 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
           if (Math.abs(offset) >= 1 / 64) seamOffsets.set(original.firstElementChild as HTMLParagraphElement, offset);
         }
       }
-      for (const row of pending) rowTargets[Number(row.dataset.fragmentRow)] = {
-        top: localY(row.getBoundingClientRect().top), height: row.getBoundingClientRect().height,
-      };
+      for (const row of pending) {
+        const sourceIndex = Number(row.dataset.fragmentRow), rowBox = row.getBoundingClientRect();
+        rowTargets[sourceIndex] = { top: localY(rowBox.top), height: rowBox.height };
+        if (hasOrdinaryCenters) for (const cell of row.cells) {
+          if (cell.dataset.fragmentCell === undefined || getComputedStyle(cell).verticalAlign !== 'middle') continue;
+          const paragraph = centeredContinuationParagraph(cell);
+          if (!paragraph) return null;
+          const original = rows[sourceIndex].cells[Number(cell.dataset.fragmentCell)].firstElementChild as HTMLParagraphElement;
+          const record = measureOrdinaryParagraph(paragraph);
+          ordinaryTargets.set(original, { ...record, targetTop: localY(record.rect.top) });
+        }
+      }
       for (const p of probe.querySelectorAll<HTMLElement>('[data-fragment-block]')) {
         const block = blocks[Number(p.dataset.fragmentBlock)], offset = Number(p.dataset.fragmentOffset);
         // DOM offsets include real BRs, matching ProseMirror's hard-break unit.
@@ -195,10 +214,49 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       } else if (pending.length) { currentTop = finalBottom; rowAnchor = true; }
     }
     if (pending.length || rows.some((_, i) => !rowTargets[i]) || blocks.some(block => block.targets.some(y => !Number.isFinite(y)))) return null;
+    const gaps = rowTargets.map((target, i) => Math.max(0, target.top -
+      (i ? rowTargets[i - 1].top + rowTargets[i - 1].height : originalTop)));
+    if (ordinaryTargets.size) {
+      // Re-create the continuous editable grid, with the same height and
+      // padding the view decorations will apply. A middle-aligned cell must
+      // keep its authored alignment while its physical paragraph moves.
+      const liveRows = rows.map((row, i) => {
+        const copy = copyRow(row), gap = gaps[i];
+        copy.style.height = `${rowTargets[i].height + gap}px`;
+        [...row.cells].forEach((cell, n) => {
+          if (gap > .5) copy.cells[n].style.paddingTop = `${(parseFloat(getComputedStyle(cell).paddingTop) || 0) + gap}px`;
+          if (cell.rowSpan > 1) copy.cells[n].style.verticalAlign = 'top';
+        });
+        return copy;
+      });
+      body.replaceChildren(...(leadingEdge ? [leadingEdge] : []), ...liveRows);
+      prepareParagraphEnds(probe);
+      layoutWordLines(probe);
+      layoutHwpCellLines(probe);
+      const liveOrigin = liveRows[0].getBoundingClientRect().top - originalTop;
+      for (const [i, row] of liveRows.entries()) {
+        const live = row.getBoundingClientRect(), target = rowTargets[i];
+        if (Math.abs(live.top - liveOrigin + gaps[i] - target.top) > .5 ||
+          Math.abs(live.bottom - liveOrigin - target.top - target.height) > .5) return null;
+        for (let n = 0; n < row.cells.length; n++) {
+          const original = rows[i].cells[n].firstElementChild as HTMLParagraphElement;
+          const targetP = ordinaryTargets.get(original);
+          if (!targetP) continue;
+          const projected = centeredContinuationParagraph(row.cells[n]);
+          if (!projected) return null;
+          const current = measureOrdinaryParagraph(projected);
+          if (Math.abs(current.rect.width - targetP.rect.width) > .5 ||
+            current.offsets.length !== targetP.offsets.length || current.offsets.some((n, j) => n !== targetP.offsets[j]) ||
+            current.boxes.length !== targetP.boxes.length ||
+            current.boxes.some((box, j) => box.some((value, k) => Math.abs(value - targetP.boxes[j][k]) > .5))) return null;
+          const shift = targetP.targetTop - (current.rect.top - liveOrigin);
+          if (Math.abs(shift) >= 1 / 64) seamOffsets.set(original, shift);
+        }
+      }
+    }
     const decorations: Decoration[] = [], signatures: string[] = [];
-    let previousBottom = originalTop;
     rows.forEach((row, i) => {
-      const target = rowTargets[i], gap = Math.max(0, target.top - previousBottom), pos = view.posAtDOM(row, 0) - 1;
+      const target = rowTargets[i], gap = gaps[i], pos = view.posAtDOM(row, 0) - 1;
       decorations.push(Decoration.node(pos, pos + view.state.doc.nodeAt(pos)!.nodeSize, { class: 'pagination-merge-row',
         style: `--pagination-row-height:${target.height + gap}px;--pagination-source-row-height:${row.style.height || 'auto'}` }));
       signatures.push(`measured-merge-row:${pos}:${target.height}:${gap}`);
@@ -207,7 +265,6 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
         decorations.push(Decoration.node(p, p + view.state.doc.nodeAt(p)!.nodeSize, { class: 'pagination-merge-padding',
           style: `--pagination-cell-padding:${padding + gap}px;--pagination-source-cell-padding:${padding}px` }));
       }
-      previousBottom = target.top + target.height;
     });
     for (const [paragraph, shift] of seamOffsets) {
       const pos = view.posAtDOM(paragraph, 0) - 1;

@@ -16,7 +16,11 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
     <w:keepNext w:val="off"/><w:keepLines w:val="off"/><w:widowControl w:val="off"/>
     <w:spacing w:before="0" w:after="0" w:line="${line}" w:lineRule="exact"/><w:jc w:val="left"/>
     </w:pPr>${text ? `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/></w:rPr>${text.split('\n').map(line => `<w:t>${line}</w:t>`).join('<w:br/>')}</w:r>` : ''}</w:p>`;
-  const thickHeader = edge === 'thick' || edge === 'thick-asym' || edge === 'thick-mixed';
+  const ordinary = edge === 'thick-ordinary' || edge === 'thick-ordinary-asym' || edge === 'thick-ordinary-bottom';
+  const ordinaryAlign = ordinary ? 'center' : 'top';
+  const continuationMargins = (top: number, bottom: number) => ordinary && edge !== 'thick-ordinary'
+    ? `<w:tcMar><w:top w:w="${top}" w:type="dxa"/><w:bottom w:w="${bottom}" w:type="dxa"/></w:tcMar>` : '';
+  const thickHeader = ordinary || edge === 'thick' || edge === 'thick-asym' || edge === 'thick-mixed';
   const headerBottom = !thickHeader ? '' :
     '<w:tcBorders><w:bottom w:val="single" w:sz="32" w:color="000000"/></w:tcBorders>';
   const ownerMargins = edge === 'thick-asym' ?
@@ -31,10 +35,12 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
     const merge = index === 0 ? 'restart' : 'continue';
     return row([
       cell(0, index === 0 ? 'MERGE-A' : '', merge, index === 0 && edge !== 'thick-mixed' ? alignment : 'top', index === 0 ? ownerMargins : ''),
-      cell(1, `ROW-${id}`, '', index === 2 && edge === 'bottom-on-continuation' ? 'bottom' : 'top'),
+      cell(1, `ROW-${id}${ordinary && index === 2 ? '\nR3-LINE-02' : ''}`, '',
+        index === 2 && (edge === 'bottom-on-continuation' || edge === 'thick-ordinary-bottom') ? 'bottom' : ordinaryAlign,
+        index === 2 ? continuationMargins(90, 15) : ''),
       cell(2, index === 0 ? centeredCLines(cLineCount).join('\n') : index === 4 ? 'SINGLE-C' : '',
-        index === 4 ? '' : merge, index === 0 && alignment === 'center' ? 'center' : 'top', index === 0 ? ownerMargins : ''),
-      cell(3, `CHECK-${id}`),
+        index === 4 ? '' : merge, index === 4 ? ordinaryAlign : index === 0 && alignment === 'center' ? 'center' : 'top', index === 0 ? ownerMargins : ''),
+      cell(3, `CHECK-${id}`, '', ordinaryAlign, index === 2 ? continuationMargins(15, 90) : ''),
     ]);
   }).join('');
   const borders = ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(side =>
@@ -78,7 +84,7 @@ function snapshot(root: Locator, print: boolean) {
     const height = Number(paper.dataset.pageHeight);
     const stride = height + 24;
     const markers = [...paper.querySelectorAll<HTMLParagraphElement>('p')].filter(p =>
-      /^(?:HEAD-[A-D]|(?:ROW|CHECK)-0[1-5]|MERGE-[AC]|SINGLE-C|TAIL)$/.test(p.textContent ?? ''));
+      /^(?:HEAD-[A-D]|(?:ROW|CHECK)-0[1-5]|MERGE-[AC]|SINGLE-C|TAIL|ROW-03\s*R3-LINE-02)$/.test(p.textContent ?? ''));
     return {
       pages: print ? paper.querySelectorAll('.print-page').length : Number(paper.dataset.pages),
       markers: markers.map(p => {
@@ -91,7 +97,7 @@ function snapshot(root: Locator, print: boolean) {
         const y = sheet ? (ink.top - sheet.getBoundingClientRect().top) / documentScale(sheet) : local - (page - 1) * stride;
         const cell = p.closest('td,th')?.getBoundingClientRect();
         return {
-          text: p.textContent!, page, y,
+          text: p.textContent!.replace(/^ROW-03\s*R3-LINE-02$/, 'ROW-03'), page, y,
           inside: ink.width > 0 && ink.height > 0 && (!cell || (ink.top >= cell.top - 1 &&
             ink.bottom <= cell.bottom + 1 && ink.left >= cell.left - 1 && ink.right <= cell.right + 1)),
         };
@@ -293,7 +299,8 @@ test('short centered merge labels stay whole in the first protected row fragment
 });
 
 
-type HeaderEdgeFixture = 'none' | 'thick' | 'thick-asym' | 'thick-mixed' | 'bottom-on-continuation';
+type HeaderEdgeFixture = 'none' | 'thick' | 'thick-asym' | 'thick-mixed' | 'bottom-on-continuation'
+  | 'thick-ordinary' | 'thick-ordinary-asym' | 'thick-ordinary-bottom';
 
 test('protected centered merges retain the repeated thick header edge on continuation', async ({ page }) => {
   const ownerLabels = ['MERGE-A', 'MERGE-C', 'C-LINE-02'];
@@ -385,4 +392,127 @@ test('top and centered owners use the same collapsed edge when they cross togeth
     .toEqual([['MERGE-A', 1, true], ['MERGE-C', 1, true], ['C-LINE-02', 1, true]]);
   expect(edited).toEqual(printed);
   expect(printed[1].y - printed[0].y).toBeGreaterThan(20);
+});
+
+function continuationLinePositions(root: Locator, print: boolean) {
+  return root.evaluate(async (scope, print) => {
+    const { documentScale } = await import('/src/document-scale.ts');
+    const paper = scope as HTMLElement;
+    const editor = paper.querySelector<HTMLElement>('.tiptap[contenteditable=true]');
+    const origin = (editor ?? paper).getBoundingClientRect().top;
+    const editScale = documentScale(editor ?? paper);
+    const stride = Number(paper.dataset.pageHeight) + 24;
+    const lines: { text: string; page: number; y: number; inside: boolean }[] = [];
+    const shape: { bodyParagraphs: number; hardBreaks: number }[] = [];
+
+    for (const paragraph of paper.querySelectorAll<HTMLParagraphElement>('td > p')) {
+      if (paragraph.closest('.pagination-headers,[data-flow-widget]')) continue;
+      const text = paragraph.textContent?.replace(/\s+/g, '');
+      if (text !== 'ROW-03R3-LINE-02' && text !== 'CHECK-03') continue;
+      const cell = paragraph.closest('td')!;
+      if (text === 'ROW-03R3-LINE-02') {
+        shape.push({
+          bodyParagraphs: cell.querySelectorAll(':scope > p').length,
+          hardBreaks: paragraph.querySelectorAll('br:not(.ProseMirror-trailingBreak)').length,
+        });
+      }
+      const sheet = print ? paragraph.closest<HTMLElement>('.print-page') : null;
+      const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const node = walker.currentNode as Text;
+        for (const match of node.data.matchAll(/ROW-03|R3-LINE-02|CHECK-03/g)) {
+          const range = document.createRange();
+          range.setStart(node, match.index!);
+          range.setEnd(node, match.index! + match[0].length);
+          const ink = range.getBoundingClientRect(), box = cell.getBoundingClientRect();
+          const local = (ink.top - origin) / editScale;
+          const page = sheet ? Number(sheet.dataset.page) : 1 + Math.floor((local + .5) / stride);
+          const y = sheet ? (ink.top - sheet.getBoundingClientRect().top) / documentScale(sheet)
+            : local - (page - 1) * stride;
+          lines.push({
+            text: match[0], page, y,
+            inside: ink.width > 0 && ink.height > 0 && ink.left >= box.left - 1 &&
+              ink.right <= box.right + 1 && ink.top >= box.top - 1 && ink.bottom <= box.bottom + 1,
+          });
+        }
+      }
+    }
+    return { lines, shape };
+  }, print);
+}
+
+test('center alignment follows each ordinary continuation cell and its exact lines', async ({ page }) => {
+  const lineLabels = ['ROW-03', 'R3-LINE-02', 'CHECK-03'];
+  const boxes: { midpoint: number; check: number; row4: number }[] = [];
+  const variants = ['thick-ordinary', 'thick-ordinary-asym', 'thick-ordinary-bottom'] as const;
+  for (const edge of variants) await test.step(edge, async () => {
+    const atomic = edge === 'thick-ordinary-bottom';
+    const expectedPages = atomic ? [2, 2, 2, 2, 2] : [1, 1, 2, 2, 2];
+    const expectedHeaders = atomic ? [2] : [1, 2];
+    const rowMarkers = (table: Awaited<ReturnType<typeof snapshot>>, prefix: 'ROW' | 'CHECK') =>
+      table.markers.filter(marker => marker.text.startsWith(`${prefix}-`));
+    await openFixture(page, 'center', 'none', 2, edge);
+    const editor = page.locator('.document-stack');
+    await expect.poll(async () => rowMarkers(await snapshot(editor, false), 'ROW').map(marker => marker.page))
+      .toEqual(expectedPages);
+    if (atomic) await expect(editor.locator('.pagination-headers th')).toHaveCount(0);
+    else await expect(editor.locator('.pagination-headers th')).toHaveText(heads);
+    const read = async (root: Locator, print: boolean) => ({
+      table: await snapshot(root, print),
+      continuation: await continuationLinePositions(root, print),
+      owners: await ownerLinePositions(root, print),
+    });
+    const edited = await read(editor, false);
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    const preview = page.locator('.print-layout');
+    await expect(preview.locator('.print-page')).toHaveCount(2);
+    const printed = await read(preview, true);
+
+    for (const mode of [edited, printed]) {
+      expect(mode.table.pages).toBe(2);
+      for (const prefix of ['ROW', 'CHECK'] as const) {
+        const markers = rowMarkers(mode.table, prefix);
+        expect(markers.map(marker => marker.text)).toEqual(rows.map(id => `${prefix}-${id}`));
+        expect(markers.map(marker => marker.page)).toEqual(expectedPages);
+        expect(markers.every(marker => marker.inside)).toBe(true);
+      }
+      for (const label of heads)
+        expect(mode.table.markers.filter(marker => marker.text === label).map(marker => marker.page).sort())
+          .toEqual(expectedHeaders);
+      expect(mode.owners.map(owner => [owner.text, owner.page, owner.inside])).toEqual(
+        ['MERGE-A', 'MERGE-C', 'C-LINE-02'].map(label => [label, atomic ? 2 : 1, true]),
+      );
+      expect(mode.continuation.shape).toEqual([{ bodyParagraphs: 1, hardBreaks: 1 }]);
+      const [first, second, check] = mode.continuation.lines;
+      expect(mode.continuation.lines.map(line => [line.text, line.page, line.inside]))
+        .toEqual(lineLabels.map(label => [label, 2, true]));
+      expect(second.y - first.y).toBeCloseTo(20, 1);
+      const midpoint = (first.y + second.y) / 2;
+      // Compare the two-line text block's midpoint with the single-line
+      // text in the same physical row. Comparing only first lines is wrong.
+      if (atomic) expect(first.y).toBeGreaterThan(check.y);
+      else expect(midpoint - check.y).toBeCloseTo(edge === 'thick-ordinary-asym' ? 5 : 0, 1);
+    }
+    for (const [index, line] of edited.continuation.lines.entries())
+      expect(Math.abs(line.y - printed.continuation.lines[index].y), edge + ' ' + line.text).toBeLessThan(0.5);
+    for (const [index, owner] of edited.owners.entries())
+      expect(Math.abs(owner.y - printed.owners[index].y), edge + ' ' + owner.text).toBeLessThan(0.5);
+    for (const prefix of ['ROW', 'CHECK'] as const) {
+      const editorRows = rowMarkers(edited.table, prefix), printRows = rowMarkers(printed.table, prefix);
+      for (const [index, mark] of editorRows.entries())
+        expect(Math.abs(mark.y - printRows[index].y), edge + ' ' + mark.text).toBeLessThan(0.5);
+    }
+    if (!atomic) {
+      const [first, second, check] = edited.continuation.lines;
+      boxes.push({ midpoint: (first.y + second.y) / 2, check: check.y, row4: rowMarkers(edited.table, 'ROW')[3].y });
+    }
+  });
+  // Both explicit cells gain 45 twips of total padding. The 3px higher row
+  // contributes 1.5px uniformly to centering, the 75-twip imbalance then
+  // biases the respective cells 2.5px in opposite directions.
+  const [balanced, asymmetric] = boxes;
+  expect(asymmetric.midpoint - balanced.midpoint).toBeCloseTo(4, 1);
+  expect(asymmetric.check - balanced.check).toBeCloseTo(-1, 1);
+  expect(asymmetric.row4 - balanced.row4).toBeCloseTo(3, 1);
 });

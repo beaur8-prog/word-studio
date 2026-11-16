@@ -11,9 +11,15 @@ export function canPlaceProtectedTable(root: HTMLElement) {
 }
 
 export function centeredContinuationParagraph(cell: HTMLTableCellElement) {
-  const paragraph = cell.firstElementChild;
-  return paragraph instanceof HTMLParagraphElement && cell.children.length === 1 &&
-    getComputedStyle(cell).verticalAlign === 'top' ? paragraph : undefined;
+  const paragraph = cell.firstElementChild, alignment = getComputedStyle(cell).verticalAlign;
+  if (!(paragraph instanceof HTMLParagraphElement) || cell.children.length !== 1) return;
+  if (alignment === 'top' || alignment === 'middle' &&
+    !paragraph.querySelector('[data-docx-tab],[data-docx-bookmark],[data-word-overlap],[data-symbol-font]')) return paragraph;
+}
+
+export function hasCenteredOrdinaryCell(rows: HTMLTableRowElement[]) {
+  return rows.some(row => [...row.cells].some(cell =>
+    cell.tagName === 'TD' && cell.rowSpan === 1 && getComputedStyle(cell).verticalAlign === 'middle'));
 }
 
 export function precedingSourceRow(row: HTMLTableRowElement) {
