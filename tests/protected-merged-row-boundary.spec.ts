@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import JSZip from 'jszip';
+import { readFile } from 'node:fs/promises';
 
 const word = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const wordRelationships = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
@@ -9,13 +10,39 @@ const rows = ['01', '02', '03', '04', '05'];
 
 type FooterFixture = 'none' | 'different-first-page' | 'empty';
 
-async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: FooterFixture, cLineCount = 1, edge: HeaderEdgeFixture = 'none') {
+const hwpCellLineNs = 'urn:word-studio:hwp-cell-lines:1';
+const markupCompatibilityNs = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
+const fixedCellLine = '1 Fixed 13.3333 20 20 20';
+const percentCellLine = '1 Percent 13.3333 21.3333 13.3 13.3';
+const hwpGuards = {
+  fixed: { policy: fixedCellLine, line: 300, single: false, allowed: true },
+  percent: { policy: percentCellLine, line: 200, single: true, allowed: true },
+  'percent-break': { policy: percentCellLine, line: 200, single: false, allowed: false },
+  mixed: { policy: fixedCellLine, line: 300, single: false, allowed: false },
+} as const;
+type HwpGuardFixture = keyof typeof hwpGuards;
+
+function hwpGuardAttribute(policy: string, line: number) {
+  const data = JSON.stringify({ policy, font: 13.3333, line }).replaceAll('"', '&quot;');
+  return ` xmlns:mc="${markupCompatibilityNs}" xmlns:wsh="${hwpCellLineNs}" mc:Ignorable="wsh" mc:PreserveAttributes="wsh:cellLine" wsh:cellLine="${data}"`;
+}
+
+
+async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: FooterFixture, cLineCount = 1, edge: HeaderEdgeFixture = 'none', hwpGuard?: HwpGuardFixture) {
   const differentFirstPage = footerFixture === 'different-first-page';
   const hasFooter = footerFixture !== 'none';
-  const paragraph = (text: string, line = 300) => `<w:p><w:pPr>
-    <w:keepNext w:val="off"/><w:keepLines w:val="off"/><w:widowControl w:val="off"/>
-    <w:spacing w:before="0" w:after="0" w:line="${line}" w:lineRule="exact"/><w:jc w:val="left"/>
-    </w:pPr>${text ? `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/></w:rPr>${text.split('\n').map(line => `<w:t>${line}</w:t>`).join('<w:br/>')}</w:r>` : ''}</w:p>`;
+  const paragraph = (text: string, line = 300) => {
+    const guard = hwpGuard && /^ROW-03(?:\n|$)/.test(text) ? hwpGuards[hwpGuard] : undefined;
+    const textElements = text.split('\n').map(value => `<w:t>${value}</w:t>`);
+    const run = (content: string, halfPoints = 20) => `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="${halfPoints}"/></w:rPr>${content}</w:r>`;
+    const runs = !text ? '' : guard && hwpGuard === 'mixed'
+      ? run(textElements[0] + '<w:br/>') + run(textElements[1], 16)
+      : run(textElements.join('<w:br/>'));
+    return `<w:p${guard ? hwpGuardAttribute(guard.policy, guard.line) : ''}><w:pPr>
+      <w:keepNext w:val="off"/><w:keepLines w:val="off"/><w:widowControl w:val="off"/>
+      <w:spacing w:before="0" w:after="0" w:line="${guard?.line ?? line}" w:lineRule="exact"/><w:jc w:val="left"/>
+      </w:pPr>${runs}</w:p>`;
+  };
   const ordinary = edge === 'thick-ordinary' || edge === 'thick-ordinary-asym' || edge === 'thick-ordinary-bottom';
   const ordinaryAlign = ordinary ? 'center' : 'top';
   const continuationMargins = (top: number, bottom: number) => ordinary && edge !== 'thick-ordinary'
@@ -35,7 +62,7 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
     const merge = index === 0 ? 'restart' : 'continue';
     return row([
       cell(0, index === 0 ? 'MERGE-A' : '', merge, index === 0 && edge !== 'thick-mixed' ? alignment : 'top', index === 0 ? ownerMargins : ''),
-      cell(1, `ROW-${id}${ordinary && index === 2 ? '\nR3-LINE-02' : ''}`, '',
+      cell(1, `ROW-${id}${ordinary && index === 2 && (!hwpGuard || !hwpGuards[hwpGuard].single) ? '\nR3-LINE-02' : ''}`, '',
         index === 2 && (edge === 'bottom-on-continuation' || edge === 'thick-ordinary-bottom') ? 'bottom' : ordinaryAlign,
         index === 2 ? continuationMargins(90, 15) : ''),
       cell(2, index === 0 ? centeredCLines(cLineCount).join('\n') : index === 4 ? 'SINGLE-C' : '',
@@ -106,11 +133,11 @@ function snapshot(root: Locator, print: boolean) {
   }, print);
 }
 
-async function openFixture(page: Page, alignment: 'top' | 'bottom' | 'center', footer: FooterFixture = 'none', cLineCount = 1, edge: HeaderEdgeFixture = 'none') {
+async function openFixture(page: Page, alignment: 'top' | 'bottom' | 'center', footer: FooterFixture = 'none', cLineCount = 1, edge: HeaderEdgeFixture = 'none', hwpGuard?: HwpGuardFixture) {
   await page.goto('/');
   const name = `protected-crossed-${alignment}`;
   await page.locator('input[type=file]').first().setInputFiles({
-    name: `${name}.docx`, buffer: await fixture(alignment, footer, cLineCount, edge),
+    name: `${name}.docx`, buffer: await fixture(alignment, footer, cLineCount, edge, hwpGuard),
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
   await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue(name);
@@ -408,9 +435,9 @@ function continuationLinePositions(root: Locator, print: boolean) {
     for (const paragraph of paper.querySelectorAll<HTMLParagraphElement>('td > p')) {
       if (paragraph.closest('.pagination-headers,[data-flow-widget]')) continue;
       const text = paragraph.textContent?.replace(/\s+/g, '');
-      if (text !== 'ROW-03R3-LINE-02' && text !== 'CHECK-03') continue;
+      if (text !== 'ROW-03' && text !== 'ROW-03R3-LINE-02' && text !== 'CHECK-03') continue;
       const cell = paragraph.closest('td')!;
-      if (text === 'ROW-03R3-LINE-02') {
+      if (text !== 'CHECK-03') {
         shape.push({
           bodyParagraphs: cell.querySelectorAll(':scope > p').length,
           hardBreaks: paragraph.querySelectorAll('br:not(.ProseMirror-trailingBreak)').length,
@@ -516,3 +543,109 @@ test('center alignment follows each ordinary continuation cell and its exact lin
   expect(asymmetric.check - balanced.check).toBeCloseTo(-1, 1);
   expect(asymmetric.row4 - balanced.row4).toBeCloseTo(3, 1);
 });
+
+async function exportedHwpGuard(page: Page, xml: string) {
+  return page.evaluate(({ xml, word, hwpCellLineNs, markupCompatibilityNs }) => {
+    const document = new DOMParser().parseFromString(xml, 'application/xml');
+    if (document.querySelector('parsererror')) throw new Error('Invalid saved DOCX XML');
+    return Array.from(document.getElementsByTagNameNS(word, 'p'))
+      .filter(p => p.hasAttributeNS(hwpCellLineNs, 'cellLine')).map(p => {
+        const saved = JSON.parse(p.getAttributeNS(hwpCellLineNs, 'cellLine')!);
+        const props = Array.from(p.children).find(child => child.namespaceURI === word && child.localName === 'pPr');
+        const spacing = props?.getElementsByTagNameNS(word, 'spacing')[0];
+        const prefix = p.lookupPrefix(hwpCellLineNs);
+        const ignored = p.getAttributeNS(markupCompatibilityNs, 'Ignorable')?.split(/\s+/);
+        const preserved = p.getAttributeNS(markupCompatibilityNs, 'PreserveAttributes')?.split(/\s+/);
+        return {
+          policy: saved.policy,
+          policyLine: saved.line,
+          standardLine: Number(spacing?.getAttributeNS(word, 'line')),
+          standardRule: spacing?.getAttributeNS(word, 'lineRule'),
+          ignorable: !!prefix && !!ignored?.includes(prefix),
+          preserved: !!prefix && !!preserved?.includes(prefix + ':cellLine'),
+          labels: Array.from(p.getElementsByTagNameNS(word, 't')).map(t => t.textContent),
+          breaks: p.getElementsByTagNameNS(word, 'br').length,
+        };
+      });
+  }, { xml, word, hwpCellLineNs, markupCompatibilityNs });
+}
+
+for (const name of ['fixed', 'percent', 'percent-break', 'mixed'] as const) {
+  test(`protected ordinary HWP cell line ${name} keeps its safe row placement`, async ({ page }, info) => {
+    const guard = hwpGuards[name];
+    const expectedRows = guard.allowed ? [1, 1, 2, 2, 2] : [2, 2, 2, 2, 2];
+    const expectedLines = guard.single ? ['ROW-03', 'CHECK-03'] : ['ROW-03', 'R3-LINE-02', 'CHECK-03'];
+    await openFixture(page, 'center', 'none', 2, 'thick-ordinary', name);
+    const editor = page.locator('.document-stack');
+    const assertPolicy = async (root: Locator) => {
+      const active = root.locator('td > p[data-hwp-cell-line]');
+      await expect(active).toHaveCount(1);
+      await expect(active).toHaveAttribute('data-hwp-cell-line', guard.policy);
+      await expect(active).toHaveAttribute('data-word-line-rule', 'exact');
+      if (guard.allowed)
+        expect(await active.evaluate(p => parseFloat(getComputedStyle(p).lineHeight)))
+          .toBeCloseTo(guard.single ? 13.3 : 20, 1);
+    };
+    const placements = async (root: Locator, print: boolean) => {
+      const table = await snapshot(root, print);
+      return { table, continuation: await continuationLinePositions(root, print),
+        owners: await ownerLinePositions(root, print) };
+    };
+    await assertPolicy(editor);
+    await expect.poll(async () => (await snapshot(editor, false)).markers
+      .filter(marker => marker.text.startsWith('ROW-')).map(marker => marker.page)).toEqual(expectedRows);
+    const edited = await placements(editor, false);
+
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    const preview = page.locator('.print-layout');
+    await expect(preview.locator('.print-page')).toHaveCount(2);
+    await assertPolicy(preview);
+    const printed = await placements(preview, true);
+
+    for (const mode of [edited, printed]) {
+      expect(mode.table.pages).toBe(2);
+      for (const prefix of ['ROW-', 'CHECK-']) {
+        const bodyRows = mode.table.markers.filter(marker => marker.text.startsWith(prefix));
+        expect(bodyRows.map(marker => marker.text)).toEqual(rows.map(id => prefix + id));
+        expect(bodyRows.map(marker => [marker.page, marker.inside])).toEqual(expectedRows.map(p => [p, true]));
+      }
+      for (const head of heads)
+        expect(mode.table.markers.filter(marker => marker.text === head).map(marker => marker.page).sort())
+          .toEqual(guard.allowed ? [1, 2] : [2]);
+      expect(mode.owners.map(owner => [owner.text, owner.page, owner.inside])).toEqual(
+        ['MERGE-A', 'MERGE-C', 'C-LINE-02'].map(label => [label, guard.allowed ? 1 : 2, true]),
+      );
+      expect(mode.continuation.shape).toEqual([{ bodyParagraphs: 1, hardBreaks: guard.single ? 0 : 1 }]);
+      expect(mode.continuation.lines.map(line => [line.text, line.page, line.inside]))
+        .toEqual(expectedLines.map(label => [label, 2, true]));
+      if (name === 'fixed')
+        expect(mode.continuation.lines[1].y - mode.continuation.lines[0].y).toBeCloseTo(20, 1);
+    }
+    for (const [index, line] of edited.continuation.lines.entries())
+      expect(Math.abs(line.y - printed.continuation.lines[index].y), line.text).toBeLessThan(0.5);
+    for (const [index, owner] of edited.owners.entries())
+      expect(Math.abs(owner.y - printed.owners[index].y), owner.text).toBeLessThan(0.5);
+    const printedRows = new Map(printed.table.markers.filter(marker => /^(ROW|CHECK)-/.test(marker.text))
+      .map(marker => [marker.text, marker.y]));
+    for (const mark of edited.table.markers.filter(marker => /^(ROW|CHECK)-/.test(marker.text)))
+      expect(Math.abs(mark.y - printedRows.get(mark.text)!), mark.text).toBeLessThan(0.5);
+
+    if (guard.allowed) {
+      await page.getByRole('button', { name: '편집으로 돌아가기', exact: true }).click();
+      await page.getByRole('button', { name: '파일', exact: true }).click();
+      const pending = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Word 문서 (.docx) Microsoft Word에서 열고 편집', exact: true }).click();
+      const output = info.outputPath(`textbox-save-protected-hwp-guard-${name}.docx`);
+      await (await pending).saveAs(output);
+      const pkg = await JSZip.loadAsync(await readFile(output));
+      const xml = await pkg.file('word/document.xml')!.async('string');
+      expect(await exportedHwpGuard(page, xml)).toEqual([{
+        policy: guard.policy, policyLine: guard.line, standardLine: guard.line, standardRule: 'exact',
+        ignorable: true, preserved: true,
+        labels: guard.single ? ['ROW-03'] : ['ROW-03', 'R3-LINE-02'],
+        breaks: guard.single ? 0 : 1,
+      }]);
+    }
+  });
+}

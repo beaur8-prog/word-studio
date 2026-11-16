@@ -1,5 +1,6 @@
 import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
+import { cssPixels, parseHwpCellLine } from './hwp-cell-line';
 import { paragraphLineOffsets, paragraphTextWalker, splitText, textUnitLength } from './paragraph-fragments';
 
 function headerRow(row: HTMLTableRowElement) {
@@ -28,21 +29,51 @@ export function precedingSourceRow(row: HTMLTableRowElement) {
   return previous instanceof HTMLTableRowElement ? previous : null;
 }
 
+function canMoveHwpCellParagraph(paragraph: HTMLElement) {
+  if (!(paragraph instanceof HTMLParagraphElement) || paragraph.dataset.wordLineRule !== 'exact' ||
+    paragraph.matches('[data-hwp-cell-terminal],[data-hwp-cell-full-line],[data-hwp-cell-continuation]') ||
+    paragraph.querySelector('sup,sub,[data-hwp-cell-prefix],[data-document-field]')) return false;
+  const cell = paragraph.parentElement;
+  if (!(cell instanceof HTMLTableCellElement) || cell.tagName !== 'TD' || cell.rowSpan !== 1 || cell.colSpan !== 1 ||
+    centeredContinuationParagraph(cell) !== paragraph || getComputedStyle(cell).verticalAlign !== 'middle') return false;
+
+  const line = parseHwpCellLine(paragraph.dataset.hwpCellLine);
+  const size = cssPixels(paragraph.dataset.hwpCellAuthoredSize), exact = cssPixels(paragraph.dataset.wordLine);
+  const css = getComputedStyle(paragraph);
+  const font = cssPixels(css.fontSize), height = cssPixels(css.lineHeight);
+  if (!line || (line.rule !== 'Fixed' && line.rule !== 'Percent') || size === null || exact === null || font === null || height === null ||
+    Math.abs(line.font - size) > .05 || Math.abs(line.base - exact) > .05 || Math.abs(line.end - line.base) > .05 ||
+    Math.abs(font - size) > .05 || Math.abs(height - line.end) > .05) return false;
+
+  const text = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+  while (text.nextNode()) if (text.currentNode.textContent?.length &&
+    Math.abs(parseFloat(getComputedStyle(text.currentNode.parentElement!).fontSize) - size) > .05) return false;
+  if (!paragraph.textContent?.trim()) return false;
+  // A compact single line keeps its measured end height only while it fits.
+  // Wrapped or explicitly broken text can activate a different terminal box.
+  const uniform = line.advance === line.end;
+  return uniform || (!paragraph.querySelector('br:not(.ProseMirror-trailingBreak)') && paragraphLineOffsets(paragraph).length === 0);
+}
+
 export function canSplitProtectedMergedRows(rows: HTMLTableRowElement[]) {
   const table = rows[0]?.closest('table');
   if (!table || table.dataset.wordTableLayout !== 'fixed' || table.dataset.tableAnchor ||
     table.parentElement?.closest('td,th,[data-column-count]:not([data-column-count="1"]),.document-textbox,.document-furniture')) return false;
   const firstBody = rows.findIndex(row => !headerRow(row));
   if (firstBody < 0 || rows.length - firstBody < 2) return false;
+  const body = rows.slice(firstBody);
+  const centeredOwner = body.some(row => [...row.cells].some(cell =>
+    cell.rowSpan > 1 && getComputedStyle(cell).verticalAlign === 'middle'));
   const supportedRows = rows.every((row, index) => (index < firstBody ? [...row.cells].every(cell => cell.rowSpan === 1) :
       row.dataset.rowSplit === 'avoid' && row.dataset.wordRowRule !== 'exact' && Number.parseFloat(row.style.height) > 0 &&
       [...row.cells].every(cell => cell.tagName === 'TD') && [...row.cells].some(cell => cell.rowSpan === 1)) &&
     [...row.cells].every(cell => cell.rowSpan >= 1 && !cell.style.height && !cell.style.minHeight) &&
-    !row.querySelector('table,img:not(.ProseMirror-separator),svg,[data-note-reference],[data-page-number],[data-word-keep-next="true"],[data-hwp-cell-line]') &&
+    !row.querySelector('table,img:not(.ProseMirror-separator),svg,[data-note-reference],[data-page-number],[data-word-keep-next="true"]') &&
+    [...row.querySelectorAll<HTMLElement>('[data-hwp-cell-line]')].every(paragraph =>
+      index >= firstBody && centeredOwner && canMoveHwpCellParagraph(paragraph)) &&
     row.getBoundingClientRect().height > 0);
   if (!supportedRows) return false;
-  const body = rows.slice(firstBody);
-  if (!body.some(row => [...row.cells].some(cell => cell.rowSpan > 1 && getComputedStyle(cell).verticalAlign === 'middle'))) return true;
+  if (!centeredOwner) return true;
 
   // The editor must reproduce the next physical paper's used border without
   // changing row height or moving other paragraphs. Limit this path to cells
