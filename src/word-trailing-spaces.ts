@@ -24,12 +24,13 @@ function usesWordHangingSpaces(doc: StudioDocument): boolean {
     (doc.wordWrapTrailSpaces === undefined && doc.wordDefaultHangingSpaces === true);
 }
 
-export function isOrdinaryWordBodyParagraph(paragraph: HTMLElement, root: HTMLElement): boolean {
+export function isOrdinaryWordBodyParagraph(paragraph: HTMLElement, root: HTMLElement, allowWrapWidgets = false): boolean {
   const parent = paragraph.parentElement;
   return !!parent && (parent === root || parent.matches('.section-editable,[data-section-content]')) &&
     paragraph.matches('p[data-word-paragraph-style]:not([data-hwp-body-line],[data-hwp-cell-line])') &&
     !paragraph.closest('li,td,th,blockquote,[data-column-count]:not([data-column-count="1"]),[data-document-textbox],[data-textbox-content],[data-document-note],.document-furniture') &&
-    !paragraph.querySelector('img:not(.ProseMirror-separator),svg,[data-note-reference],[data-page-number],[data-flow-widget],[data-document-field]');
+    !paragraph.querySelector('img:not(.ProseMirror-separator),svg,[data-note-reference],[data-page-number],[data-document-field]') &&
+    (allowWrapWidgets || !paragraph.querySelector('[data-flow-widget]'));
 }
 
 /** The numbering tab is the leading list separator. It is independent of

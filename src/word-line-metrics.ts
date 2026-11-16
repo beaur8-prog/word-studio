@@ -14,19 +14,20 @@ const metrics = new Map<string, number>();
 // selection updates cannot evict and remeasure the entire long document.
 let nodeMetrics = new WeakMap<Node, { font: string; text: string; height: number }>();
 const legacyKorean = /^(돋움체?|굴림체?|Dotum(?:Che)?|Gulim(?:Che)?)$/i;
-function singleLine(style: CSSStyleDeclaration, text = 'Ag', owner?: Node) {
+function singleLine(style: CSSStyleDeclaration, text = 'Ag', owner?: Node, referenceDensity = false) {
   const font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+  const cacheFont = referenceDensity ? font + '\nreference-density' : font;
   const previous = owner && nodeMetrics.get(owner);
-  if (previous && previous.font === font && previous.text === text) return previous.height;
+  if (previous && previous.font === cacheFont && previous.text === text) return previous.height;
   // Measure only glyphs that this run actually uses. An unconditional Hangul
   // sample selects a taller fallback even for entirely Latin Word paragraphs.
   // Collapse explicit breaks: this is a single-line metric, not paragraph height.
   const sample = text.replace(/[\t\r\n\u2028\u2029]/g, ' ');
-  const key = `${font}\n${sample}`;
+  const key = `${cacheFont}\n${sample}`;
   const cached = metrics.get(key);
   if (cached !== undefined) {
     metrics.delete(key); metrics.set(key, cached);
-    if (owner) nodeMetrics.set(owner, { font, text, height: cached });
+    if (owner) nodeMetrics.set(owner, { font: cacheFont, text, height: cached });
     return cached;
   }
   // Windows Word's single-line box for these legacy Korean faces is about
@@ -45,8 +46,21 @@ function singleLine(style: CSSStyleDeclaration, text = 'Ag', owner?: Node) {
     const probe = document.createElement('span');
     Object.assign(probe.style, { position: 'fixed', left: '-10000px', visibility: 'hidden',
       font, lineHeight: 'normal', whiteSpace: 'pre', padding: '0', border: '0' });
+    // Only the detached measurement operates at a reference pixel density.
+    // Keep the document's font size, physical page and CSS zoom intact.
+    const zoom = referenceDensity ? 1 / window.devicePixelRatio : 1;
+    if (zoom !== 1) probe.style.zoom = String(zoom);
     probe.textContent = sample; document.body.append(probe);
-    height = probe.getBoundingClientRect().height; probe.remove();
+    const measuredZoom = zoom === 1 ? 1 : probe.currentCSSZoom;
+    if (!Number.isFinite(measuredZoom) || Math.abs(measuredZoom - zoom) > .000001) {
+      probe.style.removeProperty('zoom');
+      height = probe.getBoundingClientRect().height;
+      probe.remove();
+      // Do not store a native density height in the reference cache.
+      return height;
+    }
+    height = probe.getBoundingClientRect().height / measuredZoom;
+    probe.remove();
   }
   // Text is part of the key so changing scripts cannot reuse another fallback's
   // height. Bound both the number and size of retained samples in large files.
@@ -54,13 +68,44 @@ function singleLine(style: CSSStyleDeclaration, text = 'Ag', owner?: Node) {
     if (metrics.size >= 2048) metrics.delete(metrics.keys().next().value!);
     metrics.set(key, height);
   }
-  if (owner) nodeMetrics.set(owner, { font, text, height });
+  if (owner) nodeMetrics.set(owner, { font: cacheFont, text, height });
   return height;
+}
+
+const referenceDensityParagraph = 'data-print-word-reference-density';
+const flowWidgets = '.pagination-gap,.pagination-cell-gap,[data-flow-widget]';
+
+function wordReferenceDensity(paragraph: HTMLElement) {
+  if (paragraph.dataset.wordLineRule !== 'auto' ||
+      (paragraph.dataset.wordOutlineLevel !== undefined && paragraph.dataset.wordOutlineLevel !== '9') ||
+      paragraph.querySelector('br:not(.ProseMirror-trailingBreak,[data-flow-widget]),sup,sub,[data-docx-tab],[data-symbol-font],[data-word-overlap],[data-drawing-group-anchor]') ||
+      !(window.devicePixelRatio >= 1) || !Number.isFinite(window.devicePixelRatio) || document.body.currentCSSZoom !== 1) return false;
+  const css = getComputedStyle(paragraph);
+  if (css.direction !== 'ltr' || css.writingMode !== 'horizontal-tb' ||
+      wordFallbackSpaceAdjustment(paragraph, css) === null) return false;
+  const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+  let hasText = false;
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (!node.data || !node.parentElement || node.parentElement.closest(flowWidgets)) continue;
+    const run = getComputedStyle(node.parentElement);
+    if (!/^[\x20-\x7e\u2019]+$/.test(node.data) || run.fontFamily !== css.fontFamily || run.fontSize !== css.fontSize ||
+        run.fontWeight !== css.fontWeight || run.fontStyle !== css.fontStyle) return false;
+    hasText ||= !!node.data.trim();
+  }
+  return hasText;
+}
+
+/** Mark original body paragraphs before print unwraps columns or moves nodes.
+ * Cloned continuation fragments reuse the complete paragraph's line height. */
+export function markWordReferenceDensity(root: HTMLElement) {
+  for (const paragraph of root.querySelectorAll<HTMLElement>('p[data-word-paragraph-style][data-word-line-rule="auto"]'))
+    if (isOrdinaryWordBodyParagraph(paragraph, root)) paragraph.setAttribute(referenceDensityParagraph, '');
 }
 
 /** OOXML auto spacing multiplies a single font line, not the font's em size.
  * Keep the source multiplier in the document; measured pixels are view-only. */
-export function wordLineHeight(paragraph: HTMLElement, plainBody = false) {
+export function wordLineHeight(paragraph: HTMLElement, plainBody = false, referenceDensity = false) {
   const rule = paragraph.dataset.wordLineRule, source = paragraph.dataset.wordLine;
   if (!rule || !source || rule === 'exact') return null;
   const value = parseFloat(source);
@@ -69,7 +114,7 @@ export function wordLineHeight(paragraph: HTMLElement, plainBody = false) {
   // Then measure text with its own resolved run font, never with an ancestor's
   // font that may not support those glyphs (e.g. a smaller CJK run in Latin text).
   const style = getComputedStyle(paragraph);
-  let normal = singleLine(style, 'Ag', paragraph);
+  let normal = singleLine(style, 'Ag', paragraph, referenceDensity);
   const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
   const outline = paragraph.dataset.wordOutlineLevel;
   const ordinary = plainBody && rule === 'auto' && paragraph.matches('p[data-word-paragraph-style]') &&
@@ -83,7 +128,8 @@ export function wordLineHeight(paragraph: HTMLElement, plainBody = false) {
     const node = walker.currentNode as Text;
     if (!node.data || !node.parentElement) continue;
     const run = getComputedStyle(node.parentElement);
-    normal = Math.max(normal, singleLine(run, node.data, node));
+    if (referenceDensity && node.parentElement.closest(flowWidgets)) continue;
+    normal = Math.max(normal, singleLine(run, node.data, node, referenceDensity));
     if (bodyHeight !== null && node.data.trim()) {
       hasText = true;
       const sample = node.data.replace(/[\t\r\n\u2028\u2029]/g, ' ');
@@ -248,6 +294,11 @@ export function layoutWordLines(root: HTMLElement) {
       frozen = measured !== null && measured !== normal ? String(measured) : '';
       p.setAttribute('data-print-word-body-line', frozen);
     }
+    if (p.hasAttribute(referenceDensityParagraph) && !p.hasAttribute('data-print-paragraph-fragment') && frozen === null) {
+      const reference = wordReferenceDensity(p) ? wordLineHeight(p, false, true) : null;
+      frozen = reference === null ? '' : String(reference);
+      p.setAttribute('data-print-word-body-line', frozen);
+    }
     const height = frozen ? Number(frozen) : wordLineHeight(p);
     if (height !== null) p.style.lineHeight = `${height}px`;
   }
@@ -272,7 +323,9 @@ export const WordLineMetrics = Extension.create({
         if (!view.dom.isConnected || view.composing) return;
         const decorations: Decoration[] = [], values: string[] = [];
         const wordLayout = documentMetadata.getState(view.state);
-        const ordinaryFlow = (wordLayout?.wordHangingSpaces || wordLayout?.wordBodyStrut) && !wordFlowHasWrappingAnchors(view.dom);
+        const hasWordPolicy = wordLayout?.wordHangingSpaces || wordLayout?.wordBodyStrut;
+        const wrappingAnchors = Boolean(hasWordPolicy && wordFlowHasWrappingAnchors(view.dom));
+        const ordinaryFlow = hasWordPolicy && !wrappingAnchors;
         const hangWordSpaces = ordinaryFlow && wordLayout?.wordHangingSpaces;
         const useWordStrut = ordinaryFlow && wordLayout?.wordBodyStrut;
         view.state.doc.descendants((node, pos) => {
@@ -330,7 +383,9 @@ export const WordLineMetrics = Extension.create({
           const ordinary = useWordStrut && isOrdinaryWordBodyParagraph(dom, view.dom);
           const bullet = useWordStrut && isWordAlignedBulletParagraph(dom) && isMeasuredSymbolItem(dom.parentElement!, dom);
           const measured = ordinary || bullet ? measuredCalibriLineHeight(dom) : null;
-          const height = measured ?? wordLineHeight(dom, ordinary);
+          const reference = wrappingAnchors && wordLayout?.wordBodyStrut === true &&
+            isOrdinaryWordBodyParagraph(dom, view.dom, true) && wordReferenceDensity(dom);
+          const height = measured ?? wordLineHeight(dom, ordinary, reference);
           if (height === null) return;
           decorations.push(Decoration.node(pos, pos + node.nodeSize, { style: `line-height:${height}px` }));
           values.push(`${pos}:${height}`);

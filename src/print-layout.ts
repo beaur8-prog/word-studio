@@ -8,7 +8,7 @@ import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalk
 import { canSplitProtectedMergedRows, centeredCellFits, hasCenteredOrdinaryCell, hasHwpCellLines, measureCenteredCell, multiParagraphHwpOwners, ordinaryHwpTerminalCells, protectedTablePlacement, tableFragmenter } from './table-fragments';
 import { hasUniformTablePageBody, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
-import { layoutWordLines, layoutWordListLines, markMeasuredWordSymbolItems } from './word-line-metrics';
+import { layoutWordLines, markWordReferenceDensity, layoutWordListLines, markMeasuredWordSymbolItems } from './word-line-metrics';
 import { layoutWordContextualSpacing } from './word-contextual-spacing';
 import { layoutWordListLabels } from './word-list-labels';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
@@ -50,6 +50,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (paragraph instanceof HTMLParagraphElement && isOrdinaryWordBodyParagraph(paragraph, source))
       paragraph.dataset.wordFloatingSpaceSource = 'true';
   const wrappingAnchors = wordFlowHasWrappingAnchors(source);
+  if (wrappingAnchors && wordLayout.wordBodyStrut) markWordReferenceDensity(source);
   const canPlaceProtectedTable = protectedTablePlacement(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
     for (const paragraph of source.querySelectorAll<HTMLParagraphElement>('p[data-word-paragraph-style]')) {
