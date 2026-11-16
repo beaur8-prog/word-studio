@@ -28,6 +28,12 @@ export function hasHwpCellLines(rows: HTMLTableRowElement[]) {
   return rows.some(row => row.querySelector('[data-hwp-cell-line]'));
 }
 
+export function ordinaryHwpTerminalCells(rows: HTMLTableRowElement[]) {
+  return rows.flatMap(row => [...row.cells].filter(cell =>
+    cell.tagName === 'TD' && cell.rowSpan === 1 && cell.firstElementChild instanceof HTMLParagraphElement &&
+    cell.firstElementChild.dataset.hwpCellTerminal === 'true'));
+}
+
 export function precedingSourceRow(row: HTMLTableRowElement) {
   let previous = row.previousElementSibling;
   while (previous?.classList.contains('ProseMirror-widget')) previous = previous.previousElementSibling;
@@ -36,7 +42,7 @@ export function precedingSourceRow(row: HTMLTableRowElement) {
 
 // Compare the two painted lines, irrespective of how inline decorations
 // divide their text nodes in the editable view or a detached print fragment.
-export function measureHwpOwnerTerminal(paragraph: HTMLElement) {
+export function measureHwpTerminalParagraph(paragraph: HTMLElement) {
   if (paragraph.dataset.hwpCellTerminal !== 'true' || paragraph.querySelector('br:not(.ProseMirror-trailingBreak)')) return null;
   const advance = Number(paragraph.dataset.hwpCellAdvance), end = Number(paragraph.dataset.hwpCellEnd);
   const starts = paragraphLineOffsets(paragraph);
@@ -69,8 +75,8 @@ export function measureHwpOwnerTerminal(paragraph: HTMLElement) {
   return { prefix, rest, dimensions: [width, height, advance, end, ...boxes.flat()] };
 }
 
-export function sameHwpOwnerTerminal(
-  before: NonNullable<ReturnType<typeof measureHwpOwnerTerminal>>, after: ReturnType<typeof measureHwpOwnerTerminal>,
+export function sameHwpTerminalParagraph(
+  before: NonNullable<ReturnType<typeof measureHwpTerminalParagraph>>, after: ReturnType<typeof measureHwpTerminalParagraph>,
 ) {
   return after !== null && before.prefix === after.prefix && before.rest === after.rest &&
     before.dimensions.every((value, index) => Math.abs(value - after.dimensions[index]) <= .5);
@@ -98,10 +104,10 @@ function canMoveHwpCellParagraph(paragraph: HTMLElement) {
     Math.abs(parseFloat(getComputedStyle(text.currentNode.parentElement!).fontSize) - size) > .05) return false;
   if (!paragraph.textContent?.trim()) return false;
   if (paragraph.dataset.hwpCellTerminal === 'true') {
-    return cell.rowSpan > 1 && line.rule === 'Percent' && Math.abs(line.base - line.advance) <= .05 &&
+    return cell.tagName === 'TD' && line.rule === 'Percent' && Math.abs(line.base - line.advance) <= .05 &&
       Math.abs(Number(paragraph.dataset.hwpCellAdvance) - line.advance) <= .05 &&
       Math.abs(Number(paragraph.dataset.hwpCellEnd) - line.end) <= .05 &&
-      measureHwpOwnerTerminal(paragraph) !== null;
+      measureHwpTerminalParagraph(paragraph) !== null;
   }
   if (paragraph.querySelector('[data-hwp-cell-prefix]') || Math.abs(line.end - line.base) > .05) return false;
   // A compact single line keeps its measured end height only while it fits.
@@ -137,6 +143,9 @@ export function canSplitProtectedMergedRows(rows: HTMLTableRowElement[]) {
   // whose whole paragraph can be mapped back to the continuous editable row.
   const columns = table.querySelector(':scope > colgroup')?.children.length ?? 0;
   const previous = precedingSourceRow(body[0]);
+  // The print plan for a wrapped ordinary cell starts at the table edge.
+  // An earlier body row can change the collapsed borders of that plan.
+  if (previous && !headerRow(previous) && ordinaryHwpTerminalCells(body).length) return false;
   return columns > 0 &&
     (!previous || !previous.querySelector(':scope > [data-print-merge-continuation]') &&
       [...previous.cells].reduce((width, cell) => width + cell.colSpan, 0) === columns) &&
@@ -163,7 +172,7 @@ function mergeContentFitsOwnerRow(cell: HTMLTableCellElement, row: HTMLTableRowE
   return contentBottom + margin + padding + border <= row.getBoundingClientRect().bottom + .5;
 }
 
-function measureCenteredParagraph(cell: HTMLTableCellElement) {
+export function measureCenteredParagraph(cell: HTMLTableCellElement) {
   const paragraph = cell.firstElementChild;
   if (getComputedStyle(cell).verticalAlign !== 'middle' || cell.children.length !== 1 || !(paragraph instanceof HTMLParagraphElement) ||
     !paragraph.textContent?.trim() || paragraph.querySelector('[data-docx-tab],[data-docx-bookmark],[data-word-overlap],[data-symbol-font]')) return null;
@@ -174,27 +183,37 @@ function measureCenteredParagraph(cell: HTMLTableCellElement) {
     ink.push(...[...range.getClientRects()].filter(rect => rect.width > .1 && rect.height > .1));
   }
   if (!ink.length) return null;
-  const terminal = paragraph.dataset.hwpCellTerminal === 'true' ? measureHwpOwnerTerminal(paragraph) : null;
+  const terminal = paragraph.dataset.hwpCellTerminal === 'true' ? measureHwpTerminalParagraph(paragraph) : null;
   if (paragraph.dataset.hwpCellTerminal === 'true' && !terminal) return null;
   const box = paragraph.getBoundingClientRect();
   const css = getComputedStyle(paragraph);
-  return { box, ink, terminal, lines: paragraphLineOffsets(paragraph),
-    top: Math.min(box.top - Math.max(0, parseFloat(css.marginTop) || 0), ...ink.map(rect => rect.top)),
-    bottom: Math.max(box.bottom + Math.max(0, parseFloat(css.marginBottom) || 0), ...ink.map(rect => rect.bottom)) };
+  const blockTop = box.top - Math.max(0, parseFloat(css.marginTop) || 0);
+  const blockBottom = box.bottom + Math.max(0, parseFloat(css.marginBottom) || 0);
+  return { box, ink, terminal, blockTop, blockBottom, lines: paragraphLineOffsets(paragraph),
+    top: Math.min(blockTop, ...ink.map(rect => rect.top)), bottom: Math.max(blockBottom, ...ink.map(rect => rect.bottom)) };
 }
 
-function centeredParagraphFits(cell: HTMLTableCellElement, before: NonNullable<ReturnType<typeof measureCenteredParagraph>>, borderFactor: number) {
+export function centeredParagraphFits(
+  cell: HTMLTableCellElement, before: NonNullable<ReturnType<typeof measureCenteredParagraph>>,
+  borderFactor: number, allowInkInVerticalPadding = false,
+) {
   const after = measureCenteredParagraph(cell);
   if (!after || after.lines.length !== before.lines.length || after.lines.some((line, index) => line !== before.lines[index]) ||
     after.ink.length !== before.ink.length || Math.abs(after.box.width - before.box.width) > .5 ||
     Math.abs(after.box.height - before.box.height) > .5) return false;
-  if (before.terminal && !sameHwpOwnerTerminal(before.terminal, after.terminal)) return false;
+  if (before.terminal ? !sameHwpTerminalParagraph(before.terminal, after.terminal) : after.terminal) return false;
   const bounds = cell.getBoundingClientRect(), css = getComputedStyle(cell);
-  const top = bounds.top + (parseFloat(css.paddingTop) || 0) + (parseFloat(css.borderTopWidth) || 0) * borderFactor;
-  const bottom = bounds.bottom - (parseFloat(css.paddingBottom) || 0) - (parseFloat(css.borderBottomWidth) || 0) * borderFactor;
+  const innerTop = bounds.top + (parseFloat(css.borderTopWidth) || 0) * borderFactor;
+  const innerBottom = bounds.bottom - (parseFloat(css.borderBottomWidth) || 0) * borderFactor;
+  const top = innerTop + (parseFloat(css.paddingTop) || 0);
+  const bottom = innerBottom - (parseFloat(css.paddingBottom) || 0);
   const left = bounds.left + (parseFloat(css.paddingLeft) || 0) + (parseFloat(css.borderLeftWidth) || 0) * borderFactor;
   const right = bounds.right - (parseFloat(css.paddingRight) || 0) - (parseFloat(css.borderRightWidth) || 0) * borderFactor;
-  if (after.top < top - .5 || after.bottom > bottom + .5) return false;
+  // A compressed line's glyph bounds can extend slightly past its line box.
+  // Keep the paragraph in the padded content and the glyphs inside the border.
+  if (allowInkInVerticalPadding ? after.blockTop < top - .5 || after.blockBottom > bottom + .5 ||
+      after.top < innerTop - .5 || after.bottom > innerBottom + .5 :
+    after.top < top - .5 || after.bottom > bottom + .5) return false;
   return after.ink.every((ink, index) => {
     const source = before.ink[index];
     return ink.left >= left - .5 && ink.right <= right + .5 &&

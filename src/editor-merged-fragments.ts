@@ -3,7 +3,7 @@ import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { layoutWordLines } from './word-line-metrics';
-import { centeredContinuationParagraph, hasCenteredOrdinaryCell, hasHwpCellLines, measureHwpOwnerTerminal, precedingSourceRow, sameHwpOwnerTerminal, tableFragmenter } from './table-fragments';
+import { centeredContinuationParagraph, hasCenteredOrdinaryCell, hasHwpCellLines, measureHwpTerminalParagraph, precedingSourceRow, sameHwpTerminalParagraph, tableFragmenter } from './table-fragments';
 import { paragraphLineOffsets, prepareParagraphEnds } from './paragraph-fragments';
 
 function measureOrdinaryParagraph(paragraph: HTMLParagraphElement) {
@@ -40,7 +40,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const blocks = merges.flatMap(cell => [...cell.children].map(element => {
     const p = element as HTMLElement, pos = view.posAtDOM(p, 0) - 1;
     const lines = measureParagraphLines(view, p, naturalY);
-    const terminal = protectedRows && p.dataset.hwpCellTerminal === 'true' ? measureHwpOwnerTerminal(p) : null;
+    const terminal = protectedRows && p.dataset.hwpCellTerminal === 'true' ? measureHwpTerminalParagraph(p) : null;
     return { p, cell, pos, lines, terminal, offsets: lines.map((line, i) => i ? line.pos() - pos - 1 : 0), targets: new Array<number>(lines.length).fill(NaN) };
   }));
   if (protectedRows && blocks.some(block => block.p.dataset.hwpCellTerminal === 'true' && !block.terminal)) return null;
@@ -81,7 +81,9 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const seamOffsets = new Map<HTMLParagraphElement, number>();
   const hasCenteredOwner = protectedRows && merges.some(cell => getComputedStyle(cell).verticalAlign === 'middle');
   const hasOrdinaryCenters = hasCenteredOwner && hasCenteredOrdinaryCell(rows);
-  const ordinaryTargets = new Map<HTMLParagraphElement, ReturnType<typeof measureOrdinaryParagraph> & { targetTop: number }>();
+  const ordinaryTargets = new Map<HTMLParagraphElement, ReturnType<typeof measureOrdinaryParagraph> & {
+    targetTop: number; terminal: ReturnType<typeof measureHwpTerminalParagraph>;
+  }>();
   const owners = hasCenteredOwner ? rows.flatMap((row, rowIndex) => [...row.cells].flatMap((cell, columnIndex) => {
     if (!merges.includes(cell)) return [];
     const copy = copies[rowIndex].cells[columnIndex];
@@ -186,13 +188,17 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
           const paragraph = centeredContinuationParagraph(cell);
           if (!paragraph) return null;
           const original = rows[sourceIndex].cells[Number(cell.dataset.fragmentCell)].firstElementChild as HTMLParagraphElement;
+          const terminal = measureHwpTerminalParagraph(paragraph);
+          if (original.dataset.hwpCellTerminal === 'true' ?
+            !terminal || !sameHwpTerminalParagraph(terminal, measureHwpTerminalParagraph(original)) :
+            paragraph.dataset.hwpCellTerminal === 'true') return null;
           const record = measureOrdinaryParagraph(paragraph);
-          ordinaryTargets.set(original, { ...record, targetTop: localY(record.rect.top) });
+          ordinaryTargets.set(original, { ...record, terminal, targetTop: localY(record.rect.top) });
         }
       }
       for (const p of probe.querySelectorAll<HTMLElement>('[data-fragment-block]')) {
         const block = blocks[Number(p.dataset.fragmentBlock)], offset = Number(p.dataset.fragmentOffset);
-        if (block.terminal && !sameHwpOwnerTerminal(block.terminal, measureHwpOwnerTerminal(p))) return null;
+        if (block.terminal && !sameHwpTerminalParagraph(block.terminal, measureHwpTerminalParagraph(p))) return null;
         // DOM offsets include real BRs, matching ProseMirror's hard-break unit.
         const position = (node: Node, at: number) => {
           const range = document.createRange(); range.selectNodeContents(p); range.setEnd(node, at);
@@ -248,10 +254,13 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
           const projected = centeredContinuationParagraph(row.cells[n]);
           if (!projected) return null;
           const current = measureOrdinaryParagraph(projected);
-          if (Math.abs(current.rect.width - targetP.rect.width) > .5 ||
-            current.offsets.length !== targetP.offsets.length || current.offsets.some((n, j) => n !== targetP.offsets[j]) ||
-            current.boxes.length !== targetP.boxes.length ||
-            current.boxes.some((box, j) => box.some((value, k) => Math.abs(value - targetP.boxes[j][k]) > .5))) return null;
+          const geometryChanged = targetP.terminal ?
+            !sameHwpTerminalParagraph(targetP.terminal, measureHwpTerminalParagraph(projected)) :
+            projected.dataset.hwpCellTerminal === 'true' || Math.abs(current.rect.width - targetP.rect.width) > .5 ||
+              current.offsets.length !== targetP.offsets.length || current.offsets.some((n, j) => n !== targetP.offsets[j]) ||
+              current.boxes.length !== targetP.boxes.length ||
+              current.boxes.some((box, j) => box.some((value, k) => Math.abs(value - targetP.boxes[j][k]) > .5));
+          if (geometryChanged) return null;
           const shift = targetP.targetTop - (current.rect.top - liveOrigin);
           if (Math.abs(shift) >= 1 / 64) seamOffsets.set(original, shift);
         }

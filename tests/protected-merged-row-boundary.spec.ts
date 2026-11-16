@@ -25,6 +25,8 @@ const hwpGuards = {
   'three-line-owner': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: false, allowed: false },
   'compact-header': { policy: percentCellLine, line: 200, single: true, allowed: true },
   'mixed-header': { policy: percentCellLine, line: 200, single: true, allowed: false },
+  'ordinary-terminal': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: true, allowed: true },
+  'ordinary-terminal-three': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: true, allowed: false },
 } as const;
 type HwpGuardFixture = keyof typeof hwpGuards;
 
@@ -42,8 +44,10 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
   const ownerA = hwpGuard === 'three-line-owner' ? 'MERGE-A OWNER-A OWNER-B'
     : naturalOwner ? 'MERGE-A OWNER-A' : 'MERGE-A';
   const ownerGuard = hwpGuard === 'compact-owner' || hwpGuard === 'terminal-owner' || naturalOwner;
+  const ordinaryTerminal = hwpGuard === 'ordinary-terminal' || hwpGuard === 'ordinary-terminal-three';
+  const row03Suffix = ordinaryTerminal ? (hwpGuard === 'ordinary-terminal-three' ? ' WIDEPARTA WIDEPARTB' : ' WIDEPARTA') : '';
   const paragraph = (text: string, line = 300) => {
-    const marked = headerGuard ? text === (hwpGuard === 'mixed-header' ? 'HEAD-A X' : 'HEAD-A') :
+    const marked = ordinaryTerminal ? text === 'ROW-03' + row03Suffix : headerGuard ? text === (hwpGuard === 'mixed-header' ? 'HEAD-A X' : 'HEAD-A') :
       hwpGuard === 'compact-owner' || naturalOwner ? text === ownerA :
       hwpGuard === 'terminal-owner' ? text.startsWith('MERGE-C\n') : /^ROW-03(?:\n|$)/.test(text);
     const guard = hwpGuard && marked ? hwpGuards[hwpGuard] : undefined;
@@ -78,7 +82,7 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
     const merge = index === 0 ? 'restart' : 'continue';
     return row([
       cell(0, index === 0 ? ownerA : '', merge, index === 0 && edge !== 'thick-mixed' ? alignment : 'top', index === 0 ? ownerMargins : ''),
-      cell(1, `ROW-${id}${ordinary && index === 2 && !ownerGuard && (!hwpGuard || !hwpGuards[hwpGuard].single) ? '\nR3-LINE-02' : ''}`, '',
+      cell(1, `ROW-${id}${index === 2 ? row03Suffix : ''}${ordinary && index === 2 && !ownerGuard && (!hwpGuard || !hwpGuards[hwpGuard].single) ? '\nR3-LINE-02' : ''}`, '',
         index === 2 && (edge === 'bottom-on-continuation' || edge === 'thick-ordinary-bottom') ? 'bottom' : ordinaryAlign,
         index === 2 ? continuationMargins(90, 15) : ''),
       cell(2, index === 0 ? centeredCLines(cLineCount).join('\n') : index === 4 ? 'SINGLE-C' : '',
@@ -128,7 +132,7 @@ function snapshot(root: Locator, print: boolean) {
     const height = Number(paper.dataset.pageHeight);
     const stride = height + 24;
     const markers = [...paper.querySelectorAll<HTMLParagraphElement>('p')].filter(p =>
-      /^(?:HEAD-[A-D]|(?:ROW|CHECK)-0[1-5]|MERGE-[AC]|SINGLE-C|TAIL|ROW-03\s*R3-LINE-02)$/.test(p.textContent ?? ''));
+      /^(?:HEAD-[A-D]|(?:ROW|CHECK)-0[1-5]|MERGE-[AC]|SINGLE-C|TAIL|ROW-03\s*(?:R3-LINE-02|WIDEPARTA(?:\s*WIDEPARTB)?))$/.test(p.textContent ?? ''));
     return {
       pages: print ? paper.querySelectorAll('.print-page').length : Number(paper.dataset.pages),
       markers: markers.map(p => {
@@ -141,7 +145,7 @@ function snapshot(root: Locator, print: boolean) {
         const y = sheet ? (ink.top - sheet.getBoundingClientRect().top) / documentScale(sheet) : local - (page - 1) * stride;
         const cell = p.closest('td,th')?.getBoundingClientRect();
         return {
-          text: p.textContent!.replace(/^ROW-03\s*R3-LINE-02$/, 'ROW-03'), page, y,
+          text: p.textContent!.replace(/^ROW-03\s*(?:R3-LINE-02|WIDEPARTA(?:\s*WIDEPARTB)?)$/, 'ROW-03'), page, y,
           inside: ink.width > 0 && ink.height > 0 && (!cell || (ink.top >= cell.top - 1 &&
             ink.bottom <= cell.bottom + 1 && ink.left >= cell.left - 1 && ink.right <= cell.right + 1)),
         };
@@ -440,21 +444,21 @@ test('top and centered owners use the same collapsed edge when they cross togeth
   expect(printed[1].y - printed[0].y).toBeGreaterThan(20);
 });
 
-function continuationLinePositions(root: Locator, print: boolean) {
-  return root.evaluate(async (scope, print) => {
+function continuationLinePositions(root: Locator, print: boolean, withX = false) {
+  return root.evaluate(async (scope, { print, withX }) => {
     const { documentScale } = await import('/src/document-scale.ts');
     const paper = scope as HTMLElement;
     const editor = paper.querySelector<HTMLElement>('.tiptap[contenteditable=true]');
     const origin = (editor ?? paper).getBoundingClientRect().top;
     const editScale = documentScale(editor ?? paper);
     const stride = Number(paper.dataset.pageHeight) + 24;
-    const lines: { text: string; page: number; y: number; inside: boolean }[] = [];
+    const lines: { text: string; page: number; y: number; x?: number; inside: boolean }[] = [];
     const shape: { bodyParagraphs: number; hardBreaks: number }[] = [];
 
     for (const paragraph of paper.querySelectorAll<HTMLParagraphElement>('td > p')) {
       if (paragraph.closest('.pagination-headers,[data-flow-widget]')) continue;
       const text = paragraph.textContent?.replace(/\s+/g, '');
-      if (text !== 'ROW-03' && text !== 'ROW-03R3-LINE-02' && text !== 'CHECK-03') continue;
+      if (text !== 'ROW-03' && text !== 'ROW-03R3-LINE-02' && text !== 'CHECK-03' && !/^ROW-03WIDEPARTA(?:WIDEPARTB)?$/.test(text ?? '')) continue;
       const cell = paragraph.closest('td')!;
       if (text !== 'CHECK-03') {
         shape.push({
@@ -466,7 +470,7 @@ function continuationLinePositions(root: Locator, print: boolean) {
       const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
       while (walker.nextNode()) {
         const node = walker.currentNode as Text;
-        for (const match of node.data.matchAll(/ROW-03|R3-LINE-02|CHECK-03/g)) {
+        for (const match of node.data.matchAll(/ROW-03|R3-LINE-02|WIDEPART[AB]|CHECK-03/g)) {
           const range = document.createRange();
           range.setStart(node, match.index!);
           range.setEnd(node, match.index! + match[0].length);
@@ -477,6 +481,8 @@ function continuationLinePositions(root: Locator, print: boolean) {
             : local - (page - 1) * stride;
           lines.push({
             text: match[0], page, y,
+            ...(withX ? { x: (ink.left - (sheet ?? editor ?? paper).getBoundingClientRect().left) /
+              (sheet ? documentScale(sheet) : editScale) } : {}),
             inside: ink.width > 0 && ink.height > 0 && ink.left >= box.left - 1 &&
               ink.right <= box.right + 1 && ink.top >= box.top - 1 && ink.bottom <= box.bottom + 1,
           });
@@ -484,7 +490,7 @@ function continuationLinePositions(root: Locator, print: boolean) {
       }
     }
     return { lines, shape };
-  }, print);
+  }, { print, withX });
 }
 
 test('center alignment follows each ordinary continuation cell and its exact lines', async ({ page }) => {
@@ -884,3 +890,92 @@ for (const name of ['compact-header', 'mixed-header'] as const) {
       expect(Math.abs(marker.y - edited.body[index].y), marker.text).toBeLessThan(.5);
   });
 }
+
+
+for (const name of ['ordinary-terminal', 'ordinary-terminal-three'] as const) {
+  test(`natural HWP ${name} verifies rows at the repeated-head seam`, async ({ page }) => {
+    const atomic = name === 'ordinary-terminal-three';
+    const expectedPages = atomic ? [2, 2, 2, 2, 2] : [1, 1, 2, 2, 2];
+    const labels = atomic ? ['ROW-03', 'WIDEPARTA', 'WIDEPARTB'] : ['ROW-03', 'WIDEPARTA'];
+    const body = (table: Awaited<ReturnType<typeof snapshot>>) => table.markers
+      .filter(marker => /^(ROW|CHECK)-/.test(marker.text));
+    await openFixture(page, 'center', 'none', 2, 'thick-ordinary', name);
+    const stack = page.locator('.document-stack');
+    await expect.poll(async () => body(await snapshot(stack, false))
+      .filter(marker => marker.text.startsWith('ROW-')).map(marker => marker.page)).toEqual(expectedPages);
+    const read = async (root: Locator, print: boolean) => {
+      const active = root.locator('td > p[data-hwp-cell-line]');
+      await expect(active).toHaveCount(1);
+      await expect(active).toHaveAttribute('data-hwp-cell-line', hwpGuards[name].policy);
+      await expect(active).toHaveAttribute('data-word-line-rule', 'exact');
+      expect(await active.textContent()).toBe(labels.join(' '));
+      const ink = await compactOwnerBox(active);
+      expect(ink).toMatchObject({
+        rowSpan: 1, breaks: 0, terminal: true, visible: true, prefix: true,
+        prefixText: labels.slice(0, -1).join(' ') + ' ',
+      });
+      expect(ink.advance).toBeCloseTo(21.3, 1);
+      expect(ink.height).toBeCloseTo((labels.length - 1) * 21.3 + 13.3, 1);
+      const measured = await continuationLinePositions(root, print, true);
+      expect(measured.shape).toEqual([{ bodyParagraphs: 1, hardBreaks: 0 }]);
+      expect(measured.lines.map(line => [line.text, line.page, line.inside]))
+        .toEqual([...labels, 'CHECK-03'].map(label => [label, 2, true]));
+      for (let i = 1; i < labels.length; i++)
+        expect(measured.lines[i].y - measured.lines[i - 1].y).toBeCloseTo(21.3, 1);
+      const table = await snapshot(root, print);
+      expect(table.pages).toBe(2);
+      const rowsAndChecks = body(table);
+      for (const prefix of ['ROW-', 'CHECK-'])
+        expect(rowsAndChecks.filter(marker => marker.text.startsWith(prefix)).map(m => [m.text, m.page, m.inside]))
+          .toEqual(rows.map((id, i) => [prefix + id, expectedPages[i], true]));
+      const header = await repeatingHeaderInk(root);
+      expect(header.map(label => [label.page, label.text, label.inside])).toEqual(
+        (atomic ? [2] : [1, 2]).flatMap(page => heads.map(label => [page, label, true])),
+      );
+      expect(header.filter(label => label.overlay).map(label => label.page))
+        .toEqual(print || atomic ? [] : [2, 2, 2, 2]);
+      return { lines: measured.lines, rowsAndChecks, header };
+    };
+    const edited = await read(stack, false);
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    const preview = page.locator('.print-layout');
+    await expect(preview.locator('.print-page')).toHaveCount(2);
+    const printed = await read(preview, true);
+    for (const field of ['lines', 'header'] as const)
+      for (const [i, marker] of edited[field].entries()) {
+        expect(Math.abs(marker.x! - printed[field][i].x!), marker.text + ' x').toBeLessThan(.5);
+        expect(Math.abs(marker.y - printed[field][i].y), marker.text + ' y').toBeLessThan(.5);
+      }
+    for (const [i, marker] of edited.rowsAndChecks.entries())
+      expect(Math.abs(marker.y - printed.rowsAndChecks[i].y), marker.text).toBeLessThan(.5);
+  });
+}
+
+test('live print paper rolls back a planned ordinary terminal split if its geometry changes', async ({ page }) => {
+  await openFixture(page, 'center', 'none', 2, 'thick-ordinary', 'ordinary-terminal');
+  const preview = page.locator('.print-layout');
+  const seam = async (expected: number[]) => {
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    await expect(preview.locator('.print-page')).toHaveCount(2);
+    const table = await snapshot(preview, true);
+    expect(table.markers.filter(m => /^ROW-/.test(m.text)).map(m => m.page)).toEqual(expected);
+    expect((await repeatingHeaderInk(preview)).map(h => [h.page, h.text])).toEqual(
+      (expected[0] === 1 ? [1,2] : [2]).flatMap(n => heads.map(label => [n, label])),
+    );
+  };
+  await seam([1,1,2,2,2]);
+  await page.getByRole('button', { name: '편집으로 돌아가기', exact: true }).click();
+  const force = await page.addStyleTag({ content: '.print-page[data-page="2"] td > p[data-hwp-cell-line] { max-width:86px !important }' });
+  await seam([2,2,2,2,2]);
+  await expect(preview.locator('.print-page[data-page="1"] table')).toHaveCount(0);
+  await expect(preview.locator('[data-print-merge-continuation]')).toHaveCount(0);
+  await expect(preview.locator('td > p[data-hwp-cell-line]')).toHaveText('ROW-03 WIDEPARTA');
+  const compact = await compactOwnerBox(preview.locator('td > p[data-hwp-cell-line]'));
+  expect(compact.prefixText).toBe('ROW-03 ');
+  expect(compact.height).toBeCloseTo(34.6, 1);
+  await page.getByRole('button', { name: '편집으로 돌아가기', exact: true }).click();
+  await force.evaluate(el => el.remove());
+  await seam([1,1,2,2,2]);
+});
