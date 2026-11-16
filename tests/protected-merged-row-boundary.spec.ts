@@ -21,6 +21,8 @@ const hwpGuards = {
   mixed: { policy: fixedCellLine, line: 300, single: false, allowed: false },
   'compact-owner': { policy: percentCellLine, line: 200, single: true, allowed: true },
   'terminal-owner': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: false, allowed: false },
+  'natural-owner': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: false, allowed: true },
+  'three-line-owner': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: false, allowed: false },
 } as const;
 type HwpGuardFixture = keyof typeof hwpGuards;
 
@@ -33,9 +35,12 @@ function hwpGuardAttribute(policy: string, line: number) {
 async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: FooterFixture, cLineCount = 1, edge: HeaderEdgeFixture = 'none', hwpGuard?: HwpGuardFixture) {
   const differentFirstPage = footerFixture === 'different-first-page';
   const hasFooter = footerFixture !== 'none';
-  const ownerGuard = hwpGuard === 'compact-owner' || hwpGuard === 'terminal-owner';
+  const naturalOwner = hwpGuard === 'natural-owner' || hwpGuard === 'three-line-owner';
+  const ownerA = hwpGuard === 'three-line-owner' ? 'MERGE-A OWNER-A OWNER-B'
+    : naturalOwner ? 'MERGE-A OWNER-A' : 'MERGE-A';
+  const ownerGuard = hwpGuard === 'compact-owner' || hwpGuard === 'terminal-owner' || naturalOwner;
   const paragraph = (text: string, line = 300) => {
-    const marked = hwpGuard === 'compact-owner' ? text === 'MERGE-A' :
+    const marked = hwpGuard === 'compact-owner' || naturalOwner ? text === ownerA :
       hwpGuard === 'terminal-owner' ? text.startsWith('MERGE-C\n') : /^ROW-03(?:\n|$)/.test(text);
     const guard = hwpGuard && marked ? hwpGuards[hwpGuard] : undefined;
     const textElements = text.split('\n').map(value => `<w:t>${value}</w:t>`);
@@ -66,7 +71,7 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
   const bodyRows = rows.map((id, index) => {
     const merge = index === 0 ? 'restart' : 'continue';
     return row([
-      cell(0, index === 0 ? 'MERGE-A' : '', merge, index === 0 && edge !== 'thick-mixed' ? alignment : 'top', index === 0 ? ownerMargins : ''),
+      cell(0, index === 0 ? ownerA : '', merge, index === 0 && edge !== 'thick-mixed' ? alignment : 'top', index === 0 ? ownerMargins : ''),
       cell(1, `ROW-${id}${ordinary && index === 2 && !ownerGuard && (!hwpGuard || !hwpGuards[hwpGuard].single) ? '\nR3-LINE-02' : ''}`, '',
         index === 2 && (edge === 'bottom-on-continuation' || edge === 'thick-ordinary-bottom') ? 'bottom' : ordinaryAlign,
         index === 2 ? continuationMargins(90, 15) : ''),
@@ -242,22 +247,22 @@ function centeredCLines(count: number) {
   return ['MERGE-C', ...Array.from({ length: count - 1 }, (_, i) => `C-LINE-0${i + 2}`)];
 }
 
-function ownerLinePositions(root: Locator, print: boolean) {
-  return root.evaluate(async (scope, print) => {
+function ownerLinePositions(root: Locator, print: boolean, withX = false) {
+  return root.evaluate(async (scope, { print, withX }) => {
     const { documentScale } = await import('/src/document-scale.ts');
     const paper = scope as HTMLElement;
     const editor = paper.querySelector<HTMLElement>('.tiptap[contenteditable=true]');
     const top = (editor ?? paper).getBoundingClientRect().top;
     const scale = documentScale(editor ?? paper);
     const stride = Number(paper.dataset.pageHeight) + 24;
-    const lines: { text: string; page: number; y: number; inside: boolean }[] = [];
+    const lines: { text: string; page: number; y: number; x?: number; inside: boolean }[] = [];
     const walker = document.createTreeWalker(paper, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
       const node = walker.currentNode as Text;
       const paragraph = node.parentElement?.closest('p');
       const cell = paragraph?.closest('td');
       if (!cell || paragraph!.closest('.pagination-headers,[data-flow-widget]')) continue;
-      for (const match of node.data.matchAll(/MERGE-[AC]|C-LINE-0[2-9]/g)) {
+      for (const match of node.data.matchAll(/MERGE-[AC]|C-LINE-0[2-9]|OWNER-[AB]/g)) {
         const rng = document.createRange();
         rng.setStart(node, match.index!);
         rng.setEnd(node, match.index! + match[0].length);
@@ -270,13 +275,15 @@ function ownerLinePositions(root: Locator, print: boolean) {
           : local - (page - 1) * stride;
         lines.push({
           text: match[0], page, y,
+          ...(withX ? { x: (ink.left - (sheet ?? editor ?? paper).getBoundingClientRect().left) /
+            (sheet ? documentScale(sheet) : scale) } : {}),
           inside: ink.width > 0 && ink.height > 0 && ink.left >= rect.left - 1 && ink.right <= rect.right + 1 &&
             ink.top >= rect.top - 1 && ink.bottom <= rect.bottom + 1,
         });
       }
     }
     return lines;
-  }, print);
+  }, { print, withX });
 }
 
 test('short centered merge labels stay whole in the first protected row fragment', async ({ page }) => {
@@ -677,6 +684,8 @@ function compactOwnerBox(active: Locator) {
       rowSpan: cell.rowSpan, breaks: paragraph.querySelectorAll('br:not(.ProseMirror-trailingBreak)').length,
       terminal: (paragraph as HTMLElement).dataset.hwpCellTerminal === 'true',
       prefix: !!paragraph.querySelector('[data-hwp-cell-prefix]'),
+      prefixText: [...paragraph.querySelectorAll('[data-hwp-cell-prefix]')]
+        .filter(node => !node.parentElement?.closest('[data-hwp-cell-prefix]')).map(node => node.textContent).join(''),
       advance: Number((paragraph as HTMLElement).dataset.hwpCellAdvance || 0),
       height: paragraph.getBoundingClientRect().height / scale,
       x: (ink.left - origin.left) / scale,
@@ -728,5 +737,53 @@ for (const name of ['compact-owner', 'terminal-owner'] as const) {
     // ownerLinePositions normalizes y to the physical paper in both modes.
     for (const [i, line] of edited.lines.entries())
       expect(Math.abs(line.y - printed.lines[i].y), line.text).toBeLessThan(.5);
+  });
+}
+
+for (const name of ['natural-owner', 'three-line-owner'] as const) {
+  test(`protected merged HWP ${name} preserves naturally wrapped terminal ink`, async ({ page }) => {
+    const atomic = name === 'three-line-owner';
+    const targetRows = atomic ? [2, 2, 2, 2, 2] : [1, 1, 2, 2, 2];
+    const ownerLabels = atomic ? ['MERGE-A', 'OWNER-A', 'OWNER-B'] : ['MERGE-A', 'OWNER-A'];
+    const allLabels = [...ownerLabels, 'MERGE-C', 'C-LINE-02'];
+    const rowPages = async (root: Locator, print: boolean) => (await snapshot(root, print)).markers
+      .filter(marker => marker.text.startsWith('ROW-')).map(marker => marker.page);
+    await openFixture(page, 'center', 'none', 2, 'thick-ordinary', name);
+    const stack = page.locator('.document-stack');
+    await expect.poll(() => rowPages(stack, false)).toEqual(targetRows);
+    const read = async (root: Locator, print: boolean) => {
+      const active = root.locator('td > p[data-hwp-cell-line]');
+      await expect(active).toHaveCount(1);
+      await expect(active).toHaveAttribute('data-hwp-cell-line', hwpGuards[name].policy);
+      await expect(active).toHaveAttribute('data-word-line-rule', 'exact');
+      expect(await active.textContent()).toBe(ownerLabels.join(' '));
+      const lines = await ownerLinePositions(root, print, true);
+      expect(lines.map(line => [line.text, line.page, line.inside]))
+        .toEqual(allLabels.map(text => [text, atomic ? 2 : 1, true]));
+      const box = await compactOwnerBox(active);
+      expect(box).toMatchObject({
+        breaks: 0, terminal: true, prefix: true, visible: true,
+        prefixText: atomic ? 'MERGE-A OWNER-A ' : 'MERGE-A ',
+      });
+      expect(box.advance).toBeCloseTo(21.3, 1);
+      expect(box.height).toBeCloseTo((ownerLabels.length - 1) * 21.3 + 13.3, 1);
+      for (let i = 1; i < ownerLabels.length; i++)
+        expect(lines[i].y - lines[i - 1].y).toBeCloseTo(21.3, 1);
+      return { lines, rowSpan: box.rowSpan };
+    };
+    const edited = await read(stack, false);
+
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    const preview = page.locator('.print-layout');
+    await expect(preview.locator('.print-page')).toHaveCount(2);
+    expect(await rowPages(preview, true)).toEqual(targetRows);
+    const printed = await read(preview, true);
+    expect(printed.rowSpan).toBe(atomic ? 5 : 2);
+    for (const [index, line] of edited.lines.entries()) {
+      const other = printed.lines[index];
+      expect(Math.abs(line.x! - other.x!), line.text + ' x').toBeLessThan(.5);
+      expect(Math.abs(line.y - other.y), line.text + ' y').toBeLessThan(.5);
+    }
   });
 }

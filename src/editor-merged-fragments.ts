@@ -3,7 +3,7 @@ import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { layoutWordLines } from './word-line-metrics';
-import { centeredContinuationParagraph, hasCenteredOrdinaryCell, hasHwpCellLines, precedingSourceRow, tableFragmenter } from './table-fragments';
+import { centeredContinuationParagraph, hasCenteredOrdinaryCell, hasHwpCellLines, measureHwpOwnerTerminal, precedingSourceRow, sameHwpOwnerTerminal, tableFragmenter } from './table-fragments';
 import { paragraphLineOffsets, prepareParagraphEnds } from './paragraph-fragments';
 
 function measureOrdinaryParagraph(paragraph: HTMLParagraphElement) {
@@ -40,8 +40,10 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   const blocks = merges.flatMap(cell => [...cell.children].map(element => {
     const p = element as HTMLElement, pos = view.posAtDOM(p, 0) - 1;
     const lines = measureParagraphLines(view, p, naturalY);
-    return { p, cell, pos, lines, offsets: lines.map((line, i) => i ? line.pos() - pos - 1 : 0), targets: new Array<number>(lines.length).fill(NaN) };
+    const terminal = protectedRows && p.dataset.hwpCellTerminal === 'true' ? measureHwpOwnerTerminal(p) : null;
+    return { p, cell, pos, lines, terminal, offsets: lines.map((line, i) => i ? line.pos() - pos - 1 : 0), targets: new Array<number>(lines.length).fill(NaN) };
   }));
+  if (protectedRows && blocks.some(block => block.p.dataset.hwpCellTerminal === 'true' && !block.terminal)) return null;
   const originalTop = naturalY(rows[0].getBoundingClientRect().top) + g.extra;
   const originalBottom = naturalY(rows.at(-1)!.getBoundingClientRect().bottom) + g.extra;
   const host = document.createElement('div'); host.className = 'tiptap'; host.setAttribute('aria-hidden', 'true');
@@ -190,6 +192,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       }
       for (const p of probe.querySelectorAll<HTMLElement>('[data-fragment-block]')) {
         const block = blocks[Number(p.dataset.fragmentBlock)], offset = Number(p.dataset.fragmentOffset);
+        if (block.terminal && !sameHwpOwnerTerminal(block.terminal, measureHwpOwnerTerminal(p))) return null;
         // DOM offsets include real BRs, matching ProseMirror's hard-break unit.
         const position = (node: Node, at: number) => {
           const range = document.createRange(); range.selectNodeContents(p); range.setEnd(node, at);

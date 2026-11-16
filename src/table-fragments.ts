@@ -1,6 +1,7 @@
 import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { cssPixels, parseHwpCellLine } from './hwp-cell-line';
+import { documentScale } from './document-scale';
 import { paragraphLineOffsets, paragraphTextWalker, splitText, textUnitLength } from './paragraph-fragments';
 
 function headerRow(row: HTMLTableRowElement) {
@@ -33,10 +34,52 @@ export function precedingSourceRow(row: HTMLTableRowElement) {
   return previous instanceof HTMLTableRowElement ? previous : null;
 }
 
+// Compare the two painted lines, irrespective of how inline decorations
+// divide their text nodes in the editable view or a detached print fragment.
+export function measureHwpOwnerTerminal(paragraph: HTMLElement) {
+  if (paragraph.dataset.hwpCellTerminal !== 'true' || paragraph.querySelector('br:not(.ProseMirror-trailingBreak)')) return null;
+  const advance = Number(paragraph.dataset.hwpCellAdvance), end = Number(paragraph.dataset.hwpCellEnd);
+  const starts = paragraphLineOffsets(paragraph);
+  if (starts.length !== 1 || !(end > 0 && advance > end + .05)) return null;
+  const bounds = paragraph.getBoundingClientRect(), scale = documentScale(paragraph);
+  const width = bounds.width / scale, height = bounds.height / scale;
+  if (Math.abs(height - advance - end) > .5) return null;
+
+  const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+  const ink: [DOMRect[], DOMRect[]] = [[], []], range = document.createRange();
+  let prefix = '', rest = '';
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (!node.length) continue;
+    const leading = !!node.parentElement?.closest('[data-hwp-cell-prefix]');
+    if (leading && rest) return null;
+    if (leading) prefix += node.data;
+    else rest += node.data;
+    range.selectNodeContents(node);
+    ink[leading ? 0 : 1].push(...[...range.getClientRects()].filter(rect => rect.width > .1 && rect.height > .1));
+  }
+  if (!prefix.trim() || !rest.trim() || prefix.length !== starts[0] || ink.some(line => !line.length)) return null;
+  const boxes = ink.map(line => [
+    (Math.min(...line.map(r => r.left)) - bounds.left) / scale,
+    (Math.min(...line.map(r => r.top)) - bounds.top) / scale,
+    (Math.max(...line.map(r => r.right)) - bounds.left) / scale,
+    (Math.max(...line.map(r => r.bottom)) - bounds.top) / scale,
+  ]);
+  if (Math.abs(boxes[1][1] - boxes[0][1] - advance) > .5) return null;
+  return { prefix, rest, dimensions: [width, height, advance, end, ...boxes.flat()] };
+}
+
+export function sameHwpOwnerTerminal(
+  before: NonNullable<ReturnType<typeof measureHwpOwnerTerminal>>, after: ReturnType<typeof measureHwpOwnerTerminal>,
+) {
+  return after !== null && before.prefix === after.prefix && before.rest === after.rest &&
+    before.dimensions.every((value, index) => Math.abs(value - after.dimensions[index]) <= .5);
+}
+
 function canMoveHwpCellParagraph(paragraph: HTMLElement) {
   if (!(paragraph instanceof HTMLParagraphElement) || paragraph.dataset.wordLineRule !== 'exact' ||
-    paragraph.matches('[data-hwp-cell-terminal],[data-hwp-cell-full-line],[data-hwp-cell-continuation]') ||
-    paragraph.querySelector('sup,sub,[data-hwp-cell-prefix],[data-document-field]')) return false;
+    paragraph.matches('[data-hwp-cell-full-line],[data-hwp-cell-continuation]') ||
+    paragraph.querySelector('sup,sub,[data-document-field]')) return false;
   const cell = paragraph.parentElement;
   if (!(cell instanceof HTMLTableCellElement) || cell.tagName !== 'TD' || cell.colSpan !== 1 ||
     centeredContinuationParagraph(cell) !== paragraph || getComputedStyle(cell).verticalAlign !== 'middle') return false;
@@ -46,13 +89,20 @@ function canMoveHwpCellParagraph(paragraph: HTMLElement) {
   const css = getComputedStyle(paragraph);
   const font = cssPixels(css.fontSize), height = cssPixels(css.lineHeight);
   if (!line || (line.rule !== 'Fixed' && line.rule !== 'Percent') || size === null || exact === null || font === null || height === null ||
-    Math.abs(line.font - size) > .05 || Math.abs(line.base - exact) > .05 || Math.abs(line.end - line.base) > .05 ||
+    Math.abs(line.font - size) > .05 || Math.abs(line.base - exact) > .05 ||
     Math.abs(font - size) > .05 || Math.abs(height - line.end) > .05) return false;
 
   const text = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
   while (text.nextNode()) if (text.currentNode.textContent?.length &&
     Math.abs(parseFloat(getComputedStyle(text.currentNode.parentElement!).fontSize) - size) > .05) return false;
   if (!paragraph.textContent?.trim()) return false;
+  if (paragraph.dataset.hwpCellTerminal === 'true') {
+    return cell.rowSpan > 1 && line.rule === 'Percent' && Math.abs(line.base - line.advance) <= .05 &&
+      Math.abs(Number(paragraph.dataset.hwpCellAdvance) - line.advance) <= .05 &&
+      Math.abs(Number(paragraph.dataset.hwpCellEnd) - line.end) <= .05 &&
+      measureHwpOwnerTerminal(paragraph) !== null;
+  }
+  if (paragraph.querySelector('[data-hwp-cell-prefix]') || Math.abs(line.end - line.base) > .05) return false;
   // A compact single line keeps its measured end height only while it fits.
   // Wrapped or explicitly broken text can activate a different terminal box.
   // A merged owner must retain its original single line in the shorter cell.
@@ -122,9 +172,11 @@ function measureCenteredParagraph(cell: HTMLTableCellElement) {
     ink.push(...[...range.getClientRects()].filter(rect => rect.width > .1 && rect.height > .1));
   }
   if (!ink.length) return null;
+  const terminal = paragraph.dataset.hwpCellTerminal === 'true' ? measureHwpOwnerTerminal(paragraph) : null;
+  if (paragraph.dataset.hwpCellTerminal === 'true' && !terminal) return null;
   const box = paragraph.getBoundingClientRect();
   const css = getComputedStyle(paragraph);
-  return { box, ink, lines: paragraphLineOffsets(paragraph),
+  return { box, ink, terminal, lines: paragraphLineOffsets(paragraph),
     top: Math.min(box.top - Math.max(0, parseFloat(css.marginTop) || 0), ...ink.map(rect => rect.top)),
     bottom: Math.max(box.bottom + Math.max(0, parseFloat(css.marginBottom) || 0), ...ink.map(rect => rect.bottom)) };
 }
@@ -134,6 +186,7 @@ function centeredParagraphFits(cell: HTMLTableCellElement, before: NonNullable<R
   if (!after || after.lines.length !== before.lines.length || after.lines.some((line, index) => line !== before.lines[index]) ||
     after.ink.length !== before.ink.length || Math.abs(after.box.width - before.box.width) > .5 ||
     Math.abs(after.box.height - before.box.height) > .5) return false;
+  if (before.terminal && !sameHwpOwnerTerminal(before.terminal, after.terminal)) return false;
   const bounds = cell.getBoundingClientRect(), css = getComputedStyle(cell);
   const top = bounds.top + (parseFloat(css.paddingTop) || 0) + (parseFloat(css.borderTopWidth) || 0) * borderFactor;
   const bottom = bounds.bottom - (parseFloat(css.paddingBottom) || 0) - (parseFloat(css.borderBottomWidth) || 0) * borderFactor;
