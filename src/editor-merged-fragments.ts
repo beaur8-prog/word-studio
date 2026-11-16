@@ -3,11 +3,11 @@ import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { layoutWordLines } from './word-line-metrics';
-import { tableFragmenter } from './table-fragments';
+import { centeredContinuationParagraph, precedingSourceRow, tableFragmenter } from './table-fragments';
 import { prepareParagraphEnds } from './paragraph-fragments';
 
 type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number;
-  removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; reserveAt?: (page: number) => number };
+  removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; reserveAt?: (page: number) => number; continuationHeaders?: HTMLTableRowElement[] };
 
 /** Plain continuing merges can use the actual print-fragment geometry. More
  * complex objects keep the existing general flow until they can be mapped. */
@@ -42,14 +42,21 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   probe.style.margin = '0'; probe.style.width = `${table.getBoundingClientRect().width / g.scale}px`;
   const columns = table.querySelector(':scope > colgroup'); if (columns) probe.append(columns.cloneNode(true));
   const body = document.createElement('tbody'); probe.append(body); host.append(probe);
-  const copies = rows.map((row, i) => {
-    const copy = row.cloneNode(true) as HTMLTableRowElement; copy.dataset.fragmentRow = String(i);
+  const copyRow = (row: HTMLTableRowElement) => {
+    const copy = row.cloneNode(true) as HTMLTableRowElement;
     for (const widget of copy.querySelectorAll('.ProseMirror-widget,.pagination-gap,.ProseMirror-trailingBreak,.ProseMirror-separator')) widget.remove();
     for (const node of [copy, ...copy.querySelectorAll<HTMLElement>('*')])
       node.classList.remove('pagination-merge-row', 'pagination-merge-padding', 'pagination-merge-flow', 'pagination-merge-label', 'pagination-split-row');
+    return copy;
+  };
+  const copies = rows.map((row, i) => {
+    const copy = copyRow(row); copy.dataset.fragmentRow = String(i);
     for (let n = 0; n < row.cells.length; n++) {
       const cell = row.cells[n], target = copy.cells[n];
-      if (!merges.includes(cell)) continue;
+      if (!merges.includes(cell)) {
+        if (protectedRows && cell.tagName === 'TD') target.dataset.fragmentCell = String(n);
+        continue;
+      }
       for (let b = 0; b < cell.children.length; b++) {
         const id = blocks.findIndex(block => block.p === cell.children[b]);
         (target.children[b] as HTMLElement).dataset.fragmentBlock = String(id);
@@ -59,6 +66,21 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
     return copy;
   });
   body.append(...copies); document.body.append(host);
+  const ownerInsets = new Map<HTMLTableCellElement, number>();
+  const sourceInsets = new Map<HTMLTableCellElement, number>();
+  const seamOffsets = new Map<HTMLParagraphElement, number>();
+  const hasCenteredOwner = protectedRows && merges.some(cell => getComputedStyle(cell).verticalAlign === 'middle');
+  const owners = hasCenteredOwner ? rows.flatMap((row, rowIndex) => [...row.cells].flatMap((cell, columnIndex) => {
+    if (!merges.includes(cell)) return [];
+    const copy = copies[rowIndex].cells[columnIndex];
+    return [{ cell, copy, row: copies[rowIndex], alignment: copy.style.verticalAlign }];
+  })) : [];
+  const paragraphInset = (cell: HTMLTableCellElement, row: HTMLTableRowElement) => {
+    const paragraph = centeredContinuationParagraph(cell);
+    return paragraph ? paragraph.getBoundingClientRect().top - row.getBoundingClientRect().top : undefined;
+  };
+  let leadingEdge: HTMLTableRowElement | null = null;
+  let measurementHeaders: HTMLTableRowElement[] = [];
   const rowTargets: { top: number; height: number }[] = [], usedPages = new Set<number>();
   const repeatAt = g.measureRepeatAt ?? g.repeatAt;
   const stride = g.height + 24, usable = g.height - g.top - g.bottom;
@@ -67,8 +89,40 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
   let pending = copies, finalBottom = originalBottom;
   const fragments = tableFragmenter({ bodyHeight: () => usable - (g.reserveAt?.(page) ?? 0), hasDeferredNote: () => false, deferredNotes: () => new Set() });
   try {
+    if (owners.length) {
+      // An adjacent source row can determine the used collapsed border.
+      const previous = precedingSourceRow(rows[0]);
+      if (previous) {
+        if (!columns || [...previous.cells].reduce((width, cell) => width + cell.colSpan, 0) !== columns.children.length) return null;
+        leadingEdge = copyRow(previous);
+        body.prepend(leadingEdge);
+      }
+      for (const entry of owners) entry.copy.style.verticalAlign = 'top';
+      prepareParagraphEnds(probe); layoutWordLines(probe); layoutHwpCellLines(probe);
+      for (const { cell, copy, row } of owners) {
+        const inset = paragraphInset(copy, row);
+        if (inset === undefined) return null;
+        const margin = parseFloat(getComputedStyle(copy.firstElementChild!).marginTop) || 0;
+        ownerInsets.set(cell, inset - margin);
+      }
+      for (const { copy, alignment } of owners) copy.style.verticalAlign = alignment;
+      if (g.continuationHeaders?.length) {
+        copies.forEach((row, i) => {
+          for (const cell of row.cells) {
+            if (cell.dataset.fragmentCell === undefined) continue;
+            const inset = paragraphInset(cell, row);
+            if (inset !== undefined) sourceInsets.set(rows[i].cells[Number(cell.dataset.fragmentCell)], inset);
+          }
+        });
+        measurementHeaders = g.continuationHeaders.map(copyRow);
+      }
+    }
+
     for (let pass = 0; pending.length && pass < 512; pass++) {
-      body.replaceChildren(...pending); prepareParagraphEnds(probe); layoutWordLines(probe); layoutHwpCellLines(probe);
+      const first = !usedPages.size;
+      const repeated = !first && measurementHeaders.length > 0;
+      const prefix = repeated ? measurementHeaders : first && leadingEdge ? [leadingEdge] : [];
+      body.replaceChildren(...prefix, ...pending); prepareParagraphEnds(probe); layoutWordLines(probe); layoutHwpCellLines(probe);
       const origin = probe.getBoundingClientRect().top;
       // Source and repeated-header positions address the first row; a new
       // bare table starts at its outer border. Do not count that half-border
@@ -79,8 +133,14 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       let tail: HTMLTableRowElement[] | null = null;
       const fitsHere = () => probe.getBoundingClientRect().height <= boundary - tableTop + .5;
       if (!fitsHere()) {
-        if (protectedRows && probe.getBoundingClientRect().height + (repeatAt?.(page + 1) ?? 0) > usable + .5) return null;
-        tail = fragments.splitMergedGroup(pending, origin + boundary - tableTop, protectedRows ? fitsHere : undefined);
+        const fragmentHeight = probe.getBoundingClientRect().height - (prefix.length ? inset : 0);
+        if (protectedRows && (repeated || fragmentHeight + (repeatAt?.(page + 1) ?? 0) > usable + .5)) return null;
+        const verifyProtectedFit = () => {
+          layoutWordLines(probe);
+          layoutHwpCellLines(probe);
+          return fitsHere();
+        };
+        tail = fragments.splitMergedGroup(pending, origin + boundary - tableTop, protectedRows ? verifyProtectedFit : undefined);
         if (!tail) {
           // Like print, a group with no fitting first row starts on a fresh
           // sheet. An oversized unsplittable group retains the old fallback.
@@ -94,6 +154,17 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       }
       const localY = (value: number) => tableTop + value - origin;
       usedPages.add(page);
+      if (repeated) {
+        const row = pending[0], source = rows[Number(row.dataset.fragmentRow)];
+        for (const cell of row.cells) {
+          if (cell.dataset.fragmentCell === undefined) continue;
+          const original = source.cells[Number(cell.dataset.fragmentCell)];
+          const before = sourceInsets.get(original), after = paragraphInset(cell, row);
+          if (before === undefined || after === undefined) return null;
+          const offset = after - before;
+          if (Math.abs(offset) >= 1 / 64) seamOffsets.set(original.firstElementChild as HTMLParagraphElement, offset);
+        }
+      }
       for (const row of pending) rowTargets[Number(row.dataset.fragmentRow)] = {
         top: localY(row.getBoundingClientRect().top), height: row.getBoundingClientRect().height,
       };
@@ -118,7 +189,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       // next group has no fitting row at the remaining physical boundary.
       if (pending.length && protectedRows) {
         page++;
-        const header = repeatAt?.(page) ?? 0;
+        const header = measurementHeaders.length ? 0 : repeatAt?.(page) ?? 0;
         currentTop = page * stride + g.top + header; rowAnchor = header > 0;
       } else if (pending.length) { currentTop = finalBottom; rowAnchor = true; }
     }
@@ -137,10 +208,16 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       }
       previousBottom = target.top + target.height;
     });
+    for (const [paragraph, shift] of seamOffsets) {
+      const pos = view.posAtDOM(paragraph, 0) - 1;
+      decorations.push(Decoration.node(pos, pos + view.state.doc.nodeAt(pos)!.nodeSize,
+        { class: 'pagination-merge-label', style: `--pagination-label-shift:${shift}px` }));
+      signatures.push(`measured-merge-seam:${pos}:${shift}`);
+    }
     for (const cell of merges) {
       const own = blocks.filter(block => block.cell === cell), cellPos = view.posAtDOM(cell, 0) - 1;
       const style = getComputedStyle(cell), border = getComputedStyle(table).borderCollapse === 'collapse' ? .5 : 1;
-      const padding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.borderTopWidth) || 0) * border;
+      const padding = ownerInsets.get(cell) ?? ((parseFloat(style.paddingTop) || 0) + (parseFloat(style.borderTopWidth) || 0) * border);
       const firstTop = naturalY(own[0].p.getBoundingClientRect().top) - (parseFloat(getComputedStyle(own[0].p).marginTop) || 0);
       const base = rowTargets[rows.indexOf(cell.parentElement as HTMLTableRowElement)].top + padding - firstTop;
       decorations.push(Decoration.node(cellPos, cellPos + view.state.doc.nodeAt(cellPos)!.nodeSize,

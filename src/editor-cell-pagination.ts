@@ -5,7 +5,7 @@ import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
 import { measuredMergedFragments } from './editor-merged-fragments';
 type Reference = { id: string; page: number };
-type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; references?: { id: string; top: number }[]; reserveAt?: (page: number, own?: Reference[]) => number };
+type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; continuationHeaders?: HTMLTableRowElement[]; references?: { id: string; top: number }[]; reserveAt?: (page: number, own?: Reference[]) => number };
 
 /** Insert view-only gaps in each column of a continuing row. The row and its
  * cells remain single editable model nodes, so selection/history/save do not

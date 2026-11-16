@@ -397,7 +397,9 @@ export const Pagination = Extension.create({
                       if (height) trialPages.add(target);
                       return height;
                     } : repeatAt,
-                    measureRepeatAt: header ? measureHeader : measureRepeatAt, reserveAt: page => reserve(page, refs) }, protectedRows);
+                    measureRepeatAt: header ? measureHeader : measureRepeatAt,
+                    continuationHeaders: protectedRows ? (header ?? piece.header)?.rows : undefined,
+                    reserveAt: page => reserve(page, refs) }, protectedRows);
                   if (flow) {
                     if (header) {
                       tablePages.set(header.table, page);
