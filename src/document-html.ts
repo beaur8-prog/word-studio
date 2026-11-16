@@ -2,6 +2,7 @@ import DOMPurify from "dompurify";
 import documentLimits from '../electron/document-limits.json';
 import { encodeHwpCellLine, parseHwpCellLine } from './hwp-cell-line';
 import { encodeHwpBodyLine, parseHwpBodyLine } from './hwp-body-line';
+import { parseWordReflection, wordReflectionAttribute, wordParagraphReflectionAttribute } from './word-reflection';
 // Base64 expansion of one supported embedded raster, plus its data-URI header.
 const MAX_IMAGE_SOURCE_LENGTH = Math.ceil(documentLimits.embeddedImageBytes / 3) * 4 + 64;
 export const RASTER_DATA =
@@ -95,7 +96,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-word-line-rule", "data-word-line", "data-word-heading-marks",
       "data-word-auto-space-de", "data-word-auto-space-dn",
       "data-word-paragraph-style", "data-word-paragraph-style-name", "data-word-outline-level", "data-word-contextual-spacing", "data-word-keep-next", "data-word-keep-lines",
-      "data-word-paragraph-bottom-border",
+      "data-word-paragraph-bottom-border", wordReflectionAttribute, wordParagraphReflectionAttribute,
       "data-word-table-layout", "data-word-table-width-auto", "data-word-cell-width-auto", "data-word-text-alignment",
       "data-exact-line-height",
       "data-hwp-cell-line",
@@ -134,6 +135,16 @@ export function sanitizeImportedHtml(source: string): {
     if (!safeLink(anchor.getAttribute("href"))) anchor.removeAttribute("href");
     anchor.setAttribute("rel", "noopener noreferrer");
     anchor.setAttribute("target", "_blank");
+  }
+  for (const [attribute, tags] of [
+    [wordReflectionAttribute, 'span'],
+    [wordParagraphReflectionAttribute, 'p,h1,h2,h3,h4,h5,h6'],
+  ]) {
+    for (const element of template.content.querySelectorAll('[' + attribute + ']')) {
+      const reflection = element.matches(tags) && parseWordReflection(element.getAttribute(attribute));
+      if (reflection) element.setAttribute(attribute, JSON.stringify(reflection));
+      else element.removeAttribute(attribute);
+    }
   }
   const safeStyles = new Set([
     "font-family",

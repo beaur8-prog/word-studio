@@ -15,6 +15,7 @@ import { CellAppearance } from './table-format';
 import { TableRowResize } from './table-row-resize';
 import { Pagination } from './pagination';
 import { ImportedFormat, StudioTableView } from './imported-format';
+import { parseWordReflection, wordReflectionAttribute } from './word-reflection';
 import { DocumentTab, DocumentTabs } from './document-tabs';
 import { WordLineMetrics } from './word-line-metrics';
 import { WordCellSpacing } from './word-cell-spacing';
@@ -59,6 +60,31 @@ export const CommentAnchor = Mark.create({
   addAttributes: () => ({ ids: { default: '', parseHTML: el => el.getAttribute('data-comment-ids'), renderHTML: a => ({ 'data-comment-ids': a.ids }) } }),
   parseHTML: () => [{ tag: 'span[data-comment-ids]' }],
   renderHTML: ({ HTMLAttributes }) => ['span', { ...HTMLAttributes, class: 'comment-anchor' }, 0],
+});
+const WordReflection = Mark.create({
+  name: 'wordReflection',
+  // CommentAnchor consumes its span. Read both marks on that same span.
+  priority: 101,
+  inclusive: false,
+  addAttributes: () => ({
+    effect: {
+      default: null,
+      parseHTML: element => {
+        const effect = parseWordReflection(element.getAttribute(wordReflectionAttribute));
+        return effect ? JSON.stringify(effect) : null;
+      },
+      renderHTML: attrs => {
+        const effect = parseWordReflection(attrs.effect);
+        return effect ? { [wordReflectionAttribute]: JSON.stringify(effect) } : {};
+      },
+    },
+  }),
+  parseHTML: () => [{
+    tag: `span[${wordReflectionAttribute}]`,
+    consuming: false,
+    getAttrs: element => parseWordReflection((element as HTMLElement).getAttribute(wordReflectionAttribute)) ? {} : false,
+  }],
+  renderHTML: ({ HTMLAttributes }) => ['span', HTMLAttributes, 0],
 });
 export const SectionBreak = Node.create({
   name: 'sectionBreak', group: 'block', atom: true,
@@ -134,7 +160,7 @@ export const editorExtensions = [
   PageBreak,
   ColumnBreak,
   SectionBreak,
-  CommentAnchor,
+  CommentAnchor, WordReflection,
   ParagraphFormat,
   ImportedFormat,
   WordLineMetrics,

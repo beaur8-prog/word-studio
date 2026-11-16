@@ -4,6 +4,7 @@ import type { Node } from '@tiptap/pm/model';
 import { tableAnchor } from './table-anchor';
 import { paragraphTextAlignment } from './paragraph-text-alignment';
 import { parseWordParagraphBottomBorder } from './word-paragraph-border';
+import { parseWordReflection, wordParagraphReflectionAttribute } from './word-reflection';
 
 const properties = {
   spaceBefore: 'margin-top', spaceAfter: 'margin-bottom', rightIndent: 'margin-right', firstLineIndent: 'text-indent',
@@ -55,6 +56,17 @@ export const ImportedFormat = Extension.create({
           default: null, parseHTML: (el: HTMLElement) => el.getAttribute('data-word-paragraph-style'),
           renderHTML: (a: Record<string, unknown>) => typeof a.wordParagraphStyle === 'string' && a.wordParagraphStyle
             ? { 'data-word-paragraph-style': a.wordParagraphStyle } : {},
+        },
+        wordParagraphReflection: {
+          default: null,
+          parseHTML: (element: HTMLElement) => {
+            const effect = parseWordReflection(element.getAttribute(wordParagraphReflectionAttribute));
+            return effect ? JSON.stringify(effect) : null;
+          },
+          renderHTML: (attrs: Record<string, unknown>) => {
+            const effect = parseWordReflection(attrs.wordParagraphReflection);
+            return effect ? { [wordParagraphReflectionAttribute]: JSON.stringify(effect) } : {};
+          },
         },
         wordParagraphBottomBorder: {
           default: null,

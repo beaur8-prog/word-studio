@@ -13,6 +13,7 @@ import { prepareTextBoxes, textBoxAnchorStyle, writeTextBoxes, type TextBoxExpor
 import { textBoxFrame } from './textbox-frame';
 import { wordHeadingMarks } from './word-heading-defaults';
 import { parseWordParagraphBottomBorder } from './word-paragraph-border';
+import { parseWordReflection, wordReflectionXmlAttributes } from './word-reflection';
 import { sanitizeImportedHtml, validImage, safeLink, RASTER_DATA } from "./document-html";
 import { activeHwpCellLine, cssPixels, encodeHwpCellLine, hwpCellFont, parseHwpCellLine } from './hwp-cell-line';
 import { HwpCellParagraph } from './docx-hwp-cell-line';
@@ -27,7 +28,7 @@ import {
   Document as DocxDocument,
   ExternalHyperlink,
   InternalHyperlink,
-  NumberValueElement,
+  NumberValueElement, ImportedXmlComponent,
   Bookmark,
   Footer,
   Header,
@@ -123,7 +124,7 @@ const MARKS = new Set([
   "highlight",
   "link",
   "code",
-  "commentAnchor",
+  "commentAnchor", "wordReflection",
 ]);
 
 function fail(message: string): never {
@@ -313,6 +314,9 @@ export function validateDocument(input: unknown): StudioDocument {
     if (attrs?.wordParagraphBottomBorder != null &&
         (!['paragraph', 'heading'].includes(type) || !parseWordParagraphBottomBorder(attrs.wordParagraphBottomBorder)))
       fail('문단 하단 테두리 정보가 올바르지 않습니다.');
+    if (attrs?.wordParagraphReflection != null &&
+        (!['paragraph', 'heading'].includes(type) || !parseWordReflection(attrs.wordParagraphReflection)))
+      fail('문단 반사 효과 정보가 올바르지 않습니다.');
     if (attrs?.wordTextAlignment != null && !paragraphTextAlignment(attrs.wordTextAlignment)) fail('문단 글줄 정렬이 올바르지 않습니다.');
     if (attrs?.hwpCellLine != null && !parseHwpCellLine(attrs.hwpCellLine)) fail('한글 셀의 줄 간격 정보가 올바르지 않습니다.');
     if (type === 'documentSymbol' && (!boundedString(attrs?.font, 100) || !attrs?.font || !/^\d{1,5}$/.test(String(attrs?.code)) || !finite(Number(attrs?.code), 0, 65535) || !boundedString(attrs?.glyph, 100))) fail('기호 글자가 올바르지 않습니다.');
@@ -381,6 +385,8 @@ export function validateDocument(input: unknown): StudioDocument {
             ))
         )
           fail("텍스트 서식 속성이 올바르지 않습니다.");
+        if (mark.type === 'wordReflection' && (type !== 'text' || !object(mark.attrs) || !parseWordReflection(mark.attrs.effect)))
+          fail('글자 반사 효과 정보가 올바르지 않습니다.');
         if (
           mark.type === "link" &&
           (!object(mark.attrs) || !safeLink(mark.attrs.href))
@@ -892,11 +898,13 @@ const propertiesBeforeCharacterSpacing = new Set([
 class DocumentTextRun extends TextRun {
   private readonly explicitZeroSpacing: boolean;
 
-  constructor(options: IRunOptions) {
+  constructor(options: IRunOptions, reflection?: unknown) {
     super(options);
     // docx 9.x omits numeric zero, which explicitly cancels inherited tracking.
     this.explicitZeroSpacing = options.characterSpacing === 0;
     if (this.explicitZeroSpacing) this.properties.push(new NumberValueElement('w:spacing', 0));
+    const attributes = wordReflectionXmlAttributes(reflection);
+    if (attributes) this.properties.push(new ImportedXmlComponent('w14:reflection', attributes));
   }
 
   prepForXml(context: Parameters<TextRun['prepForXml']>[0]) {
@@ -917,12 +925,12 @@ class DocumentTextRun extends TextRun {
 
 /** Word may discard a whitespace-only literal tab inside w:t on save.
  * Emit each authored tab as the standard run control, retaining run marks. */
-function documentTextRun(options: IRunOptions): TextRun {
-  if (!options.text?.includes('\t')) return new DocumentTextRun(options);
+function documentTextRun(options: IRunOptions, reflection?: unknown): TextRun {
+  if (!options.text?.includes('\t')) return new DocumentTextRun(options, reflection);
   const { text, ...properties } = options;
   return new DocumentTextRun({ ...properties, children: text.split('\t').flatMap((part, i) => [
     ...(i ? [new Tab()] : []), ...(part ? [part] : []),
-  ]) });
+  ]) }, reflection);
 }
 function runOptions(node: JSONContent): IRunOptions {
   const options: { -readonly [K in keyof IRunOptions]: IRunOptions[K] } = {
@@ -1227,7 +1235,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         // Paragraph rPr formats the paragraph mark in OOXML, not every text
         // run. Materialize inherited CSS font/size/color on otherwise plain
         // text, while retaining each run's explicit overrides.
-        const run = documentTextRun({ ...defaults, ...runOptions(node), ...(node.type === 'documentTab' ? { text: '\t' } : {}) });
+        const reflection = node.type === 'text' ? node.marks?.find(mark => mark.type === 'wordReflection')?.attrs?.effect : undefined;
+        const run = documentTextRun({ ...defaults, ...runOptions(node), ...(node.type === 'documentTab' ? { text: '\t' } : {}) }, reflection);
         const link = node.marks?.find((m) => m.type === "link");
         if (
           link &&
@@ -1373,7 +1382,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             } : {}),
           }) : undefined, bodyLine ? JSON.stringify({ policy: encodeHwpBodyLine(bodyLine),
             line: paragraph.spacing?.line, rule: paragraph.spacing?.lineRule }) : undefined,
-            { de: node.attrs?.wordAutoSpaceDE, dn: node.attrs?.wordAutoSpaceDN }, node.attrs?.wordTextAlignment),
+            { de: node.attrs?.wordAutoSpaceDE, dn: node.attrs?.wordAutoSpaceDN }, node.attrs?.wordTextAlignment, node.attrs?.wordParagraphReflection),
         );
       } else if (node.type === "image")
         output.push(

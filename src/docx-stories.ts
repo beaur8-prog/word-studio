@@ -8,15 +8,15 @@ import { pageMargins, paperDimensions, type PageSettings } from './types';
 
 /** Convert a header, comment or note through the same formatting path as body
  * text, with its own relationships. The original ZIP and story stay unchanged. */
-export async function storyHtml(zip: JSZip, part: string, root: Element, page: PageSettings, depth=0) {
+export async function storyHtml(zip: JSZip, part: string, root: Element, page: PageSettings, depth=0, preserveReflection = false) {
   const copy = new JSZip(); copy.files = { ...zip.files };
   const body = new DOMParser().parseFromString(`<w:document xmlns:w="${W}"><w:body/></w:document>`, 'application/xml');
   const target = all(body, 'body')[0];
   for (const element of Array.from(root.children)) target.append(body.importNode(element, true));
   const relationships = zip.file(part.replace(/([^/]+)$/, '_rels/$1.rels'));
   copy.file('word/_rels/document.xml.rels', relationships ? await relationships.async('string') : '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>');
-  const textboxes = await prepareTextBoxes(copy, body, [page], depth);
-  const metadata = await prepareDocxMetadata(copy, body, [page]);
+  const textboxes = await prepareTextBoxes(copy, body, [page], depth, preserveReflection);
+  const metadata = await prepareDocxMetadata(copy, body, [page], preserveReflection);
   const result = await mammoth.convertToHtml({ arrayBuffer: metadata.buffer }, { externalFileAccess: false,
     includeEmbeddedStyleMap: false, ignoreEmptyParagraphs: false, styleMap: ['u => u', 'strike => s'] });
   return textboxes.decorate(metadata.decorate(result.value));

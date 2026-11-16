@@ -205,7 +205,7 @@ function legacyFrame(box:Element,page:PageSettings):TextBoxFrame {
 
 /** Isolate each selected textbox story before Mammoth can flatten/drop it.
  * Modern Choice wins once; the equivalent legacy fallback is never imported twice. */
-export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSettings[],depth=0) {
+export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSettings[],depth=0, preserveReflection = true) {
  if(depth>12)throw Error('중첩 텍스트상자 구조가 너무 깊습니다.');
  normalizeDrawingGroups(body,pages);
  const palette=await colors(zip),records:PreparedBox[]=[];
@@ -236,7 +236,7 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
     if (boxes.length > 1 || decoration) frame.group = 'textbox_group_' + records.length;
     if (decoration) frame.decoration = decoration;
    }
-   frames.push({frame,html:await storyHtml(zip,'word/document.xml',box,page,depth+1)});
+   frames.push({frame,html:await storyHtml(zip,'word/document.xml',box,page,depth+1,preserveReflection)});
   }
   const marker='ws_textbox_'+crypto.randomUUID().replaceAll('-','');
   const bookmark=body.createElementNS(W,'w:bookmarkStart');bookmark.setAttributeNS(W,'w:id',String(800000+records.length));bookmark.setAttributeNS(W,'w:name',marker);
