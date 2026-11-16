@@ -1,6 +1,6 @@
 import { layoutWordAutoFitTables } from './word-table-autofit';
 import { canMeasureMergedFragments } from './editor-merged-fragments';
-import { canPlaceProtectedTable, canSplitProtectedMergedRows } from './table-fragments';
+import { canSplitProtectedMergedRows, protectedTablePlacement } from './table-fragments';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import { wordFlowHasWrappingAnchors, wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
 import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
@@ -48,7 +48,7 @@ function continuationHeaderHeight(table: HTMLTableElement, headers: HTMLTableRow
 /** Use real block/row geometry. A form is often one large table cell containing
  * paragraphs and nested tables, so treating only top-level nodes as indivisible
  * blocks lets text run straight through page margins. */
-function pieces(view: EditorView, usableHeight: number, scale: number, removed: { top: number; height: number }[], root: PMNode, start: number, domRoot: HTMLElement, protectedTableFlow: boolean) {
+function pieces(view: EditorView, usableHeight: number, scale: number, removed: { top: number; height: number }[], root: PMNode, start: number, domRoot: HTMLElement, canPlaceProtectedTable: (table: HTMLTableElement) => boolean) {
   const origin = domRoot.getBoundingClientRect().top;
   const result: Piece[] = [];
   const rect = (element: HTMLElement) => {
@@ -112,6 +112,8 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const rowPos = pos + 1 + offset, rowDom = view.nodeDOM(rowPos) as HTMLElement;
       if (rowDom) rows.push({ node: row, pos: rowPos, dom: rowDom });
     });
+    const table = rows[0]?.dom.closest('table');
+    const protectedTableFlow = !!table && canPlaceProtectedTable(table);
     let headerEnd = 0;
     while (headerEnd < rows.length && rows[headerEnd].node.childCount > 0 && rows[headerEnd].node.content.content.every(cell => cell.type.name === 'tableHeader')) headerEnd++;
     const header: RepeatingHeader | undefined = headerEnd && headerEnd < rows.length ? {
@@ -233,7 +235,7 @@ export const Pagination = Extension.create({
             let totalCount = 0;
             const placedNotes = new Set<string>();
             const wrappingAnchors = wordFlowHasWrappingAnchors(view.dom);
-            const protectedTableFlow = canPlaceProtectedTable(view.dom);
+            const canPlaceProtectedTable = protectedTablePlacement(view.dom);
             for (const context of contexts) {
               const h = Number(context.sheet.dataset.pageHeight) || Number(sheet.dataset.pageHeight) || 1122.52;
               const top = Number(context.sheet.dataset.margin ?? sheet.dataset.margin ?? 96);
@@ -283,8 +285,10 @@ export const Pagination = Extension.create({
                 }
                 return header.height;
               };
-              const protectedTableBody = protectedTableFlow && context.sheet.dataset.uniformTablePageBody === 'true';
-              const flow = pieces(view, usable, scale, removed, context.node, context.start, context.dom, protectedTableBody);
+              const uniformTableBody = context.sheet.dataset.uniformTablePageBody === 'true';
+              const paper = { width: context.sheet.clientWidth, height: h, top, bottom };
+              const canPlaceTable = (table: HTMLTableElement) => uniformTableBody && canPlaceProtectedTable(table, paper);
+              const flow = pieces(view, usable, scale, removed, context.node, context.start, context.dom, canPlaceTable);
               // Print removes automatically-created trailing blank sheets.
               // Retain the empty paragraphs in the model, but do not insert
               // page gaps for them until they contain text or an object.
@@ -372,7 +376,7 @@ export const Pagination = Extension.create({
                 // once its notes (including references near its end) follow
                 // it. Expand only that item into the existing paragraph flow.
                 if (piece.listItem && !wholeListItem(piece.height, usable - reserve(page, refs.map(ref => ({ ...ref, page }))))) {
-                  const children = pieces(view, usable, scale, removed, piece.listItem, piece.pos + 1, context.dom, protectedTableBody);
+                  const children = pieces(view, usable, scale, removed, piece.listItem, piece.pos + 1, context.dom, canPlaceTable);
                   queue.splice(index, 1, ...children); index--; continue;
                 }
 

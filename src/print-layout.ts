@@ -5,7 +5,7 @@ import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight, wordFlowHasWra
 import { rowSplitPolicy } from './row-split-policy';
 import { layoutTextBoxes } from './textbox-frame';
 import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
-import { canPlaceProtectedTable, canSplitProtectedMergedRows, centeredCellFits, hasCenteredOrdinaryCell, hasHwpCellLines, measureCenteredCell, multiParagraphHwpOwners, ordinaryHwpTerminalCells, tableFragmenter } from './table-fragments';
+import { canSplitProtectedMergedRows, centeredCellFits, hasCenteredOrdinaryCell, hasHwpCellLines, measureCenteredCell, multiParagraphHwpOwners, ordinaryHwpTerminalCells, protectedTablePlacement, tableFragmenter } from './table-fragments';
 import { hasUniformTablePageBody, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines, layoutWordListLines, markMeasuredWordSymbolItems } from './word-line-metrics';
@@ -46,7 +46,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (paragraph instanceof HTMLParagraphElement && isOrdinaryWordBodyParagraph(paragraph, source))
       paragraph.dataset.wordFloatingSpaceSource = 'true';
   const wrappingAnchors = wordFlowHasWrappingAnchors(source);
-  const protectedTableFlow = canPlaceProtectedTable(source);
+  const canPlaceProtectedTable = protectedTablePlacement(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
     for (const paragraph of source.querySelectorAll<HTMLParagraphElement>('p[data-word-paragraph-style]')) {
       const ordinary = isOrdinaryWordBodyParagraph(paragraph, source);
@@ -282,6 +282,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   }
 
   function appendTable(table: HTMLTableElement) {
+    const [width, height] = dimensions(settings), { top, bottom } = pageMargins(settings);
+    const protectedTableFlow = canPlaceProtectedTable(table, { width: width * PX, height: height * PX, top: top * PX, bottom: bottom * PX });
     // Measure the complete source table once. Every printed continuation must
     // retain the same columns, including when its widest cell appears later.
     content.append(table); layoutWordAutoFitTables(content, true); table.remove();

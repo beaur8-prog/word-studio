@@ -2,14 +2,54 @@ import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { cssPixels, parseHwpCellLine } from './hwp-cell-line';
 import { documentScale } from './document-scale';
+import { imageFloating } from './image-floating';
 import { paragraphLineOffsets, paragraphTextWalker, splitText, textUnitLength } from './paragraph-fragments';
 
 function headerRow(row: HTMLTableRowElement) {
   return row.cells.length > 0 && [...row.cells].every(cell => cell.tagName === 'TH');
 }
 
-export function canPlaceProtectedTable(root: HTMLElement) {
-  return !root.querySelector('[data-note-reference],img[data-image-floating],table[data-table-anchor],[data-document-textbox]');
+type TablePaper = { width: number; height: number; top: number; bottom: number };
+
+function previousBodyBlock(element: Element) {
+  let previous = element.previousElementSibling;
+  while (previous?.classList.contains('ProseMirror-widget')) previous = previous.previousElementSibling;
+  return previous;
+}
+
+/** Read authored body order before print moves any source node to a sheet. */
+export function protectedTablePlacement(root: HTMLElement): (table: HTMLTableElement, paper: TablePaper) => boolean {
+  if (root.querySelector('[data-note-reference],table[data-table-anchor],[data-document-textbox]')) return () => false;
+  const images = root.querySelectorAll<HTMLImageElement>('img[data-image-floating]');
+  if (!images.length) return () => true;
+  if (images.length !== 1) return () => false;
+
+  const image = images[0], owner = image.closest('p'), flow = owner?.parentElement;
+  if (!owner || !flow || owner.querySelectorAll('img:not(.ProseMirror-separator)').length !== 1 || owner.closest('[data-column-count],td,th') ||
+    !(flow === root || flow.matches('[data-section-content]') && flow.parentElement === root ||
+      flow.classList.contains('section-editable') && flow.parentElement?.classList.contains('document-section-content') &&
+      flow.parentElement.parentElement === root)) return () => false;
+
+  // A real table immediately before this top-level break ensures it cannot
+  // be absorbed into the section start. The next block owns the only picture.
+  const fence = previousBodyBlock(owner);
+  if (!fence?.matches('div[data-page-break="true"]:not([data-column-break],[data-section-page])')) return () => false;
+  const block = previousBodyBlock(fence);
+  const table = block instanceof HTMLTableElement ? block :
+    block?.classList.contains('tableWrapper') ? block.querySelector<HTMLTableElement>(':scope > table') : null;
+  if (!table?.rows.length) return () => false;
+
+  const floating = imageFloating(image.dataset.imageFloating);
+  if (!floating || floating.drawingGroup || floating.behindDocument ||
+    floating.wrap?.type !== 1 || floating.wrap.side !== 'bothSides' ||
+    (floating.margins && Object.values(floating.margins).some(margin => margin !== 0))) return () => false;
+  const { horizontalPosition: x, verticalPosition: y } = floating;
+  if (x.relative !== 'page' || y.relative !== 'page' || x.align || y.align ||
+    x.offset === undefined || y.offset === undefined) return () => false;
+  const width = Number(image.getAttribute('width')), height = Number(image.getAttribute('height'));
+  const left = x.offset / 9525, top = y.offset / 9525;
+  return (candidate, paper) => candidate === table && width > 0 && height > 0 &&
+    left >= 0 && left + width <= paper.width && top >= paper.top && top + height <= paper.height - paper.bottom;
 }
 
 export function centeredContinuationParagraph(cell: HTMLTableCellElement) {
