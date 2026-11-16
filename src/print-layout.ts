@@ -5,8 +5,8 @@ import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight, wordFlowHasWra
 import { rowSplitPolicy } from './row-split-policy';
 import { layoutTextBoxes } from './textbox-frame';
 import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
-import { tableFragmenter } from './table-fragments';
-import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
+import { canPlaceProtectedTable, canSplitProtectedMergedRows, tableFragmenter } from './table-fragments';
+import { hasUniformTablePageBody, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines, layoutWordListLines, markMeasuredWordSymbolItems } from './word-line-metrics';
 import { layoutWordContextualSpacing } from './word-contextual-spacing';
@@ -46,6 +46,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (paragraph instanceof HTMLParagraphElement && isOrdinaryWordBodyParagraph(paragraph, source))
       paragraph.dataset.wordFloatingSpaceSource = 'true';
   const wrappingAnchors = wordFlowHasWrappingAnchors(source);
+  const protectedTableFlow = canPlaceProtectedTable(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
     for (const paragraph of source.querySelectorAll<HTMLParagraphElement>('p[data-word-paragraph-style]')) {
       const ordinary = isOrdinaryWordBodyParagraph(paragraph, source);
@@ -232,14 +233,31 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     let part = shell();
     if (!rows.length) { if (!fits() && content.children.length > 1) { part.table.remove(); newPage(); part = shell(); } scaleOversized(part.table); return; }
     let bodyRows = 0;
+    const protectedStarts = new WeakSet<HTMLTableRowElement>();
     for (let i = 0; i < rows.length;) {
+      if (protectedStarts.has(rows[i])) { newPage(); part = shell(true); bodyRows = 0; }
       let end = i + 1;
       for (let j = i; j < end; j++) for (const cell of rows[j].cells) end = Math.min(rows.length, Math.max(end, j + cell.rowSpan));
       const group = rows.slice(i, end).map(row => row.cloneNode(true) as HTMLTableRowElement);
       group.forEach(row => part.body.append(row));
       const split = () => {
-        const mergedTail = splitMergedGroup(group, content.getBoundingClientRect().bottom);
-        if (mergedTail) { rows.splice(end, 0, ...mergedTail); return; }
+        const paper = content.getBoundingClientRect();
+        let protectedFit: typeof fits | undefined;
+        if (group.length > 1 && protectedTableFlow && hasUniformTablePageBody(settings)) {
+          const repeated = [...part.body.rows].slice(0, headers.length);
+          if (canSplitProtectedMergedRows([...repeated, ...group])) {
+            const tableBox = part.table.getBoundingClientRect();
+            const headerHeight = (repeated.at(-1)?.getBoundingClientRect().bottom ??
+              part.table.rows[0].getBoundingClientRect().top) - tableBox.top;
+            const groupHeight = tableBox.bottom - group[0].getBoundingClientRect().top;
+            if (headerHeight + groupHeight <= paper.height + .5) protectedFit = fits;
+          }
+        }
+        const mergedTail = splitMergedGroup(group, paper.bottom, protectedFit);
+        if (mergedTail) {
+          if (protectedFit) protectedStarts.add(mergedTail[0]);
+          rows.splice(end, 0, ...mergedTail); return;
+        }
         if (group.length !== 1 || [...group[0].cells].some(c => c.rowSpan !== 1)) return;
         // DOCX enables row splitting to preserve continuing vertical merges.
         // A final one-row fragment is still part of that merge: keep its row

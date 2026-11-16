@@ -83,7 +83,7 @@ import { HwpProgressPanel } from './hwp/ProgressPanel';
 import { paintHwpProgress, type HwpOperation, type HwpProgressReporter } from './hwp/progress';
 import type { EditableHwp } from './hwp/conversion';
 import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
-import { defaultPage, pageMargins, pageFurniture, paperSize } from "./types";
+import { defaultPage, hasUniformTablePageBody, pageMargins, pageFurniture, paperSize } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
 import { withoutEditorReflow } from './editor-layout-task';
@@ -2276,6 +2276,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
                 data-right-margin={margins.right * 96 / 25.4}
                 data-hide-empty-lines={page.hideEmptyLines === true}
                 data-suppress-bottom-spacing={page.suppressBottomSpacing !== false}
+                data-uniform-table-page-body={hasUniformTablePageBody(page)}
                 ref={stackRef}
                 style={
                   {

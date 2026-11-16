@@ -1,5 +1,5 @@
 import type { Node as PMNode } from '@tiptap/pm/model';
-import { defaultPage, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
+import { defaultPage, hasUniformTablePageBody, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutFurnitureImages } from './furniture-layout';
 
@@ -47,6 +47,7 @@ export class SectionNodeView {
     this.dom.dataset.pageHeight = String(height);
     this.dom.dataset.hideEmptyLines = String(page.hideEmptyLines === true);
     this.dom.dataset.suppressBottomSpacing = String(page.suppressBottomSpacing !== false);
+    this.dom.dataset.uniformTablePageBody = String(hasUniformTablePageBody(page));
     const signature = `${this.node.attrs.page}:${count}:${before}:${total}`;
     if (signature !== this.signature) {
       this.signature = signature;

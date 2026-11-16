@@ -21,9 +21,9 @@ export function canMeasureMergedFragments(rows: HTMLTableRowElement[]) {
 /** A browser redistributes minimum row heights when a vertical merge is split.
  * Measure those same print fragments instead of budgeting every continuation
  * against the unsplit table's original row distribution. Only the view changes. */
-export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElement[], g: Geometry) {
+export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElement[], g: Geometry, protectedRows = false) {
   const merges = rows.flatMap(row => [...row.cells].filter(cell => cell.rowSpan > 1));
-  if (!canMeasureMergedFragments(rows)) return null;
+  if (!protectedRows && !canMeasureMergedFragments(rows)) return null;
   const table = rows[0].closest('table')!;
   const naturalY = (value: number) => {
     const y = (value - g.origin) / g.scale;
@@ -77,11 +77,14 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       const tableTop = currentTop - (rowAnchor ? inset : 0);
       const boundary = page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0);
       let tail: HTMLTableRowElement[] | null = null;
-      if (probe.getBoundingClientRect().height > boundary - tableTop + .5) {
-        tail = fragments.splitMergedGroup(pending, origin + boundary - tableTop);
+      const fitsHere = () => probe.getBoundingClientRect().height <= boundary - tableTop + .5;
+      if (!fitsHere()) {
+        if (protectedRows && probe.getBoundingClientRect().height + (repeatAt?.(page + 1) ?? 0) > usable + .5) return null;
+        tail = fragments.splitMergedGroup(pending, origin + boundary - tableTop, protectedRows ? fitsHere : undefined);
         if (!tail) {
           // Like print, a group with no fitting first row starts on a fresh
           // sheet. An oversized unsplittable group retains the old fallback.
+          if (protectedRows && !usedPages.size) return null;
           if (currentTop <= page * stride + g.top + (repeatAt?.(page) ?? 0) + .5) return null;
           page++; const header = repeatAt?.(page) ?? 0;
           currentTop = page * stride + g.top + header; rowAnchor = header > 0; continue;
@@ -113,7 +116,11 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       // Cutting a merge can make its retained rows shorter. Print may then
       // fit the next source row on the same sheet; advance only when that
       // next group has no fitting row at the remaining physical boundary.
-      if (pending.length) { currentTop = finalBottom; rowAnchor = true; }
+      if (pending.length && protectedRows) {
+        page++;
+        const header = repeatAt?.(page) ?? 0;
+        currentTop = page * stride + g.top + header; rowAnchor = header > 0;
+      } else if (pending.length) { currentTop = finalBottom; rowAnchor = true; }
     }
     if (pending.length || rows.some((_, i) => !rowTargets[i]) || blocks.some(block => block.targets.some(y => !Number.isFinite(y)))) return null;
     const decorations: Decoration[] = [], signatures: string[] = [];
@@ -143,7 +150,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
         const shift = block.targets[0] - (block.lines[0].top + base + inserted);
         for (let i = 1; i < block.lines.length; i++) {
           const gap = block.targets[i] - (block.lines[i].top + base + inserted + shift);
-          if (gap < -.5) return null;
+          if (gap < -.5 || protectedRows && gap > .5) return null;
           if (gap > .5) {
             const pos = block.lines[i].pos();
             decorations.push(Decoration.widget(pos, () => {

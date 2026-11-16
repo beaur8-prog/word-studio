@@ -82,6 +82,17 @@ export const pageMargins = (page: PageSettings) => {
   margins[page.gutterTop ? 'top' : 'left'] += page.gutter ?? 0;
   return margins;
 };
+// The complete-row table probe budgets one fresh body from the current paper.
+export function hasUniformTablePageBody(page: PageSettings) {
+  if (page.differentFirstPage || page.differentOddEven || page.header?.trim() || page.footer?.trim() || page.pageNumbers) return false;
+  return ![page.headerHtml, page.footerHtml].some(html => {
+    if (!html) return false;
+    // DOCX export writes empty story paragraphs even for a blank header or footer.
+    const story = document.createElement('template');
+    story.innerHTML = html;
+    return Boolean(story.content.textContent?.trim() || story.content.querySelector('img,svg,table,[data-page-number]'));
+  });
+}
 export function pageFurniture(page: PageSettings, number: number, first = number === 1) {
   const prefix = first && page.differentFirstPage ? 'first' : number % 2 === 0 && page.differentOddEven ? 'even' : null;
   return prefix ? { header: page[`${prefix}Header`] ?? '', footer: page[`${prefix}Footer`] ?? '', pageNumbers: page[`${prefix}PageNumbers`] ?? false,

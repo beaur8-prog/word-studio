@@ -194,7 +194,8 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
 /** Continue source-observed vertical merges at row boundaries without inserting
  * TRs (which would change how the browser counts rowspan). Reserve the page
  * gutter inside the next row's cell padding instead. */
-export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[], geometry: Geometry): ReturnType<typeof mergedRowFlow> {
+export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[], geometry: Geometry, protectedRows = false): ReturnType<typeof mergedRowFlow> {
+  if (protectedRows) return measuredMergedFragments(view, rows, geometry, true);
   return mergedRowFlow(view, rows, geometry, [], 0);
 }
 function mergedRowFlow(view: EditorView, rows: HTMLTableRowElement[], geometry: Geometry, growth: number[], attempt: number): { decorations: Decoration[]; signatures: string[]; extra: number } | null {

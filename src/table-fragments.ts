@@ -2,6 +2,42 @@ import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { paragraphLineOffsets, paragraphTextWalker, splitText, textUnitLength } from './paragraph-fragments';
 
+function headerRow(row: HTMLTableRowElement) {
+  return row.cells.length > 0 && [...row.cells].every(cell => cell.tagName === 'TH');
+}
+
+export function canPlaceProtectedTable(root: HTMLElement) {
+  return !root.querySelector('[data-note-reference],img[data-image-floating],table[data-table-anchor],[data-document-textbox]');
+}
+
+export function canSplitProtectedMergedRows(rows: HTMLTableRowElement[]) {
+  const table = rows[0]?.closest('table');
+  if (!table || table.dataset.wordTableLayout !== 'fixed' || table.dataset.tableAnchor ||
+    table.parentElement?.closest('td,th,[data-column-count]:not([data-column-count="1"]),.document-textbox,.document-furniture')) return false;
+  const firstBody = rows.findIndex(row => !headerRow(row));
+  return firstBody >= 0 && rows.length - firstBody >= 2 && rows.every((row, index) => (index < firstBody ? [...row.cells].every(cell => cell.rowSpan === 1) :
+      row.dataset.rowSplit === 'avoid' && row.dataset.wordRowRule !== 'exact' && Number.parseFloat(row.style.height) > 0 &&
+      [...row.cells].every(cell => cell.tagName === 'TD') && [...row.cells].some(cell => cell.rowSpan === 1)) &&
+    [...row.cells].every(cell => cell.rowSpan >= 1 && !cell.style.height && !cell.style.minHeight) &&
+    !row.querySelector('table,img:not(.ProseMirror-separator),svg,[data-note-reference],[data-page-number],[data-word-keep-next="true"],[data-hwp-cell-line]') &&
+    row.getBoundingClientRect().height > 0);
+}
+
+function mergeContentFitsOwnerRow(cell: HTMLTableCellElement, row: HTMLTableRowElement, borderFactor: number) {
+  if (cell.dataset.printMergeContinuation && !cell.hasChildNodes()) return true;
+  const p = cell.firstElementChild;
+  const style = getComputedStyle(cell);
+  if (style.verticalAlign !== 'top' || cell.children.length !== 1 || !p?.matches('p') ||
+    p.querySelector('[data-docx-tab],[data-docx-bookmark],[data-word-overlap]')) return false;
+  const padding = Number.parseFloat(style.paddingBottom) || 0;
+  const border = (Number.parseFloat(style.borderBottomWidth) || 0) * borderFactor;
+  const margin = Math.max(0, Number.parseFloat(getComputedStyle(p).marginBottom) || 0);
+  const range = document.createRange();
+  range.selectNodeContents(p);
+  const contentBottom = Math.max(p.getBoundingClientRect().bottom, range.getBoundingClientRect().bottom);
+  return contentBottom + margin + padding + border <= row.getBoundingClientRect().bottom + .5;
+}
+
 interface FragmentContext { bodyHeight(): number; hasDeferredNote(element: HTMLElement): boolean; deferredNotes(): ReadonlySet<string> }
 
 /** Shared measured table fragments for print and editable continuation plans. */
@@ -133,10 +169,11 @@ export function tableFragmenter(context: FragmentContext) {
     if (element.matches('tr')) { element.style.removeProperty('height'); tail.style.removeProperty('height'); }
     return tail;
   }
-  // Only explicitly permitted continuing merges may cross a row boundary. Keep
-  // the grid and every cell's content exactly once; this is print DOM only.
-  function splitMergedGroup(group: HTMLTableRowElement[], boundary: number): HTMLTableRowElement[] | null {
-    if (group.length < 2 || group.some(r => rowSplitPolicy(r.dataset) === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
+  function splitMergedGroup(group: HTMLTableRowElement[], boundary: number, protectedFit?: () => boolean): HTMLTableRowElement[] | null {
+    if (group.length < 2) return null;
+    if (protectedFit) {
+      if (group.at(-1)!.getBoundingClientRect().bottom <= boundary + .5) return null;
+    } else if (group.some(r => rowSplitPolicy(r.dataset) === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
     const entries: { cell: HTMLTableCellElement; row: number; col: number }[] = [];
     const occupied: number[] = [];
     for (let row = 0; row < group.length; row++) {
@@ -148,11 +185,41 @@ export function tableFragmenter(context: FragmentContext) {
         col += cell.colSpan;
       }
     }
-    for (let cut = group.length - 1; cut > 0; cut--) {
+    const firstBody = protectedFit ? group.findIndex(row => !headerRow(row)) : 0;
+    if (firstBody < 0) return null;
+    const borderFactor = protectedFit && getComputedStyle(group[0].closest('table')!).borderCollapse === 'collapse' ? .5 : 1;
+    for (let cut = group.length - 1; cut > firstBody; cut--) {
       if (group[cut - 1].getBoundingClientRect().bottom > boundary + .5) continue;
       const crossings = entries.filter(e => e.row < cut && e.row + e.cell.rowSpan > cut);
-      if (!crossings.length || crossings.some(e => e.cell.dataset.cellSplit !== 'allow')) continue;
+      if (!crossings.length) continue;
       const tails = group.slice(cut);
+      if (protectedFit) {
+        // cantSplit applies within a row. Leave the owner content intact and
+        // continue only its grid span when that content fits in its own row.
+        if (crossings.some(({ cell, row }) => !mergeContentFitsOwnerRow(cell, group[row], borderFactor))) continue;
+        const parent = tails[0].parentNode!;
+        const followingRow = tails.at(-1)!.nextSibling;
+        const spans = crossings.sort((a, b) => a.col - b.col).map(({ cell, row, col }) => {
+          const span = cell.rowSpan;
+          const next = cell.cloneNode(false) as HTMLTableCellElement;
+          next.dataset.printMergeContinuation = 'true';
+          next.rowSpan = row + span - cut;
+          cell.rowSpan = cut - row;
+          const following = entries.find(entry => entry.row === cut && entry.col > col)?.cell;
+          tails[0].insertBefore(next, following || null);
+          return { cell, span, next, row };
+        });
+        tails.forEach(row => row.remove());
+        if (group[cut - 1].getBoundingClientRect().bottom <= boundary + .5 &&
+          spans.every(({ cell, row }) => mergeContentFitsOwnerRow(cell, group[row], borderFactor)) && protectedFit()) {
+          group.splice(cut);
+          return tails;
+        }
+        for (const { cell, span, next } of spans) { cell.rowSpan = span; next.remove(); }
+        for (const tail of tails) parent.insertBefore(tail, followingRow);
+        continue;
+      }
+      if (crossings.some(e => e.cell.dataset.cellSplit !== 'allow')) continue;
       // The continuation starts at a source row boundary, not at the bottom
       // of the sheet. Filling the unused area below that row stretches the
       // retained rows and makes editor and print disagree about the grid.
