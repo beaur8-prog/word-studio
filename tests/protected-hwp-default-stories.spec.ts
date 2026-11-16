@@ -159,3 +159,258 @@ test('protected HWP whole rows fit within the measured body of default header an
     }
   });
 });
+
+type GridScenario = 'literal-grid' | 'tall-grid' | 'auto-grid';
+const gridLabels = ['QA GRID HEADER', 'QA GRID FOOTER'];
+const gridTwips = [[5295, 1440, 2850], [3210, 3210, 3210]];
+const gridWidths = gridTwips.map(columns => columns.map(width => width / 15));
+
+async function gridStoryFixture(scenario: GridScenario) {
+  const zip = await JSZip.loadAsync(await storyFixture('short'));
+  for (const index of [0, 1]) {
+    const header = index === 0, tall = !header && scenario === 'tall-grid';
+    const layout = !header && scenario === 'auto-grid' ? 'autofit' : 'fixed';
+    const labels = header ? [gridLabels[0], '', ''] : ['', '', gridLabels[1]];
+    const widths = gridTwips[index];
+    const cells = widths.map((width, i) => {
+      const indent = header && labels[i] ? '<w:ind w:left="213" w:hanging="213"/>' : '';
+      const run = labels[i] ? `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:sz w:val="20"/></w:rPr>
+        ${'<w:br/>'.repeat(tall ? 2 : 1)}<w:t>${labels[i]}</w:t></w:r>` : '';
+      return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>
+        <w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="200" w:lineRule="exact"/>${indent}
+        <w:jc w:val="${header ? 'left' : 'right'}"/></w:pPr>${run}</w:p></w:tc>`;
+    }).join('');
+    const padding = ['top', 'left', 'bottom', 'right'].map(side =>
+      `<w:${side} w:w="${side === 'top' || side === 'bottom' ? 28 : 102}" w:type="dxa"/>`).join('');
+    const story = header ? 'hdr' : 'ftr', edge = header ? 'bottom' : 'top';
+    zip.file(`word/${header ? 'header' : 'footer'}1.xml`, `<w:${story} xmlns:w="${word}">
+      <w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((sum, width) => sum + width, 0)}" w:type="dxa"/>
+        <w:tblBorders><w:${edge} w:val="single" w:sz="3" w:color="000000"/></w:tblBorders>
+        <w:tblLayout w:type="${layout}"/><w:tblCellMar>${padding}</w:tblCellMar></w:tblPr>
+        <w:tblGrid>${widths.map(width => `<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>
+        <w:tr><w:trPr><w:trHeight w:val="${header ? 363 : tall ? 650 : 370}" w:hRule="atLeast"/></w:trPr>
+        ${cells}</w:tr></w:tbl></w:${story}>`);
+  }
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+function storyGridLayout(root: Locator, print: boolean) {
+  return root.evaluate(async (scope, print) => {
+    const { documentScale } = await import('/src/document-scale.ts');
+    const papers = scope.querySelectorAll<HTMLElement>(print ? '.print-page' : '.paper-backgrounds > .paper');
+    return [...papers].map(paper => {
+      const reference = paper.getBoundingClientRect(), scale = documentScale(paper);
+      const measure = (element: Element | DOMRect) => {
+        const rect = element instanceof Element ? element.getBoundingClientRect() : element;
+        return [(rect.left - reference.left) / scale, (rect.top - reference.top) / scale,
+          rect.width / scale, rect.height / scale];
+      };
+      return [...paper.querySelectorAll<HTMLTableElement>(print ? '.print-header table,.print-footer table' :
+        '.paper-header table,.paper-footer table')].map(table => {
+        const row = table.rows[0], p = [...row.cells].map(cell => cell.querySelector('p')!).find(p => p.textContent?.trim())!;
+        const range = document.createRange();
+        range.selectNodeContents(p);
+        return {
+          layout: table.dataset.wordTableLayout, text: p.textContent!,
+          rows: table.rows.length, breaks: p.querySelectorAll('br').length,
+          authored: [...row.cells].map(cell => Number(cell.getAttribute('colwidth'))),
+          box: measure(table), cols: [...table.querySelectorAll(':scope > colgroup > col')].map(measure),
+          cells: [...row.cells].map(measure), ink: measure(range.getBoundingClientRect()),
+        };
+      });
+    });
+  }, print);
+}
+
+for (const scenario of ['literal-grid', 'tall-grid', 'auto-grid'] as const) {
+  test(`default story ${scenario} preserves its geometry and protected table placement`, async ({ page }) => {
+    const split = scenario === 'literal-grid', tall = scenario === 'tall-grid';
+    const expectedRows = split ? [1, 1, 1, 2, 2, 2] : [2, 2, 2, 2, 2, 2];
+    const rowPages = (mode: Awaited<ReturnType<typeof storyLayout>>) => mode.flatMap(paper => paper.rows.map(() => paper.number));
+    const name = 'protected-furniture-' + scenario;
+    await page.goto('/');
+    await page.locator('input[type=file]').first().setInputFiles({
+      name: name + '.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buffer: await gridStoryFixture(scenario),
+    });
+    await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue(name);
+    await expect(page.locator('.busy-indicator')).toBeHidden();
+    await page.evaluate(() => document.fonts.ready);
+    const stack = page.locator('.document-stack');
+    await expect.poll(async () => rowPages(await storyLayout(stack, false))).toEqual(expectedRows);
+    const edit = await storyLayout(stack, false);
+    const editGrids = await storyGridLayout(stack, false);
+
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    const preview = page.locator('.print-layout');
+    await expect(preview.locator('.print-page')).toHaveCount(3);
+    const print = await storyLayout(preview, true);
+    const printGrids = await storyGridLayout(preview, true);
+
+    for (const mode of [edit, print]) {
+      expect(mode).toHaveLength(3);
+      expect(rowPages(mode)).toEqual(expectedRows);
+      expect(mode.flatMap(paper => paper.rows.map(row => row.label))).toEqual(rowLabels);
+      expect(mode.flatMap(paper => paper.tableHeads.map(head => [paper.number, head.label]))).toEqual(
+        (split ? [1, 2] : [2]).flatMap(paper => headLabels.map(head => [paper, head])),
+      );
+      for (const paper of mode) {
+        expect(paper.header.text).toEqual([gridLabels[0]]);
+        expect(paper.footer.text).toEqual([gridLabels[1]]);
+        expect(paper.header.painted && paper.footer.painted).toBe(true);
+        expect(paper.body.top).toBeCloseTo(topMargin, 1);
+        expect(Math.abs(paper.height - paper.body.bottom -
+          Math.max(bottomMargin, paper.height - paper.footer.top + 2))).toBeLessThan(.5);
+        if (tall) expect(paper.height - paper.body.bottom - bottomMargin).toBeGreaterThan(10);
+        else expect(paper.height - paper.body.bottom).toBeCloseTo(bottomMargin, 1);
+        for (const row of [...paper.rows, ...paper.tableHeads]) {
+          expect(row.top).toBeGreaterThanOrEqual(paper.body.top - .5);
+          expect(row.bottom).toBeLessThanOrEqual(paper.body.bottom + .5);
+        }
+      }
+    }
+    const nearBox = (edit: number[], print: number[]) => {
+      expect(edit).toHaveLength(print.length);
+      for (const [i, value] of edit.entries()) expect(Math.abs(value - print[i])).toBeLessThan(.5);
+    };
+    for (const [pageIndex, grids] of printGrids.entries()) {
+      expect(grids.map(grid => grid.text)).toEqual(gridLabels);
+      for (const [i, grid] of grids.entries()) {
+        const isAuto = i === 1 && scenario === 'auto-grid';
+        const original = editGrids[pageIndex][i];
+        expect(grid).toMatchObject({ rows: 1, layout: isAuto ? 'autofit' : 'fixed', breaks: i === 1 && tall ? 2 : 1 });
+        expect(original).toMatchObject({ rows: grid.rows, layout: grid.layout, breaks: grid.breaks, text: grid.text });
+        expect(grid.cells).toHaveLength(3);
+        expect(original.cells).toHaveLength(3);
+        expect(original.cols).toHaveLength(grid.cols.length);
+        if (isAuto) {
+          expect(grid.cols).toHaveLength(0);
+          expect(grid.box[2]).toBeLessThan(gridWidths[i].reduce((sum, width) => sum + width, 0));
+        } else {
+          expect(grid.authored).toEqual(gridWidths[i]);
+          expect(original.authored).toEqual(gridWidths[i]);
+          expect(grid.cols).toHaveLength(3);
+          expect(grid.box[2]).toBeCloseTo(gridWidths[i].reduce((sum, width) => sum + width, 0), 1);
+          for (const [n, width] of gridWidths[i].entries()) {
+            expect(grid.cols[n][2]).toBeCloseTo(width, 1);
+            expect(grid.cells[n][2]).toBeCloseTo(width, 1);
+          }
+        }
+        nearBox(original.box, grid.box);
+        nearBox(original.ink, grid.ink);
+        for (const [n, cell] of grid.cells.entries()) nearBox(original.cells[n], cell);
+        for (const [n, col] of grid.cols.entries()) nearBox(original.cols[n], col);
+      }
+      nearBox([edit[pageIndex].body.top, edit[pageIndex].body.bottom],
+        [print[pageIndex].body.top, print[pageIndex].body.bottom]);
+      for (const [i, row] of print[pageIndex].rows.entries()) {
+        const other = edit[pageIndex].rows[i];
+        nearBox([other.x, other.top, other.bottom], [row.x, row.top, row.bottom]);
+      }
+    }
+  });
+}
+
+async function framedGridStoryFixture() {
+  const zip = await JSZip.loadAsync(await gridStoryFixture('literal-grid'));
+  const document = await zip.file('word/document.xml')!.async('string');
+  const sections = [...document.matchAll(/<w:sectPr>[\s\S]*?<\/w:sectPr>/g)];
+  if (sections.length !== 1) throw new Error('Expected the canonical single A4 section');
+  const a4 = sections[0][0];
+  const withBreak = (type: 'nextPage' | 'continuous') =>
+    a4.replace('<w:pgSz', `<w:type w:val="${type}"/><w:pgSz`);
+  const letter = '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/>' +
+    '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>';
+  const paragraph = (text: string, section = '') =>
+    `<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="200" w:lineRule="exact"/>${section}</w:pPr>
+      <w:r><w:t>${text}</w:t></w:r></w:p>`;
+  // The paragraph properties end the current section. Both A4 sections
+  // reference the original same default header and footer table parts.
+  zip.file('word/document.xml', document.replace(a4, withBreak('continuous'))
+    .replace('<w:body>', '<w:body>' + paragraph('QA LETTER FIRST', letter))
+    .replace('</w:tbl>', '</w:tbl>' + paragraph('QA A4 BEFORE CONTINUOUS', withBreak('nextPage')) +
+      paragraph('QA A4 AFTER CONTINUOUS')));
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+function framedGridPlacement(root: Locator, print: boolean) {
+  return root.evaluate(async (scope, { print, rowLabels }) => {
+    const { documentScale } = await import('/src/document-scale.ts');
+    const sheets = [...scope.querySelectorAll<HTMLElement>(print ? '.print-page' : '.section-paper')];
+    const labels = [...rowLabels, 'QA LETTER FIRST', 'QA A4 BEFORE CONTINUOUS', 'QA A4 AFTER CONTINUOUS', 'TAIL'];
+    const selector = print ? '.print-content p' : '.section-editable p';
+    const paragraphs = [...scope.querySelectorAll<HTMLParagraphElement>(selector)]
+      .filter(p => labels.includes(p.textContent!));
+    return sheets.map((sheet, i) => {
+      const bounds = sheet.getBoundingClientRect(), scale = documentScale(sheet);
+      const markers = paragraphs.flatMap(p => {
+        const range = document.createRange(); range.selectNodeContents(p);
+        const ink = range.getBoundingClientRect();
+        const here = print ? p.closest('.print-page') === sheet : ink.top >= bounds.top - .5 && ink.top < bounds.bottom;
+        return here ? [{ text: p.textContent!, page: i + 1, x: (ink.x - bounds.x) / scale, y: (ink.y - bounds.y) / scale }] : [];
+      });
+      return {
+        height: bounds.height / scale, markers,
+        header: sheet.querySelector(print ? '.print-header' : '.section-header')?.textContent?.trim(),
+        footer: sheet.querySelector(print ? '.print-footer' : '.section-footer')?.textContent?.trim(),
+      };
+    });
+  }, { print, rowLabels });
+}
+
+test('an internal continuous section fences an earlier protected table in the same A4 frame', async ({ page }) => {
+  const name = 'protected-grid-framed-continuous';
+  await page.goto('/');
+  await page.locator('input[type=file]').first().setInputFiles({
+    name: name + '.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: await framedGridStoryFixture(),
+  });
+  await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue(name);
+  await expect(page.locator('.busy-indicator')).toBeHidden();
+  await page.evaluate(() => document.fonts.ready);
+  const stack = page.locator('.document-stack'), frames = stack.locator('.document-section-content');
+  await expect(frames).toHaveCount(2);
+  const letter = frames.nth(0), a4 = frames.nth(1);
+  await expect(letter.locator('.section-editable')).toContainText('QA LETTER FIRST');
+  await expect(a4.locator('.section-editable [data-section-page]')).toHaveCount(1);
+  const settings = await a4.evaluate(frame => {
+    const { breakType: firstType, ...first } = JSON.parse((frame as HTMLElement).dataset.sectionContent!);
+    const marker = frame.querySelector<HTMLElement>('.section-editable [data-section-page]')!;
+    const { breakType: nextType, ...next } = JSON.parse(marker.dataset.sectionPage!);
+    const table = frame.querySelector('.section-editable table')!;
+    return { firstType, nextType, first, next,
+      tablePrecedesMarker: !!(table.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING) };
+  });
+  expect(settings).toMatchObject({ firstType: 'nextPage', nextType: 'continuous', tablePrecedesMarker: true });
+  expect(settings.next).toEqual(settings.first);
+  const rowsOnPaper = (layout: Awaited<ReturnType<typeof framedGridPlacement>>) => layout.flatMap(sheet =>
+    sheet.markers.filter(mark => rowLabels.includes(mark.text)).map(mark => [mark.text, mark.page]));
+  const expectedRows = rowLabels.map(text => [text, 3]);
+  await expect.poll(async () => rowsOnPaper(await framedGridPlacement(stack, false))).toEqual(expectedRows);
+  const edited = await framedGridPlacement(stack, false);
+  await page.getByRole('button', { name: '보기', exact: true }).click();
+  await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+  const preview = page.locator('.print-layout');
+  await expect(preview.locator('.print-page')).toHaveCount(4);
+  const printed = await framedGridPlacement(preview, true);
+  for (const mode of [edited, printed]) {
+    expect(mode).toHaveLength(4);
+    expect(mode[0].height).toBeCloseTo(1056, 1);
+    expect(mode[0].markers.map(mark => mark.text)).toEqual(['QA LETTER FIRST']);
+    expect(mode[0].header ?? '').toBe('');
+    expect(mode[0].footer ?? '').toBe('');
+    for (const sheet of mode.slice(1)) {
+      expect(sheet.height).toBeCloseTo(1122.52, 1);
+      expect(sheet.header).toBe('QA GRID HEADER');
+      expect(sheet.footer).toBe('QA GRID FOOTER');
+    }
+    expect(rowsOnPaper(mode)).toEqual(expectedRows);
+    expect(mode[2].markers.slice(-2).map(mark => mark.text)).toEqual(['QA A4 BEFORE CONTINUOUS', 'QA A4 AFTER CONTINUOUS']);
+    expect(mode[3].markers.map(mark => mark.text)).toEqual(['TAIL']);
+  }
+  for (const [i, mark] of edited[2].markers.entries()) {
+    expect(Math.abs(mark.x - printed[2].markers[i].x), mark.text + ' x').toBeLessThan(.75);
+    expect(Math.abs(mark.y - printed[2].markers[i].y), mark.text + ' y').toBeLessThan(.75);
+  }
+});

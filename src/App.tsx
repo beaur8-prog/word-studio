@@ -602,6 +602,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     let frame = 0;
     const update = () => {
       cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
+        const root = editor.view.dom;
         stack.querySelectorAll<HTMLElement>('.paper').forEach(layoutFurnitureImages);
         const margins = pageMargins(page), px = 96 / 25.4;
         const scale = documentScale(stack);
@@ -614,7 +615,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
         const top = Math.max(margins.top * px, story.top), bottom = Math.max(margins.bottom * px, story.bottom);
         stack.style.setProperty('--page-padding', `${top}px ${margins.right * px}px ${bottom}px ${margins.left * px}px`);
         stack.dataset.margin = String(top); stack.dataset.bottomMargin = String(bottom);
-        updateUniformTablePageBody(stack, page, paperStories.length ? undefined : story);
+        updateUniformTablePageBody(stack, page, root.querySelector(':scope > [data-section-page]') ? undefined : story);
         for (const field of stack.querySelectorAll<HTMLElement>('.paper [data-page-number]')) {
           const index = [...stack.querySelectorAll('.paper')].indexOf(field.closest('.paper')!);
           field.textContent = String(field.dataset.pageNumber === 'NUMPAGES' ? pages : index + 1);

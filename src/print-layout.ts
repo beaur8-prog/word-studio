@@ -41,6 +41,10 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   document.body.append(host);
   const style = document.createElement('style'); host.append(style);
   const source = document.createElement('div'); source.innerHTML = html;
+  const flatSectionBoundaries = !!source.querySelector(':scope > [data-section-page]');
+  const framesWithSectionBoundaries = new WeakSet(
+    [...source.querySelectorAll('[data-section-content]')].filter(frame => frame.querySelector('[data-section-page]')),
+  );
   const wordFloatingSpaces = wordLayout.wordHangingSpaces && !source.querySelector('[data-note-reference]');
   if (wordFloatingSpaces) for (const paragraph of source.children)
     if (paragraph instanceof HTMLParagraphElement && isOrdinaryWordBodyParagraph(paragraph, source))
@@ -288,9 +292,13 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     } finally { holder.remove(); }
   }
 
-  const uniformTablePageBody = () => content.closest<HTMLElement>('.print-page')?.dataset.uniformTablePageBody === 'true';
-
   function appendTable(table: HTMLTableElement) {
+    const frame = table.closest('[data-section-content]');
+    // The editor reserves one envelope for an entire section frame. Keep
+    // nonempty stories out of the measured path when that frame has a break.
+    const hasSectionBoundary = frame ? framesWithSectionBoundaries.has(frame) : flatSectionBoundaries;
+    const uniformTablePageBody = () => content.closest<HTMLElement>('.print-page')?.dataset.uniformTablePageBody === 'true' &&
+      (!hasSectionBoundary || hasUniformTablePageBody(settings));
     const [width, height] = dimensions(settings), { top, bottom } = pageMargins(settings);
     const protectedTableFlow = canPlaceProtectedTable(table, { width: width * PX, height: height * PX, top: top * PX, bottom: bottom * PX });
     // Measure the complete source table once. Every printed continuation must
