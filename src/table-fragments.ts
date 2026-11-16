@@ -81,7 +81,8 @@ function canMoveHwpCellParagraph(paragraph: HTMLElement) {
     paragraph.matches('[data-hwp-cell-full-line],[data-hwp-cell-continuation]') ||
     paragraph.querySelector('sup,sub,[data-document-field]')) return false;
   const cell = paragraph.parentElement;
-  if (!(cell instanceof HTMLTableCellElement) || cell.tagName !== 'TD' || cell.colSpan !== 1 ||
+  if (!(cell instanceof HTMLTableCellElement) || cell.colSpan !== 1 ||
+    (cell.tagName === 'TH' && cell.rowSpan !== 1) ||
     centeredContinuationParagraph(cell) !== paragraph || getComputedStyle(cell).verticalAlign !== 'middle') return false;
 
   const line = parseHwpCellLine(paragraph.dataset.hwpCellLine);
@@ -106,7 +107,8 @@ function canMoveHwpCellParagraph(paragraph: HTMLElement) {
   // A compact single line keeps its measured end height only while it fits.
   // Wrapped or explicitly broken text can activate a different terminal box.
   // A merged owner must retain its original single line in the shorter cell.
-  const uniform = cell.rowSpan === 1 && line.advance === line.end;
+  // Repeated headers and merged owners must reproduce a single line.
+  const uniform = cell.tagName === 'TD' && cell.rowSpan === 1 && line.advance === line.end;
   return uniform || (!paragraph.querySelector('br:not(.ProseMirror-trailingBreak)') && paragraphLineOffsets(paragraph).length === 0);
 }
 
@@ -125,7 +127,7 @@ export function canSplitProtectedMergedRows(rows: HTMLTableRowElement[]) {
     [...row.cells].every(cell => cell.rowSpan >= 1 && !cell.style.height && !cell.style.minHeight) &&
     !row.querySelector('table,img:not(.ProseMirror-separator),svg,[data-note-reference],[data-page-number],[data-word-keep-next="true"]') &&
     [...row.querySelectorAll<HTMLElement>('[data-hwp-cell-line]')].every(paragraph =>
-      index >= firstBody && centeredOwner && canMoveHwpCellParagraph(paragraph)) &&
+      centeredOwner && canMoveHwpCellParagraph(paragraph)) &&
     row.getBoundingClientRect().height > 0);
   if (!supportedRows) return false;
   if (!centeredOwner) return true;

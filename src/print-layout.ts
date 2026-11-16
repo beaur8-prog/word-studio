@@ -345,7 +345,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         group.some(row => [...row.cells].some(cell => cell.rowSpan > 1 && getComputedStyle(cell).verticalAlign === 'middle'))) {
         const paper = content.getBoundingClientRect(), tableBox = part.table.getBoundingClientRect();
         const repeats = [...part.body.rows].slice(0, headers.length);
-        if (tableBox.height > paper.height + .5 && !hasCenteredOrdinaryCell(group) && !hasHwpCellLines(group) && canSplitProtectedMergedRows([...repeats, ...group])) {
+        if (tableBox.height > paper.height + .5 && !hasCenteredOrdinaryCell(group) && !hasHwpCellLines([...repeats, ...group]) && canSplitProtectedMergedRows([...repeats, ...group])) {
           const plan = planLongProtectedGroup(part.table, repeats, group, paper.bottom - tableBox.top, paper.height);
           if (plan && applyProtectedPlan(group, plan)) {
             bodyRows = plan.at(-1)!.length; i = end; continue;

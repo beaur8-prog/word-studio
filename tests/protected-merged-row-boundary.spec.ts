@@ -23,6 +23,8 @@ const hwpGuards = {
   'terminal-owner': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: false, allowed: false },
   'natural-owner': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: false, allowed: true },
   'three-line-owner': { policy: '1 Percent 13.3333 21.3 13.3 21.3', line: 320, single: false, allowed: false },
+  'compact-header': { policy: percentCellLine, line: 200, single: true, allowed: true },
+  'mixed-header': { policy: percentCellLine, line: 200, single: true, allowed: false },
 } as const;
 type HwpGuardFixture = keyof typeof hwpGuards;
 
@@ -35,17 +37,21 @@ function hwpGuardAttribute(policy: string, line: number) {
 async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: FooterFixture, cLineCount = 1, edge: HeaderEdgeFixture = 'none', hwpGuard?: HwpGuardFixture) {
   const differentFirstPage = footerFixture === 'different-first-page';
   const hasFooter = footerFixture !== 'none';
+  const headerGuard = hwpGuard === 'compact-header' || hwpGuard === 'mixed-header';
   const naturalOwner = hwpGuard === 'natural-owner' || hwpGuard === 'three-line-owner';
   const ownerA = hwpGuard === 'three-line-owner' ? 'MERGE-A OWNER-A OWNER-B'
     : naturalOwner ? 'MERGE-A OWNER-A' : 'MERGE-A';
   const ownerGuard = hwpGuard === 'compact-owner' || hwpGuard === 'terminal-owner' || naturalOwner;
   const paragraph = (text: string, line = 300) => {
-    const marked = hwpGuard === 'compact-owner' || naturalOwner ? text === ownerA :
+    const marked = headerGuard ? text === (hwpGuard === 'mixed-header' ? 'HEAD-A X' : 'HEAD-A') :
+      hwpGuard === 'compact-owner' || naturalOwner ? text === ownerA :
       hwpGuard === 'terminal-owner' ? text.startsWith('MERGE-C\n') : /^ROW-03(?:\n|$)/.test(text);
     const guard = hwpGuard && marked ? hwpGuards[hwpGuard] : undefined;
     const textElements = text.split('\n').map(value => `<w:t>${value}</w:t>`);
     const run = (content: string, halfPoints = 20) => `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="${halfPoints}"/></w:rPr>${content}</w:r>`;
-    const runs = !text ? '' : guard && hwpGuard === 'mixed'
+    const runs = !text ? '' : guard && hwpGuard === 'mixed-header'
+      ? run('<w:t xml:space="preserve">HEAD-A </w:t>') + run('<w:t>X</w:t>', 16)
+      : guard && hwpGuard === 'mixed'
       ? run(textElements[0] + '<w:br/>') + run(textElements[1], 16)
       : run(textElements.join('<w:br/>'));
     return `<w:p${guard ? hwpGuardAttribute(guard.policy, guard.line) : ''}><w:pPr>
@@ -86,7 +92,8 @@ async function fixture(alignment: 'top' | 'bottom' | 'center', footerFixture: Fo
   const table = `<w:tbl><w:tblPr><w:tblW w:w="6000" w:type="dxa"/><w:tblBorders>${borders}</w:tblBorders>
     <w:tblLayout w:type="fixed"/><w:tblCellMar>${margins}</w:tblCellMar></w:tblPr>
     <w:tblGrid>${widths.map(width => `<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>
-    ${row(heads.map((head, index) => cell(index, head, '', 'top', headerBottom)), true)}${bodyRows}</w:tbl>`;
+    ${row(heads.map((head, index) => cell(index, index === 0 && hwpGuard === 'mixed-header' ? 'HEAD-A X' : head,
+      '', index === 0 && headerGuard ? 'center' : 'top', headerBottom)), true)}${bodyRows}</w:tbl>`;
   const lead = [1, 2, 3, 4].map(i => paragraph(`PREFIX-0${i}`, i === 4 && thickHeader ? 940 : 1060)).join('');
   const zip = new JSZip();
   zip.file('[Content_Types].xml', '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
@@ -785,5 +792,95 @@ for (const name of ['natural-owner', 'three-line-owner'] as const) {
       expect(Math.abs(line.x! - other.x!), line.text + ' x').toBeLessThan(.5);
       expect(Math.abs(line.y - other.y), line.text + ' y').toBeLessThan(.5);
     }
+  });
+}
+
+function repeatingHeaderInk(root: Locator) {
+  return root.evaluate(async scope => {
+    const { documentScale } = await import('/src/document-scale.ts');
+    const paper = scope as HTMLElement;
+    const editor = paper.querySelector<HTMLElement>('.tiptap[contenteditable=true]');
+    return [...paper.querySelectorAll<HTMLParagraphElement>('th > p')].map(p => {
+      const sheet = p.closest<HTMLElement>('.print-page');
+      const origin = (sheet ?? editor ?? paper).getBoundingClientRect();
+      const scale = documentScale(sheet ?? editor ?? paper);
+      const stride = Number(paper.dataset.pageHeight) + 24;
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      const ink = range.getBoundingClientRect(), cell = p.closest('th')!.getBoundingClientRect();
+      const relativeY = (ink.top - origin.top) / scale;
+      const page = sheet ? Number(sheet.dataset.page) : 1 + Math.floor((relativeY + .5) / stride);
+      const policy = p.dataset.hwpCellLine;
+      const sizes = new Set<number>();
+      if (policy) {
+        const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) if (walker.currentNode.textContent?.trim())
+          sizes.add(parseFloat(getComputedStyle(walker.currentNode.parentElement!).fontSize));
+      }
+      return {
+        text: p.textContent, page, overlay: !!p.closest('.pagination-headers'),
+        x: (ink.left - origin.left) / scale, y: sheet ? relativeY : relativeY - (page - 1) * stride,
+        policy, rule: p.dataset.wordLineRule, sizes: [...sizes],
+        font: parseFloat(getComputedStyle(p).fontSize),
+        height: p.getBoundingClientRect().height / scale,
+        inside: ink.width > 0 && ink.height > 0 && ink.top >= cell.top - .5 && ink.bottom <= cell.bottom + .5 &&
+          ink.left >= cell.left - .5 && ink.right <= cell.right + .5,
+      };
+    });
+  });
+}
+
+for (const name of ['compact-header', 'mixed-header'] as const) {
+  test(`compact repeated HWP head ${name} uses only measured whole rows`, async ({ page }) => {
+    const atomic = name === 'mixed-header';
+    const targetRows = atomic ? [2, 2, 2, 2, 2] : [1, 1, 2, 2, 2];
+    const targetPages = atomic ? [2] : [1, 2];
+    const labels = [atomic ? 'HEAD-A X' : 'HEAD-A', ...heads.slice(1)];
+    const bodyRows = (table: Awaited<ReturnType<typeof snapshot>>) => table.markers
+      .filter(marker => /^(ROW|CHECK)-/.test(marker.text));
+    await openFixture(page, 'center', 'none', 2, 'thick-ordinary', name);
+    const stack = page.locator('.document-stack');
+    await expect.poll(async () => bodyRows(await snapshot(stack, false))
+      .filter(marker => marker.text.startsWith('ROW-')).map(marker => marker.page)).toEqual(targetRows);
+    if (atomic) await expect(stack.locator('.pagination-headers th')).toHaveCount(0);
+    else await expect(stack.locator('.pagination-headers th')).toHaveText(labels);
+    const read = async (root: Locator, print: boolean) => ({
+      head: await repeatingHeaderInk(root), body: bodyRows(await snapshot(root, print)),
+      owners: await ownerLinePositions(root, print),
+    });
+    const edited = await read(stack, false);
+
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    const preview = page.locator('.print-layout');
+    await expect(preview.locator('.print-page')).toHaveCount(2);
+    const printed = await read(preview, true);
+
+    for (const [mode, print] of [[edited, false], [printed, true]] as const) {
+      expect(mode.head.map(head => [head.page, head.text])).toEqual(targetPages.flatMap(p => labels.map(label => [p, label])));
+      for (const marker of mode.head) {
+        expect(marker.inside).toBe(true);
+        expect(marker.overlay).toBe(!print && !atomic && marker.page === 2);
+        if (marker.text !== labels[0]) { expect(marker.policy).toBeUndefined(); continue; }
+        expect(marker.policy).toBe(percentCellLine);
+        expect(marker.rule).toBe('exact');
+        expect(marker.font).toBeCloseTo(40 / 3, 1);
+        expect(marker.sizes).toHaveLength(atomic ? 2 : 1);
+        expect(marker.sizes[0]).toBeCloseTo(40 / 3, 1);
+        if (atomic) expect(marker.sizes[1]).toBeCloseTo(32 / 3, 1);
+        else expect(marker.height).toBeCloseTo(13.3, 1);
+      }
+      for (const prefix of ['ROW-', 'CHECK-'])
+        expect(mode.body.filter(marker => marker.text.startsWith(prefix)).map(marker => [marker.text, marker.page, marker.inside]))
+          .toEqual(rows.map((id, index) => [prefix + id, targetRows[index], true]));
+      expect(mode.owners.map(owner => [owner.text, owner.page, owner.inside]))
+        .toEqual(['MERGE-A', 'MERGE-C', 'C-LINE-02'].map(label => [label, atomic ? 2 : 1, true]));
+    }
+    for (const [index, header] of printed.head.entries()) {
+      expect(Math.abs(header.x - edited.head[index].x), header.text + ' x').toBeLessThan(.5);
+      expect(Math.abs(header.y - edited.head[index].y), header.text + ' y').toBeLessThan(.5);
+    }
+    for (const [index, marker] of printed.body.entries())
+      expect(Math.abs(marker.y - edited.body[index].y), marker.text).toBeLessThan(.5);
   });
 }
