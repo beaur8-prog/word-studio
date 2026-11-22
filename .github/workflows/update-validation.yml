@@ -70,6 +70,7 @@ jobs:
         if: runner.os == 'Windows' && !inputs.installer_only
         run: npx playwright test tests/startup.spec.ts tests/editor.spec.ts tests/table-row-resize.spec.ts tests/word-use-cases.spec.ts tests/hwp-reader.spec.ts tests/updates.spec.ts tests/document-lifecycle.spec.ts tests/file-associations.spec.ts tests/native-file-panels.spec.ts --reporter=line
       - name: Latest Word layout and DOCX regression coverage
+        if: ${{ !inputs.installer_only }}
         run: npx playwright test tests/word-calibri-dpr-body-fragments.spec.ts tests/docx-reflection-roundtrip.spec.ts tests/docx-character-spacing.spec.ts tests/docx-auto-hyphenation.spec.ts tests/protected-hwp-default-stories.spec.ts tests/protected-merged-row-boundary.spec.ts tests/floating-owner-overlap-cycle.spec.ts tests/empty-heading-flow.spec.ts --reporter=line
       - name: Real Electron update bridge (Linux)
         if: runner.os == 'Linux'
@@ -139,6 +140,8 @@ jobs:
             .cache/installer-language-*
             .cache/update-in-place*
             .cache/desktop-smoke-*/result.json
+            .cache/desktop-smoke-*/*.json
+            .cache/desktop-smoke-*/*.png
             .cache/hwp-native-*/result.json
             .cache/hwp-editing-native-*/result.json
             test-results/

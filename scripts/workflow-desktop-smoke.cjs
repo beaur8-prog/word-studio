@@ -56,7 +56,10 @@ module.exports = async function workflowDesktopSmoke(app, window, directory) {
   const paragraphs = Array.from({ length: 1000 }, (_, i) => `LONG-${String(i + 1).padStart(4, '0')} ` +
     '한글과 English가 섞인 장문 보고서입니다. 모든 문단과 수정 내용을 저장하고 다시 열어 확인합니다. '.repeat(3));
   const large = path.join(directory, 'long-user-workflow.html');
-  await fs.writeFile(large, paragraphs.map(text => `<p>${text}</p>`).join(''));
+  // DOCX export uses Word's Normal style with widow/orphan protection enabled.
+  // Make the input use that same policy: unstyled HTML has no Word paragraph
+  // metadata, so the first format conversion intentionally changes page breaks.
+  await fs.writeFile(large, paragraphs.map(text => `<p data-word-paragraph-style="Normal" style="widows:2;orphans:2">${text}</p>`).join(''));
   const started = performance.now(); await open(large);
   const metrics = () => editor.locator(':scope > p').nth(1).evaluate(el => {
     const css = getComputedStyle(el), box = el.getBoundingClientRect(), range = document.createRange(); range.selectNodeContents(el);
@@ -65,6 +68,7 @@ module.exports = async function workflowDesktopSmoke(app, window, directory) {
       lines: [...range.getClientRects()].map(r => ({ top: r.top, width: r.width, height: r.height })) };
   });
   await expect(editor.locator(':scope > p')).toHaveCount(paragraphs.length);
+  await expect(editor.locator(':scope > p[data-word-paragraph-style="Normal"]')).toHaveCount(paragraphs.length);
   await expect.poll(async () => Number(await window.locator('.document-stack').getAttribute('data-pages'))).toBeGreaterThan(50);
   const openMs = Math.round(performance.now() - started);
   const initialPages = Number(await window.locator('.document-stack').getAttribute('data-pages'));
