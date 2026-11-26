@@ -1,29 +1,25 @@
 name: Windows regression QA
-run-name: Verify vertical insets of paragraph-anchored Hancom tables on Windows
+run-name: Windows print responsiveness while restoring Hancom cell lines
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  originals:
-    name: Windows projected table insets / ${{ matrix.id }}
+  pixel:
+    name: Windows PDF pixels / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 43
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { group: hwp-3, id: 06-mixed-document }
-          - { group: hwp-1, id: 04-language-plan }
-          - { group: hwp-2, id: 08-math-exam }
+          - {group: hwp-2, id: 02-work-rules, pages: 163}
     env:
-      PLAYWRIGHT_CHANNEL: chromium
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
+      QA_PAGES: ${{ matrix.pages }}
+      WINDOWS_NATIVE_PRINT_PROFILE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,64 +29,42 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
-      - run: npx playwright install chromium
-      - name: Compare saved table placement with the same original on Windows
+      - run: node node_modules/electron/install.js
+      - name: Build and print the same pinned case from both product trees
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/exact-margins" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/pdf-paint" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/exact-margins/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/pdf-paint/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
-          $variants = @('HEAD')
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $variants = @('8b8440c1d3ad96d14f509005e275b36dd81df2ae','HEAD')
+          $versions = [ordered]@{
+            control = 'ee8ae0d1c7eadf02197c7fc62e01b71be43cc9ea'
+            candidate = 'HEAD'
           }
-          if ($env:QA_ID -eq '08-math-exam') {
-            $env:WINDOWS_REQUIRE_REVERSE = '1'
-            $env:WINDOWS_EXACT_REVERSE_PAGES = '1'
-          }
-          foreach ($variant in $variants) {
-            Write-Host "WINDOWS_PRECISE_MARGIN_PRODUCT $variant"
-            git restore --source $variant -- src
+          foreach ($item in $versions.GetEnumerator()) {
+            Write-Host "WINDOWS_PDF_PIXEL_PRODUCT $($item.Key)"
+            git restore --source $item.Value -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
+            git diff --exit-code $item.Value -- src electron vendor package.json package-lock.json
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            if ($env:QA_ID -eq '06-mixed-document') { $env:WINDOWS_TABLE_INSET_WITNESS = '1'; $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/margins-$variant.json" }
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+            npm run build -- --sourcemap
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            node scripts/package-win.cjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Move-Item release/windows "$env:RUNNER_TEMP/pdf-app-$($item.Key)"
+            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/pdf-app-$($item.Key)/Word Studio/Word Studio.exe"
+            $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/$($item.Key)-paint.pdf"
+            if ($item.Key -eq 'control') { $env:WINDOWS_NATIVE_PDF_CLOSE_CONTROL = '1' }
+            else { Remove-Item Env:WINDOWS_NATIVE_PDF_CLOSE_CONTROL -ErrorAction SilentlyContinue }
+            node scripts/windows-qa/native-export-pdf-stages.cjs
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $old = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[0]).json" -Raw | ConvertFrom-Json)
-            $new = @(Get-Content "$env:RUNNER_TEMP/margins-HEAD.json" -Raw | ConvertFrom-Json)
-            if ($old.Count -ne 2 -or $new.Count -ne 2) { throw 'Expected both Hancom formats' }
-            foreach ($index in 0,1) {
-              $control=$old[$index]; $candidate=$new[$index]
-              Write-Host "WINDOWS_PROJECTED_TABLE_PAGES $($candidate.format) total $($control.pages) to $($candidate.pages); first segment $($control.table.page) to $($candidate.table.page); continuation $($control.table.continuationPage) to $($candidate.table.continuationPage)"
-              if ($candidate.format -ne $control.format -or $candidate.pages -gt $control.pages -or
-                  $candidate.lines -ne 2 -or $candidate.outsideRight -ne 0 -or
-                  $candidate.table.page -ne $candidate.table.sourcePage -or
-                  $candidate.table.continuationPage -ne $candidate.table.sourceContinuationPage -or
-                  $candidate.table.textLength -ne $control.table.textLength -or
-                  $candidate.table.top -gt $control.table.top -or $candidate.table.bottom -gt $control.table.bottom) {
-                throw 'Projected table placement or original cell text changed unexpectedly'
-              }
-            }
-            }
-          }
-      - name: Validate both actual DOCX packages
-        shell: pwsh
+      - name: Compare the decoded pixels with the Windows PDF renderer
+        shell: powershell
         run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/exact-margin-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
-          exit $status
+          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/control-paint.pdf" -Candidate "$env:RUNNER_TEMP/candidate-paint.pdf" -ExpectedPages $env:QA_PAGES
   related:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -108,20 +82,6 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
       - run: npx playwright install chromium
-      - run: npm run test -- tests/hwp-projected-table-insets.spec.ts tests/hwp-inline-table-margin.spec.ts tests/hwp-paragraph-table.spec.ts tests/hwp-native-table-lead-ink.spec.ts tests/hwp-related-table-layout.spec.ts --workers=1 --trace=off
-      - name: SDK validate the two paragraph-anchored table DOCX saves
-        shell: pwsh
-        run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-projected-insets-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          $subset = New-Item "$env:RUNNER_TEMP/native-margin-sdk-input" -ItemType Directory
-          foreach ($doc in $docs) { Copy-Item -LiteralPath $doc.FullName -Destination $subset.FullName }
-          dotnet run --project scripts/word-openxml-validator -- $subset.FullName 2 *> "$env:RUNNER_TEMP/native-margin-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PROJECTED_TABLE_SDK total $($docs.Count) exit $status"
-          exit $status
+      - run: npm run test -- tests/hwp-source-text-advances.spec.ts tests/hwp-fitted-cell-line-ends.spec.ts tests/hwp-page-budget.spec.ts --workers=1 --trace=off

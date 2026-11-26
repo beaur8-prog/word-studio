@@ -1,3 +1,4 @@
+import type { LayoutCheckpoint } from './editor-layout-task';
 import { documentScale } from './document-scale';
 import { characterScaleProperty, parseCharacterScale } from './character-scale';
 import { authoredCellParagraphScale, cellCharacterScaleDimensions } from './cell-character-scale';
@@ -1323,7 +1324,7 @@ function fragmentBreaks(group: HTMLElement[], reference: HwpSourceWrap) {
 
 /** Use recorded HWP line starts only on finished print sheets. A split
  * paragraph must still have the original text and a cut at a source line end. */
-export function layoutHwpSourceCellLines(root: HTMLElement) {
+function* sourceCellLineSteps(root: HTMLElement) {
   const paragraphs = [...root.querySelectorAll<HTMLElement>(`p[${hwpSourceWrapAttribute}]`)]
     .filter(paragraph => (parseHwpSourceWrap(paragraph.dataset.hwpSourceWrap)?.ends.length ?? 0) > 1);
   if (!paragraphs.length) return;
@@ -1332,6 +1333,7 @@ export function layoutHwpSourceCellLines(root: HTMLElement) {
   const initialBoxes = boxes.map(geometry);
   const rollback: (() => void)[] = [];
   for (const paragraph of paragraphs) {
+    yield;
     const group = paragraph.getAttribute(groupAttribute);
     paragraph.removeAttribute(groupAttribute);
     if (group !== null) {
@@ -1358,15 +1360,32 @@ export function layoutHwpSourceCellLines(root: HTMLElement) {
     const breaks = fragmentBreaks(group, reference);
     if (!breaks) continue;
     const applied: (() => void)[] = [];
-    const valid = group.every((paragraph, index) => {
+    let valid = true;
+    for (const [index, paragraph] of group.entries()) {
+      yield;
       const restore = tryWrap(paragraph, reference, breaks[index], range, true);
+      if (restore === false) { valid = false; break; }
       if (restore) applied.push(restore);
-      return restore !== false;
-    });
+    }
     if (valid) rollback.push(...applied);
     else applied.forEach(restore => restore());
   }
   if (rollback.length && boxes.some((element, index) => geometry(element) !== initialBoxes[index])) rollback.forEach(restore => restore());
+}
+
+/** The print copy stays hidden until the full pass, including rollback. */
+export function layoutHwpSourceCellLines(root: HTMLElement, checkpoint?: LayoutCheckpoint) {
+  const steps = sourceCellLineSteps(root);
+  if (!checkpoint) {
+    for (const _ of steps) { /* Finish before returning to synchronous callers. */ }
+    return;
+  }
+  return (async () => {
+    for (const _ of steps) {
+      const pause = checkpoint();
+      if (pause) await pause;
+    }
+  })();
 }
 
 /** Keep late, same-height cell wraps separate from the initial source

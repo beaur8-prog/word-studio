@@ -1023,7 +1023,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     await layoutWordCellSpacing(host);
     await layoutHwpSourceAdvances(host, wordLayout.interactive ? layoutCheckpoint(() => signal?.throwIfAborted()) : undefined);
     if (wordLayout.paintHwpCellLines !== false) {
-      layoutHwpSourceCellLines(host);
+      await layoutHwpSourceCellLines(host, wordLayout.interactive ? layoutCheckpoint(() => signal?.throwIfAborted()) : undefined);
       if (hwpSourceFlow?.missingCompactCellFace) {
         const tables = new Set([...host.querySelectorAll(hwpCellFaceFallbackSelector)].map(p => p.closest('table')));
         for (const table of tables) if (table)

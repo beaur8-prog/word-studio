@@ -784,7 +784,7 @@ test('source HWP line opportunities survive an aligned paper cut and reject a ch
     host.style.cssText = 'position:absolute;top:0;left:0;padding:0;width:500px';
     document.body.append(host);
     try {
-      function measure(mode: 'valid' | 'seam' | 'width' | 'edited') {
+      async function measure(mode: 'valid' | 'seam' | 'width' | 'edited', cooperative = false) {
         host.innerHTML = '<div class="print-page" data-page="1"><div class="print-content"></div></div>' +
           '<div class="print-page" data-page="2"><div class="print-content"></div></div>';
         const source = document.createElement('div');
@@ -809,14 +809,23 @@ test('source HWP line opportunities survive an aligned paper cut and reject a ch
           return [x, y, width, height];
         });
         const before = geometry(), original = fragments.map(fragment => paragraphLineOffsets(fragment));
-        layoutHwpSourceCellLines(host);
+        let checkpoints = 0;
+        await layoutHwpSourceCellLines(host, cooperative ? () => {
+          checkpoints++;
+          return new Promise<void>(resolve => setTimeout(resolve, 0));
+        } : undefined);
+        if (cooperative && checkpoints < 3) throw Error('Both page fragments must be checked cooperatively');
         return { before, after: geometry(), original, ends: fragments.map(fragment => paragraphLineOffsets(fragment)),
           text: host.textContent, opportunities: host.querySelectorAll('wbr').length,
           internalIds: host.querySelectorAll('[data-hwp-print-wrap-group]').length };
       }
-      return { valid: measure('valid'), seam: measure('seam'), width: measure('width'), edited: measure('edited') };
+      return { valid: await measure('valid'), seam: await measure('seam'),
+        width: await measure('width'), edited: await measure('edited'),
+        validCooperative: await measure('valid', true), widthCooperative: await measure('width', true) };
     } finally { host.remove(); }
   });
+  expect(measured.validCooperative).toEqual(measured.valid);
+  expect(measured.widthCooperative).toEqual(measured.width);
   expect(measured.valid.original).not.toEqual([[7], [7]]);
   expect(measured.valid.ends).toEqual([[7], [7]]);
   expect(measured.valid.text).toBe('abcdefghijklmnopqrstuvwxyz1234');
