@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Isolate the Korean serif fallback from the measured Windows column proportion
+run-name: Verify active authored HWP serif face on Windows and Linux
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -15,12 +15,14 @@ jobs:
       matrix:
         include:
           - {group: hwp-1, id: 07-english-exam, pages: ''}
+          - {group: hwp-2, id: 04-language-plan, pages: ''}
+          - {group: hwp-3, id: 06-mixed-document, pages: ''}
+          - {group: hwp-3, id: 09-korean-exam, pages: ''}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_ENGLISH_TERMINAL_DETAIL: '1'
-      WINDOWS_TEST_HWP_SERIF_ALIAS: '1'
       WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
     steps:
       - uses: actions/checkout@v4
@@ -47,5 +49,45 @@ jobs:
           $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/print-geometry.json"
           node scripts/windows-qa/native-export-pdf-stages.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/windows-qa/compare-hwp-print-witness.cjs
+          if ($env:QA_ID -eq '07-english-exam') { node scripts/windows-qa/compare-hwp-print-witness.cjs }
+          exit $LASTEXITCODE
+
+  fonts:
+    name: Authored script face / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+        if: runner.os == 'Windows'
+      - run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+      - name: Check exact line and column placement
+        shell: pwsh
+        run: |
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type)
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
+          npm run test -- tests/word-font-fallbacks.spec.ts tests/hwp-column-terminal.spec.ts --workers=1 --trace=off
           exit $LASTEXITCODE

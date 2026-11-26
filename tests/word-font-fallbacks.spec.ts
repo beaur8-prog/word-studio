@@ -180,3 +180,22 @@ test('a partial alias leaves installed fonts alone and never registers an incomp
  });
  expect(result.native).toBe('original');expect(result.after).toEqual(result.before);expect(result.fetched).toBe(false);expect(result.missing).toBe('unavailable');expect(result.countAfterMissing).toBe(0);expect(result.retry).toBe('fallback');expect(result.countAfterRetry).toBe(6);
 });
+
+test('the recorded HWP Korean face gets a serif fallback only while that authored face is active', async ({ page }) => {
+  await page.goto('/');
+  const evidence = await page.evaluate(() => {
+    const host = document.createElement('div');
+    host.className = 'tiptap';
+    host.innerHTML = '<p><span data-hwp-latin-font=\'[&quot;HY신명조&quot;,&quot;Times New Roman&quot;]\' style="font-family:HY신명조;">한글</span>' +
+      '<span data-hwp-latin-font=\'[&quot;HY신명조&quot;,&quot;Times New Roman&quot;]\' style="font-family:Arial;">변경</span>' +
+      '<span data-hwp-latin-font=\'[&quot;HY신명조&quot;,&quot;Times New Roman&quot;]\' style="font-family:HY신명조, Arial;">복합</span>' +
+      '<span style="font-family:HY신명조;">다른 문서</span></p>';
+    document.body.append(host);
+    try {
+      return [...host.querySelectorAll('span')].map(span => [span.style.fontFamily, getComputedStyle(span).fontFamily]);
+    } finally { host.remove(); }
+  });
+  expect(evidence[0][0]).toContain('HY신명조');
+  expect(evidence[0][1]).toContain('Studio Korean Serif');
+  for (const [authored, applied] of evidence.slice(1)) expect(applied).toBe(authored);
+});
