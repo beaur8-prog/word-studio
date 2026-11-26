@@ -328,6 +328,11 @@ async function main() {
         const geometry = await require('./print-geometry.cjs')(page);
         await fs.writeFile(process.env.WINDOWS_NATIVE_PRINT_GEOMETRY, JSON.stringify(geometry));
       }
+      if (process.env.WINDOWS_WORD_LINE_BREAKS) {
+        stage = 'pdf-line-breaks';
+        const lines = await require('./word-print-line-breaks.cjs')(page);
+        await fs.writeFile(process.env.WINDOWS_WORD_LINE_BREAKS, JSON.stringify(lines));
+      }
       if (process.env.WINDOWS_NATIVE_PDF_COPY) {
         if (inventory.length !== 1) throw new Error('A fixed single PDF case is required');
         await fs.copyFile(pdf, process.env.WINDOWS_NATIVE_PDF_COPY);
