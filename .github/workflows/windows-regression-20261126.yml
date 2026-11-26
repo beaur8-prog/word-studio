@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Measure the 06 table placement difference between HWP and HWPX
+run-name: Compare source-proven preceding table insets on Windows page twelve
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -54,6 +54,7 @@ jobs:
             $env:WINDOWS_TERMINAL_WITNESS = '1'
             $env:WINDOWS_ADJACENT_TABLE_WITNESS = '1'
             $env:WINDOWS_PAGE_TWELVE_TABLE = '1'
+            $env:WINDOWS_PAGE_TWELVE_TRIAL = '1'
           }
           foreach ($variant in $variants) {
             Write-Host "WINDOWS_NATIVE_LINE_PRODUCT $variant"
@@ -74,7 +75,7 @@ jobs:
           }
           if ($env:QA_ID -eq '06-mixed-document') {
             $results = @(Get-Content "$env:RUNNER_TEMP/06-margin.json" -Raw | ConvertFrom-Json)
-            if ($results.Count -ne 2) { throw 'Expected both Hancom formats' }
+            if ($results.Count -ne 1 -or $results[0].format -ne 'hwpx') { throw 'Expected the focused HWPX comparison' }
             foreach ($result in $results) {
               $expectedPages = if ($result.format -eq 'hwp') { 39 } else { 43 }
               if ($result.pages -ne $expectedPages -or -not $result.terminal.matches -or -not $result.adjacent.matches) {
