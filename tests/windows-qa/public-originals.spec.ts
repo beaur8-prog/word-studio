@@ -296,6 +296,13 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
               const measure = require('../../scripts/windows-qa/hancom-source-page-offsets.cjs');
               console.log('WINDOWS_HANCOM_PAGE_OFFSETS ' + JSON.stringify({ format, ...measure(original, saved) }));
             }
+            if (process.env.WINDOWS_PAGE_TWELVE_TABLE === '1') {
+              const packaged = format === 'hwp' ? new HwpDocument(saved.exportHwpx()) : undefined;
+              try {
+                const measure = require('../../scripts/windows-qa/hancom-table-fragment-position.cjs');
+                console.log('WINDOWS_HANCOM_PAGE_TWELVE_TABLE ' + JSON.stringify({format, items: measure(original, saved, packaged)}));
+              } finally { packaged?.free(); }
+            }
           } finally { original.free(); }
         }
         if (process.env.WINDOWS_GRID_COMPARISON) {
