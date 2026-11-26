@@ -3,7 +3,7 @@
 const { createHash } = require('node:crypto');
 
 module.exports = async function printGeometry(page) {
-  const values = await page.evaluate(async includeImageIdentity => {
+  const values = await page.evaluate(async ({ includeImageIdentity, includeBodyLines }) => {
     const imageKeys = new Map();
     const imageKey = source => {
       if (!imageKeys.has(source)) imageKeys.set(source, crypto.subtle.digest('SHA-256', new TextEncoder().encode(source))
@@ -11,6 +11,7 @@ module.exports = async function printGeometry(page) {
       return imageKeys.get(source);
     };
     const result = [];
+    const graphemes = includeBodyLines && new Intl.Segmenter(undefined, { granularity: 'grapheme' });
     const norm = value => value.replace(/\s/gu, '');
     const print = document.querySelector('.print-layout.preview');
     for (const [index, sheet] of [...(print?.querySelectorAll('.print-page') ?? [])].entries()) {
@@ -37,8 +38,36 @@ module.exports = async function printGeometry(page) {
         if (!lines.length) continue;
         const sorted = [...new Set(lines.map(box => Math.round(box[1]*10)/10))].sort((a,b)=>a-b);
         const style = getComputedStyle(paragraph), box = paragraph.getBoundingClientRect();
+        const canMeasureLines = graphemes && style.direction === 'ltr' && style.writingMode === 'horizontal-tb' &&
+          !paragraph.closest('table,[data-document-textbox]') &&
+          !paragraph.hasAttribute('data-print-paragraph-fragment') &&
+          !paragraph.querySelector('br,img,svg,sup,sub,[data-document-field],[data-page-number],[data-note-reference],[data-flow-widget]');
+        let lineStarts;
+        if (canMeasureLines) {
+          const content = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+          const bands = [];
+          let offset = 0;
+          while (content.nextNode()) {
+            const node = content.currentNode;
+            if (node.parentElement?.closest('[data-docx-tab]')) continue;
+            for (const { segment, index } of graphemes.segment(node.data)) {
+              const glyph = norm(segment);
+              if (!glyph) continue;
+              range.setStart(node, index);
+              range.setEnd(node, index + segment.length);
+              const rect = range.getBoundingClientRect();
+              if (!(rect.width > 0 && rect.height > 0)) continue;
+              const band = bands.at(-1);
+              const overlap = band && Math.min(band.bottom, rect.bottom) - Math.max(band.top, rect.top);
+              if (!band || overlap < Math.min(band.bottom-band.top, rect.height) * .5)
+                bands.push({ offset, top: rect.top, bottom: rect.bottom });
+              offset += glyph.length;
+            }
+          }
+          if (offset === text.length && bands.length) lineStarts = bands.map(band => band.offset);
+        }
         paragraphs.push({ key: text, length:text.length, p:relative(box), y:[sorted[0],sorted.at(-1)], lines:sorted.length,
-          font:style.fontFamily, size:style.fontSize, lineHeight:style.lineHeight });
+          font:style.fontFamily, size:style.fontSize, lineHeight:style.lineHeight, lineStarts });
       }
       const objects = [...sheet.querySelectorAll('table,img,svg,[data-document-textbox]')].flatMap(element => {
         const box = element.getBoundingClientRect();
@@ -54,7 +83,8 @@ module.exports = async function printGeometry(page) {
     }
     if (!result.length || !result.some(sheet => sheet.ink.length)) throw Error('No printed glyph geometry');
     return result;
-  }, process.env.WINDOWS_CAPTURE_PRINT_IMAGE_IDENTITY === '1');
+  }, { includeImageIdentity: process.env.WINDOWS_CAPTURE_PRINT_IMAGE_IDENTITY === '1',
+    includeBodyLines: process.env.WINDOWS_CAPTURE_HWP_BODY_LINES === '1' });
   for (const item of values) {
     for (const entry of item.ink) entry[0] = createHash('sha256').update(entry[0]).digest('hex');
     for (const paragraph of item.paragraphs) paragraph.key = createHash('sha256').update(paragraph.key).digest('hex');
