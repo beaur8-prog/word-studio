@@ -125,5 +125,9 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
     expect(result.reverse.map(out => ({ format: out.format, valid: out.valid, pictures: out.pictureReadback?.count }))).toEqual([
       { format: 'hwp', valid: true, pictures: 543 }, { format: 'hwpx', valid: true, pictures: 543 },
     ]);
+    if (process.env.WINDOWS_EXACT_REVERSE_PAGES) {
+      expect(result.reverse.map(out => out.pages)).toEqual([20, 20]);
+      expect(result.reverse.every(out => out.pictureReadback?.exactByteOrder)).toBe(true);
+    }
   }
 });

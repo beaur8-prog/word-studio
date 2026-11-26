@@ -120,6 +120,11 @@ async function main() {
       const longest = await page.evaluate(start => Math.max(0, ...window.qaLongTasks
         .filter(task => task.at >= start).map(task => Math.round(task.duration))), rendererStart);
       console.log('WINDOWS_NATIVE_HOLD_LONGEST ' + longest);
+      if (process.env.WINDOWS_WORD_TABLE_WITNESS === '1') {
+        const { sheets, fonts } = await require('./word-table-witness.cjs')(page);
+        console.log('WINDOWS_WORD_TABLE_FACES ' + JSON.stringify(fonts));
+        for (const sheet of sheets) console.log('WINDOWS_WORD_TABLE_SHEET ' + JSON.stringify(sheet));
+      }
       measured++;
     } catch (error) {
       // Playwright errors can include source content. Emit only fixed stage labels.

@@ -7,6 +7,13 @@ import { entities } from './cell-content';
 
 type Columns = { count: number; space: number; balance?: boolean };
 type Change = { columns?: Columns; columnBreak?: boolean };
+
+export function hwpColumnControl(columns: Columns) {
+  const { count, space, balance } = columns;
+  if (!Number.isInteger(count) || count < 1 || count > 12 || !Number.isFinite(space) || space < 0 || space > 1000)
+    throw Error('한글 다단 변환 위치가 올바르지 않습니다.');
+  return `<hp:ctrl><hp:colPr id="" type="${balance ? 'BalancedNewspaper' : 'NEWSPAPER'}" layout="LEFT" colCount="${count}" sameSz="1" sameGap="${Math.round(space * 75)}"/></hp:ctrl>`;
+}
 const attr = (tag: string, name: string) => tag.match(new RegExp(`\\b${name}=["']([^"']*)["']`))?.[1];
 function paragraphText(inner: string) {
   let depth = 0, text = '';
@@ -87,10 +94,8 @@ export function stageHwpColumns(html: string, page: PageSettings) {
       }
       if (pending.columnBreak) paragraph = paragraph.replace(/\bcolumnBreak="[^"]*"/, 'columnBreak="1"');
       if (pending.columns) {
-        const c = pending.columns;
         paragraph = paragraph.replace(/<hp:ctrl>\s*<hp:colPr\b[^>]*\/>\s*<\/hp:ctrl>/g, '');
-        const control = `<hp:ctrl><hp:colPr id="" type="${c.balance ? 'BalancedNewspaper' : 'NEWSPAPER'}" layout="LEFT" colCount="${c.count}" sameSz="1" sameGap="${Math.round(c.space * 75)}"/></hp:ctrl>`;
-        paragraph = paragraph.replace(/(<hp:run\b[^>]*>)/, '$1' + control);
+        paragraph = paragraph.replace(/(<hp:run\b[^>]*>)/, '$1' + hwpColumnControl(pending.columns));
       }
       result += paragraph; keptParagraphs++; pending = {}; pageBreak = false; carriedRuns = '';
     }

@@ -4,6 +4,7 @@ import type { PageSettings } from '../types';
 import documentLimits from '../../electron/document-limits.json';
 import { elementRanges } from './markup-ranges';
 import { entities } from './cell-content';
+import { hwpColumnControl } from './export-columns';
 
 /** Keep one shared style/image dictionary while partitioning the native paste
  * into real sections. Separate HTML pastes would duplicate or remap those IDs. */
@@ -51,7 +52,13 @@ export function stageHwpSections(html: string, page: PageSettings) {
       const firstRun = /^\s*<hp:run\b[^>]*>/.exec(first.inner)?.[0];
       const openRun = firstRun && !firstRun.endsWith('/>') ? firstRun : '';
       const at = first.start + first.open.length + openRun.length;
-      const definition = openRun ? sectionDef : `<hp:run charPrIDRef="0">${sectionDef}</hp:run>`;
+      // The native setter replaces the first column control anywhere in
+      // the section. Seed its initial columns at the first paragraph while
+      // keeping any authored column change after a full-width introduction.
+      const columns = settings[index].columns;
+      const initialColumns = columns && !/<hp:colPr\b/.test(first.inner) ? hwpColumnControl(columns) : '';
+      const startOfSection = sectionDef + initialColumns;
+      const definition = openRun ? startOfSection : `<hp:run charPrIDRef="0">${startOfSection}</hp:run>`;
       body = body.slice(0, at) + definition + body.slice(at);
       files[`Contents/section${index}.xml`] = strToU8(start + body + end);
     });
@@ -67,7 +74,7 @@ export function stageHwpSections(html: string, page: PageSettings) {
       if (restored.getSectionCount() !== settings.length) throw Error('한글 구역을 다시 읽지 못했습니다.');
       settings.forEach((page, section) => {
         if (section) restored.applyParaFormat(section, 0, JSON.stringify({ pageBreakBefore: false }));
-        applyPage(restored, page, section);
+        applyPage(restored, { ...page, columns: undefined }, section);
       });
       return restored;
     } catch (error) { restored.free(); throw error; }

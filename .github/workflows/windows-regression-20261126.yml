@@ -1,57 +1,24 @@
 name: Windows regression QA
-run-name: Windows 163-page native PDF with held preview A-B
+run-name: Windows HWP native columns, merge regression and Word table witnesses
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  paired-native:
+  retained-hwp:
+    name: HWP Windows / ${{ matrix.check }}
     runs-on: windows-latest
-    timeout-minutes: 44
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Build both precise Windows products
-        shell: pwsh
-        run: |
-          npm run package:win:dir
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item release/windows "$env:RUNNER_TEMP/hold-candidate"
-          git restore --source 41acc618817a705e9a03b2919290a84f0ae54c75 -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code 41acc618817a705e9a03b2919290a84f0ae54c75 -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run package:win:dir
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item release/windows "$env:RUNNER_TEMP/hold-before"
-      - name: Run both on the same byte-verified input and Windows runner
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/hold-inputs" --ids 02-work-rules
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/hold-inputs/inventory.json"
-          $statuses = @()
-          foreach ($name in @('before', 'candidate')) {
-            Write-Host "WINDOWS_NATIVE_HOLD_PRODUCT $name"
-            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/hold-$name/Word Studio/Word Studio.exe"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            $statuses += $LASTEXITCODE
-          }
-          if ($statuses -contains 1) { exit 1 }
-  preview-browser:
-    runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [section-columns, long-merge]
     env:
+      QA_CHECK: ${{ matrix.check }}
       PLAYWRIGHT_CHANNEL: chromium
+      WINDOWS_REQUIRE_REVERSE: '1'
+      WINDOWS_EXACT_REVERSE_PAGES: '20'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -62,4 +29,56 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install chromium
-      - run: npm run test -- tests/desktop-print-coordination.spec.ts tests/export-layout-suspension.spec.ts --workers=1 --trace=off
+      - name: Run the separate conversion and merge checks
+        shell: pwsh
+        run: |
+          if ($env:QA_CHECK -eq 'long-merge') {
+            npm run test -- tests/hwp-long-merged-row.spec.ts --workers=1 --trace=off
+            exit $LASTEXITCODE
+          }
+          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/qa-inputs" --ids 08-math-exam
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-inputs/inventory.json"
+          $inputData = Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json
+          if (@($inputData | Where-Object verified).Count -ne 1) { throw 'Fixed original unavailable' }
+          npm run test -- tests/hwp-sections.spec.ts tests/hwp-columns.spec.ts tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+          exit $LASTEXITCODE
+      - name: Validate actual round-trip DOCX packages
+        if: always()
+        shell: pwsh
+        run: |
+          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
+          $expected = if ($env:QA_CHECK -eq 'long-merge') { 12 } else { 2 }
+          if ($outputs.Count -ne $expected) { throw "Expected $expected actual saves, found $($outputs.Count)" }
+          dotnet run --project scripts/word-openxml-validator -- test-results $outputs.Count *> "$env:RUNNER_TEMP/hwp-column-sdk.log"
+          $status = $LASTEXITCODE
+          $bad = @(Get-Content "$env:RUNNER_TEMP/hwp-column-sdk.log" | Where-Object { $_ -match '^\{' } |
+            ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.PSObject.Properties.Name -contains 'failure' -or $_.errors.Count -gt 0 })
+          Write-Host "WINDOWS_PUBLIC_SDK total $($outputs.Count) withErrors $($bad.Count) exit $status"
+          exit $status
+  word-tables:
+    name: Native Windows Word table witnesses
+    runs-on: windows-latest
+    timeout-minutes: 26
+    env:
+      WINDOWS_WORD_TABLE_WITNESS: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run package:win:dir
+      - name: Diagnose the additional page on the fixed Word original
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/qa-word" --ids 02-tables
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-word/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          exit $LASTEXITCODE

@@ -26,7 +26,8 @@ test.beforeAll(async () => {
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
 
 function positions(root: Locator, printed = false, count = 46) {
-  return root.evaluate((root, { printed, count }) => {
+  return root.evaluate(async (root, { printed, count }) => {
+    const { measuredHwpLineInk } = await import('/src/hwp-line-ink.ts');
     const sheet = root.closest<HTMLElement>('.document-stack');
     const origin = root.getBoundingClientRect().top;
     const scale = sheet ? sheet.getBoundingClientRect().width / parseFloat(getComputedStyle(sheet).width) : 1;
@@ -44,9 +45,14 @@ function positions(root: Locator, printed = false, count = 46) {
         top: origin + ((page - 1) * stride + Number(sheet!.dataset.margin)) * scale,
         bottom: origin + ((page - 1) * stride + height - Number(sheet!.dataset.bottomMargin)) * scale,
       };
+      const top = Math.max(cell?.top ?? body.top, body.top);
+      const bottom = Math.min(cell?.bottom ?? body.bottom, body.bottom);
+      const rangeFits = ink.top >= top - 1 && ink.bottom <= bottom + 1;
+      // A font's selection rectangle can extend past a compact HWP cell.
+      // Confirm the painted contour within the original edge in that case.
+      const painted = rangeFits ? null : measuredHwpLineInk(node, scale, parseFloat(getComputedStyle(node).fontSize));
       return [{ marker: marker ? +marker[1] : count + 1, page, fits: ink.height > 1 &&
-        ink.top >= Math.max(cell?.top ?? body.top, body.top) - 1 &&
-        ink.bottom <= Math.min(cell?.bottom ?? body.bottom, body.bottom) + 1 }];
+        (rangeFits || painted !== null && painted.top >= top && painted.bottom <= bottom) }];
     }).sort((a, b) => a.marker - b.marker);
   }, { printed, count });
 }
@@ -126,7 +132,13 @@ test('a manually resized terminal row retires the source minimum proof', async (
   const cell = row.locator('td').first();
   await expect(row).toHaveAttribute('data-hwp-row-reserve', /1022 905\.9/);
   await expect.poll(() => positions(editor)).toEqual(positionsFor(fixtures[0]));
-  await cell.evaluate(node => node.scrollIntoView({ block: 'end' }));
+  await cell.evaluate(async node => {
+    node.scrollIntoView({ block: 'end', behavior: 'instant' });
+    // Leave room for the downward drag inside the workspace, then let the
+    // scroll-driven hover reset run before moving the pointer to the border.
+    node.closest('.document-workspace')?.scrollBy({ top: 80, behavior: 'instant' });
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
   const box = (await cell.boundingBox())!;
   const edge = { x: box.x + box.width / 2, y: box.y + box.height - 1 };
   await page.mouse.move(edge.x, edge.y);

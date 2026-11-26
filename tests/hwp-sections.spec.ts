@@ -77,3 +77,33 @@ for (const format of ['hwp', 'hwpx'] as const) test(`${format}: retains the pape
     expect(section.match(/<hp:p\b[^>]*>[\s\S]*?<\/hp:p>/)?.[0]).toContain('<hp:secPr');
   } finally { doc.free(); }
 });
+
+for (const format of ['hwp', 'hwpx'] as const) test(`${format}: a new section keeps an explicit two-column group after its full-width heading`, async ({ page }) => {
+  await page.goto('/');
+  const bytes = await page.evaluate(async format => {
+    const { HwpReaderSession } = await import('/src/hwp/reader.ts');
+    const { defaultPage } = await import('/src/types.ts');
+    const first = { ...defaultPage, pageNumbers: false };
+    const next = { ...first, columns: { count: 1, space: 0 } };
+    const boundary = JSON.stringify(next).replaceAll('"', '&quot;');
+    const html = '<p>COVER</p><div data-section-page="' + boundary + '"></div>' +
+      '<p>FULL WIDTH</p><div data-column-count="2" data-column-space="24" data-column-balance="false">' +
+      '<p>LEFT COLUMN</p><div data-column-break="true"></div><p>RIGHT COLUMN</p></div>';
+    const session = new HwpReaderSession();
+    try { return [...(await session.export(html, first, format)).bytes]; }
+    finally { session.close(); }
+  }, format);
+  const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
+  const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
+  await init({ module_or_path: await readFile(path.join(core, 'rhwp_bg.wasm')) });
+  const doc = new HwpDocument(Uint8Array.from(bytes));
+  try {
+    expect(doc.getSectionCount()).toBe(2);
+    expect(doc.pageCount()).toBe(2);
+    const { runs } = JSON.parse(doc.getPageTextLayout(1));
+    expect(runs.map(run => run.text).join('')).toBe('FULL WIDTHLEFT COLUMNRIGHT COLUMN');
+    const left = runs.find(run => run.text === 'LEFT COLUMN'), right = runs.find(run => run.text === 'RIGHT COLUMN');
+    expect(right.x - left.x).toBeGreaterThan(200);
+    expect(right.y).toBeCloseTo(left.y, 0);
+  } finally { doc.free(); }
+});
