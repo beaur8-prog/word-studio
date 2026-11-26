@@ -77,7 +77,7 @@ import type {
   ParagraphChild,
   ITableCellBorders,
 } from "docx";
-import { defaultPage, pageMargins, basePageMargins, paperSize, activeDocxPrintPaper } from "./types";
+import { defaultPage, pageMargins, basePageMargins, paperSize, activeDocxPrintPaper, wordLanguageTag } from "./types";
 import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE, TABLE_END_STYLE } from './docx-metadata';
 import { emptyLineDocxProperty, emptyLineCompatibilityWarning } from './page-empty-lines';
 import { normalizeDocxTables } from './docx-table-grid';
@@ -194,12 +194,19 @@ export function validateDocument(input: unknown): StudioDocument {
   if (!object(input)) fail("Word Studio 문서가 올바른 JSON 객체가 아닙니다.");
   keysOnly(
     input,
-    ["id", "format", "version", "title", "content", "page", "wordAutoHyphenation", "wordWrapTrailSpaces", "wordDefaultHangingSpaces", "comments", "updatedAt"],
+    ["id", "format", "version", "title", "content", "page", "wordDefaultLanguage", "wordAutoHyphenation", "wordWrapTrailSpaces", "wordDefaultHangingSpaces", "comments", "updatedAt"],
     "문서",
   );
   if (input.format !== "word-studio" || input.version !== 1)
     fail("지원하지 않는 Word Studio 문서 버전입니다.");
   if (input.id !== undefined && (typeof input.id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(input.id))) fail('문서 ID가 올바르지 않습니다.');
+  if (input.wordDefaultLanguage !== undefined) {
+    const language = input.wordDefaultLanguage;
+    if (!object(language)) fail('Word 기본 언어 설정이 올바르지 않습니다.');
+    keysOnly(language, ['value', 'eastAsia', 'bidirectional'], 'Word 기본 언어 설정');
+    const tags = Object.values(language).filter(tag => tag !== undefined);
+    if (!tags.length || !tags.every(wordLanguageTag)) fail('Word 기본 언어 설정이 올바르지 않습니다.');
+  }
   if (input.wordAutoHyphenation !== undefined && typeof input.wordAutoHyphenation !== 'boolean')
     fail('Word 자동 하이픈 설정이 올바르지 않습니다.');
   if (input.wordWrapTrailSpaces !== undefined && typeof input.wordWrapTrailSpaces !== 'boolean')
@@ -867,6 +874,7 @@ export async function importFile(file: File): Promise<ImportResult> {
   if (textboxes.count) warnings.push(`텍스트상자 ${textboxes.count}개의 내용을 배경·크기와 함께 편집 가능한 별도 영역으로 가져왔습니다.`);
   const metadata = await prepareDocxMetadata(zip, body, pages, { connectedBodyBorders: true });
   doc.comments = metadata.comments;
+  if (metadata.wordDefaultLanguage) doc.wordDefaultLanguage = metadata.wordDefaultLanguage;
   const commentsPart = zip.file('word/comments.xml');
   if (commentsPart) {
     const raw = elements(xml(await commentsPart.async('string')), 'comment');
@@ -1878,7 +1886,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     numbering: { config: numbering },
     footnotes, endnotes,
     comments: { children: comments },
-    styles: { default: { document: { run: { font: '맑은 고딕', size: 22 }, paragraph: { spacing: { after: 120, line: 276 } } } },
+    styles: { default: { document: { run: { font: '맑은 고딕', size: 22, language: document.wordDefaultLanguage }, paragraph: { spacing: { after: 120, line: 276 } } } },
       paragraphStyles: [
         ...[...paragraphStyles.values()].filter(style => !style.builtIn),
         ...[TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : id === SECTION_BOUNDARY_STYLE ? 'Section boundary' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })),

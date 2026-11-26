@@ -5,6 +5,7 @@ import { wordNumberText } from './word-numbering';
 import { parseWordParagraphBottomBorder } from './word-paragraph-border';
 import { parseParagraphBorderBox, type ParagraphBorderBox } from './paragraph-border-box';
 import { characterScaleProperty, parseCharacterScale } from './character-scale';
+import { wordLanguageTag } from './types';
 
 export const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 export const all = (root: Element | Document, tag: string) => Array.from(root.getElementsByTagNameNS(W, tag));
@@ -28,6 +29,10 @@ export async function docxFormat(zip: JSZip) {
   const normal = all(styles, 'style').find(s => val(s, 'type') === 'paragraph' && ['1', 'true', 'on'].includes(val(s, 'default')));
   const normalTable = all(styles, 'style').find(s => val(s, 'type') === 'table' && val(s, 'default') === '1');
   const defaults = all(styles, 'docDefaults')[0];
+  const language = child(child(child(defaults, 'rPrDefault'), 'rPr'), 'lang');
+  const wordDefaultLanguage = language?.namespaceURI === W ? {
+    value: val(language), eastAsia: val(language, 'eastAsia'), bidirectional: val(language, 'bidi'),
+  } : undefined;
   const numberingFile = zip.file('word/numbering.xml');
   const numberingXml = numberingFile ? new DOMParser().parseFromString(await numberingFile.async('string'), 'application/xml') : undefined;
   const counters = new Map<string, number[]>();
@@ -263,6 +268,11 @@ export async function docxFormat(zip: JSZip) {
     return style.cssText;
   }
   return {
+    wordDefaultLanguage: wordDefaultLanguage && Object.values(wordDefaultLanguage).some(wordLanguageTag) ? {
+      value: wordLanguageTag(wordDefaultLanguage.value) ? wordDefaultLanguage.value : undefined,
+      eastAsia: wordLanguageTag(wordDefaultLanguage.eastAsia) ? wordDefaultLanguage.eastAsia : undefined,
+      bidirectional: wordLanguageTag(wordDefaultLanguage.bidirectional) ? wordDefaultLanguage.bidirectional : undefined,
+    } : undefined,
     paragraphStyle(p: Element) {
       return val(child(child(p, 'pPr'), 'pStyle')) || val(normal, 'styleId') || 'Normal';
     },

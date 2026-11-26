@@ -91,6 +91,8 @@ async function main() {
       const editorLongTasks = await page.evaluate(start => window.qaLongTasks.filter(task => task.at >= start)
         .map(task => Math.round(task.duration)).sort((a,b) => b-a).slice(0,5), rendererStarted);
       console.log('WINDOWS_HWP_EDITOR_READY ' + JSON.stringify({ id: item.id, editorPages, editorMilliseconds, editorLongTasks }));
+      const finishProfile = process.env.WINDOWS_NATIVE_PRINT_PROFILE === '1'
+        ? await require('./print-profile.cjs')(page) : undefined;
       stage = 'native-export-command';
       const rendererStart = await page.evaluate(() => performance.now());
       const started = Date.now();
@@ -125,6 +127,7 @@ async function main() {
         console.log('WINDOWS_WORD_TABLE_FACES ' + JSON.stringify(fonts));
         for (const sheet of sheets) console.log('WINDOWS_WORD_TABLE_SHEET ' + JSON.stringify(sheet));
       }
+      await finishProfile?.();
       measured++;
     } catch (error) {
       // Playwright errors can include source content. Emit only fixed stage labels.

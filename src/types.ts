@@ -52,6 +52,21 @@ export interface Comment {
   initials?: string;
   html?: string;
 }
+export type WordDefaultLanguage = { value?: string; eastAsia?: string; bidirectional?: string };
+
+export function wordLanguageTag(value: unknown): value is string {
+  return typeof value === 'string' && value.length <= 63 && /^[a-z]{1,8}(?:-[a-z0-9]{1,8})*$/i.test(value);
+}
+
+/** A single HTML language only represents defaults that agree for Latin
+ * and East Asian runs. Keep distinct OOXML defaults for the next save. */
+export function wordContentLanguage(language?: WordDefaultLanguage) {
+  const value = language?.value;
+  if (!value || /^(?:x-none|und)$/i.test(value)) return;
+  const eastAsia = language.eastAsia;
+  if (eastAsia && !/^(?:x-none|und)$/i.test(eastAsia) && eastAsia.toLowerCase() !== value.toLowerCase()) return;
+  return value;
+}
 export interface StudioDocument {
   id?: string;
   format: "word-studio";
@@ -59,6 +74,8 @@ export interface StudioDocument {
   title: string;
   content: JSONContent;
   page: PageSettings;
+  /** Authored DOCX document defaults for text language. */
+  wordDefaultLanguage?: WordDefaultLanguage;
   /** Document-wide Word auto hyphenation flag. Undefined keeps the DOCX element absent. */
   wordAutoHyphenation?: boolean;
   /** Preserve the authored Word trailing-space wrap option, including explicit off. */

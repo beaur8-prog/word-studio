@@ -1,4 +1,4 @@
-import type { StudioDocument } from './types';
+import { wordContentLanguage, type StudioDocument } from './types';
 import { parseTabStops, parseWordNumberingTabs } from './document-tabs';
 import { cssPixels } from './hwp-cell-line';
 import { isWordGroupedRectTextBox, textBoxFrame } from './textbox-frame';
@@ -8,11 +8,13 @@ export const wordDefaultHangingSpacesProperty = 'WordStudio.DefaultTrailingSpace
 export type WordLayoutOptions = {
   wordHangingSpaces?: boolean;
   wordBodyStrut?: boolean;
+  language?: string;
 };
 
 export function wordLayoutOptions(doc: StudioDocument): WordLayoutOptions {
   return {
     wordHangingSpaces: usesWordHangingSpaces(doc),
+    language: wordContentLanguage(doc.wordDefaultLanguage),
     // The explicit OOXML flag models one whitespace behavior. Either setting
     // still carries Word's layout policy, as does the recovered Word default.
     wordBodyStrut: doc.wordWrapTrailSpaces !== undefined || doc.wordDefaultHangingSpaces === true,

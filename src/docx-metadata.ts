@@ -251,7 +251,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
   zip.file('word/document.xml', new XMLSerializer().serializeToString(body));
   await encodeDocxXmlParts(zip);
   return {
-    buffer: await zip.generateAsync({ type: 'arraybuffer' }), comments,
+    buffer: await zip.generateAsync({ type: 'arraybuffer' }), comments, wordDefaultLanguage: format.wordDefaultLanguage,
     decorate(html: string) {
       // Anchor markers nested inside hyperlinks make the HTML parser close the
       // outer link. Convert markers before parsing, not after damage is done.

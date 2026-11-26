@@ -80,10 +80,12 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   }
   const host = document.createElement('div');
   host.className = 'print-layout measuring';
+  if (wordLayout.language) host.lang = wordLayout.language;
   host.setAttribute('aria-label', '인쇄 미리보기 문서');
   document.body.append(host);
   const style = document.createElement('style'); host.append(style);
   const source = document.createElement('div'); source.innerHTML = html;
+  if (wordLayout.language) source.lang = wordLayout.language;
   layoutHwpNestedTables(source);
   if (wordLayout.paintHwpCellLines !== false) layoutHwpRelatedTables(source, initialPage);
   layoutCellCharacterScale(source);

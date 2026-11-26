@@ -83,7 +83,7 @@ import { HwpProgressPanel } from './hwp/ProgressPanel';
 import { paintHwpProgress, type HwpOperation, type HwpProgressReporter } from './hwp/progress';
 import type { EditableHwp } from './hwp/conversion';
 import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
-import { defaultPage, hasUniformTablePageBody, pageMargins, pageFurniture, paperSize } from "./types";
+import { defaultPage, hasUniformTablePageBody, pageMargins, pageFurniture, paperSize, wordContentLanguage } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
 import { suspendEditorReflow, withoutEditorReflow } from './editor-layout-task';
@@ -330,6 +330,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     [documentId, setDocumentId] = useState(initial.id || crypto.randomUUID()),
     [title, setTitle] = useState(initial.title),
     [page, setPage] = useState<PageSettings>(initial.page),
+    [wordDefaultLanguage, setWordDefaultLanguage] = useState(initial.wordDefaultLanguage),
     [wordAutoHyphenation, setWordAutoHyphenation] = useState(initial.wordAutoHyphenation),
     [wordWrapTrailSpaces, setWordWrapTrailSpaces] = useState(initial.wordWrapTrailSpaces),
     [wordDefaultHangingSpaces, setWordDefaultHangingSpaces] = useState(initial.wordDefaultHangingSpaces),
@@ -463,6 +464,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     title,
     content: editor?.getJSON() ?? initial.content,
     page,
+    wordDefaultLanguage,
     wordAutoHyphenation,
     wordWrapTrailSpaces,
     wordDefaultHangingSpaces,
@@ -472,11 +474,11 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   const lastSessionDocument = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!editor || !session.current) return;
-    const doc = currentRef.current, signature = JSON.stringify([doc.id, doc.title, doc.page, doc.wordAutoHyphenation, doc.wordWrapTrailSpaces, doc.wordDefaultHangingSpaces, doc.comments, doc.content]);
+    const doc = currentRef.current, signature = JSON.stringify([doc.id, doc.title, doc.page, doc.wordDefaultLanguage, doc.wordAutoHyphenation, doc.wordWrapTrailSpaces, doc.wordDefaultHangingSpaces, doc.comments, doc.content]);
     if (lastSessionDocument.current === signature) return;
     const changed = lastSessionDocument.current !== undefined;
     lastSessionDocument.current = signature; session.current.onDocument(structuredClone(doc), changed);
-  }, [editor, documentId, title, page, wordAutoHyphenation, wordWrapTrailSpaces, wordDefaultHangingSpaces, comments, revision]);
+  }, [editor, documentId, title, page, wordDefaultLanguage, wordAutoHyphenation, wordWrapTrailSpaces, wordDefaultHangingSpaces, comments, revision]);
   const overlays = useRef({ modal, command, fileMenu }); overlays.current = { modal, command, fileMenu };
   useEffect(() => {
     if (!editor || !session.current) return;
@@ -500,7 +502,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     return () => cancelAnimationFrame(frame);
   }, [editor, androidSession?.active]);
   const unusedStartupDocument = (doc: StudioDocument) => !startupTouched.current && doc.id === initial.id &&
-    doc.title === initial.title && doc.wordAutoHyphenation === initial.wordAutoHyphenation &&
+    doc.title === initial.title && doc.wordDefaultLanguage === initial.wordDefaultLanguage && doc.wordAutoHyphenation === initial.wordAutoHyphenation &&
     doc.wordWrapTrailSpaces === initial.wordWrapTrailSpaces && doc.wordDefaultHangingSpaces === initial.wordDefaultHangingSpaces &&
     JSON.stringify(doc.page) === JSON.stringify(initial.page) &&
     JSON.stringify(doc.comments) === JSON.stringify(initial.comments) &&
@@ -530,7 +532,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       });
     }, 600);
     return () => clearTimeout(id);
-  }, [editor, documentId, title, page, wordAutoHyphenation, wordWrapTrailSpaces, wordDefaultHangingSpaces, comments, revision]);
+  }, [editor, documentId, title, page, wordDefaultLanguage, wordAutoHyphenation, wordWrapTrailSpaces, wordDefaultHangingSpaces, comments, revision]);
   useEffect(() => {
     const persist = (event: BeforeUnloadEvent) => {
       if (pendingRecovery.current) {
@@ -634,7 +636,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       requestAnimationFrame(() =>
         editor.view.dispatch(editor.state.tr.setMeta("addToHistory", false)),
       );
-  }, [page, editor]);
+  }, [page, editor, wordDefaultLanguage]);
   useEffect(() => () => {
     clearTimeout(toastTimer.current);
     pendingPreview.current?.controller.abort();
@@ -661,6 +663,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     setDocumentId(doc.id || crypto.randomUUID());
     setTitle(doc.title);
     setPage(doc.page);
+    setWordDefaultLanguage(doc.wordDefaultLanguage);
     setWordAutoHyphenation(doc.wordAutoHyphenation);
     setWordWrapTrailSpaces(doc.wordWrapTrailSpaces);
     setWordDefaultHangingSpaces(doc.wordDefaultHangingSpaces);
@@ -2314,6 +2317,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
               )}
               <div
                 className={`document-stack ${marks ? "show-marks" : ""}`}
+                lang={wordContentLanguage(wordDefaultLanguage)}
                 data-page-height={pageHeight}
                 data-margin={margin}
                 data-bottom-margin={margins.bottom * 96 / 25.4}

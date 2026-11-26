@@ -83,12 +83,12 @@ for (const format of ['hwp', 'hwpx'] as const) test(`${format}: a new section ke
   const bytes = await page.evaluate(async format => {
     const { HwpReaderSession } = await import('/src/hwp/reader.ts');
     const { defaultPage } = await import('/src/types.ts');
-    const first = { ...defaultPage, pageNumbers: false };
+    const first = { ...defaultPage, pageNumbers: false, columns: { count: 2, space: 18 } };
     const next = { ...first, columns: { count: 1, space: 0 } };
     const boundary = JSON.stringify(next).replaceAll('"', '&quot;');
     const html = '<p>COVER</p><div data-section-page="' + boundary + '"></div>' +
       '<p>FULL WIDTH</p><div data-column-count="2" data-column-space="24" data-column-balance="false">' +
-      '<p>LEFT COLUMN</p><div data-column-break="true"></div><p>RIGHT COLUMN</p></div>';
+      '<p>LEFT COLUMN</p><div data-column-break="true"></div><p>RIGHT COLUMN</p></div><p>WIDE TAIL</p>';
     const session = new HwpReaderSession();
     try { return [...(await session.export(html, first, format)).bytes]; }
     finally { session.close(); }
@@ -101,9 +101,11 @@ for (const format of ['hwp', 'hwpx'] as const) test(`${format}: a new section ke
     expect(doc.getSectionCount()).toBe(2);
     expect(doc.pageCount()).toBe(2);
     const { runs } = JSON.parse(doc.getPageTextLayout(1));
-    expect(runs.map(run => run.text).join('')).toBe('FULL WIDTHLEFT COLUMNRIGHT COLUMN');
+    expect(runs.map(run => run.text).join('')).toBe('FULL WIDTHLEFT COLUMNRIGHT COLUMNWIDE TAIL');
     const left = runs.find(run => run.text === 'LEFT COLUMN'), right = runs.find(run => run.text === 'RIGHT COLUMN');
     expect(right.x - left.x).toBeGreaterThan(200);
     expect(right.y).toBeCloseTo(left.y, 0);
+    const section = strFromU8(unzipSync(doc.exportHwpx())['Contents/section1.xml']);
+    expect([...section.matchAll(/<hp:colPr\b[^>]*\bcolCount="(\d+)"/g)].map(match => Number(match[1]))).toEqual([1, 2, 1]);
   } finally { doc.free(); }
 });

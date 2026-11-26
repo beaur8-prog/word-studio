@@ -10,12 +10,15 @@ import { hwpColumnControl } from './export-columns';
  * into real sections. Separate HTML pastes would duplicate or remap those IDs. */
 export function stageHwpSections(html: string, page: PageSettings) {
   const prefix = `WORDSTUDIO-SECTION-${crypto.randomUUID()}-`, settings = [page];
+  const columnDefaults = new Map<string, PageSettings['columns']>();
   const staged = html.replace(/<div\b[^>]*\bdata-section-page=(["'])([\s\S]*?)\1[^>]*>\s*<\/div>/gi, (_, _quote, value: string) => {
     const next = JSON.parse(entities(value)) as PageSettings;
     if (!next || !['A4', 'Letter', 'Custom'].includes(next.size) || !['portrait', 'landscape'].includes(next.orientation)) throw Error('한글 구역의 용지 설정이 올바르지 않습니다.');
-    return `<p>${prefix}${settings.push(next) - 1}-END</p>`;
+    const token = `${prefix}${settings.push(next) - 1}-END`;
+    columnDefaults.set(token, next.columns);
+    return `<p>${token}</p>`;
   });
-  return { html: staged, settings, restore(Core: typeof HwpDocument, doc: HwpDocument, applyPage: (doc: HwpDocument, page: PageSettings, section: number) => void) {
+  return { html: staged, settings, columnDefaults, restore(Core: typeof HwpDocument, doc: HwpDocument, applyPage: (doc: HwpDocument, page: PageSettings, section: number) => void) {
     if (settings.length === 1) return doc;
     let size = 0;
     const files = unzipSync(doc.exportHwpx(), { filter: file => {

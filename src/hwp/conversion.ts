@@ -2679,7 +2679,7 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     const pictures = stageHwpPictures(notes.html, nativeStructuredPasteBytes);
     const fields = stageHwpFields(pictures.html);
     const navigation = stageHwpTextNavigation(fields.html);
-    const columns = stageHwpColumns(navigation.html, page);
+    const columns = stageHwpColumns(navigation.html, page, sections.columnDefaults);
     const widths = stageHwpCharacterWidths(columns.html);
     const convertPageBreaks = (body: string) => body.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
     pasteHwpBody(doc, convertPageBreaks(widths.html), breakToken, onProgress);

@@ -28,13 +28,21 @@ function paragraphText(inner: string) {
 /** Native clipboard HTML discards column groups and explicit column breaks.
  * Stage structural markers, then replace them with normalized HWPX controls.
  * All styles/images still come from the same native HTML paste. */
-export function stageHwpColumns(html: string, page: PageSettings) {
+export function stageHwpColumns(html: string, page: PageSettings,
+  columnDefaults: ReadonlyMap<string, PageSettings['columns']>) {
   const prefix = `WORDSTUDIO-COLUMNS-${crypto.randomUUID()}-`, changes: Change[] = [];
-  let columns: Columns = page.columns ?? { count: 1, space: 0 }, output = '', cursor = 0;
+  const single = { count: 1, space: 0 };
+  let columns: Columns = page.columns ?? single, output = '', cursor = 0;
   const stack: (Columns | undefined)[] = [];
   const marker = (change: Change) => `<p>${prefix}${changes.push(change) - 1}-END</p>`;
-  for (const token of html.matchAll(/<\/?div\b[^>]*>/g)) {
+  for (const token of html.matchAll(/<\/?div\b[^>]*>|<p>(WORDSTUDIO-SECTION-[\da-f-]+-\d+-END)<\/p>/g)) {
     const tag = token[0]; output += html.slice(cursor, token.index); cursor = token.index! + tag.length;
+    if (token[1]) {
+      // Closing a column group restores the settings of its own section.
+      if (columnDefaults.has(token[1])) columns = columnDefaults.get(token[1]) ?? single;
+      output += tag;
+      continue;
+    }
     if (tag.startsWith('</')) {
       const previous = stack.pop();
       if (previous) { columns = previous; output += marker({ columns }); }
