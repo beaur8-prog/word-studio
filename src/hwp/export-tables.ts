@@ -1,3 +1,4 @@
+import { nativeOverhangOriginAttribute } from '../hwp-table-continuation';
 import { hwpNativeCompactRowAttribute } from '../hwp-centered-cell-labels';
 import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
@@ -87,12 +88,13 @@ export function stageHwpTables(html: string) {
     const breakMode = anchor && mode === 'flow' ? nativeParagraphFlow(table.open, anchor) : undefined;
     const top = anchor ? undefined : hwpInlineTableTop(topAttribute.exec(table.open)?.[1]);
     const bottom = anchor ? undefined : hwpInlineTableBottom(bottomAttribute.exec(table.open)?.[1]);
+    const sourceOrigin = table.open.includes(` ${nativeOverhangOriginAttribute}="true"`) ? pasteOuterMargin : undefined;
     const placement = mode === 'label' ? { mode } as const
       : anchor && breakMode ? { mode: 'flow', anchor, breakMode } as const
       : anchor?.overlay ? { mode: 'overlay', anchor } as const
       : anchor ? projectedInlineInsets(table.open, table.inner, anchor)
-      : bottom !== undefined || top !== undefined && top !== pasteOuterMargin
-        ? { mode: 'inline-insets', top, bottom } as const : undefined;
+      : bottom !== undefined || top !== undefined && top !== pasteOuterMargin || sourceOrigin !== undefined
+        ? { mode: 'inline-insets', top, bottom, left: sourceOrigin } as const : undefined;
     if (!placement) continue;
     let depth = 0, at = -1;
     for (const m of table.inner.matchAll(/<\/?(?:table|p)\b[^>]*>/g)) {

@@ -1,4 +1,4 @@
-import { clearHwpSingleCellLineProjection } from '../hwp-source-cell-lines';
+import { nativeOverhangOriginAttribute } from '../hwp-table-continuation';
 import { hwpCenteredCellLabelsAttribute, hwpNativeCompactRowAttribute, markHwpNativeCompactRow } from '../hwp-centered-cell-labels';
 import { activeHwpLatinFont, hwpLatinFontAttribute } from '../hwp-latin-font';
 import { characterScaleProperty } from '../character-scale';
@@ -270,7 +270,6 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       }
       const terminalTable = content?.lastElementChild;
       if (content && terminalTable instanceof HTMLTableElement) markHwpNativeCompactRow(terminalTable, content);
-      if (content) clearHwpSingleCellLineProjection(content);
       const body = content?.innerHTML || '<p></p>';
       const original = layout.pageSettings.get(sheet) ?? previousPage;
       const first = sheet.getAttribute('data-section-first') === 'true';
@@ -304,8 +303,10 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       if (span.attributes.length === 1) span.replaceWith(...span.childNodes);
     const anchors = [...root.querySelectorAll<HTMLElement>('[data-document-textbox]')].map(box =>
       [box.dataset.documentTextbox, box.getAttribute(nativeBoxAnchor)] as const);
-    const continuedTables = [...root.querySelectorAll<HTMLTableElement>('table')].map(table =>
-      table.hasAttribute(nativeContinuedTableAttribute) ? table.dataset.tableAnchor : undefined);
+    const tableProofs = [...root.querySelectorAll<HTMLTableElement>('table')].map(table => ({
+      anchor: table.hasAttribute(nativeContinuedTableAttribute) ? table.dataset.tableAnchor : undefined,
+      source: table.hasAttribute(nativeOverhangOriginAttribute) ? table.dataset.hwpTableContinuation : undefined,
+    }));
     const compactRows = root.querySelector(`tr[${hwpNativeCompactRowAttribute}]`)
       ? [...root.querySelectorAll<HTMLTableRowElement>('tr')].map(row =>
         [row.getAttribute(hwpNativeCompactRowAttribute), row.cells[0]?.getAttribute(hwpCenteredCellLabelsAttribute)] as const)
@@ -320,9 +321,10 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       });
     }
     const tables = root.querySelectorAll<HTMLTableElement>('table');
-    if (tables.length === continuedTables.length) tables.forEach((table, index) => {
-      const anchor = continuedTables[index];
+    if (tables.length === tableProofs.length) tables.forEach((table, index) => {
+      const { anchor, source } = tableProofs[index];
       if (anchor && table.dataset.tableAnchor === anchor) table.setAttribute(nativeContinuedTableAttribute, '');
+      if (source && table.dataset.hwpTableContinuation === source) table.setAttribute(nativeOverhangOriginAttribute, 'true');
     });
     if (standalonePictures.length) {
       const images = [...root.querySelectorAll('img')];

@@ -195,6 +195,8 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
             };
             const expected=boundary(original), actual=boundary(native);
             console.log('WINDOWS_LARGE_NATIVE_TABLE_BOUNDARY ' + JSON.stringify({format,expected,actual}));
+            if (process.env.WINDOWS_NATIVE_OVERHANG_ORIGIN === '1' && Math.abs(actual.x - expected.x) > .15)
+              throw new Error('The first retained native table moved away from its authored origin');
             const agreement=require('./hancom-page-agreement.cjs')(original,native);
             console.log('WINDOWS_LARGE_NATIVE_TABLE_AGREEMENT ' + JSON.stringify({format,...agreement}));
             if (actual.glyphs!==expected.glyphs || String(actual.heads)!==String(expected.heads))
