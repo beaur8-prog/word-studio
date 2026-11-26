@@ -67,3 +67,52 @@ module.exports = (Core, original, saved, elementRanges) => {
     } finally { candidate.free(); }
   });
 };
+
+module.exports.placement = (Core, original, saved, elementRanges) => {
+  const prior = measure(original, saved);
+  const target = prior.find(item => item.source.glyphs === 1080 && item.saved.page === 13);
+  if (!target) throw Error('Expected native displaced table');
+  const archive = unzipSync(saved.exportHwpx());
+  const position = {
+    paper: { vertRelTo: 'PAPER', horzRelTo: 'PAPER', vertOffset: Math.round(target.source.y * 75),
+      horzOffset: Math.round(target.source.x * 75), flowWithText: 0 },
+    paragraph: { vertRelTo: 'PARA', horzRelTo: 'PARA', vertOffset: target.source.table.vertOffset,
+      horzOffset: target.source.table.horzOffset, flowWithText: 1 },
+    paragraphNoReserve: { vertRelTo: 'PARA', horzRelTo: 'PARA', vertOffset: target.source.table.vertOffset,
+      horzOffset: target.source.table.horzOffset, flowWithText: 0 },
+  };
+  const name = 'Contents/section' + target.saved.section + '.xml';
+  const section = strFromU8(archive[name]);
+  const para = elementRanges(section, 'hp:p')[target.saved.para];
+  const tables = elementRanges(para.inner, 'hp:tbl');
+  if (tables.length !== 1 || !prefix.test(tables[0].inner)) throw Error('Ambiguous displaced native table markup');
+  const table = tables[0], before = prefix.exec(table.inner)[0];
+  const offset = para.start + para.open.length + table.start + table.open.length;
+  const baseline = painted(saved);
+  const set = (tag, values) => Object.entries(values).reduce((result,[name,value]) => {
+    const field = new RegExp('\\b' + name + '="[^"]*"');
+    if (!field.test(result)) throw Error('A required native placement field is missing');
+    return result.replace(field, name + '="' + value + '"');
+  }, tag);
+  return Object.entries(position).map(([mode, anchor]) => {
+    const attributes = { treatAsChar: 0, affectLSpacing: 0, allowOverlap: 0, holdAnchorAndSO: 0,
+      vertAlign: 'TOP', horzAlign: 'LEFT', ...anchor };
+    const marked = before.replace(/<hp:pos\b[^>]*\/>/, value => set(value, attributes))
+      .replace(/<hp:outMargin\b[^>]*\/>/, value => set(value, Object.fromEntries(['top','bottom','left','right'].map(side => [side,target.source.table[side]]))));
+    const candidate = new Core(zipSync({ ...archive,
+      [name]: strToU8(section.slice(0, offset) + marked + section.slice(offset + before.length)) }, { level: 1 }));
+    try {
+      if (mode !== 'paper') {
+        const format = target.source.paragraph;
+        candidate.applyParaFormat(target.saved.section, target.saved.para,
+          JSON.stringify({ marginLeft: format.marginLeft, indent: format.indent, lineSpacing: format.pitch }));
+      }
+      const group = measure(original, candidate);
+      const next = painted(candidate);
+      return { mode, pages: candidate.pageCount(), tableOrdinals: group.map(item => {
+        const { page, x, y, height, glyphs, bottomRoom } = item.saved;
+        return { page, x, y, height, glyphs, bottomRoom };
+      }), sameOwnerText: baseline.paragraphs === next.paragraphs, sameShapes: baseline.shapes === next.shapes };
+    } finally { candidate.free(); }
+  });
+};

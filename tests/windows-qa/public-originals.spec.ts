@@ -304,7 +304,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
                 if (format === 'hwpx' && process.env.WINDOWS_PAGE_TWELVE_TRIAL === '1') {
                   const { elementRanges } = await import('../../src/hwp/markup-ranges');
                   const tryInsets = require('../../scripts/windows-qa/hancom-table-insets-trial.cjs');
-                  console.log('WINDOWS_HANCOM_PAGE_TWELVE_INSETS ' + JSON.stringify(tryInsets(HwpDocument, original, saved, elementRanges)));
+                  console.log('WINDOWS_HANCOM_PAGE_TWELVE_PLACEMENT ' + JSON.stringify(tryInsets.placement(HwpDocument, original, saved, elementRanges)));
                 }
               } finally { packaged?.free(); }
             }
@@ -325,9 +325,8 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       await writeFile(process.env.WINDOWS_MARGIN_WITNESS, JSON.stringify(preciseMargins));
   }
   if (process.env.WINDOWS_REQUIRE_REOPEN === '1') {
-    expect(result.reverse.map(out => ({ format: out.format, valid: out.valid }))).toEqual([
-      { format: 'hwp', valid: true }, { format: 'hwpx', valid: true },
-    ]);
+    expect(result.reverse.map(out => ({ format: out.format, valid: out.valid })))
+      .toEqual(formats.map(format => ({ format, valid: true })));
   }
   if (process.env.WINDOWS_REQUIRE_REVERSE === '1') {
     expect(result.reverse).toHaveLength(2);
