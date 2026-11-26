@@ -1,19 +1,26 @@
 name: Windows regression QA
-run-name: Pair math preview equations and physical output on identical Windows input and display scales
+run-name: Pair direct native Hangul exports for the same English exam bytes on Windows
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  math-paired:
-    name: Same-runner Windows math geometry / before and after
+  english-native-pair:
+    name: Direct English exam native output / ${{ matrix.format }}
     runs-on: windows-latest
-    timeout-minutes: 36
+    timeout-minutes: 32
+    strategy:
+      fail-fast: false
+      matrix:
+        format: [hwp, hwpx]
     env:
-      WINDOWS_CAPTURE_PRINT_IMAGE_IDENTITY: '1'
-      WINDOWS_MATH_EQUATIONS: '1'
-      WINDOWS_CHECK_STABLE_EDITOR_PAGES: '1'
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
+      WINDOWS_NATIVE_HWP_SAVES: '1'
+      WINDOWS_NATIVE_HWP_FORMATS: ${{ matrix.format }}
+      WINDOWS_CHECK_NATIVE_NBSPACE: '1'
+      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
+      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,13 +32,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Record six packaged app print previews, PDF files and settled editor pages
+      - name: Export and reopen with the same input and isolated test profiles
         shell: pwsh
         run: |
-          $versions = [ordered]@{ before='27a35890240d7bbf47f06fd961682eb94f89fc3d'; after='c52784078cc2ab47e0864c96000a28e3006b0948' }
-          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/math-paired-input" --ids 08-math-exam
+          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/english-native-pair" --ids 07-english-exam
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/math-paired-input/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/english-native-pair/inventory.json"
+          $versions = [ordered]@{ control='27a35890240d7bbf47f06fd961682eb94f89fc3d'; candidate='c52784078cc2ab47e0864c96000a28e3006b0948' }
           foreach ($version in $versions.GetEnumerator()) {
             git restore --source $version.Value -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -39,31 +46,11 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             npm run package:win:dir
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $package = "$env:RUNNER_TEMP/package-$($version.Key)"
+            $package = "$env:RUNNER_TEMP/native-$($version.Key)"
             Move-Item release/windows $package
             $env:WORD_STUDIO_EXECUTABLE = "$package/Word Studio/Word Studio.exe"
-            $measure = "$env:RUNNER_TEMP/math-$($version.Key)"
-            New-Item -ItemType Directory $measure | Out-Null
-            foreach ($density in @('1','1.25','1.5')) {
-              Write-Host "WINDOWS_MATH_PAIR_INPUT $($version.Key) $density"
-              $env:WINDOWS_FORCE_DEVICE_SCALE = $density
-              $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$measure/geometry-$density.json"
-              $env:WINDOWS_NATIVE_PDF_COPY = "$measure/sheet-$density.pdf"
-              $env:WINDOWS_MATH_EQUATIONS_RESULT = "$measure/equations-$density.json"
-              node scripts/windows-qa/native-export-pdf-stages.cjs
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            }
-            node scripts/windows-qa/math-equation-density.cjs $measure
+            $env:WINDOWS_PRODUCT = $version.Key
+            Write-Host "WINDOWS_ENGLISH_DIRECT $($version.Key)"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            foreach ($density in @('1.25','1.5')) {
-              node scripts/windows-qa/compare-print-geometry.cjs "$measure/geometry-1.json" "$measure/geometry-$density.json" "$($version.Key)-$density"
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            }
-          }
-      - name: Compare the real PDF pixels on the same Windows physical paper
-        shell: powershell
-        run: |
-          foreach ($density in @('1','1.25','1.5')) {
-            Write-Host "WINDOWS_MATH_PAIRED_PDF $density"
-            scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/math-before/sheet-$density.pdf" -Candidate "$env:RUNNER_TEMP/math-after/sheet-$density.pdf" -ExpectedPages 20 -ReportOnly -MeasureDelta
           }
