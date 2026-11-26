@@ -116,6 +116,18 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
           if (!witness.matches) throw Error('Native terminal positions disagreed with the original');
         } finally { original.free(); }
       }
+      if (item.id === '06-mixed-document' && process.env.WINDOWS_NATIVE_PAGE_TAIL_READBACK === '1') {
+        const original = new Core(await fs.readFile(item.path));
+        try {
+          const { bodyTail } = require('./hancom-source-page-offsets.cjs')(original, native);
+          const adjacent = require('./hancom-adjacent-tables-witness.cjs')(original, native);
+          console.log('WINDOWS_NATIVE_MENU_PAGE_TAIL ' + JSON.stringify({ format, bodyTail,
+            mainTablePage: adjacent.saved.page, mainTableGlyphs: adjacent.saved.glyphs, originalTablePage: adjacent.source.page }));
+          if (!bodyTail || bodyTail.saved.length !== 2 || bodyTail.saved.some(line => line.page !== 7) ||
+              bodyTail.saved.reduce((count, line) => count + line.glyphs, 0) !== 60 || !adjacent.matches)
+            throw Error('The packaged Windows save disagreed with the native page-tail witness');
+        } finally { original.free(); }
+      }
       const comparison = process.env.WINDOWS_NATIVE_HWP_COMPARISON;
       if (comparison) {
         const hash = createHash('sha256');
