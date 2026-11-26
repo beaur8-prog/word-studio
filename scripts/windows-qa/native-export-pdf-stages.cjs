@@ -91,7 +91,18 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
     }, { output, format });
     const review = page.getByRole('dialog', { name: '한글 문서로 내보내기' });
     phase('native-' + format + '-review');
-    await review.waitFor({ state: 'visible', timeout: 240000 });
+    const timeout = Number(process.env.WINDOWS_NATIVE_HWP_REVIEW_MS || 240000);
+    const exportError = page.locator('.toast span').filter({ hasText: /^저장 실패:/ });
+    const reviewResult = await Promise.race([
+      review.waitFor({ state: 'visible', timeout }).then(() => 'review'),
+      exportError.waitFor({ state: 'visible', timeout }).then(() => 'error'),
+    ]);
+    if (reviewResult === 'error') {
+      const detail = await exportError.textContent();
+      const reason = /시간이 초과/.test(detail || '') ? 'native-worker-timeout' : 'engine-or-bridge-error';
+      console.log('WINDOWS_NATIVE_HANGUL_REVIEW_ERROR ' + JSON.stringify({id: item.id, format, reason}));
+      throw Error(reason);
+    }
     const comparison = await review.getByText(/^쪽 수 비교:/).innerText();
     const pages = comparison.match(/Word 인쇄 (\d+)쪽.*?원본 보기 (\d+)쪽/);
     phase('native-' + format + '-save');
