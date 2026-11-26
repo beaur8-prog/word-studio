@@ -104,3 +104,48 @@ test('a short printed table row keeps the size of its authored empty cell lines'
   expect(result.modified).toEqual([]);
   expect(result.notAtEdge).toEqual([]);
 });
+
+
+test('an authored single-line proof requires stored line metrics and preserves the typography guard', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { nativeLineTypography, preserveHwpBodyLineEnds } = await import('/src/hwp/script-fonts');
+    const { measuredAuthoredSingleLines } = await import('/src/hwp/export-terminal-page-break');
+    const literal = '  one authored line';
+    let bold = false;
+    const native = {
+      getCharShapeRuns: () => JSON.stringify([{ startOffset: 0, endOffset: 5 }, { startOffset: 5, endOffset: literal.length }]),
+      getCharPropertiesAt: (_section: number, _paragraph: number, offset: number) =>
+        JSON.stringify({ fontFamily: 'monospace', fontSize: 1500, bold: offset >= 5 && bold }),
+    };
+    const typography = nativeLineTypography(native, 0, 0, literal.length);
+    bold = true;
+    const modifiedTypography = nativeLineTypography(native, 0, 0, literal.length);
+    const html = `<p style="font:20px/32px monospace;text-indent:-16px;text-align:justify;margin:0">${literal}</p>`;
+    const line = { textStart: 0, verticalPosition: 64, width: 240, height: 20, textHeight: 20, spacing: 12, baseline: 17 };
+    const witness = { origin: { page: 1, x: 10, y: 74 }, hanging: 16, nativeSingle: typography, painted: [{ y: 74, charStart: 0 }] };
+    const source = (stored: boolean) => JSON.stringify({ stored, controlCount: 0, lines: [line] });
+    const body = document.createElement('div');
+    body.style.width = '240px';
+    body.innerHTML = preserveHwpBodyLineEnds(html, literal, () => source(true), witness);
+    document.body.append(body);
+    try {
+      const current = measuredAuthoredSingleLines(body, 0);
+      const paragraph = body.querySelector('p')!;
+      paragraph.style.fontSize = '21px';
+      const resized = measuredAuthoredSingleLines(body, 0);
+      paragraph.style.fontSize = '20px';
+      paragraph.textContent = literal + ' edit';
+      const edited = measuredAuthoredSingleLines(body, 0);
+      const inferred = preserveHwpBodyLineEnds(html, literal, () => source(false), witness);
+      return { current, resized, edited, inferred, html, typography, modifiedTypography };
+    } finally { body.remove(); }
+  });
+
+  expect(result.current).toHaveLength(1);
+  expect(result.current[0].typography).toBe(result.typography);
+  expect(result.modifiedTypography).not.toBe(result.typography);
+  expect(result.resized).toEqual([]);
+  expect(result.edited).toEqual([]);
+  expect(result.inferred).toBe(result.html);
+});

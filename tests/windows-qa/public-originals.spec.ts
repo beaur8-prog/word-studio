@@ -177,7 +177,9 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
           const original = new HwpDocument(new Uint8Array(source));
           const witness = require('../../scripts/windows-qa/hancom-line-witness.cjs');
           try {
-            const value = { format, pages: saved.pageCount(), ...witness(original, saved) };
+            const value = { format, pages: saved.pageCount(), ...witness(original, saved),
+              authoredLine: process.env.WINDOWS_AUTHORED_LINE_WITNESS
+                ? require('../../scripts/windows-qa/hancom-single-line-witness.cjs')(original, saved) : undefined };
             latin.push(value);
             console.log('WINDOWS_HANCOM_LINE_WITNESS ' + JSON.stringify(value));
           } finally { original.free(); }
@@ -199,6 +201,10 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
                 ? require('../../scripts/windows-qa/hancom-adjacent-tables-witness.cjs')(original, saved) : undefined };
             preciseMargins.push(value);
             console.log('WINDOWS_HANCOM_MARGIN_WITNESS ' + JSON.stringify(value));
+            if (process.env.WINDOWS_PAGE_OFFSETS) {
+              const measure = require('../../scripts/windows-qa/hancom-source-page-offsets.cjs');
+              console.log('WINDOWS_HANCOM_PAGE_OFFSETS ' + JSON.stringify({ format, ...measure(original, saved) }));
+            }
           } finally { original.free(); }
         }
         if (process.env.WINDOWS_GRID_COMPARISON) {

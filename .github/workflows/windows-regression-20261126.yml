@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Verify the generated boundary between two native Windows tables
+run-name: Verify authored body lines and trace Windows native page starts
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -7,13 +7,14 @@ permissions:
   contents: read
 jobs:
   originals:
-    name: Windows adjacent Hancom tables / ${{ matrix.id }}
+    name: Windows Hancom geometry / ${{ matrix.id }}
     runs-on: windows-latest
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
+          - { group: hwp-1, id: 04-language-plan }
           - { group: hwp-3, id: 06-mixed-document }
     env:
       PLAYWRIGHT_CHANNEL: chromium
@@ -36,52 +37,54 @@ jobs:
           dotnet-version: '8.0.x'
       - run: npm ci
       - run: npx playwright install chromium
-      - name: Compare native table and label placement on Windows
+      - name: Measure actual HWP and HWPX body positions
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/exact-margins" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/geometry" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/exact-margins/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/geometry/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
-          $variants = @('HEAD')
           if ($env:QA_ID -eq '06-mixed-document') {
-            $variants = @('0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2','HEAD')
+            $variant = '0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2'
+            git restore --source $variant -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $env:WINDOWS_ADJACENT_TABLE_WITNESS = '1'
+            $env:WINDOWS_PAGE_OFFSETS = '1'
+            $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/native-offsets.json"
+            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+            exit $LASTEXITCODE
           }
+          $variants = @('1c6bd282d3a3a8ff6a966b74bd7c14f9037dbcc1','HEAD')
           foreach ($variant in $variants) {
-            Write-Host "WINDOWS_PRECISE_MARGIN_PRODUCT $variant"
+            Write-Host "WINDOWS_NATIVE_LINE_PRODUCT $variant"
             git restore --source $variant -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             git diff --exit-code $variant -- src electron vendor package.json package-lock.json
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            if ($env:QA_ID -eq '06-mixed-document') { $env:WINDOWS_TABLE_INSET_WITNESS = '1'; $env:WINDOWS_TERMINAL_WITNESS = '1'; $env:WINDOWS_COMPACT_ROW_WITNESS = '1'; $env:WINDOWS_ADJACENT_TABLE_WITNESS = '1'; $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/margins-$variant.json" }
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+            $env:WINDOWS_AUTHORED_LINE_WITNESS = '1'
+            $env:WINDOWS_LATIN_WITNESS = "$env:RUNNER_TEMP/lines-$variant.json"
+            $output = "test-results-$variant"
+            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off --output $output
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $docs = @(Get-ChildItem $output -Recurse -Filter 'textbox-save-*.docx')
+            if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
+            dotnet run --project scripts/word-openxml-validator -- $output 2 *> "$env:RUNNER_TEMP/geometry-sdk-$variant.log"
+            $status = $LASTEXITCODE
+            Write-Host "WINDOWS_PUBLIC_SDK $variant total $($docs.Count) exit $status"
+            if ($status -ne 0) { exit $status }
           }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $old = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[0]).json" -Raw | ConvertFrom-Json)
-            $new = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[-1]).json" -Raw | ConvertFrom-Json)
-            if ($old.Count -ne 2 -or $new.Count -ne 2) { throw 'Expected both Hancom formats' }
-            foreach ($index in 0,1) {
-              $control=$old[$index]; $candidate=$new[$index]
-              Write-Host "WINDOWS_NATIVE_ADJACENT_TABLES $($candidate.format) total $($control.pages) to $($candidate.pages); table page $($control.adjacent.saved.page) to $($candidate.adjacent.saved.page); $($candidate.adjacent.saved.glyphs) glyphs; y $($candidate.adjacent.saved.y) source $($candidate.adjacent.source.y)"
-              if ($candidate.format -ne $control.format -or $candidate.pages -gt $control.pages -or
-                  $candidate.outsideRight -ne 0 -or $candidate.tableCount -ne $control.tableCount -or
-                  -not $candidate.adjacent.matches -or -not $candidate.compact.matches -or -not $candidate.compact.tailMatches -or -not $candidate.terminal.matches -or
-                  $candidate.table.continuationHeight -ne $control.table.continuationHeight) {
-                throw 'The adjacent table or an earlier authored row changed'
-              }
+          $old = @(Get-Content "$env:RUNNER_TEMP/lines-$($variants[0]).json" -Raw | ConvertFrom-Json)
+          $new = @(Get-Content "$env:RUNNER_TEMP/lines-$($variants[-1]).json" -Raw | ConvertFrom-Json)
+          if ($old.Count -ne 2 -or $new.Count -ne 2) { throw 'Expected both Hancom formats' }
+          foreach ($index in 0,1) {
+            $control=$old[$index]; $candidate=$new[$index]
+            Write-Host "WINDOWS_NATIVE_AUTHORED_LINE $($candidate.format) pages $($control.pages) to $($candidate.pages); lines $($control.authoredLine.saved.lines.Count) to $($candidate.authoredLine.saved.lines.Count)"
+            if ($candidate.format -ne $control.format -or $candidate.pages -ne ($control.pages - 1) -or
+                -not $candidate.authoredLine.matches -or ($candidate.lines -ne $control.lines)) {
+              throw 'The original single line, existing witness, or page count differed'
             }
           }
-      - name: Validate both actual DOCX packages
-        shell: pwsh
-        run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/exact-margin-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
-          exit $status
   focused:
     name: Combined layout contracts / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -122,5 +125,5 @@ jobs:
           });
           '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
           $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          npm run test -- tests/hwp-native-adjacent-tables.spec.ts --workers=1 --trace=off
+          npm run test -- tests/hwp-native-terminal-break.spec.ts tests/hwp-native-adjacent-tables.spec.ts tests/hwp-source-text-advances.spec.ts --workers=1 --trace=off
           exit $LASTEXITCODE

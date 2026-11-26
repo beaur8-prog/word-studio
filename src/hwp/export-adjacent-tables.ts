@@ -3,7 +3,7 @@ import { cssPixels } from '../hwp-cell-line';
 import { hiddenEmptyLineClass } from '../page-empty-lines';
 import { hwpWrapFingerprint } from '../hwp-text-advances';
 import { hwpInlineTableTop, tableAnchor } from '../table-anchor-data';
-import { nativeBodyRuns, nativePaintedControls, type NativePaintedControl } from './export-binary-pages';
+import { nativeBodyRuns, nativePaintedControls, nativePaintedPayload, type NativePaintedControl } from './export-binary-pages';
 
 type TableProof = { signature: string; width: number; height: number; rows: number; columns: number };
 export type AdjacentNativeTables = { label: TableProof; main: TableProof; spacerFont: number };
@@ -77,23 +77,6 @@ function findPair(doc: HwpDocument, proof: AdjacentNativeTables) {
   if (matches.length === 1) return matches[0];
 }
 
-// The only revised formatting is a generated paragraph break. Compare
-// painted payloads and control owners across the whole readback as well.
-function nativePayload(doc: HwpDocument) {
-  const paragraphs = new Map<string, string>();
-  const controls: string[] = [];
-  for (let page = 0; page < doc.pageCount(); page++) {
-    for (const run of nativeBodyRuns(doc, page)) {
-      const key = JSON.stringify([run.secIdx, run.parentParaIdx, run.paraIdx, run.cellPath]);
-      const value = text(run.text);
-      if (value) paragraphs.set(key, (paragraphs.get(key) ?? '') + value);
-    }
-    for (const item of nativePaintedControls(doc, page))
-      controls.push(JSON.stringify([item.secIdx,item.paraIdx,item.controlIdx,item.type,item.w,item.h,item.cellPath]));
-  }
-  return JSON.stringify([[...paragraphs].sort(),controls.sort()]);
-}
-
 export function restoreAdjacentNativeTables(Core: typeof HwpDocument, doc: HwpDocument,
   proofs: readonly AdjacentNativeTables[] = [], printPages = 0): HwpDocument {
   if (!proofs.length || doc.pageCount() <= printPages) return doc;
@@ -112,7 +95,7 @@ export function restoreAdjacentNativeTables(Core: typeof HwpDocument, doc: HwpDo
       const [title, table] = shapes, paper = JSON.parse(candidate.getPageInfo(page - 1));
       if (!close(title.y,label.y) || !close(title.x,label.x) || !close(table.x,main.x) ||
           !Number.isFinite(paper.footerArea?.y) || table.y < title.y + title.h || table.y + table.h > paper.footerArea.y + .16 ||
-          !tableMatches(candidate,table,page - 1,proof.main) || nativePayload(candidate) !== nativePayload(doc)) continue;
+          !tableMatches(candidate,table,page - 1,proof.main) || nativePaintedPayload(candidate) !== nativePaintedPayload(doc)) continue;
       const ink = nativeBodyRuns(candidate, page - 1);
       if (ink.some(run => text(run.text) && (!run.cellPath?.length || run.y < paper.marginTop + paper.marginHeader - .16 ||
           run.y + run.h > paper.footerArea.y + .16 || run.x < 0 || run.x + run.w > paper.width + .16))) continue;

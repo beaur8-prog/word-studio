@@ -6,7 +6,7 @@ import { hwpWrapFingerprint, parseHwpSourceWrap } from '../hwp-text-advances';
 import { elementRanges } from './markup-ranges';
 import type { PaperHeaderTable, RasterTablePair, TablePlacement } from './export-table-placement';
 import type { PastedEmptyParagraphs, TerminalEmptyFonts } from './export-empty-paragraph-format';
-import type { AuthoredTerminalWrap, TerminalPageBreak } from './export-terminal-page-break';
+import type { AuthoredSingleLine, AuthoredTerminalWrap, TerminalPageBreak } from './export-terminal-page-break';
 import type { AdjacentNativeTables } from './export-adjacent-tables';
 import type { EmptyTableRows } from './export-empty-table-rows';
 import { boundedNativeParts, nativeBodyRuns, nativeGlyphBaselines, nativePaintedControls, sameNativeLineContent, type NativeBodyRun } from './export-binary-pages';
@@ -15,7 +15,7 @@ type TableLead = { sheet: number; literal: string; width: number; height: number
 export type NativePrintPlan = { pages: number; tableLeads: readonly TableLead[];
   continuations?: readonly TablePlacement[]; adjacentTables?: readonly AdjacentNativeTables[]; paperHeaderTable?: PaperHeaderTable;
   rasterTablePairs?: readonly RasterTablePair[]; terminalEmptyFonts?: readonly TerminalEmptyFonts[];
-  terminalPageBreaks?: readonly TerminalPageBreak[]; authoredTerminalWraps?: readonly AuthoredTerminalWrap[]; emptyTableRows?: readonly EmptyTableRows[];
+  terminalPageBreaks?: readonly TerminalPageBreak[]; authoredTerminalWraps?: readonly AuthoredTerminalWrap[]; authoredSingleLines?: readonly AuthoredSingleLine[]; emptyTableRows?: readonly EmptyTableRows[];
   emptyParagraphs?: PastedEmptyParagraphs };
 const round = (pixels: number) => Math.round(pixels * 75);
 const nonspace = (text: string) => text.replace(/\s/gu, '');
