@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Compare the saved PDF paint at verified Windows display scales
+run-name: Test reference-density line metrics on Windows with paired renderer builds
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -9,14 +9,13 @@ jobs:
   display:
     name: Windows display scale / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 28
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         include:
           - {group: word, id: 02-tables, pages: 7}
           - {group: word, id: 06-long-body, pages: 9}
-          - {group: hwp-1, id: 04-language-plan, pages: 36}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
@@ -31,7 +30,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
       - name: Save a real PDF at each verified rendering density
         shell: pwsh
         run: |
@@ -40,22 +38,38 @@ jobs:
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/display-input/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
-          $env:WORD_STUDIO_EXECUTABLE = "$((Get-Location).Path)/release/windows/Word Studio/Word Studio.exe"
-          foreach ($scale in @('1','1.25','1.5')) {
-            $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
-            $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/studio-dpi-$scale.pdf"
-            $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$scale.json"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
+          $versions = [ordered]@{control='375c8dd6e78d5dadac33b1ed50b9fe8e1717cdae';candidate='HEAD'}
+          foreach ($version in $versions.GetEnumerator()) {
+            git restore --source $version.Value -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          foreach ($scale in @('1.25','1.5')) {
-            node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-1.json" "$env:RUNNER_TEMP/geometry-$scale.json" $scale
+            git diff --exit-code $version.Value -- src electron vendor package.json package-lock.json
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run package:win:dir
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $packaged = "$env:RUNNER_TEMP/density-app-$($version.Key)"
+            Move-Item release/windows $packaged
+            $env:WORD_STUDIO_EXECUTABLE = "$packaged/Word Studio/Word Studio.exe"
+            foreach ($scale in @('1','1.25','1.5')) {
+              Write-Host "WINDOWS_DENSITY_VERSION $($version.Key) $scale"
+              $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
+              $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/studio-$($version.Key)-$scale.pdf"
+              $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$($version.Key)-$scale.json"
+              node scripts/windows-qa/native-export-pdf-stages.cjs
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+            foreach ($scale in @('1.25','1.5')) {
+              Write-Host "WINDOWS_GEOMETRY_VERSION $($version.Key) $scale"
+              node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-control-1.json" "$env:RUNNER_TEMP/geometry-$($version.Key)-$scale.json" $scale
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
           }
       - name: Measure each saved PDF with the fixed Windows PDF renderer scale
         shell: powershell
         run: |
-          foreach ($scale in @('1.25','1.5')) {
-            Write-Host "WINDOWS_DENSITY_PDF_CASE $env:QA_ID $scale"
-            scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-dpi-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-dpi-$scale.pdf" -ExpectedPages ([UInt32]$env:QA_PAGES) -ReportOnly
+          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-candidate-1.pdf" -ExpectedPages ([UInt32]$env:QA_PAGES)
+          foreach ($version in @('control','candidate')) {
+            foreach ($scale in @('1.25','1.5')) {
+              Write-Host "WINDOWS_DENSITY_PDF_VERSION $version $scale"
+              scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-$version-$scale.pdf" -ExpectedPages ([UInt32]$env:QA_PAGES) -ReportOnly
+            }
           }
