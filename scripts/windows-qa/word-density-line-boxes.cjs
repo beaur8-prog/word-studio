@@ -20,7 +20,7 @@ module.exports = async function wordDensityLineBoxes(page, id) {
         inline.push({length:text.length, tab:!!mark.closest('[data-docx-tab]'), type:mark.tagName,
           font:css.fontFamily,size:css.fontSize,weight:css.fontWeight,line:css.lineHeight, rects:[...range.getClientRects()].map(relative)});
       }
-      return {rect:relative(box), font:style.fontFamily, size:style.fontSize, height:style.lineHeight, inline};
+      return {rect:relative(box), font:style.fontFamily, size:style.fontSize, height:style.lineHeight, reserved:paragraph.style.minHeight || null, inline};
     };
     let paragraphs = [...body.querySelectorAll('p,h1,h2,h3,h4,h5,h6')];
     if (id === '06-long-body') paragraphs = paragraphs.filter(p=>p.querySelector('[data-docx-tab]')).slice(0,8);

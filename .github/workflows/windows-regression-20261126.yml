@@ -1,89 +1,77 @@
 name: Windows regression QA
-run-name: Check Windows print readiness and native DOCX SDK
+run-name: Verify the measured bold tabbed Word line at three Windows scales
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native:
-    name: Native Windows two DOCX packages for SDK
+  display:
+    name: Windows display scale / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 38
-    env:
-      WINDOWS_FORCE_DEVICE_SCALE: '1'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - run: npm ci
-      - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Save and reopen both DOCX through the packaged app
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py hwp-3 "$env:RUNNER_TEMP/qa-input" --ids 06-mixed-document
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-input/inventory.json"
-          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
-          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
-      - name: Validate the two DOCX packages written by the Windows app
-        shell: pwsh
-        run: |
-          $files = @(Get-ChildItem "$env:RUNNER_TEMP/native-docx" -File -Filter '*.docx')
-          if ($files.Count -ne 2) { throw 'Missing the two native DOCX files' }
-          dotnet run --project scripts/word-openxml-validator -- "$env:RUNNER_TEMP/native-docx" 2 *> "$env:RUNNER_TEMP/native-sdk.txt"
-          $validated = $LASTEXITCODE
-          Write-Host "WINDOWS_NATIVE_DOCX_SDK $($files.Count) exit $validated"
-          exit $validated
-  focused:
-    name: Combined layout contracts / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 18
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        include:
+          - {group: word, id: 06-long-body, pages: 9}
+          - {group: word, id: 07-characters, pages: 4}
     env:
-      PLAYWRIGHT_CHANNEL: chromium
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      QA_PAGES: ${{ matrix.pages }}
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - name: Run focused layout contracts
+      - run: node node_modules/electron/install.js
+      - name: Save a real PDF at each verified rendering density
         shell: pwsh
         run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          npm run test -- tests/word-windows-print-density.spec.ts tests/hwp-native-terminal-break.spec.ts tests/hwp-native-table-lead-ink.spec.ts tests/print-native-column-height.spec.ts tests/print-page-style.spec.ts tests/hwp-source-centered-merged-labels.spec.ts --workers=1 --trace=off
-          exit $LASTEXITCODE
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/display-input" --ids $env:QA_ID
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/display-input/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($verified -ne 1) { throw 'Pinned input missing' }
+          $versions = [ordered]@{control='ed98f15af91b6cc9658452594b56bc580f43bfd6';candidate='HEAD'}
+          foreach ($version in $versions.GetEnumerator()) {
+            git restore --source $version.Value -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $version.Value -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run package:win:dir
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $packaged = "$env:RUNNER_TEMP/density-app-$($version.Key)"
+            Move-Item release/windows $packaged
+            $env:WORD_STUDIO_EXECUTABLE = "$packaged/Word Studio/Word Studio.exe"
+            if ($env:QA_ID -eq '06-long-body') { $env:WINDOWS_DIAGNOSE_WORD_LINE_BOXES = '1' }
+            foreach ($scale in @('1','1.25','1.5')) {
+              Write-Host "WINDOWS_DENSITY_VERSION $($version.Key) $scale"
+              $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
+              $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/studio-$($version.Key)-$scale.pdf"
+              $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$($version.Key)-$scale.json"
+              node scripts/windows-qa/native-export-pdf-stages.cjs
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+            foreach ($scale in @('1','1.25','1.5')) {
+              Write-Host "WINDOWS_GEOMETRY_VERSION $($version.Key) $scale"
+              node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-control-1.json" "$env:RUNNER_TEMP/geometry-$($version.Key)-$scale.json" $scale
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+          }
+      - name: Measure each saved PDF with the fixed Windows PDF renderer scale
+        shell: powershell
+        run: |
+          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-candidate-1.pdf" -ExpectedPages ([UInt32]$env:QA_PAGES) -ReportOnly
+          foreach ($version in @('control','candidate')) {
+            foreach ($scale in @('1.25','1.5')) {
+              Write-Host "WINDOWS_DENSITY_PDF_VERSION $version $scale"
+              scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-$version-$scale.pdf" -ExpectedPages ([UInt32]$env:QA_PAGES) -ReportOnly
+            }
+          }
