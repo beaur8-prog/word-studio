@@ -69,21 +69,30 @@ function filesForStories(zip: JSZip) {
 /** Convert a header, comment or note through the same formatting path as body
  * text, with its own relationships. The original ZIP and story stay unchanged. */
 export async function storyHtml(zip: JSZip, part: string, root: Element, page: PageSettings, depth=0, preserveReflection = false) {
+  const started = performance.now();
+  const report = (stage: string, count: number) => console.info('QA_MATH_NATIVE_STAGE story-' + stage, count, Math.round(performance.now() - started));
+  report('start', root.childElementCount);
   const copy = new JSZip();
   // The body relationships are replaced below. Serializing body-only
   // pictures into every header or footer archive can multiply the same payload
   // across all sections. Retain assets from all remaining relationship parts.
   copy.files = { ...(part === 'word/document.xml' ? zip.files : await filesForStories(zip)) };
+  report('parts', Object.keys(copy.files).length);
   const body = new DOMParser().parseFromString(`<w:document xmlns:w="${W}"><w:body/></w:document>`, 'application/xml');
   const target = all(body, 'body')[0];
   for (const element of Array.from(root.children)) target.append(body.importNode(element, true));
   const relationships = zip.file(part.replace(/([^/]+)$/, '_rels/$1.rels'));
   copy.file(bodyRelationships, relationships ? await relationships.async('string') : '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>');
   const textboxes = await prepareTextBoxes(copy, body, [page], depth, preserveReflection);
+  report('boxes', textboxes.count);
   const metadata = await prepareDocxMetadata(copy, body, [page], { preserveReflection, textBoxStory: root.localName === 'txbxContent' });
+  report('packaged', metadata.buffer.byteLength);
   const result = await mammoth.convertToHtml({ arrayBuffer: metadata.buffer }, { externalFileAccess: false,
     includeEmbeddedStyleMap: false, ignoreEmptyParagraphs: false, styleMap: ['u => u', 'strike => s'] });
-  return textboxes.decorate(metadata.decorate(result.value));
+  report('mammoth', result.value.length);
+  const html = textboxes.decorate(metadata.decorate(result.value));
+  report('decorated', html.length);
+  return html;
 }
 
 export async function documentNotes(zip: JSZip, page: PageSettings) {
