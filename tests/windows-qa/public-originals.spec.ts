@@ -1,6 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 type Input = { id: string; ext: 'docx' | 'hwp' | 'hwpx'; verified: boolean; path?: string };
 const inventory = process.env.WINDOWS_PUBLIC_QA_INVENTORY;
@@ -21,11 +24,16 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   await page.exposeFunction('writeActualDocx', async (stage: number, encoded: string) => {
     await writeFile(info.outputPath('textbox-save-' + item.id + '-' + stage + '.docx'), Buffer.from(encoded, 'base64'));
   });
-  const result = await page.evaluate(async ({name, data, ext, verifyPictures}) => {
+  const verifyGeometry = process.env.WINDOWS_VERIFY_NATIVE_GEOMETRY === '1';
+  await page.exposeFunction('writeActualHangul', async (format: 'hwp' | 'hwpx', encoded: string) => {
+    await writeFile(info.outputPath('hancom-saved.' + format), Buffer.from(encoded, 'base64'));
+  });
+  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry}) => {
     const qa = window as Window & {
       logOriginalForward(metrics: object): Promise<void>;
       logOriginalStage(stage: string, pages: number): Promise<void>;
       writeActualDocx(stage: number, encoded: string): Promise<void>;
+      writeActualHangul(format: 'hwp' | 'hwpx', encoded: string): Promise<void>;
     };
     const { importFile, exportDocx } = await import('/src/document-io.ts');
     const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
@@ -94,6 +102,11 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       let reader: InstanceType<typeof HwpReaderSession> | undefined;
       try {
         const saved = await exportEditableHwp(doc, format, () => {});
+        if (verifyGeometry) {
+          const bytes = new Uint8Array(await saved.blob.arrayBuffer()), chunks = [];
+          for (let i = 0; i < bytes.length; i += 8192) chunks.push(String.fromCharCode(...bytes.subarray(i, i + 8192)));
+          await qa.writeActualHangul(format, btoa(chunks.join('')));
+        }
         reader = new HwpReaderSession();
         const pages = (await reader.open(new File([saved.blob], 'roundtrip.' + format))).count;
         let pictureReadback: { count: number; exactByteOrder: boolean } | undefined;
@@ -114,12 +127,34 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       await qa.logOriginalStage('reverse-' + format, reverse.at(-1)?.pages ?? 0);
     }
     return { nativeOriginalPages, printPages, preservation, reverse, saves };
-  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1' });
+  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1' });
   expect(result.printPages).toHaveLength(3);
   expect(result.printPages.every(pages => pages > 0)).toBe(true);
   expect(result.saves).toBe(2);
   const { saves: _, ...metrics } = result;
   console.log('WINDOWS_PUBLIC_RESULT ' + JSON.stringify({ id: item.id, ext: item.ext, ...metrics }));
+  if (verifyGeometry) {
+    const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
+    const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
+    await init({ module_or_path: await readFile(path.join(core, 'rhwp_bg.wasm')) });
+    for (const format of ['hwp', 'hwpx'] as const) {
+      const saved = new HwpDocument(new Uint8Array(await readFile(info.outputPath('hancom-saved.' + format))));
+      try {
+        let tables = 0, outside = 0, maxOutside = 0;
+        for (let i = 0; i < saved.pageCount(); i++) {
+          const paper = JSON.parse(saved.getPageInfo(i));
+          const controls = JSON.parse(saved.getPageControlLayout(i)).controls;
+          for (const table of controls.filter(c => c.type === 'table')) {
+            tables++;
+            const over = table.x + table.w - paper.width;
+            if (over > .2) { outside++; maxOutside = Math.max(maxOutside, over); }
+          }
+        }
+        console.log('WINDOWS_NATIVE_GRID ' + JSON.stringify({ id:item.id, format, pages:saved.pageCount(),
+          tables, outsideRight:outside, maxOutsidePx:Math.round(maxOutside*10)/10 }));
+      } finally { saved.free(); }
+    }
+  }
   if (process.env.WINDOWS_REQUIRE_REOPEN === '1') {
     expect(result.reverse.map(out => ({ format: out.format, valid: out.valid }))).toEqual([
       { format: 'hwp', valid: true }, { format: 'hwpx', valid: true },
