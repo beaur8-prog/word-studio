@@ -1,42 +1,77 @@
 name: Windows regression QA
-run-name: Test authored first-page margins and lines on the exact Windows native output
+run-name: Establish the original Windows native export baseline against the finished fixed corpus
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native-first-page-diagnostic:
-    name: Windows first-page geometry probe
+  original-native-baseline:
+    name: Original Windows native baseline / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 47
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {group: hwp-2, id: 02-work-rules}
+          - {group: hwp-1, id: 04-language-plan}
+          - {group: hwp-2, id: 05-return-form}
+          - {group: hwp-3, id: 06-mixed-document}
+          - {group: hwp-1, id: 07-english-exam}
+          - {group: hwp-2, id: 08-math-exam}
+          - {group: hwp-3, id: 09-korean-exam}
+          - {group: hwp-1, id: 10-lh-plan}
     env:
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: hwpx
-      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
-      WINDOWS_HWP_FIRST_PAGE_SOURCE_TRIAL: '1'
-      WINDOWS_CHECK_NATIVE_NBSPACE: '1'
+      WINDOWS_NATIVE_HWP_REVIEW_MS: '480000'
+      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Measure the actual saved file and in-memory variations
+      - name: Build the precise starting Windows source tree
         shell: pwsh
         run: |
-          $caseDir = Join-Path $env:RUNNER_TEMP 'native-first-page'
-          python scripts/windows-qa/fetch-public-inputs.py hwp-1 $caseDir --ids 07-english-exam
+          $before = '19892d86e3599cbf2e735c40bdb23bd967242a5d'
+          git restore --source $before --staged --worktree -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code $before -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run package:win:dir
+          exit $LASTEXITCODE
+      - name: Record only observed native outputs from the fixed input
+        shell: pwsh
+        run: |
+          $caseDir = Join-Path $env:RUNNER_TEMP 'original-windows-baseline'
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP $caseDir --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = Join-Path $caseDir 'inventory.json'
           $inventory = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json)
           if ($inventory.Count -ne 1 -or -not $inventory[0].verified) { throw 'One byte-pinned input is required' }
           $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          $env:WINDOWS_NATIVE_DOCX_DIR = Join-Path $caseDir 'docx'
+          $env:WINDOWS_PRODUCT = 'original'
+          if ($env:QA_ID -eq '02-work-rules') { $env:WINDOWS_NATIVE_DOCX_SAVE_TRACE = '1' }
           node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
+          $routeStatus = $LASTEXITCODE
+          Write-Host "WINDOWS_BASELINE_ROUTE $env:QA_ID exit $routeStatus"
+          $written = @(Get-ChildItem $env:WINDOWS_NATIVE_DOCX_DIR -Filter '*.docx' -ErrorAction SilentlyContinue).Count
+          if ($written -eq 2) {
+            dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> (Join-Path $caseDir 'sdk.log')
+            Write-Host "WINDOWS_BASELINE_SDK $env:QA_ID count 2 exit $LASTEXITCODE"
+          }
+          exit $routeStatus
