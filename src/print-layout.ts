@@ -19,6 +19,7 @@ import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalk
 import { canSplitProtectedMergedRows, centeredCellFits, hasCenteredOrdinaryCell, hasHwpCellLines, measureCenteredCell, multiParagraphHwpOwners, ordinaryHwpTerminalCells, protectedTablePlacement, tableFragmenter } from './table-fragments';
 import { hasUniformTablePageBody, pageMargins, pageFurniture, paperDimensions, activeDocxPrintPaper, type PageSettings } from './types';
 import { reserveWordTabbedStruts } from './word-native-tabbed-strut';
+import { restoreWordNativeTabbedWrap } from './word-native-tabbed-wrap';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines, markWordReferenceDensity, layoutWordListLines, markMeasuredWordSymbolItems } from './word-line-metrics';
 import { layoutWordContextualSpacing } from './word-contextual-spacing';
@@ -1045,6 +1046,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
     signal?.throwIfAborted();
     positionPaperImagesInPrintColumns(host);
+    if (windowsDensity && !referenceDensity) restoreWordNativeTabbedWrap(host);
     if (wordLayout.nativeDesktop) {
       for (const group of host.querySelectorAll<HTMLElement>('.print-content > [data-column-count]:only-child')) {
         const height = group.style.getPropertyValue('column-height');
