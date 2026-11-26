@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Windows Studio remaining public Hancom native retry
+run-name: Windows Studio isolated large native conversion diagnosis
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,8 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - group: public-2
-            ids: mois-budget,moel-harassment-manual,law-register
+          - group: hwp-2
+            ids: 02-work-rules
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_IDS: ${{ matrix.ids }}

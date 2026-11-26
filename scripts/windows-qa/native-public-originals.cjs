@@ -24,7 +24,7 @@ async function main() {
         args: ['--user-data-dir=' + path.join(directory, item.id)],
         env,
       });
-      close = await require('../native-smoke-lifetime.cjs')(app, 'Public original ' + item.id, 600000);
+      close = await require('../native-smoke-lifetime.cjs')(app, 'Public original ' + item.id, 1050000);
       const page = await app.firstWindow();
       await page.setViewportSize({ width: 1440, height: 1000 });
       await page.locator('.tiptap').first().waitFor({ state: 'visible' });
@@ -40,14 +40,19 @@ async function main() {
         await reader.getByTestId('hwp-page').waitFor({ state: 'visible', timeout: 75000 });
         readerPages = Number((await reader.getByTestId('hwp-page-count').textContent()).replace(/\D/g, ''));
         if (!Number.isSafeInteger(readerPages) || readerPages < 1) throw new Error('Reader page count unavailable');
+        console.log('WINDOWS_NATIVE_READER ' + item.id + ' ' + readerPages);
         stage = 'convert-analysis';
         const conversionStarted = Date.now();
         await reader.getByRole('button', { name: 'Word 화면에서 편집', exact: true }).click();
         const panel = reader.getByRole('region', { name: '한글 편집 변환 안내' });
         await panel.waitFor({ state: 'visible', timeout: 240000 });
-        stage = 'convert-editor';
+        const comparison = await panel.locator('strong').first().textContent();
+        const previewEstimate = comparison?.match(/Word 인쇄 (\d+)쪽/);
+        console.log('WINDOWS_NATIVE_ESTIMATE ' + item.id + ' ' + (previewEstimate?.[1] ?? 'unavailable'));
+        stage = 'convert-editor-command';
         await panel.getByRole('button', { name: '편집본 만들기', exact: true }).click({ timeout: 90000 });
-        await reader.waitFor({ state: 'hidden', timeout: 120000 });
+        stage = 'convert-editor-view';
+        await reader.waitFor({ state: 'hidden', timeout: 360000 });
         console.log('WINDOWS_NATIVE_CONVERT ' + item.id + ' ' + (Date.now() - conversionStarted));
       }
       await expect(page.getByRole('textbox', { name: '문서 제목', exact: true }))
@@ -80,7 +85,9 @@ async function main() {
       measured++;
     } catch (error) {
       // Playwright errors can include source content. Emit only fixed stage labels.
-      const reason = error?.name === 'TimeoutError' ? 'timeout' : 'error';
+      const reason = error?.name === 'TimeoutError'
+        ? (/intercepts pointer events/.test(error.message) ? 'pointer-interception' : 'timeout')
+        : 'error';
       console.log('WINDOWS_NATIVE_FAILURE ' + item.id + ' ' + stage + ' ' + reason);
       failures++;
     } finally {
