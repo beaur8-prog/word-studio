@@ -3,7 +3,13 @@
 const { createHash } = require('node:crypto');
 
 module.exports = async function printGeometry(page) {
-  const values = await page.evaluate(() => {
+  const values = await page.evaluate(async includeImageIdentity => {
+    const imageKeys = new Map();
+    const imageKey = source => {
+      if (!imageKeys.has(source)) imageKeys.set(source, crypto.subtle.digest('SHA-256', new TextEncoder().encode(source))
+        .then(digest => Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')));
+      return imageKeys.get(source);
+    };
     const result = [];
     const norm = value => value.replace(/\s/gu, '');
     const print = document.querySelector('.print-layout.preview');
@@ -38,11 +44,17 @@ module.exports = async function printGeometry(page) {
         const box = element.getBoundingClientRect();
         return box.width > 0 && box.height > 0 ? [[element.tagName, relative(box)]] : [];
       });
-      result.push({ index: index+1, paper: [paper.width*scale,paper.height*scale], ink, paragraphs, objects });
+      const images = includeImageIdentity ? await Promise.all([...sheet.querySelectorAll('img')].flatMap(image => {
+        const source = image.getAttribute('src') || '';
+        const box = image.getBoundingClientRect();
+        if (!source.startsWith('data:image/') || box.width <= 0 || box.height <= 0) return [];
+        return [imageKey(source).then(key => [key, relative(box)])];
+      })) : undefined;
+      result.push({ index: index+1, paper: [paper.width*scale,paper.height*scale], ink, paragraphs, objects, images });
     }
     if (!result.length || !result.some(sheet => sheet.ink.length)) throw Error('No printed glyph geometry');
     return result;
-  });
+  }, process.env.WINDOWS_CAPTURE_PRINT_IMAGE_IDENTITY === '1');
   for (const item of values) {
     for (const entry of item.ink) entry[0] = createHash('sha256').update(entry[0]).digest('hex');
     for (const paragraph of item.paragraphs) paragraph.key = createHash('sha256').update(paragraph.key).digest('hex');

@@ -52,3 +52,31 @@ const compact = p => ({page:p.page,p:p.p.map(n=>Math.round(n*1000)/1000),y:p.y,l
 console.log('WINDOWS_DENSITY_PARAGRAPHS ' + JSON.stringify({scale:process.argv[4], paired:paired.length,
   sameStartPage:sameStartPage.length, sameLineLevel:sameStartPage.filter(([a,b])=>a.lines===b.lines).length,
   changed:changes.length, first:changes.slice(0,4).map(([a,b])=>({length:a.length,before:compact(a),after:compact(b)}))}));
+
+if (before.some(sheet => sheet.images) && after.some(sheet => sheet.images)) {
+  const drift = (a,b) => Math.max(...a.map((n,i) => Math.abs(n-b[i])));
+  const result = { printed: [0,0], matched: 0, reordered: 0, unmatched: 0, shiftsOverFour: 0, largest: [] };
+  for (const [i, original] of before.entries()) {
+    const left = original.images ?? [], right = after[i]?.images ?? [];
+    result.printed[0] += left.length;
+    result.printed[1] += right.length;
+    const available = new Set(right.map((_,index) => index));
+    for (const [j,[key,box]] of left.entries()) {
+      const matches = [...available].filter(k => right[k][0] === key);
+      const nearest = matches.sort((x,y) => drift(box,right[x][1]) - drift(box,right[y][1]))[0];
+      if (nearest === undefined) { result.unmatched++; continue; }
+      available.delete(nearest);
+      result.matched++;
+      result.reordered += Number(j !== nearest);
+      const other = right[nearest][1], delta = drift(box,other);
+      if (delta > 4) {
+        result.shiftsOverFour++;
+        result.largest.push({ sheet:i+1, delta:Math.round(delta*1000)/1000,
+          before:box.map(n=>Math.round(n*1000)/1000), after:other.map(n=>Math.round(n*1000)/1000) });
+      }
+    }
+  }
+  result.largest.sort((a,b) => b.delta-a.delta);
+  result.largest = result.largest.slice(0,6);
+  console.log('WINDOWS_DENSITY_IMAGES ' + JSON.stringify({ scale:process.argv[4], ...result }));
+}
