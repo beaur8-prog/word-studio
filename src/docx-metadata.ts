@@ -7,7 +7,6 @@ import { parseHwpTableContinuation } from './hwp-table-continuation';
 import { hwpBoxedDigitAttribute, hwpBoxedDigitBorder, hwpBoxedDigitNamespace, parseHwpBoxedDigit } from './hwp-boxed-digit';
 import { paragraphBorderBoxAttribute } from './paragraph-border-box';
 import { flattenDocxCheckboxes, restoreDocxCheckboxInputs } from './docx-checkboxes';
-import { encodeDocxXmlParts } from './docx-package-text';
 import { cellTablePosition } from './cell-table-position';
 import { tablePixelGrid } from './table-grid-widths';
 import { rowSplitPolicy } from './row-split-policy';
@@ -251,10 +250,11 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     const properties = Array.from(paragraph.children).find(e => e.localName === 'pPr');
     paragraph.insertBefore(bookmark(name), properties ? properties.nextSibling : paragraph.firstChild);
   }
-  zip.file('word/document.xml', new XMLSerializer().serializeToString(body));
-  await encodeDocxXmlParts(zip);
+  // Only the working body was serialized here. Keep the source XML parts
+  // as bytes, and encode the new body before JSZip can split a surrogate pair.
+  zip.file('word/document.xml', new TextEncoder().encode(new XMLSerializer().serializeToString(body)));
   return {
-    buffer: await zip.generateAsync({ type: 'arraybuffer' }), comments, wordDefaultLanguage: format.wordDefaultLanguage,
+    buffer: await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' }), comments, wordDefaultLanguage: format.wordDefaultLanguage,
     decorate(html: string) {
       // Anchor markers nested inside hyperlinks make the HTML parser close the
       // outer link. Convert markers before parsing, not after damage is done.
