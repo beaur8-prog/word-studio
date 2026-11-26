@@ -333,6 +333,10 @@ async function main() {
       });
       close = await require('../native-smoke-lifetime.cjs')(app, 'Public original ' + item.id, 1050000);
       const page = await app.firstWindow();
+      if (process.env.WINDOWS_NATIVE_MATH_STAGE_TRACE === '1') page.on('console', message => {
+        const line = message.text();
+        if (line.startsWith('QA_MATH_NATIVE_STAGE ')) console.log(line);
+      });
       if (requestedScale) {
         stage = 'display-scale';
         // Playwright's viewport emulation also overrides deviceScaleFactor.

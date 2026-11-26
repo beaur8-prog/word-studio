@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Isolate the remaining HWPX-only form overflow after the printed fit is corrected
+run-name: Trace only import and editor mount durations in the Windows math DOCX
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,13 +14,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-2, id: 05-return-form, pages: '1,1'}
+          - {group: hwp-2, id: 08-math-exam}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
-      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
+      WINDOWS_NATIVE_DOCX_DIAGNOSE: '1'
+      WINDOWS_NATIVE_MATH_STAGE_TRACE: '1'
       WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
@@ -36,15 +37,7 @@ jobs:
           dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Build the pinned form product
-        shell: pwsh
-        run: |
-          git restore --source 6b2ce71296b9057c02f3d6612b2766723ef80984 -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code 6b2ce71296b9057c02f3d6612b2766723ef80984 -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run package:win:dir
-          exit $LASTEXITCODE
+      - run: npm run package:win:dir
       - name: Run the file-menu export and reopen both native outputs
         shell: pwsh
         run: |
@@ -53,10 +46,7 @@ jobs:
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
           $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
           $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
-          $env:WINDOWS_NATIVE_HWP_COPY = "$env:RUNNER_TEMP/form-actual"
           node scripts/windows-qa/native-export-pdf-stages.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/windows-qa/compare-form-writer-insets.cjs "$env:RUNNER_TEMP/form-actual.hwp" "$env:RUNNER_TEMP/form-actual.hwpx"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> "$env:RUNNER_TEMP/native-sdk.log"
           $status = $LASTEXITCODE

@@ -108,6 +108,9 @@ const blank = (title = "문서1", html = "<p></p>"): StudioDocument => ({
   updatedAt: new Date().toISOString(),
 });
 // Timestamps change on render; compare only the editable document state.
+const nativeImportTiming = (phase: string, n = 0) =>
+  console.log('QA_MATH_NATIVE_STAGE ' + JSON.stringify({ phase, ms: Math.round(performance.now()), n }));
+
 function documentContents(doc: StudioDocument) {
   const { updatedAt, ...contents } = doc;
   return JSON.stringify(contents);
@@ -646,6 +649,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     document.body.classList.remove('studio-printing');
   }, []);
   const activateDocument = (doc: StudioDocument) => {
+    nativeImportTiming("activate-start");
     if (!editor) return;
     setHwpOriginal(null);
     // A new EditorState resets history and selection plugins together. Merely
@@ -653,8 +657,10 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     editor.view.updateState(EditorState.create({
       schema: editor.schema, doc: editor.schema.nodeFromJSON(doc.content), plugins: editor.state.plugins,
     }));
+    nativeImportTiming("new-editor-state");
     editor.view.dispatch(editor.state.tr.setMeta(documentMetadata, { page: doc.page, comments: doc.comments,
       ...wordLayoutOptions(doc) }).setMeta('addToHistory', false));
+    nativeImportTiming("metadata-state");
     ++recoveryEpoch.current;
     startupTouched.current = true;
     pendingRecovery.current = true;
@@ -663,6 +669,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     transitioning.current = false;
     setDocumentId(doc.id || crypto.randomUUID());
     setTitle(doc.title);
+    nativeImportTiming("set-title");
     setPage(doc.page);
     setWordDefaultLanguage(doc.wordDefaultLanguage);
     setWordAutoHyphenation(doc.wordAutoHyphenation);
@@ -681,17 +688,24 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   };
   const loadDoc = async (doc: StudioDocument, html?: string) => {
     if (!editor || transitioning.current) return false;
+    nativeImportTiming("validate-start");
     const next = validateDocument({ ...doc, content: html === undefined ? doc.content : parseDocumentHtml(html) });
     // Parse before replacing anything, including the current undo history.
     editor.schema.nodeFromJSON(next.content).check();
+    nativeImportTiming("validate-done");
     transitioning.current = true;
     try {
       // Users can keep editing while disk I/O is pending. Flush a fresh snapshot
       // if the document changed during the write, then switch without an await.
       let snapshot: StudioDocument;
+      let recoveryAttempt = 0;
       do {
         snapshot = structuredClone(currentRef.current);
-        if (!unusedStartupDocument(snapshot)) await saveRecovery(snapshot);
+        if (!unusedStartupDocument(snapshot)) {
+          nativeImportTiming("recovery-start", ++recoveryAttempt);
+          await saveRecovery(snapshot);
+          nativeImportTiming("recovery-done", recoveryAttempt);
+        }
       } while (documentContents(snapshot) !== documentContents(currentRef.current));
       activateDocument(next);
       return true;
@@ -713,10 +727,13 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     setHwpFile(null);
     setBusy(true);
     try {
+      nativeImportTiming("import-start", file.size);
       const result = await importFile(file);
+      nativeImportTiming("import-done");
       const loaded = await loadDoc(result.document, result.html);
       if (loaded) { setHwpFile(null); setHwpOriginal(null); }
       if (loaded && result.warnings.length) notify(result.warnings.join(" "));
+      nativeImportTiming("import-complete");
     } catch (e) {
       notify(
         `파일을 열지 못했습니다: ${e instanceof Error ? e.message : String(e)}`,
