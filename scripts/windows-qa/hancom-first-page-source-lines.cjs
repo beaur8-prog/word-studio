@@ -48,9 +48,9 @@ function read(doc) {
   return {parts,xml,head,paras,styles,first,table,start,placement};
 }
 
-function paint(doc) {
+function paint(doc, limit = 4) {
   const result = new Map();
-  for (let page=0; page<Math.min(doc.pageCount(),4); page++) {
+  for (let page=0; page<Math.min(doc.pageCount(),limit); page++) {
     const {columns} = JSON.parse(doc.getPageInfo(page));
     for (const run of JSON.parse(doc.getPageTextLayout(page)).runs) {
       if (run.secIdx || run.headerFooter || run.cellPath?.length || !run.text.trim()) continue;
@@ -74,43 +74,55 @@ module.exports = function trial(Core, source, output) {
       !titleAlreadyAuthored && !saved.placement.includes('treatAsChar="1"'))
     throw Error('Unexpected title carrier geometry');
   const from = indexText(source), to = indexText(output);
-  const originalPaint = paint(source);
+  const expand = process.env.WINDOWS_HWP_FIRST_PAGE_EXPAND === '1';
+  const limit = expand ? 40 : 4;
+  const originalPaint = paint(source,limit);
   const proof = [];
   for (const [text,index] of from) {
     const next = to.get(text), originalOwner = original.paras[index], savedOwner = saved.paras[next];
+    const page = originalPaint.get(index)?.values().next().value?.page;
     if (index===null || !Number.isInteger(next) || !originalOwner || !savedOwner ||
-        originalPaint.get(index)?.values().next().value?.page !== 0 || text.length<8 || text.length>200 ||
+        page===undefined || !expand && page!==0 || text.length<8 || text.length>200 ||
         /[^\p{L}\p{N}\p{P}\p{S}\p{Zs}\t]/u.test(text) || /<hp:(?:ctrl|pic|tbl|shape)\b/.test(originalOwner.inner)) continue;
     const before = original.styles.get(id(originalOwner.tag,'paraPrIDRef'));
     const after = saved.styles.get(id(savedOwner.tag,'paraPrIDRef'));
     const line = originalOwner.inner.match(cache)?.[0];
     const authoredUnit = before?.inner.match(unit)?.[0], generatedUnit = after?.inner.match(unit)?.[0];
     if (line && authoredUnit && generatedUnit && JSON.parse(source.getParagraphLineMetrics(0,index,'[]')).controlCount===0)
-      proof.push({index,next,owner:savedOwner,after,line,authoredUnit,generatedUnit,tab:text.includes('\t')});
+      proof.push({index,next,page,owner:savedOwner,after,line,authoredUnit,generatedUnit,tab:text.includes('\t')});
   }
   if (!proof.some(row=>row.tab)) throw Error('Missing an unchanged authored tab row');
   const count = (doc, title) => {
-    const painted = paint(doc);
-    let starts=0, exactLineBreaks=0;
+    const painted = paint(doc,limit);
+    let starts=0, exactLineBreaks=0, firstPageStarts=0, firstPageExactLineBreaks=0;
     for (const row of proof) {
       const a = [...(originalPaint.get(row.index)?.values()??[])];
       const b = [...(painted.get(row.next)?.values()??[])];
-      starts += Number(a[0]?.page===b[0]?.page && a[0]?.lane===b[0]?.lane);
-      exactLineBreaks += Number(a.length===b.length && a.every((line,i)=>line.text===b[i].text));
+      const sameStart = a[0]?.page===b[0]?.page && a[0]?.lane===b[0]?.lane;
+      const sameLines = a.length===b.length && a.every((line,i)=>line.text===b[i].text);
+      starts += Number(sameStart);
+      exactLineBreaks += Number(sameLines);
+      if (row.page===0) { firstPageStarts += Number(sameStart); firstPageExactLineBreaks += Number(sameLines); }
     }
     const unchanged = [...to].every(([text,index])=>index===null||doc.getTextRange(0,index,0,0xffffffff)===text);
     if (!unchanged) throw Error('Changed paragraph payload');
     const {body,cell} = pageAgreement(source,doc);
-    return { title,pages:doc.pageCount(),starts,exactLineBreaks,body,cell };
+    return { title,pages:doc.pageCount(),starts,exactLineBreaks,firstPageStarts,firstPageExactLineBreaks,body,cell };
   };
   const results = [count(output, 'ordinary output')];
-  for (const scope of ['title only','tab rows','all exact first-page rows']) {
+  const onFirst = row => row.page===0;
+  const scopes = [
+    ['title only',()=>false], ['first-page tab rows',row=>onFirst(row)&&row.tab], ['all exact first-page rows',onFirst],
+    ...(expand ? [['first two source pages',row=>row.page<=1], ['first three source pages',row=>row.page<=2],
+      ['all eligible source pages',()=>true], ['after the first page only',row=>!onFirst(row)]] : []),
+  ];
+  for (const [scope,include] of scopes) {
     if (scope==='title only' && titleAlreadyAuthored) continue;
     const edits = titleAlreadyAuthored ? [] : [[saved.start,saved.start+saved.placement.length,original.placement]];
     const additions = [];
     let nextStyle = 1+Math.max(...[...saved.styles.keys()].map(Number));
     for (const row of proof) {
-      if (scope==='title only'||scope==='tab rows'&&!row.tab) continue;
+      if (!include(row)) continue;
       const style = nextStyle++;
       additions.push(row.after.tag.replace(/\bid="\d+"/,'id="'+style+'"')+
         row.after.inner.replace(row.generatedUnit,row.authoredUnit)+'</hh:paraPr>');
@@ -126,5 +138,5 @@ module.exports = function trial(Core, source, output) {
     try { results.push({...count(changed,scope), ownerEdits:additions.length}); }
     finally { changed.free(); }
   }
-  return { originalPages:source.pageCount(),fixed:proof.length,titleAlreadyAuthored,results };
+  return { originalPages:source.pageCount(),fixed:proof.length,fixedFirstPage:proof.filter(row=>row.page===0).length,titleAlreadyAuthored,results };
 };
