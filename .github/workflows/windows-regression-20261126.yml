@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Trace only import and editor mount durations in the Windows math DOCX
+run-name: Verify the exact combined Windows form and previously repaired native boundaries
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,14 +14,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-2, id: 08-math-exam}
+          - {group: hwp-2, id: 05-return-form, pages: '1,1'}
+          - {group: hwp-3, id: 06-mixed-document, pages: '39,42'}
+          - {group: hwp-3, id: 09-korean-exam, pages: '20,16'}
+          - {group: hwp-1, id: 10-lh-plan, pages: '8,8'}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
+      WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_DOCX_DIAGNOSE: '1'
-      WINDOWS_NATIVE_MATH_STAGE_TRACE: '1'
+      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
       WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
