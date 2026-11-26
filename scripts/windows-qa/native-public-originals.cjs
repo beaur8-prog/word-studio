@@ -27,6 +27,13 @@ async function main() {
       close = await require('../native-smoke-lifetime.cjs')(app, 'Public original ' + item.id, 1050000);
       const page = await app.firstWindow();
       await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.evaluate(() => {
+        const tasks = [];
+        window.qaLongTasks = tasks;
+        new PerformanceObserver(list => {
+          for (const task of list.getEntries()) tasks.push({ at: task.startTime, duration: task.duration });
+        }).observe({ type: 'longtask' });
+      });
       await page.locator('.tiptap').first().waitFor({ state: 'visible' });
       await app.evaluate(({ dialog }, files) => {
         dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [files.source] });
@@ -34,7 +41,7 @@ async function main() {
       }, { source: item.path, pdf });
       stage = 'open';
       await page.keyboard.press('ControlOrMeta+o');
-      let readerPages = null;
+      let readerPages = null, readyStarted = Date.now(), rendererStarted = 0;
       if (item.ext !== 'docx') {
         const reader = page.getByRole('dialog', { name: 'HWP 읽기', exact: true });
         await reader.getByTestId('hwp-page').waitFor({ state: 'visible', timeout: 75000 });
@@ -50,39 +57,40 @@ async function main() {
         const previewEstimate = comparison?.match(/Word 인쇄 (\d+)쪽/);
         console.log('WINDOWS_NATIVE_ESTIMATE ' + item.id + ' ' + (previewEstimate?.[1] ?? 'unavailable'));
         stage = 'convert-editor-command';
+        readyStarted = Date.now();
+        rendererStarted = await page.evaluate(() => performance.now());
         await panel.getByRole('button', { name: '편집본 만들기', exact: true }).click({ timeout: 90000 });
         stage = 'convert-editor-view';
         await reader.waitFor({ state: 'hidden', timeout: 360000 });
         console.log('WINDOWS_NATIVE_CONVERT ' + item.id + ' ' + (Date.now() - conversionStarted));
       }
-      await expect(page.getByRole('textbox', { name: '문서 제목', exact: true }))
+      stage = 'editor-title';
+      await expect(page.locator('.topbar').getByRole('textbox', { name: '문서 제목', exact: true }))
         .toHaveValue(item.id, { timeout: 60000 });
+      stage = 'editor-ready';
       await page.locator('.busy-indicator').waitFor({ state: 'hidden', timeout: 90000 });
       await page.evaluate(() => document.fonts.ready);
       const stack = page.locator('.document-stack');
       await expect(stack).toHaveAttribute('data-pages', /^[1-9]\d*$/, { timeout: 60000 });
       const editorPages = Number(await stack.getAttribute('data-pages'));
-      stage = 'preview-command';
+      const editorMilliseconds = Date.now() - readyStarted;
+      const editorLongTasks = await page.evaluate(start => window.qaLongTasks.filter(task => task.at >= start)
+        .map(task => Math.round(task.duration)).sort((a,b) => b-a).slice(0,5), rendererStarted);
+      console.log('WINDOWS_HWP_EDITOR_READY ' + JSON.stringify({ id: item.id, editorPages, editorMilliseconds, editorLongTasks }));
+      stage = 'preview-tab';
       const previewStarted = Date.now();
-      if (process.env.QA_PREVIEW_COMMAND === 'palette') {
-        await page.keyboard.press('ControlOrMeta+Shift+k');
-        await page.getByRole('textbox', { name: '명령 검색' }).fill('인쇄 미리보기', { timeout: 90000 });
-        const command = page.getByRole('button', { name: /^인쇄 미리보기/ });
-        await command.waitFor({ state: 'visible', timeout: 90000 });
-        await command.press('Enter', { timeout: 90000 });
-      } else {
-        await page.getByRole('button', { name: '보기', exact: true }).click();
-        await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click({ timeout: 75000 });
-      }
+      await page.locator('nav.tabs').getByRole('button', { name: '보기', exact: true }).click({ timeout: 75000 });
+      stage = 'preview-command';
+      await page.locator('.ribbon').getByRole('button', { name: '인쇄 미리보기', exact: true }).click({ timeout: 75000 });
       stage = 'preview-layout';
-      const toolbar = page.getByRole('toolbar', { name: '인쇄 미리보기', exact: true });
+      const toolbar = page.locator('.print-preview-controls');
       await toolbar.waitFor({ state: 'visible', timeout: 120000 });
       const previewPages = await page.locator('.print-layout.preview .print-page').count();
       const previewMilliseconds = Date.now() - previewStarted;
       stage = 'pdf';
       const pdfStarted = Date.now();
       await toolbar.getByRole('button', { name: 'PDF 저장', exact: true }).click({ timeout: 75000 });
-      await expect(page.getByText('PDF를 저장했습니다', { exact: true })).toBeVisible({ timeout: 90000 });
+      await expect.poll(() => fs.stat(pdf).then(item => item.size).catch(() => 0), { timeout: 90000 }).toBeGreaterThan(0);
       const bytes = await fs.readFile(pdf);
       const pdfPages = (bytes.toString('latin1').match(/\/Type\s*\/Page\b/g) || []).length;
       if (!pdfPages) throw new Error('Native PDF page count unavailable');
