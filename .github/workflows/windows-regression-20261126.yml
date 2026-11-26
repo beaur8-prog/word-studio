@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Separate Windows math DOCX decompression from section processing
+run-name: Locate the first extra sheet in the actual Windows English exam
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,14 +14,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-2, id: 08-math-exam}
+          - {group: hwp-1, id: 07-english-exam}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_DOCX_DIAGNOSE: '1'
-      WINDOWS_NATIVE_MATH_STAGE_TRACE: '1'
+      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
       WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +36,15 @@ jobs:
           dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
+      - name: Build the exact integrated form source
+        shell: pwsh
+        run: |
+          git restore --source abf769924352d680851f9b45522a00be4790167d -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code abf769924352d680851f9b45522a00be4790167d -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run package:win:dir
+          exit $LASTEXITCODE
       - name: Run the file-menu export and reopen both native outputs
         shell: pwsh
         run: |
