@@ -49,7 +49,7 @@ import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { restoreNativeContinuationPlacement, restoreNativePaperHeaderTable, restoreNativeRasterTablePair } from './export-table-placement';
 import { restoreStandalonePictureLine } from './export-picture-line';
-import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts } from './export-empty-paragraph-format';
+import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts, withoutPastedEmptyCarriers } from './export-empty-paragraph-format';
 import { restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
 import { stageHwpTables } from './export-tables';
@@ -2747,12 +2747,14 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     const withNavigation = navigation.restore(Core, doc);
     if (withNavigation !== doc) { doc.free(); doc = withNavigation; }
     const empty = nativePrint?.emptyParagraphs;
-    if (nativePrint && empty && !restorePastedEmptyParagraphs(doc, empty)) {
-      const result = serializeHwp(Core, html.replaceAll(empty.text, ''), page, format, onProgress,
+    const withEmptyParagraphs = empty ? restorePastedEmptyParagraphs(Core, doc, empty) : doc;
+    if (nativePrint && empty && !withEmptyParagraphs) {
+      const result = serializeHwp(Core, withoutPastedEmptyCarriers(html, empty), page, format, onProgress,
         textBoxes, { ...nativePrint, emptyParagraphs: undefined });
       result.warnings.push('일부 빈 문단의 글자 서식을 한글 형식으로 옮기지 못했습니다.');
       return result;
     }
+    if (withEmptyParagraphs && withEmptyParagraphs !== doc) { doc.free(); doc = withEmptyParagraphs; }
     const withTables = tables.restore(Core, doc);
     if (withTables !== doc) { doc.free(); doc = withTables; }
     const withColumns = columns.restore(Core, doc);

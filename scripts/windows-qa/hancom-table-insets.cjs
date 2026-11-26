@@ -45,7 +45,19 @@ module.exports = function hancomTableInsets(original, saved) {
   if (tail.length !== 1 || tail[0].pages.length !== 1) throw Error('The original table continuation was missing or ambiguous');
   const { secIdx, paraIdx, controlIdx } = lead[0].table;
   const { outerTop: top, outerBottom: bottom } = JSON.parse(saved.getTableProperties(secIdx, paraIdx, controlIdx));
-  return { sourcePage: source[0].pages[0], sourceContinuationPage: source[0].pages[1],
+  const blankIndex = (doc, table, cell, before, after) => {
+    const { secIdx, paraIdx, controlIdx } = table;
+    const key = [secIdx, paraIdx, controlIdx, cell];
+    const literals = Array.from({ length:doc.getCellParagraphCount(...key) }, (_, i) => normalized(doc.getTextInCell(...key, i, 0, 0xffffffff)));
+    const index = literals.findIndex((item, i) => !item && literals[i-1]===before && literals[i+1]===after);
+    if (index < 0 || doc.getCellParagraphLength(...key, index)) throw Error('Missing original empty cell paragraph');
+    return JSON.parse(doc.getCellCharPropertiesAt(...key, index, 0)).fontSize;
+  };
+  const sourceKey = [source[0].table.secIdx, source[0].table.paraIdx, source[0].table.controlIdx, 3];
+  const witnesses = [10,12].map(i => normalized(original.getTextInCell(...sourceKey, i, 0, 0xffffffff)));
+  const sourceBlank = blankIndex(original, source[0].table, 3, ...witnesses);
+  const blank = blankIndex(saved, tail[0].table, 1, ...witnesses);
+  return { blank, sourceBlank, continuationHeight:tail[0].table.h, sourcePage: source[0].pages[0], sourceContinuationPage: source[0].pages[1],
     page: lead[0].pages[0], continuationPage: tail[0].pages[0], top, bottom,
     sourceX: source[0].left[0], sourceContinuationX: source[0].left[1],
     x: lead[0].left[0], continuationX: tail[0].left[0],

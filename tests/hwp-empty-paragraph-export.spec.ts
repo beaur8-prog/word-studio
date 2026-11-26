@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -63,3 +63,73 @@ for (const format of ['hwp', 'hwpx'] as const) {
     }
   });
 }
+
+test('a styled blank between cell paragraphs retains its own height through DOCX and Hangul saves', async ({ page }, info) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { exportEditableHwp } = await import('/src/hwp/editing.ts');
+    const { importFile, exportDocx } = await import('/src/document-io.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const { defaultPage } = await import('/src/types.ts');
+    const cell = (first: string, last: string, width: number, font: number, pitch: number) =>
+      `<td colwidth="${width}"><p style="font-size:10pt;line-height:17.333px">${first}</p>` +
+      `<p style="font-size:${font}pt;line-height:${pitch}px"></p>` +
+      `<p style="font-size:10pt;line-height:17.333px">${last}</p></td>`;
+    const anchor = JSON.stringify({ x: 0, y: 1, bottom: 1, reference: 'paragraph', horizontal: 'margin' }).replaceAll('"', '&quot;');
+    let document = {
+      format: 'word-studio' as const, version: 1 as const, title: 'Table paragraph styles',
+      comments: [], updatedAt: new Date().toISOString(),
+      page: { ...defaultPage, size: 'Custom' as const, width: 210, height: 100,
+        margins: { top: 10, bottom: 10, left: 10, right: 10 } },
+      content: parseDocumentHtml('<p>Before\u2060 table</p><table data-table-anchor="' + anchor + '">' +
+        '<tr data-row-split="avoid" style="height:250px"><td colwidth="80"><p>Start</p></td>' +
+        '<td colwidth="80"><p>Keep</p></td><td colwidth="480"><p>First page</p></td></tr>' +
+        '<tr data-row-split="avoid">' + cell('A s', 'B s', 80, 3, 5.2) + cell('A l', 'B l', 80, 8, 13.8667) +
+        '<td colwidth="480"><p>Continued page</p></td></tr></table><p>After table</p>'),
+    };
+    const docx = [];
+    for (let stage = 0; stage < 2; stage++) {
+      const saved = await exportDocx(document);
+      docx.push([...new Uint8Array(await saved.arrayBuffer())]);
+      const reopened = await importFile(new File([saved], 'blank-table.docx'));
+      document = { ...reopened.document, content: parseDocumentHtml(reopened.html!) };
+    }
+    const native = [];
+    for (const format of ['hwp', 'hwpx'] as const) {
+      const saved = await exportEditableHwp(document, format);
+      native.push([...new Uint8Array(await saved.blob.arrayBuffer())]);
+    }
+    return { docx, native };
+  });
+
+  for (const [index, bytes] of result.docx.entries())
+    await writeFile(info.outputPath(`textbox-save-empty-cell-${index + 1}.docx`), Buffer.from(bytes));
+
+  const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
+  const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
+  await init({ module_or_path: await readFile(path.join(core, 'rhwp_bg.wasm')) });
+  for (const bytes of result.native) {
+    const doc = new HwpDocument(Uint8Array.from(bytes));
+    try {
+      expect(doc.pageCount()).toBe(2);
+      const tables = JSON.parse(doc.getPageControlLayout(1)).controls.filter(control => control.type === 'table');
+      expect(tables).toHaveLength(1);
+      expect(doc.getTextRange(0, 0, 0, 100)).toBe('Before\u2060 table');
+      const [{ secIdx, paraIdx, controlIdx, colCount, rowCount, w }] = tables;
+      expect(w).toBeCloseTo(640, 0);
+      expect([rowCount, colCount]).toEqual([1, 3]);
+      for (const [cell, label, size] of [[0, 's', 300], [1, 'l', 800]] as const) {
+        const address = [secIdx, paraIdx, controlIdx, cell] as const;
+        const model = Array.from({ length: doc.getCellParagraphCount(...address) }, (_, p) =>
+          doc.getTextInCell(...address, p, 0, 200));
+        expect(model).toEqual([`A ${label}`, '', `B ${label}`]);
+        const blank = JSON.parse(doc.getCellCharPropertiesAt(...address, 1, 0));
+        const spacing = JSON.parse(doc.getCellParaPropertiesAt(...address, 1));
+        expect([blank.fontSize, spacing.lineSpacing, spacing.lineSpacingType]).toEqual([size, 130, 'Percent']);
+        const runs = JSON.parse(doc.getPageTextLayout(1)).runs.filter(run =>
+          run.cellIdx === cell && run.parentParaIdx === paraIdx && run.text.trim());
+        expect(runs.at(-1).y - runs[0].y).toBeCloseTo((1000 + size) * 1.3 / 75, 0);
+      }
+    } finally { doc.free(); }
+  }
+});

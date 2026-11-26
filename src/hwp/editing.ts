@@ -21,7 +21,7 @@ import { tableAnchor } from '../table-anchor';
 import { sealHwpRowReserves } from '../hwp-row-reserve';
 import { nativeBoxAnchor, prepareHwpExportTextBoxes } from './export-textbox-projection';
 import { measuredTableLead } from './export-table-lead';
-import { measuredContinuationPlacement, measuredPaperHeaderTable, measuredRasterTablePair, type PaperHeaderTable,
+import { measuredContinuationPlacement, measuredPaperHeaderTable, measuredRasterTablePair, nativeContinuedTableAttribute, type PaperHeaderTable,
   type RasterTablePair, type TablePlacement } from './export-table-placement';
 import { measuredStandaloneBitmapSources, nativeStandalonePictureAttribute } from './export-picture-line';
 import { measuredTerminalEmptyFonts, type TerminalEmptyFonts } from './export-empty-paragraph-format';
@@ -42,7 +42,9 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
       .filter(span => activeHwpLatinFont(span.getAttribute(hwpLatinFontAttribute), span.style.fontFamily))
       .map(span => ({ span, color: getComputedStyle(span).color }));
     const emptyText = 'WORDSTUDIO-EMPTY-PARAGRAPH-' + crypto.randomUUID();
-    let emptyCount = 0;
+    const literal = root.textContent ?? '';
+    const emptyCellText = ['\u2060', '\u200b'].find(text => !literal.includes(text));
+    let emptyCount = 0, emptyCells = 0;
     // Read the same rendered source before changing any of its paragraphs.
     // Interleaving computed styles with replacements forces Chromium to
     // recalculate the large attached tree for each paragraph.
@@ -66,12 +68,25 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
         if (indent < 0 && left > -indent)
           paragraph.setAttribute('style', `${paragraph.style.cssText} margin-left: ${computed.marginLeft};`);
       }
-      if (element.parentElement === root && element.tagName === 'P' && !element.childNodes.length &&
-          element.style.fontSize && font > 0 && line > 0) {
-        // A blank authored paragraph still has a character style. The native
-        // HTML parser drops an empty span, so carry the style through paste.
-        span.textContent = emptyText;
-        emptyCount++;
+      if (element.tagName === 'P' && !element.childNodes.length && element.style.fontSize && font > 0 && line > 0) {
+        const parent = element.parentElement;
+        const compactCellLine = parent?.matches('td,th') &&
+          parent.closest('table')?.hasAttribute(nativeContinuedTableAttribute) &&
+          [element.previousElementSibling, element.nextElementSibling].every(neighbor => {
+            if (neighbor?.tagName !== 'P' || !neighbor.textContent?.trim()) return false;
+            const style = getComputedStyle(neighbor);
+            return font < parseFloat(style.fontSize) && line < parseFloat(style.lineHeight);
+          });
+        // The native HTML parser drops empty spans. Carry the authored
+        // character style without broadening a table's automatic cell width.
+        if (parent === root) {
+          span.textContent = emptyText;
+          emptyCount++;
+        } else if (compactCellLine && emptyCellText) {
+          span.dataset.hwpEmptyCellCarrier = 'true';
+          span.textContent = emptyCellText;
+          emptyCells++;
+        }
       }
       return { element, paragraph, span };
     });
@@ -96,7 +111,8 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
     // The engine's CSS attribute reader does not decode HTML attribute entities.
     // Single quotes keep family names readable without changing document text.
     const html = root.innerHTML.replace(/style="([^"]*)"/g, (_, css: string) => `style="${css.replace(/&quot;/g, "'")}"`) || '<p></p>';
-    return { html, ...textBoxes, emptyParagraphs: emptyCount ? { text: emptyText, count: emptyCount } : undefined };
+    const cells = emptyCells && emptyCellText ? { text: emptyCellText, count: emptyCells } : undefined;
+    return { html, ...textBoxes, emptyParagraphs: emptyCount || cells ? { text: emptyText, count: emptyCount, cells } : undefined };
   } finally { root.remove(); }
 }
 
@@ -255,7 +271,14 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       if (span.attributes.length === 1) span.replaceWith(...span.childNodes);
     const anchors = [...root.querySelectorAll<HTMLElement>('[data-document-textbox]')].map(box =>
       [box.dataset.documentTextbox, box.getAttribute(nativeBoxAnchor)] as const);
+    const continuedTables = [...root.querySelectorAll<HTMLTableElement>('table')].map(table =>
+      table.hasAttribute(nativeContinuedTableAttribute) ? table.dataset.tableAnchor : undefined);
     root.innerHTML = sanitizeImportedHtml(root.innerHTML).html;
+    const tables = root.querySelectorAll<HTMLTableElement>('table');
+    if (tables.length === continuedTables.length) tables.forEach((table, index) => {
+      const anchor = continuedTables[index];
+      if (anchor && table.dataset.tableAnchor === anchor) table.setAttribute(nativeContinuedTableAttribute, '');
+    });
     if (standaloneBitmaps.length) {
       const images = [...root.querySelectorAll('img')];
       for (const source of new Set(standaloneBitmaps)) {

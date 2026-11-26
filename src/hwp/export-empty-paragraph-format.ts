@@ -5,9 +5,9 @@ import { retainedTextBands } from '../hwp-line-ink';
 import { boundedNativeParts, nativeBodyRuns, nativePaintedControls, type NativeBodyRun } from './export-binary-pages';
 import { directHwpPageBreak, elementRanges } from './markup-ranges';
 
-export type PastedEmptyParagraphs = { text: string; count: number };
+export type PastedEmptyParagraphs = { text: string; count: number; cells?: { text: string; count: number } };
 
-export function restorePastedEmptyParagraphs(doc: HwpDocument, { text, count }: PastedEmptyParagraphs) {
+function restoreEmptyBodyParagraphs(doc: HwpDocument, text: string, count: number) {
   const locations: number[] = [];
   const total = doc.getParagraphCount(0);
   for (let paragraph = 0; paragraph < total; paragraph++) {
@@ -28,6 +28,32 @@ export function restorePastedEmptyParagraphs(doc: HwpDocument, { text, count }: 
         JSON.parse(doc.setCharShapeId(0, paragraph, 0, 0, charShapeId)).ok;
     });
   } finally { doc.endBatch(); }
+}
+
+export function restorePastedEmptyParagraphs(Core: typeof HwpDocument, doc: HwpDocument, { text, count, cells }: PastedEmptyParagraphs) {
+  if (count && !restoreEmptyBodyParagraphs(doc, text, count)) return;
+  if (!cells) return doc;
+  const parts = boundedNativeParts(doc.exportHwpx());
+  const literal = '<hp:t>' + cells.text + '</hp:t>';
+  let restored = 0;
+  for (const [name, bytes] of Object.entries(parts)) {
+    if (!/^Contents\/section\d+\.xml$/.test(name)) continue;
+    const xml = strFromU8(bytes), pieces = xml.split(literal);
+    if (pieces.some(piece => piece.includes(cells.text))) return;
+    if (pieces.length > 1) {
+      restored += pieces.length - 1;
+      // Keep the pasted character properties on the now empty cell line.
+      parts[name] = strToU8(pieces.join('<hp:t/>'));
+    }
+  }
+  if (restored !== cells.count) return;
+  return new Core(zipSync(parts, { level: 1 }));
+}
+
+export function withoutPastedEmptyCarriers(html: string, { text, cells }: PastedEmptyParagraphs) {
+  const body = html.replaceAll(text, '');
+  return cells ? body.replace(/(<span\b[^>]*\bdata-hwp-empty-cell-carrier="true"[^>]*>)([^<]*)(<\/span>)/g,
+    (all, open, value, close) => value === cells.text ? open + close : all) : body;
 }
 
 export type TerminalEmptyFonts = {

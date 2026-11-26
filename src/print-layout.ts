@@ -92,8 +92,6 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (paragraph instanceof HTMLParagraphElement && isOrdinaryWordBodyParagraph(paragraph, source))
       paragraph.dataset.wordFloatingSpaceSource = 'true';
   const wrappingAnchors = wordFlowHasWrappingAnchors(source);
-  const referenceDensity = wordLayout.nativeDesktop === true && window.wordDesktop?.platform === 'win32' &&
-    Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 1 && document.body.currentCSSZoom === 1;
   if (wrappingAnchors && wordLayout.wordBodyStrut) markWordReferenceDensity(source);
   const canPlaceProtectedTable = protectedTablePlacement(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
@@ -231,11 +229,11 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     refreshNotes();
     layoutTableAnchors(content);
     layoutWordAutoFitTables(content, true);
-    layoutWordLines(content, referenceDensity);
+    layoutWordLines(content);
     layoutHwpCellLines(content);
     layoutHwpBodyLines(content, wordLayout.paintHwpCellLines !== false);
     layoutTabs(content);
-    layoutColumns(content, content.getBoundingClientRect().bottom, referenceDensity);
+    layoutColumns(content, content.getBoundingClientRect().bottom);
     // Removing overlay flow can move its zero-height frame to another
     // column. Resolve its coordinates against the final column geometry.
     layoutTableAnchors(content);
@@ -333,7 +331,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     table.querySelectorAll(':scope > colgroup').forEach(columns => probe.append(columns.cloneNode(true)));
     const body = probe.createTBody();
     holder.append(probe);
-    const refresh = () => { layoutWordLines(probe, referenceDensity); layoutHwpCellLines(probe); layoutTabs(probe); };
+    const refresh = () => { layoutWordLines(probe); layoutHwpCellLines(probe); layoutTabs(probe); };
     const copyRow = (row: HTMLTableRowElement) => row.cloneNode(true) as HTMLTableRowElement;
     const repeats = headers.map(copyRow);
     const fragments: HTMLTableRowElement[][] = [];
@@ -500,7 +498,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         if (anchor?.reference === 'paragraph') {
           next.dataset.tableAnchor = JSON.stringify({ ...anchor, y: 0 });
           next.style.marginTop = '0px';
-          if (wordLayout.hwpNativeExport && next.dataset.hwpCenteredBorders === 'continuation')
+          if (wordLayout.hwpNativeExport && !anchor.wrap &&
+              (anchor.horizontal === 'margin' || next.dataset.hwpCenteredBorders === 'continuation'))
             next.setAttribute('data-print-native-continued-table', '');
         }
       }

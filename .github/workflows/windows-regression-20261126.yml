@@ -1,17 +1,28 @@
 name: Windows regression QA
-run-name: Investigate cold Windows Word PDF repeatability at fixed display density
+run-name: Verify compact cell blanks and the full Windows desktop suite
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  repeat:
+  originals:
+    name: Windows continued cell blank / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 24
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { group: hwp-3, id: 06-mixed-document }
+          - { group: hwp-1, id: 04-language-plan }
     env:
-      WINDOWS_CAPTURE_PRINT_FACES: '1'
-      WINDOWS_FORCE_DEVICE_SCALE: '1'
+      PLAYWRIGHT_CHANNEL: chromium
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
+      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
+      WINDOWS_REQUIRE_REOPEN: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,43 +32,138 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Write two actual PDFs from each fixed build and font environment
+      - run: npx playwright install chromium
+      - name: Compare saved table placement with the same original on Windows
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/word-repeat" --ids 06-long-body
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/exact-margins" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/word-repeat/inventory.json"
-          $versions = [ordered]@{control='375c8dd6e78d5dadac33b1ed50b9fe8e1717cdae';candidate='dc1db016b1243ba8adc73eb27960770d88f24755'}
-          foreach ($version in $versions.GetEnumerator()) {
-            git restore --source $version.Value -- src
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/exact-margins/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($verified -ne 1) { throw 'Pinned input missing' }
+          $variants = @('HEAD')
+          if ($env:QA_ID -eq '06-mixed-document') {
+            $variants = @('375c8dd6e78d5dadac33b1ed50b9fe8e1717cdae','HEAD')
+          }
+          foreach ($variant in $variants) {
+            Write-Host "WINDOWS_PRECISE_MARGIN_PRODUCT $variant"
+            git restore --source $variant -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $version.Value -- src electron vendor package.json package-lock.json
+            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            npm run package:win:dir
+            if ($env:QA_ID -eq '06-mixed-document') { $env:WINDOWS_TABLE_INSET_WITNESS = '1'; $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/margins-$variant.json" }
+            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $packaged = "$env:RUNNER_TEMP/repeat-app-$($version.Key)"
-            Move-Item release/windows $packaged
-            $env:WORD_STUDIO_EXECUTABLE = "$packaged/Word Studio/Word Studio.exe"
-            foreach ($sample in @(1,2)) {
-              Write-Host "WINDOWS_PDF_FIXED_INPUT $($version.Key) $sample"
-              $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/studio-$($version.Key)-$sample.pdf"
-              $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$($version.Key)-$sample.json"
-              node scripts/windows-qa/native-export-pdf-stages.cjs
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          if ($env:QA_ID -eq '06-mixed-document') {
+            $old = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[0]).json" -Raw | ConvertFrom-Json)
+            $new = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[-1]).json" -Raw | ConvertFrom-Json)
+            if ($old.Count -ne 2 -or $new.Count -ne 2) { throw 'Expected both Hancom formats' }
+            foreach ($index in 0,1) {
+              $control=$old[$index]; $candidate=$new[$index]
+              Write-Host "WINDOWS_CONTINUED_CELL_BLANK $($candidate.format) total $($control.pages) to $($candidate.pages); font $($control.table.blank) to $($candidate.table.blank) source $($candidate.table.sourceBlank); continuation height $($control.table.continuationHeight) to $($candidate.table.continuationHeight)"
+              if ($candidate.format -ne $control.format -or $candidate.pages -gt $control.pages -or
+                  $candidate.lines -ne 2 -or $candidate.outsideRight -ne 0 -or
+                  $candidate.table.page -ne $candidate.table.sourcePage -or
+                  $candidate.table.continuationPage -ne $candidate.table.sourceContinuationPage -or
+                  $candidate.table.textLength -ne $control.table.textLength -or
+                  $candidate.table.blank -ne $candidate.table.sourceBlank -or $candidate.table.continuationHeight -ge $control.table.continuationHeight -or
+                  [Math]::Abs($candidate.table.x - $candidate.table.sourceX) -gt 0.2 -or
+                  [Math]::Abs($candidate.table.continuationX - $candidate.table.sourceContinuationX) -gt 0.2) {
+                throw 'The original styled cell blank or table projection was not retained'
+              }
             }
-            node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-$($version.Key)-1.json" "$env:RUNNER_TEMP/geometry-$($version.Key)-2.json" $version.Key
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-control-1.json" "$env:RUNNER_TEMP/geometry-candidate-1.json" paired
-          exit $LASTEXITCODE
-      - name: Separate same-build repeatability from the code comparison
-        shell: powershell
+      - name: Validate both actual DOCX packages
+        shell: pwsh
         run: |
-          foreach ($version in @('control','candidate')) {
-            Write-Host "WINDOWS_PDF_REPEAT $version"
-            scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-$version-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-$version-2.pdf" -ExpectedPages 9 -ReportOnly -MeasureDelta
-          }
-          Write-Host "WINDOWS_PDF_REPEAT paired"
-          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-candidate-1.pdf" -ExpectedPages 9 -ReportOnly -MeasureDelta
+          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
+          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
+          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/exact-margin-sdk.log"
+          $status = $LASTEXITCODE
+          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
+          exit $status
+  desktop:
+    name: Windows desktop / ${{ matrix.group }}
+    runs-on: windows-latest
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8]
+    env:
+      QA_GROUP: ${{ matrix.group }}
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - name: Run one disjoint shard of the complete desktop suite
+        shell: pwsh
+        run: |
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type)
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
+          $env:PLAYWRIGHT_JSON_OUTPUT_FILE=Join-Path $env:RUNNER_TEMP 'windows-full.json'
+          $files = @(Get-ChildItem tests -Recurse -Filter '*.spec.ts' | Sort-Object FullName |
+            Where-Object { $_.Name -ne 'hwp-empty-paragraph-export.spec.ts' -and $_.Name -notlike 'android-*' -and $_.Directory.Name -ne 'windows-qa' } |
+            ForEach-Object { (Resolve-Path -Relative $_.FullName).Replace('\','/') -replace '^\./','' })
+          node node_modules/@playwright/test/cli.js test @files "--shard=$env:QA_GROUP/8" --workers=1 --reporter=line,json --trace=off
+          $status = $LASTEXITCODE
+          if (-not (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE)) { exit 1 }
+          $stats = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
+          if (($stats.expected + $stats.unexpected + $stats.flaky) -eq 0) { throw 'No tests executed' }
+          Write-Host "WINDOWS_FULL group $env:QA_GROUP passed $($stats.expected) failed $($stats.unexpected) skipped $($stats.skipped) flaky $($stats.flaky)"
+          exit $status
+  cell-sdk:
+    name: Styled cell blank and SDK / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run test -- tests/hwp-empty-paragraph-export.spec.ts --workers=1 --trace=off
+      - name: Validate the two generated DOCX packages
+        shell: pwsh
+        run: |
+          dotnet run --project scripts/word-openxml-validator -- test-results 2
+          $code = $LASTEXITCODE
+          Write-Host "WINDOWS_CONTINUED_CELL_SDK 2 exit $code"
+          exit $code
