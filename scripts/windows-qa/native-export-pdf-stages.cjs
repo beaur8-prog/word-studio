@@ -92,6 +92,7 @@ async function main() {
         .map(task => Math.round(task.duration)).sort((a,b) => b-a).slice(0,5), rendererStarted);
       console.log('WINDOWS_HWP_EDITOR_READY ' + JSON.stringify({ id: item.id, editorPages, editorMilliseconds, editorLongTasks }));
       stage = 'native-export-command';
+      const rendererStart = await page.evaluate(() => performance.now());
       const started = Date.now();
       await app.evaluate(({ Menu }) => {
         const file = Menu.getApplicationMenu().items.find(item => item.label === 'File');
@@ -116,6 +117,9 @@ async function main() {
       console.log('WINDOWS_NATIVE_PDF_RESULT ' + JSON.stringify({ id: item.id, readerPages, editorPages,
         previewPages, pdfPages: pages, totalMilliseconds: Date.now() - started,
         timings: Object.fromEntries(Object.entries(markers).map(([key, value]) => [key, value - started])) }));
+      const longest = await page.evaluate(start => Math.max(0, ...window.qaLongTasks
+        .filter(task => task.at >= start).map(task => Math.round(task.duration))), rendererStart);
+      console.log('WINDOWS_NATIVE_HOLD_LONGEST ' + longest);
       measured++;
     } catch (error) {
       // Playwright errors can include source content. Emit only fixed stage labels.

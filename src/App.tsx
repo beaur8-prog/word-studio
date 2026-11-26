@@ -86,7 +86,7 @@ import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
 import { defaultPage, hasUniformTablePageBody, pageMargins, pageFurniture, paperSize } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
-import { withoutEditorReflow } from './editor-layout-task';
+import { suspendEditorReflow, withoutEditorReflow } from './editor-layout-task';
 import type { StudioDocument, PageSettings, Comment } from "./types";
 import {
   exportDocx,
@@ -867,7 +867,9 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     setPreviewPreparing(true);
     setFileMenu(false);
     const stillCurrent = () => editor.state.doc === model && currentRef.current.page === doc.page;
-    const task = withoutEditorReflow(async () => {
+    const resume = suspendEditorReflow();
+    let presented = false;
+    const task = (async () => {
       const layout = await createPrintLayout(editor.getHTML(), doc.page, undefined, controller.signal, {
         ...wordLayoutOptions(doc), nativeDesktop: !!window.wordDesktop, interactive: true,
       });
@@ -876,15 +878,18 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
         if (!controller.signal.aborted) notify('문서가 변경되어 인쇄 미리보기를 취소했습니다.');
         return;
       }
-      outputLayout.current = layout;
+      const output = { ...layout, dispose: () => { layout.dispose(); resume(); } };
+      outputLayout.current = output;
+      presented = true;
       layout.element.classList.replace('measuring', 'preview');
       document.body.classList.add('studio-printing');
-      setPrintPreview(layout);
-      return layout;
-    }).catch(error => {
+      setPrintPreview(output);
+      return output;
+    })().catch(error => {
       if (!controller.signal.aborted) throw error;
       return undefined;
     }).finally(() => {
+      if (!presented) resume();
       if (pendingPreview.current?.controller === controller) {
         pendingPreview.current = null;
         setPreviewPreparing(false);

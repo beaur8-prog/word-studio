@@ -21,9 +21,12 @@ test('desktop print completes its cold snapshot while editor layout requests are
     await writeFile(test.info().outputPath('print-editor-layout-reads.json'),JSON.stringify({reads},null,2));
     expect(reads).toBeLessThan(5);
     release();await expect(page.getByRole('toolbar',{name:'인쇄 미리보기',exact:true})).toBeVisible();
+    const layoutSuspended = () => page.evaluate(async () => (await import('/src/editor-layout-task.ts')).editorLayoutSuspended());
+    await expect.poll(layoutSuspended).toBe(true);
     expect(await page.locator('.print-page').count()).toBeGreaterThan(1);
     const text=await page.locator('.print-content').allTextContents();for(let i=0;i<25;i++)expect(text.join('')).toContain('MARKER'+String(i).padStart(2,'0'));
     await page.getByRole('button',{name:'편집으로 돌아가기',exact:true}).click();
+    await expect.poll(layoutSuspended).toBe(false);
     const first=editor.locator('p').first(),before=await editor.evaluate((root:any)=>root.editor.getJSON());await first.fill('EDIT AFTER PRINT');await expect(first).toHaveText('EDIT AFTER PRINT');await page.keyboard.press('ControlOrMeta+z');await expect.poll(()=>editor.evaluate((root:any)=>root.editor.getJSON())).toEqual(before);
   }finally{release();}
 });
@@ -56,6 +59,7 @@ test('desktop preview combines repeat requests and cancels a cold measurement', 
     await expect(page.locator('.print-layout.measuring')).toHaveCount(1);
     await cancel.click();
     await expect(page.locator('.print-layout')).toHaveCount(0);
+    await expect.poll(() => page.evaluate(async () => (await import('/src/editor-layout-task.ts')).editorLayoutSuspended())).toBe(false);
     release();
     await expect(preview).toBeHidden();
     await expect(editor).toHaveText('A cold snapshot');

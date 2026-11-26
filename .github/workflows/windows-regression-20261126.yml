@@ -1,25 +1,57 @@
 name: Windows regression QA
-run-name: Windows HWP authored pitch and long merge paint
+run-name: Windows 163-page native PDF with held preview A-B
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  layout:
-    name: HWP layout / ${{ matrix.check }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {os: windows-latest, check: Windows guarded pitch}
-          - {os: windows-latest, check: Windows merged-cell paint}
-          - {os: ubuntu-latest, check: Linux guarded pitch}
+  paired-native:
+    runs-on: windows-latest
+    timeout-minutes: 44
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Build both precise Windows products
+        shell: pwsh
+        run: |
+          npm run package:win:dir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item release/windows "$env:RUNNER_TEMP/hold-candidate"
+          git restore --source 41acc618817a705e9a03b2919290a84f0ae54c75 -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code 41acc618817a705e9a03b2919290a84f0ae54c75 -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run package:win:dir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item release/windows "$env:RUNNER_TEMP/hold-before"
+      - name: Run both on the same byte-verified input and Windows runner
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/hold-inputs" --ids 02-work-rules
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/hold-inputs/inventory.json"
+          $statuses = @()
+          foreach ($name in @('before', 'candidate')) {
+            Write-Host "WINDOWS_NATIVE_HOLD_PRODUCT $name"
+            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/hold-$name/Word Studio/Word Studio.exe"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            $statuses += $LASTEXITCODE
+          }
+          if ($statuses -contains 1) { exit 1 }
+  preview-browser:
+    runs-on: windows-latest
+    timeout-minutes: 15
     env:
       PLAYWRIGHT_CHANNEL: chromium
-      QA_CHECK: ${{ matrix.check }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,20 +61,5 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - if: runner.os == 'Linux'
-        run: npx playwright install --with-deps chromium
-      - if: runner.os == 'Windows'
-        run: npx playwright install chromium
-      - name: Check exact scope
-        shell: pwsh
-        run: |
-          if ($env:QA_CHECK -eq 'Windows merged-cell paint') {
-            npm run test -- tests/windows-qa/long-merge-witness.spec.ts --workers=1 --trace=off
-            exit $LASTEXITCODE
-          }
-          npm run test -- tests/hwp-source-text-advances.spec.ts tests/hwp-body-text-top.spec.ts tests/hwp-mixed-cell-leading.spec.ts --workers=1 --trace=off
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ($env:QA_CHECK -eq 'Windows guarded pitch') {
-            npm run test -- tests/windows-qa/render-witnesses.spec.ts -g 'hanging source' --workers=1 --trace=off
-            exit $LASTEXITCODE
-          }
+      - run: npx playwright install chromium
+      - run: npm run test -- tests/desktop-print-coordination.spec.ts tests/export-layout-suspension.spec.ts --workers=1 --trace=off
