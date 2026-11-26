@@ -44,8 +44,28 @@ module.exports = (original, saved) => {
   }
   if (matches.length !== 1) throw Error('The saved first table slice was missing or ambiguous');
   const actual = firstFragment(saved, matches[0], cells);
+  const sourceTail = JSON.parse(original.getTableCellBboxes(...reference))
+    .filter(box => box.pageIndex === source.page && box.col === 2 && box.rowSpan === 1)
+    .sort((a,b) => a.row - b.row);
+  if (sourceTail.length !== 4) throw Error('The original tail grid changed');
+  const lastLiteral = cellLiteral(original, reference, sourceTail.at(-1).cellIdx);
+  const tails = [];
+  for (let page = 0; page < saved.pageCount(); page++) for (const item of JSON.parse(saved.getPageControlLayout(page)).controls) {
+    if (item.type !== 'table' || item.rowCount !== 4 || item.colCount !== 3 || item.cellPath?.length) continue;
+    const key = [item.secIdx, item.paraIdx, item.controlIdx];
+    try {
+      const boxes = JSON.parse(saved.getTableCellBboxes(...key)).filter(box => box.pageIndex === page &&
+        box.col === 2 && box.rowSpan === 1).sort((a,b) => a.row - b.row);
+      if (boxes.length === 4 && cellLiteral(saved, key, boxes.at(-1).cellIdx) === lastLiteral)
+        tails.push({page:page + 1, heights:boxes.map(box => box.h)});
+    } catch { /* Ignore child controls differing from the pinned table. */ }
+  }
+  if (tails.length !== 1) throw Error('The saved tail grid was missing or ambiguous');
+  const originalTail = sourceTail.map(box => box.h);
+  const tail = tails[0];
   const geometry = ({visible, ...position}) => ({...position, glyphs:visible.map(value=>value.length)});
-  return {source:geometry(source), saved:geometry(actual),
+  return {source:geometry(source), saved:geometry(actual), tail:{ original:originalTail, ...tail },
+    tailMatches:tail.page === source.page + 1 && tail.heights.every((height,i) => Math.abs(height - originalTail[i]) < .3),
     matches:actual.page === source.page && Math.abs(actual.y - source.y) <= .15 &&
       Math.abs(actual.height - source.height) <= .15 &&
       actual.visible.every((literal, index) => literal === source.visible[index])};

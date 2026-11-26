@@ -1,36 +1,8 @@
 import { paragraphLineOffsets } from './paragraph-fragments';
-import { wordFontMetricsChanged } from './word-font-fallbacks';
 
 const detail = 16;
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 let canvas: (CanvasRenderingContext2D & { lang?: string }) | null | undefined;
-
-type Contour = { ascent: number; descent: number };
-const contours = new Map<string, Contour>();
-const maxContours = 8192;
-
-if (typeof document !== 'undefined') {
-  const clear = () => contours.clear();
-  document.fonts.addEventListener('loading', clear);
-  document.fonts.addEventListener('loadingdone', clear);
-  document.fonts.addEventListener('loadingerror', clear);
-  document.addEventListener(wordFontMetricsChanged, clear);
-}
-
-/** The contour is independent of the DOM line's position. Its baseline
- * below is still measured on every rendered line. */
-function measureContour(context: CanvasRenderingContext2D, profile: string | undefined, text: string): Contour {
-  const key = profile && profile + '\0' + text;
-  const cached = key && contours.get(key);
-  if (cached) return cached;
-  const shape = context.measureText(text);
-  const result = { ascent: shape.actualBoundingBoxAscent, descent: shape.actualBoundingBoxDescent };
-  if (key && Number.isFinite(result.ascent) && Number.isFinite(result.descent)) {
-    if (contours.size >= maxContours) contours.delete(contours.keys().next().value!);
-    contours.set(key, result);
-  }
-  return result;
-}
 
 function textBoxes(range: Range, leaf: Text, ignoreEdgeSpaces: boolean) {
   if (ignoreEdgeSpaces) {
@@ -126,13 +98,13 @@ function inkLines(line: HTMLElement, scale: number, maxFont: number, ignoreEdgeS
     if (!lang) return null;
     canvas.lang = lang;
     canvas.font = `${css.fontStyle} ${css.fontWeight} ${size * detail}px ${css.fontFamily}`;
-    const profile = document.fonts.status === 'loaded' ? canvas.font + '\0' + canvas.lang : undefined;
-    let { ascent, descent } = measureContour(canvas, profile, leaf.data);
+    const whole = canvas.measureText(leaf.data);
+    let ascent = whole.actualBoundingBoxAscent, descent = whole.actualBoundingBoxDescent;
     for (const { segment } of graphemes.segment(leaf.data)) {
       if (!segment.trim()) continue;
-      const shape = measureContour(canvas, profile, segment);
-      ascent = Math.max(ascent, shape.ascent);
-      descent = Math.max(descent, shape.descent);
+      const shape = canvas.measureText(segment);
+      ascent = Math.max(ascent, shape.actualBoundingBoxAscent);
+      descent = Math.max(descent, shape.actualBoundingBoxDescent);
     }
     if (!Number.isFinite(ascent) || !Number.isFinite(descent)) return null;
     const probe = document.createElement('span');

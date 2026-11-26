@@ -1,3 +1,4 @@
+import { hwpNativeCompactRowAttribute } from '../hwp-centered-cell-labels';
 import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { hwpInlineTableTop, hwpInlineTableTopAttribute, tableAnchor, type TableAnchor } from '../table-anchor-data';
@@ -56,14 +57,18 @@ function nativeParagraphFlow(table: string, anchor: TableAnchor): 'CELL' | 'TABL
   return border === 'continuation' ? 'CELL' : border === 'true' ? 'TABLE' : undefined;
 }
 
-function projectedInlineInsets(table: string, anchor: TableAnchor) {
+function projectedInlineInsets(table: string, body: string, anchor: TableAnchor) {
   if (anchor.reference !== 'paragraph' || anchor.horizontal !== 'margin' || anchor.wrap || anchor.overlay ||
       /\bdata-hwp-(?:centered-borders|table-continuation)=/.test(table)) return;
   const top = Math.round(anchor.y * 75), bottom = Math.round(anchor.bottom * 75);
   const left = Math.round(anchor.x * 75);
   // A table already converted to ordinary flow can retain its authored
   // before/after reserve without acquiring a larger pasted footprint.
-  if (top <= pasteOuterMargin && bottom <= pasteOuterMargin && (top !== pasteOuterMargin || bottom !== pasteOuterMargin))
+  // An observed compact fragment can retain the source's one-unit rounding
+  // above the default trailing margin when the total reserve still decreases.
+  const trailing = body.includes(hwpNativeCompactRowAttribute + '=') && top + bottom < pasteOuterMargin * 2
+    ? pasteOuterMargin + 1 : pasteOuterMargin;
+  if (top <= pasteOuterMargin && bottom <= trailing && (top !== pasteOuterMargin || bottom !== pasteOuterMargin))
     return { mode: 'inline-insets', top, bottom, left: left <= pasteOuterMargin ? left : undefined } as const;
 }
 
@@ -83,7 +88,7 @@ export function stageHwpTables(html: string) {
     const placement = mode === 'label' ? { mode } as const
       : anchor && breakMode ? { mode: 'flow', anchor, breakMode } as const
       : anchor?.overlay ? { mode: 'overlay', anchor } as const
-      : anchor ? projectedInlineInsets(table.open, anchor)
+      : anchor ? projectedInlineInsets(table.open, table.inner, anchor)
       : top !== undefined && top !== pasteOuterMargin ? { mode: 'inline-insets', top } as const : undefined;
     if (!placement) continue;
     let depth = 0, at = -1;

@@ -1,4 +1,4 @@
-import { hwpCenteredLabelInkFits, matchesHwpCenteredCellLabels, matchesHwpCenteredMergeHeadLabel } from './hwp-centered-cell-labels';
+import { hwpCenteredLabelInkFits, matchesHwpCenteredCellLabels, matchesHwpCenteredMergeHeadLabel, restoreHwpCompactPeerSplit } from './hwp-centered-cell-labels';
 import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { hasUnchangedSourceWrap } from './hwp-text-advance-layout';
@@ -636,6 +636,8 @@ export function tableFragmenter(context: FragmentContext) {
           if (rest) next.append(...rest.childNodes);
           else if ([...cell.children].some(child => contentBottom(child, true) > limit - (parseFloat(css.paddingBottom) || 0) + .5))
             next.append(...cell.childNodes);
+          if (keepLabels && explicitFirstLabelsOnly && centered.length === 1 && span === 1 && owner === cut)
+            restoreHwpCompactPeerSplit(centered[0], original, cell, next);
           const topContinuation = align === 'middle' && nativeTopContinuation(cell, next, head);
           cell.style.verticalAlign = topContinuation ? 'top' : align;
           if (topContinuation) next.style.verticalAlign = 'top';
