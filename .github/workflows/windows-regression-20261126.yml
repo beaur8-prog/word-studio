@@ -1,92 +1,52 @@
 name: Windows regression QA
-run-name: Verify saved Hancom table insets after correcting the runner script
+run-name: Compare Windows native-window PDF geometry at verified 100, 125 and 150 percent
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  originals:
-    name: Windows projected table insets / ${{ matrix.id }}
+  display:
+    name: Windows display scale / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 28
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { group: hwp-3, id: 06-mixed-document }
-          - { group: hwp-1, id: 04-language-plan }
-          - { group: hwp-2, id: 08-math-exam }
+          - {group: word, id: 02-tables}
+          - {group: word, id: 06-long-body}
+          - {group: hwp-1, id: 04-language-plan}
     env:
-      PLAYWRIGHT_CHANNEL: chromium
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
-      - run: npx playwright install chromium
-      - name: Compare saved table placement with the same original on Windows
+      - run: node node_modules/electron/install.js
+      - run: npm run package:win:dir
+      - name: Save a real PDF at each verified rendering density
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/exact-margins" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/display-input" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/exact-margins/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/display-input/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
-          $variants = @('ee8ae0d1c7eadf02197c7fc62e01b71be43cc9ea')
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $variants = @('8b8440c1d3ad96d14f509005e275b36dd81df2ae','ee8ae0d1c7eadf02197c7fc62e01b71be43cc9ea')
-          }
-          if ($env:QA_ID -eq '08-math-exam') {
-            $env:WINDOWS_REQUIRE_REVERSE = '1'
-            $env:WINDOWS_EXACT_REVERSE_PAGES = '1'
-          }
-          foreach ($variant in $variants) {
-            Write-Host "WINDOWS_PRECISE_MARGIN_PRODUCT $variant"
-            git restore --source $variant -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            if ($env:QA_ID -eq '06-mixed-document') { $env:WINDOWS_TABLE_INSET_WITNESS = '1'; $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/margins-$variant.json" }
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+          $env:WORD_STUDIO_EXECUTABLE = "$((Get-Location).Path)/release/windows/Word Studio/Word Studio.exe"
+          foreach ($scale in @('1','1.25','1.5')) {
+            $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
+            $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$scale.json"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $old = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[0]).json" -Raw | ConvertFrom-Json)
-            $new = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[-1]).json" -Raw | ConvertFrom-Json)
-            if ($old.Count -ne 2 -or $new.Count -ne 2) { throw 'Expected both Hancom formats' }
-            foreach ($index in 0,1) {
-              $control=$old[$index]; $candidate=$new[$index]
-              Write-Host "WINDOWS_PROJECTED_TABLE_PAGES $($candidate.format) total $($control.pages) to $($candidate.pages); first segment $($control.table.page) to $($candidate.table.page); continuation $($control.table.continuationPage) to $($candidate.table.continuationPage)"
-              if ($candidate.format -ne $control.format -or $candidate.pages -gt $control.pages -or
-                  $candidate.lines -ne 2 -or $candidate.outsideRight -ne 0 -or
-                  $candidate.table.page -ne $candidate.table.sourcePage -or
-                  $candidate.table.continuationPage -ne $candidate.table.sourceContinuationPage -or
-                  $candidate.table.textLength -ne $control.table.textLength -or
-                  $candidate.table.top -gt $control.table.top -or $candidate.table.bottom -gt $control.table.bottom) {
-                throw 'Projected table placement or original cell text changed unexpectedly'
-              }
-            }
+          foreach ($scale in @('1.25','1.5')) {
+            node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-1.json" "$env:RUNNER_TEMP/geometry-$scale.json" $scale
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Validate both actual DOCX packages
-        shell: pwsh
-        run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/exact-margin-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
-          exit $status

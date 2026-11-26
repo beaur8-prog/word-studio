@@ -118,11 +118,21 @@ async function main() {
       });
       close = await require('../native-smoke-lifetime.cjs')(app, 'Public original ' + item.id, 1050000);
       const page = await app.firstWindow();
-      await page.setViewportSize({ width: 1440, height: 1000 });
       if (requestedScale) {
+        stage = 'display-scale';
+        // Playwright's viewport emulation also overrides deviceScaleFactor.
+        // Resize the actual Electron window to preserve its selected screen density.
+        const screenScale = await app.evaluate(({ BrowserWindow, screen }) => {
+          const window = BrowserWindow.getAllWindows()[0];
+          window.setContentSize(1440, 1000);
+          return screen.getDisplayMatching(window.getBounds()).scaleFactor;
+        });
+        await expect.poll(() => page.evaluate(() => devicePixelRatio)).toBe(Number(requestedScale));
         const available = await page.evaluate(() => devicePixelRatio);
-        console.log('WINDOWS_DENSITY ' + JSON.stringify({ requested:Number(requestedScale), actual:available }));
-        if (available !== Number(requestedScale)) throw Error('The renderer did not use the requested device density');
+        console.log('WINDOWS_DENSITY ' + JSON.stringify({ requested:Number(requestedScale), actual:available, screen:screenScale }));
+        if (screenScale !== Number(requestedScale)) throw Error('The native window did not use the requested device density');
+      } else {
+        await page.setViewportSize({ width: 1440, height: 1000 });
       }
       await page.evaluate(() => {
         const tasks = [];
