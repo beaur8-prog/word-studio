@@ -7,7 +7,6 @@ const forbidden = 'a,br,img,svg,sup,sub,mark,u,s,del,[data-flow-widget],[data-pa
 const unsupportedText = /[\u0000-\u001f\u0590-\u08ff\u202a-\u202e\u2066-\u2069]/u;
 let canvas: CanvasRenderingContext2D | null | undefined;
 const pixelGuard = .5;
-const lineTolerance = .08;
 
 export type SourceColumnPlacement = { height: number; offset: number; width?: string; indent?: string; scale?: number };
 type Paint = { ascent: number; descent: number };
@@ -119,18 +118,9 @@ export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom
     const ink = projectedInk(line, maximum);
     if (!ink) return null;
     const baseline = marker.getBoundingClientRect().bottom - line.getBoundingClientRect().top;
-    if (fit.baseline + ink.descent > fit.remainder + lineTolerance) return null;
-    const heightAtBaseline = (paintBaseline: number) => Math.ceil((paintBaseline + ink.descent + pixelGuard) * 64) / 64;
-    const ordinaryHeight = heightAtBaseline(fit.baseline);
-    const missingRoom = Math.max(0, ordinaryHeight - Math.floor(room * 64) / 64);
-    // The authored baseline is also a measured distance from the footer.
-    // If the previous box consumes slightly more room, keep that distance
-    // within the source measure's precision and recheck the previous ink.
-    if (missingRoom && (scaled || fit.remainder <= room ||
-        Math.abs(missingRoom - (fit.remainder - room)) > lineTolerance)) return null;
-    const paintBaseline = fit.baseline - missingRoom;
-    const offset = paintBaseline - baseline;
-    if (!(offset < -.1 && offset >= -4)) return null;
+    const offset = fit.baseline - baseline;
+    if (!(offset < -.1 && offset >= -4) ||
+        fit.baseline + ink.descent > fit.remainder + .08) return null;
 
     preceding.style.width = `${previousBox.width / zoom}px`;
     host.append(preceding);
@@ -141,9 +131,9 @@ export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom
     const priorInk = projectedInk(preceding, maximum);
     if (!priorInk || preceding.getBoundingClientRect().height !== previousRect.height ||
         Math.abs(previousRect.height - previousBox.height / zoom) > .12) return null;
-    const upperInk = paintBaseline - ink.ascent, previousEnd = previousBaseline.getBoundingClientRect().bottom - previousRect.top + priorInk.descent;
+    const upperInk = fit.baseline - ink.ascent, previousEnd = previousBaseline.getBoundingClientRect().bottom - previousRect.top + priorInk.descent;
     if (previousRect.height + upperInk - previousEnd < pixelGuard) return null;
-    const height = heightAtBaseline(paintBaseline);
+    const height = Math.ceil((fit.baseline + ink.descent + pixelGuard) * 64) / 64;
     return height > 0 && height <= room ? { ...scaled, height, offset } : null;
   } finally { host.remove(); }
 }
