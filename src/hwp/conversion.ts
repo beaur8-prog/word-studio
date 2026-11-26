@@ -48,7 +48,7 @@ import { metafilePreview } from './metafile-preview';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { restoreNativeContinuationPlacement, restoreNativePaperHeaderTable, restoreNativeRasterTablePair } from './export-table-placement';
-import { restoreStandalonePictureLine } from './export-picture-line';
+import { restoreStandalonePictureLines } from './export-picture-line';
 import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts, withoutPastedEmptyCarriers } from './export-empty-paragraph-format';
 import { restoreAuthoredNativeSingleLine, restoreAuthoredTerminalWrap, restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
@@ -58,7 +58,7 @@ import { sourceNativeTableFragment } from './source-native-table-fragment';
 import { restoreNativeTableFragment } from './export-native-table-fragment';
 import { stageHwpTables } from './export-tables';
 import { tableCaptionDefinitions, renderTableCaptions, restoreTableCaptions } from './table-captions';
-import { hwpInlineTableTop, hwpInlineTableTopAttribute, hwpTableTopGap } from '../table-anchor-data';
+import { hwpInlineTableBottom, hwpInlineTableBottomAttribute, hwpInlineTableTop, hwpInlineTableTopAttribute, hwpTableTopGap } from '../table-anchor-data';
 import { hwpMarginCenteredTableAnchor } from './table-position';
 import { elementRanges, topLevelHwpPasteBlocks } from './markup-ranges';
 import { stageHwpCharacterStyles } from './export-character-width';
@@ -2346,10 +2346,10 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
           // Spaces before an inline table share the table's line. Keep their
           // text, but do not turn them into an additional full-height line.
           // A positive subpixel pitch also survives DOCX exact-line spacing.
+          const spacesOnObjectLine = !!content.trim() && inlineTable && paragraphControls.length === 1 && onlyWhitespace(content) &&
+            /^ +$/.test(entities(content.replace(/<[^>]*>/g, ''))) &&
+            JSON.parse(doc.getLineInfo(section, para, pos)).lineCount === 1;
           if (content.trim()) {
-            const spacesOnObjectLine = inlineTable && paragraphControls.length === 1 && onlyWhitespace(content) &&
-              /^ +$/.test(entities(content.replace(/<[^>]*>/g, ''))) &&
-              JSON.parse(doc.getLineInfo(section, para, pos)).lineCount === 1;
             const host = spacesOnObjectLine ? cssStyle(open, 'line-height:0.1pt;margin-bottom:0px;')
               .replace(/>$/, ' data-hwp-inline-table-spaces="true">')
               : inlineTable && onlyWhitespace(content) ? cssStyle(open, 'line-height:0.1px;margin-bottom:0px;')
@@ -2454,6 +2454,14 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             const top = hwpInlineTableTop(inlineProperties.outerTop);
             if (top !== undefined)
               controlHtml = controlHtml.replace(/^<table\b/, `<table ${hwpInlineTableTopAttribute}="${top}"`);
+            // An authored whitespace host is carried separately in DOCX.
+            // Keep the inline table's own short trailing margin in HWP.
+            if (spacesOnObjectLine) {
+              const bottom = hwpInlineTableBottom(inlineProperties.outerBottom);
+              const dims = JSON.parse(doc.getTableDimensions(section, para, c.controlIndex));
+              if (bottom !== undefined && dims.rowCount > 1 && dims.colCount > 1)
+                controlHtml = controlHtml.replace(/^<table\b/, `<table ${hwpInlineTableBottomAttribute}="${bottom}"`);
+            }
           }
           append(controlHtml);
           inlineTail = undefined;
@@ -2836,7 +2844,7 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withContinuationPlacement !== doc) { doc.free(); doc = withContinuationPlacement; }
     const withPaperHeaderTable = restoreNativePaperHeaderTable(Core, doc, nativePrint?.paperHeaderTable);
     if (withPaperHeaderTable !== doc) { doc.free(); doc = withPaperHeaderTable; }
-    const withPictureLine = restoreStandalonePictureLine(Core, doc, pictures.standaloneIds);
+    const withPictureLine = restoreStandalonePictureLines(Core, doc, pictures.standaloneIds);
     if (withPictureLine !== doc) { doc.free(); doc = withPictureLine; }
     const withRasterTable = restoreNativeRasterTablePair(Core, doc, nativePrint?.rasterTablePairs, nativePrint?.pages);
     if (withRasterTable !== doc) { doc.free(); doc = withRasterTable; }

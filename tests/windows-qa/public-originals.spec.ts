@@ -301,7 +301,13 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
               const packaged = format === 'hwp' ? new HwpDocument(saved.exportHwpx()) : undefined;
               try {
                 const measure = require('../../scripts/windows-qa/hancom-table-fragment-position.cjs');
-                console.log('WINDOWS_HANCOM_PAGE_TWELVE_TABLE ' + JSON.stringify({format, items: measure(original, saved, packaged)}));
+                const items = measure(original, saved, packaged);
+                console.log('WINDOWS_HANCOM_PAGE_TWELVE_TABLE ' + JSON.stringify({ format, items }));
+                if (format === 'hwpx' && process.env.WINDOWS_PAGE_TWELVE_REQUIRED === '1') {
+                  const matches = items.filter(item => item.source.glyphs === 1080);
+                  expect(matches).toHaveLength(1);
+                  expect(matches[0].saved).toMatchObject({ page: 12, glyphs: 1080 });
+                }
                 if (format === 'hwpx' && process.env.WINDOWS_PAGE_TWELVE_TRIAL === '1') {
                   const { elementRanges } = await import('../../src/hwp/markup-ranges');
                   const tryInsets = require('../../scripts/windows-qa/hancom-table-insets-trial.cjs');

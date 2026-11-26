@@ -97,7 +97,7 @@ import type { PageSettings, StudioDocument } from "./types";
 import { PreservedTable, PreservedTableCell, PreservedTableRow } from './docx-table-cell';
 import { cellTablePosition } from './cell-table-position';
 import { tableAnchor, tableWrapFits } from './table-anchor';
-import { hwpInlineTableTop, hwpKeptTablePage, hwpTableTopGap } from './table-anchor-data';
+import { hwpInlineTableBottom, hwpInlineTableTop, hwpKeptTablePage, hwpTableTopGap } from './table-anchor-data';
 import { encodeHwpBodyLine, hwpBodyEmptyLine, hwpBodyTextLine, hwpBodyFallback, type HwpBodyLine } from './hwp-body-line';
 import documentLimits from '../electron/document-limits.json';
 const bookmarkNamesProperty = 'WordStudio.BookmarkNames';
@@ -389,6 +389,8 @@ export function validateDocument(input: unknown): StudioDocument {
       fail('한글 표의 원본 열 너비가 올바르지 않습니다.');
     if (attrs?.hwpInlineTableTop != null && (type !== 'table' || typeof attrs.hwpInlineTableTop !== 'number' ||
         hwpInlineTableTop(attrs.hwpInlineTableTop) === undefined)) fail('한글 인라인 표의 위쪽 바깥 여백이 올바르지 않습니다.');
+    if (attrs?.hwpInlineTableBottom != null && (type !== 'table' || typeof attrs.hwpInlineTableBottom !== 'number' ||
+        hwpInlineTableBottom(attrs.hwpInlineTableBottom) === undefined)) fail('한글 인라인 표의 아래쪽 바깥 여백이 올바르지 않습니다.');
     if (attrs?.hwpNestedTableLayout != null && (type !== 'table' || !parseHwpNestedTableLayout(attrs.hwpNestedTableLayout)))
       fail('한글 중첩 표의 조판 정보가 올바르지 않습니다.');
     if (attrs?.hwpRelatedTableLayout != null && (type !== 'table' || !parseHwpRelatedTableLayout(attrs.hwpRelatedTableLayout)))
@@ -1764,7 +1766,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
           !anchor && !nestedPosition && parseHwpRelatedTableLayout(node.attrs?.hwpRelatedTableLayout)
             ? node.attrs?.hwpRelatedTableLayout : undefined,
           !anchor && !nestedPosition ? hwpInlineTableTop(node.attrs?.hwpInlineTableTop) : undefined,
-          !anchor && !nestedPosition && parseHwpNativeGrid(node.attrs?.hwpNativeGrid) ? node.attrs?.hwpNativeGrid : undefined);
+          !anchor && !nestedPosition && parseHwpNativeGrid(node.attrs?.hwpNativeGrid) ? node.attrs?.hwpNativeGrid : undefined,
+          !anchor && !nestedPosition ? hwpInlineTableBottom(node.attrs?.hwpInlineTableBottom) : undefined);
         // Missing imported CSS uses the editor's 18px table gap. Furniture
         // and note tables have a zero default, passed through nested blocks.
         tableSpacing.set(table, anchor ? 0 : Math.max(0, cssPoints(node.attrs?.tableSpacing) ?? (context.tableGap ?? 18) * .75) * 4 / 3);

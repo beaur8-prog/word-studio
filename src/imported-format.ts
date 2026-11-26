@@ -8,7 +8,7 @@ import { TableView } from '@tiptap/extension-table';
 import type { Node } from '@tiptap/pm/model';
 import { cellTablePosition } from './cell-table-position';
 import { tableAnchor } from './table-anchor';
-import { hwpInlineTableTop, hwpInlineTableTopAttribute, hwpKeptTablePage, hwpTableTopGap } from './table-anchor-data';
+import { hwpInlineTableBottom, hwpInlineTableBottomAttribute, hwpInlineTableTop, hwpInlineTableTopAttribute, hwpKeptTablePage, hwpTableTopGap } from './table-anchor-data';
 import { paragraphTextAlignment } from './paragraph-text-alignment';
 import { parseWordParagraphBottomBorder } from './word-paragraph-border';
 import { paragraphBorderBoxAttribute, parseParagraphBorderBox } from './paragraph-border-box';
@@ -195,6 +195,12 @@ export const ImportedFormat = Extension.create({
           renderHTML: (a: Record<string, unknown>) => {
             const top = hwpInlineTableTop(a.hwpInlineTableTop);
             return top === undefined ? {} : { [hwpInlineTableTopAttribute]: String(top) };
+          } },
+        hwpInlineTableBottom: { default: null,
+          parseHTML: (el: HTMLElement) => hwpInlineTableBottom(el.getAttribute(hwpInlineTableBottomAttribute)) ?? null,
+          renderHTML: (a: Record<string, unknown>) => {
+            const bottom = hwpInlineTableBottom(a.hwpInlineTableBottom);
+            return bottom === undefined ? {} : { [hwpInlineTableBottomAttribute]: String(bottom) };
           } },
         hwpNestedTableLayout: { default: null,
           parseHTML: (el: HTMLElement) => {

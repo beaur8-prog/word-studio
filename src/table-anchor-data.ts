@@ -53,7 +53,13 @@ export function hwpKeptTablePage(value: unknown) {
   return Number.isSafeInteger(page) && page > 1 && page <= 10000 ? page : undefined;
 }
 
-/** HWP inline object top margin, in native HWPUNIT. Zero is explicit. */
+/** HWP inline object margins, in native HWPUNIT. Zero is explicit. */
+export const hwpInlineTableBottomAttribute = 'data-hwp-inline-table-bottom';
+export function hwpInlineTableBottom(value: unknown) {
+  const margin = hwpInlineTableTop(value);
+  return margin !== undefined && margin < 283 ? margin : undefined;
+}
+
 export const hwpInlineTableTopAttribute = 'data-hwp-inline-table-top';
 export function hwpInlineTableTop(value: unknown): number | undefined {
   const top = typeof value === 'number' ? value

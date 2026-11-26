@@ -53,6 +53,8 @@ function restoreFragment(Core: typeof HwpDocument, doc: HwpDocument, proof: Auth
   const current = nativePaintedControls(doc, page);
   if (!current.length || current.length > 2 || current.some(item => item.type !== 'table' ||
       item.y + item.h > proof.y - .15)) return;
+  if (nativeBodyRuns(doc, page).some(run => normalizeHwpWrapText(run.text) &&
+    (!run.cellPath?.length || run.y + run.h >= proof.y - .15))) return;
   const { secIdx: section, paraIdx: paragraph, controlIdx: control } = target;
   const shape = JSON.parse(doc.getTableDimensions(section, paragraph, control));
   const attributes = JSON.parse(doc.getTableProperties(section, paragraph, control));

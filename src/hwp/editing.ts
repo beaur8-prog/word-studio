@@ -9,6 +9,7 @@ import { editorExtensions, parseDocumentHtml } from '../extensions';
 import { sanitizeImportedHtml } from '../document-html';
 import type { StudioDocument } from '../types';
 import { HwpReaderSession } from './reader';
+import { layoutCheckpoint, type LayoutCheckpoint } from '../editor-layout-task';
 import { checkHwpHtmlSize, hwpHtmlBytes, type EditableHwp } from './conversion';
 import { createPrintLayout } from '../print-layout';
 import { pageMargins, paperDimensions, wordContentLanguage } from '../types';
@@ -24,7 +25,7 @@ import { nativeBoxAnchor, prepareHwpExportTextBoxes } from './export-textbox-pro
 import { measuredTableLead } from './export-table-lead';
 import { measuredContinuationPlacement, measuredPaperHeaderTable, measuredRasterTablePair, nativeContinuedTableAttribute, type PaperHeaderTable,
   type RasterTablePair, type TablePlacement } from './export-table-placement';
-import { measuredStandaloneBitmapSources, nativeStandalonePictureAttribute } from './export-picture-line';
+import { measuredStandalonePictureSources, nativeStandalonePictureAttribute } from './export-picture-line';
 import { measuredTerminalEmptyFonts, type TerminalEmptyFonts } from './export-empty-paragraph-format';
 import { measuredAuthoredSingleLines, type AuthoredSingleLine, measuredAuthoredTerminalWrap, measuredTerminalPageBreak, type AuthoredTerminalWrap, type TerminalPageBreak } from './export-terminal-page-break';
 import { measuredNativePageHead, type NativePageHead } from './export-page-head';
@@ -32,7 +33,7 @@ import { measuredNativeTableFragment } from './export-native-table-fragment';
 import type { AuthoredNativeTableFragment } from '../table-anchor-data';
 import { measuredEmptyTableRows, type EmptyTableRows } from './export-empty-table-rows';
 
-function renderedBody(root: HTMLElement, doc: StudioDocument) {
+async function renderedBody(root: HTMLElement, doc: StudioDocument, checkpoint?: LayoutCheckpoint) {
   // HTML does not carry editor CSS. Resolve the document defaults and heading
   // appearance before handing it to a parser that understands inline styles.
   const margins = pageMargins(doc.page);
@@ -52,7 +53,8 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
     // Read the same rendered source before changing any of its paragraphs.
     // Interleaving computed styles with replacements forces Chromium to
     // recalculate the large attached tree for each paragraph.
-    const replacements = [...root.querySelectorAll<HTMLElement>('p,h1,h2,h3,h4,h5,h6')].map(element => {
+    const replacements: { element: HTMLElement; paragraph: HTMLParagraphElement; span: HTMLSpanElement }[] = [];
+    for (const element of root.querySelectorAll<HTMLElement>('p,h1,h2,h3,h4,h5,h6')) {
       const computed = getComputedStyle(element), paragraph = document.createElement('p'), span = document.createElement('span');
       paragraph.style.cssText = element.style.cssText;
       if (element.dataset.tabStops) paragraph.dataset.tabStops = element.dataset.tabStops;
@@ -65,7 +67,8 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
       if (bodyLine) paragraph.style.lineHeight = `${bodyLine.percent}%`;
       else if (line > 0 && font > 0) paragraph.style.lineHeight = `${Math.round(line / font * 100)}%`;
       for (const property of ['font-family', 'font-size', 'font-weight', 'font-style', 'color']) span.style.setProperty(property, computed.getPropertyValue(property));
-      if (element.children.length === 1 && element.firstElementChild?.hasAttribute(nativeStandalonePictureAttribute)) {
+      if (element.children.length === 1 && element.firstElementChild?.hasAttribute(nativeStandalonePictureAttribute) &&
+          element.firstElementChild.getAttribute('src')?.startsWith('data:image/bmp;base64,')) {
         const indent = parseFloat(computed.textIndent), left = parseFloat(computed.marginLeft);
         // CSSOM combines the margins, but native paste reads only the
         // longhand. Keep the measured picture's authored hanging offset.
@@ -92,26 +95,34 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
           emptyCells++;
         }
       }
-      return { element, paragraph, span };
-    });
+      replacements.push({ element, paragraph, span });
+      const pause = checkpoint?.();
+      if (pause) await pause;
+    }
     for (const { element, paragraph, span } of replacements) {
       if (!span.hasChildNodes()) span.append(...element.childNodes);
       paragraph.append(span);
       element.replaceWith(paragraph);
+      const pause = checkpoint?.();
+      if (pause) await pause;
     }
     for (const { span, color } of latinRuns) span.style.color = color;
     // The Hancom parser reads cell dimensions, rather than Tiptap's grid attrs
     // and TR heights. Materialize the same grid in TD CSS before serialization.
-    root.querySelectorAll<HTMLTableElement>('table').forEach(table => {
+    for (const table of root.querySelectorAll<HTMLTableElement>('table')) {
       const rows = [...table.rows].filter(row => row.closest('table') === table);
-      rows.forEach((row, index) => [...row.cells].forEach(cell => {
-        const widths = cell.getAttribute('colwidth')?.split(',').map(Number);
-        if (widths?.length && widths.every(n => Number.isFinite(n) && n > 0)) cell.style.width = `${widths.reduce((sum, n) => sum + n, 0)}px`;
-        else cell.style.width = `${cell.getBoundingClientRect().width}px`;
-        const height = rows.slice(index, index + cell.rowSpan).reduce((sum, r) => sum + (parseFloat(r.style.height) || r.getBoundingClientRect().height), 0);
-        if (height) cell.style.height = `${height}px`;
-      }));
-    });
+      for (const [index, row] of rows.entries()) {
+        for (const cell of row.cells) {
+          const widths = cell.getAttribute('colwidth')?.split(',').map(Number);
+          if (widths?.length && widths.every(n => Number.isFinite(n) && n > 0)) cell.style.width = `${widths.reduce((sum, n) => sum + n, 0)}px`;
+          else cell.style.width = `${cell.getBoundingClientRect().width}px`;
+          const height = rows.slice(index, index + cell.rowSpan).reduce((sum, r) => sum + (parseFloat(r.style.height) || r.getBoundingClientRect().height), 0);
+          if (height) cell.style.height = `${height}px`;
+        }
+        const pause = checkpoint?.();
+        if (pause) await pause;
+      }
+    }
     // The engine's CSS attribute reader does not decode HTML attribute entities.
     // Single quotes keep family names readable without changing document text.
     const html = root.innerHTML.replace(/style="([^"]*)"/g, (_, css: string) => `style="${css.replace(/&quot;/g, "'")}"`) || '<p></p>';
@@ -182,7 +193,8 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   if (allSettings.some(page => [page.headerHtml, page.footerHtml, page.evenHeaderHtml, page.evenFooterHtml].some(html => html?.includes('data-image-floating')))) warnings.push('머리말·꼬리말의 그림은 저장하지만 떠 있는 개체의 좌표·겹침은 달라질 수 있습니다.');
   const layout = await createPrintLayout(source, doc.page, onProgress, undefined, { paintHwpCellLines: false, hwpNativeExport: true,
     language: wordContentLanguage(doc.wordDefaultLanguage), interactive: !!onProgress });
-  let rendered: ReturnType<typeof renderedBody>, exportPage = doc.page;
+  let rendered: Awaited<ReturnType<typeof renderedBody>>, exportPage = doc.page;
+  const checkpoint = onProgress ? layoutCheckpoint(() => {}) : undefined;
   const wordPages = layout.pages;
   const tableLeads: NonNullable<ReturnType<typeof measuredTableLead>>[] = [];
   const continuations: TablePlacement[] = [];
@@ -195,7 +207,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const pageHeads: NativePageHead[] = [];
   const authoredTableFragments: AuthoredNativeTableFragment[] = [];
   let paperHeaderTable: PaperHeaderTable | undefined;
-  let standaloneBitmaps: string[] = [];
+  const standalonePictures: string[] = [];
   try {
     if (onProgress) { onProgress({ label: '한글 문서의 쪽 나누기를 준비하는 중…' }); await paintHwpProgress(); }
     warnings.push(...layout.warnings);
@@ -203,7 +215,8 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     // Preserve Word's measured page boundaries. Letting one enormous HTML table
     // reflow in the engine can collapse hundreds of pages into a few dozen.
     let previousPage = doc.page;
-    root.innerHTML = [...layout.element.querySelectorAll<HTMLElement>('.print-page')].map((sheet, index, sheets) => {
+    const sheets = [...layout.element.querySelectorAll<HTMLElement>('.print-page')], pages: string[] = [];
+    for (const [index, sheet] of sheets.entries()) {
       const head = index && measuredNativePageHead(sheets[index - 1], sheet);
       if (head) pageHeads.push(head);
       const paper = sheet.getBoundingClientRect();
@@ -228,10 +241,8 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
           verticalPosition: { relative: 'page', offset: Math.round((box.top - paper.top) * 9525) } });
       }
       const content = sheet.querySelector('.print-content');
-      if (!index && content) {
-        paperHeaderTable = measuredPaperHeaderTable(content, sheet);
-        standaloneBitmaps = measuredStandaloneBitmapSources(content, paper);
-      }
+      if (!index && content) paperHeaderTable = measuredPaperHeaderTable(content, sheet);
+      if (content) standalonePictures.push(...measuredStandalonePictureSources(content, paper));
       const lead = content && index + 1 < wordPages ? measuredTableLead(content,index) : undefined;
       if (lead) tableLeads.push(lead);
       const placement = content && measuredContinuationPlacement(content, sheet, index);
@@ -270,8 +281,11 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       if (section) marker.dataset.sectionPage = JSON.stringify(settings);
       else marker.dataset.pageBreak = 'true';
       previousPage = settings;
-      return (index ? marker.outerHTML : '') + body + (sheet.querySelector('.print-footnotes')?.innerHTML || '');
-    }).join('');
+      pages.push((index ? marker.outerHTML : '') + body + (sheet.querySelector('.print-footnotes')?.innerHTML || ''));
+      const pause = checkpoint?.();
+      if (pause) await pause;
+    }
+    root.innerHTML = pages.join('');
     root.querySelectorAll('[data-flow-widget]').forEach(widget => widget.remove());
     unwrapHwpCellPrefixes(root);
     clearHwpNestedCellFaceProjection(root);
@@ -308,9 +322,9 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       const anchor = continuedTables[index];
       if (anchor && table.dataset.tableAnchor === anchor) table.setAttribute(nativeContinuedTableAttribute, '');
     });
-    if (standaloneBitmaps.length) {
+    if (standalonePictures.length) {
       const images = [...root.querySelectorAll('img')];
-      for (const source of new Set(standaloneBitmaps)) {
+      for (const source of new Set(standalonePictures)) {
         const matching = images.filter(image => image.getAttribute('src') === source);
         if (matching.length === 1) matching[0].setAttribute(nativeStandalonePictureAttribute, '');
       }
@@ -325,7 +339,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     root.querySelectorAll('[data-document-note]').forEach(note => note.remove());
     root.append(...notes);
     root.querySelectorAll('[data-docx-tab]').forEach(el => el.replaceWith(document.createTextNode('\t')));
-    rendered = renderedBody(root, doc);
+    rendered = await renderedBody(root, doc, checkpoint);
     if (rendered.fallback) warnings.push('복잡한 글상자는 한글 저장 시 일반 문단으로 바뀝니다. 원래 위치와 도형은 DOCX 또는 백업으로 보관하세요.');
   } finally { layout.dispose(); }
   const session = new HwpReaderSession();

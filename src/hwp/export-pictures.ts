@@ -121,11 +121,11 @@ export function stageHwpPictures(html: string, pasteLimit = 0) {
     const source = tag.match(/\bdata-image-floating=("[^"]*"|'[^']*')/i)?.[1];
     const alt = tag.match(/\balt=("[^"]*"|'[^']*')/i)?.[1];
     const large = stageLargeRaster(tag, pasteLimit, records.size + 1);
-    if (!source && !alt && !large) return tag;
+    const standalone = !source && tag.includes(` ${nativeStandalonePictureAttribute}=""`);
+    if (!source && !alt && !large && !standalone) return tag;
     const geometry = source ? imageFloating(entities(source.slice(1, -1))) : undefined;
     if (source && !geometry) throw Error('저장할 그림의 위치 정보가 올바르지 않습니다.');
     const token = `${prefix}${records.size}-END`;
-    const standalone = !geometry && large?.raster.format === 'bmp' && tag.includes(` ${nativeStandalonePictureAttribute}=""`);
     const encoded = /\ssrc="data:[^;,]+;base64,([^"]+)"/i.exec(tag)?.[1];
     records.set(token, { geometry, description: alt ? entities(alt.slice(1, -1)) : '',
       raster: large?.raster, source: encoded, standalone });
