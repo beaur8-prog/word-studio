@@ -27,3 +27,41 @@ test('desktop print completes its cold snapshot while editor layout requests are
     const first=editor.locator('p').first(),before=await editor.evaluate((root:any)=>root.editor.getJSON());await first.fill('EDIT AFTER PRINT');await expect(first).toHaveText('EDIT AFTER PRINT');await page.keyboard.press('ControlOrMeta+z');await expect.poll(()=>editor.evaluate((root:any)=>root.editor.getJSON())).toEqual(before);
   }finally{release();}
 });
+
+test('desktop preview combines repeat requests and cancels a cold measurement', async ({ page }) => {
+  await page.goto('/');
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  await page.locator('input[type=file]').first().setInputFiles({
+    name: 'preview-cancel.html',
+    mimeType: 'text/html',
+    buffer: Buffer.from('<p style="font-family:WS Preview Cancel">A cold snapshot</p>'),
+  });
+  await expect(editor).toHaveText('A cold snapshot');
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/texgyreadventor-regular.otf?preview-cancel', async route => {
+    await gate;
+    await route.continue().catch(() => {});
+  });
+  await page.evaluate(() => document.fonts.add(new FontFace('WS Preview Cancel',
+    'url("/src/assets/fonts/texgyreadventor-regular.otf?preview-cancel")')));
+  const show = page.getByRole('button', { name: '인쇄 미리보기', exact: true });
+  const cancel = page.getByRole('button', { name: '미리보기 준비 취소' });
+  const preview = page.getByRole('toolbar', { name: '인쇄 미리보기', exact: true });
+  try {
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await show.click();
+    await expect(page.locator('.print-layout.measuring')).toHaveCount(1);
+    await show.click();
+    await expect(page.locator('.print-layout.measuring')).toHaveCount(1);
+    await cancel.click();
+    await expect(page.locator('.print-layout')).toHaveCount(0);
+    release();
+    await expect(preview).toBeHidden();
+    await expect(editor).toHaveText('A cold snapshot');
+    await show.click();
+    await expect(preview).toBeVisible();
+    await expect(page.locator('.print-layout')).toHaveCount(1);
+    await expect(page.locator('.print-content')).toContainText('A cold snapshot');
+  } finally { release(); }
+});

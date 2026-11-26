@@ -411,33 +411,47 @@ export function hasUnchangedSourceWrap(paragraph: HTMLElement) {
 
 /** The original break offsets decide which measured native advance can
  * restore ordinary wrapping. No break is added to the paragraph. */
-function chooseAdvances(programs: ParagraphAdjustment[], contained: (p: HTMLElement) => boolean) {
-  const pending = programs.flatMap(program => {
+type LayoutCheckpoint = () => Promise<void> | undefined;
+
+async function chooseAdvances(programs: ParagraphAdjustment[], contained: (p: HTMLElement) => boolean,
+  checkpoint?: LayoutCheckpoint) {
+  const pending: (ParagraphAdjustment & { text: string; reference?: readonly number[]; width: number; height: number })[] = [];
+  for (const program of programs) {
+    const pause = checkpoint?.();
+    if (pause) await pause;
     const { paragraph } = program;
     const text = paragraph.textContent || '';
     const metadata = parseHwpSourceWrap(paragraph.getAttribute(hwpSourceWrapAttribute));
     const reference = metadata && hwpWrapFingerprint(text) === metadata.fingerprint ? metadata.ends : undefined;
-    if (reference && matchesStoredWrap(paragraph, text, reference)) return [];
+    if (reference && matchesStoredWrap(paragraph, text, reference)) continue;
     const { width, height } = paragraph.getBoundingClientRect();
-    return [{ ...program, text, reference, width, height }];
-  });
+    pending.push({ ...program, text, reference, width, height });
+  }
   const accepted = new Map<HTMLElement, { runs: InlineAdjustment[]; restore: () => void }>();
   for (const mode of advanceModes) {
-    const applied = pending.flatMap(program => {
-      if (accepted.has(program.paragraph) || mode !== 'both' && !program.reference) return [];
+    const applied: { program: typeof pending[number]; runs: InlineAdjustment[]; restore: () => void }[] = [];
+    for (const program of pending) {
+      const pause = checkpoint?.();
+      if (pause) await pause;
+      if (accepted.has(program.paragraph) || mode !== 'both' && !program.reference) continue;
       const runs = runsInMode(program.runs, mode);
-      if (!runs.length) return [];
-      return [{ program, runs, restore: replaceRuns(runs) }];
-    });
+      if (runs.length) applied.push({ program, runs, restore: replaceRuns(runs) });
+    }
     const rejected: (() => void)[] = [];
     for (const { program, runs, restore } of applied) {
+      const pause = checkpoint?.();
+      if (pause) await pause;
       const { paragraph, text, reference, width, height } = program;
       const box = paragraph.getBoundingClientRect();
       if (box.width === width && box.height === height && contained(paragraph) &&
           (!reference || matchesStoredWrap(paragraph, text, reference))) accepted.set(paragraph, { runs, restore });
       else rejected.push(restore);
     }
-    rejected.forEach(restore => restore());
+    for (const restore of rejected) {
+      const pause = checkpoint?.();
+      if (pause) await pause;
+      restore();
+    }
   }
   return accepted;
 }
@@ -656,10 +670,10 @@ function correctSourceCellWidths(programs: ParagraphAdjustment[]) {
 
 /** Keep all previous physical paragraph and row boundaries. The measured
  * advance affects text inside that space and leaves the source font intact. */
-export async function layoutHwpSourceAdvances(root: HTMLElement) {
+export async function layoutHwpSourceAdvances(root: HTMLElement, checkpoint?: LayoutCheckpoint) {
   const programs = await candidates(root);
   const original = new Map(programs.map(({ paragraph }) => [paragraph, geometry(paragraph)]));
-  const accepted = chooseAdvances(programs, inkWithinPage);
+  const accepted = await chooseAdvances(programs, inkWithinPage, checkpoint);
   const widths = correctSourceCellWidths(programs);
   const expanded = new Set(widths.map(({ trial }) => trial.paragraph));
   if ([...accepted.keys()].some(paragraph =>
@@ -726,7 +740,7 @@ export async function planHwpSourceAdvanceDecorations(root: HTMLElement, allowan
       savePlan(program.paragraph, candidate.runs, candidate.baseHeight);
     }
   }
-  const accepted = chooseAdvances(programs.filter(({ paragraph }) => !flow.has(paragraph)), contained);
+  const accepted = await chooseAdvances(programs.filter(({ paragraph }) => !flow.has(paragraph)), contained);
   for (const [paragraph, { runs, restore }] of accepted) {
     restore();
     savePlan(paragraph, runs);

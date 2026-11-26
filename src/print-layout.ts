@@ -53,13 +53,31 @@ export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: W
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
 const PX = 96 / 25.4;
 const dimensions = paperDimensions;
-type PrintOptions = WordLayoutOptions & { nativeDesktop?: boolean; paintHwpCellLines?: boolean; hwpNativeExport?: boolean };
+type PrintOptions = WordLayoutOptions & { nativeDesktop?: boolean; paintHwpCellLines?: boolean; hwpNativeExport?: boolean; interactive?: boolean };
+
+// Preview owns a hidden print tree. Yield between complete layout operations
+// so the live window can paint status or cancel without changing print order.
+function printCheckpoint(signal?: AbortSignal) {
+  let started = performance.now();
+  return () => {
+    signal?.throwIfAborted();
+    if (performance.now() - started < 32) return;
+    return new Promise<void>(resolve => setTimeout(resolve, 0)).then(() => {
+      signal?.throwIfAborted();
+      started = performance.now();
+    });
+  };
+}
 
 /** Build one measured page tree used unchanged by preview, PDF and native printing. */
 export async function createPrintLayout(html: string, initialPage: PageSettings,
   onProgress?: (value: PrintLayoutProgress) => void, signal?: AbortSignal, wordLayout: PrintOptions = {}): Promise<PrintLayout> {
   signal?.throwIfAborted();
-  if (onProgress) { onProgress({ label: '쪽 배치를 준비하는 중…' }); await new Promise(resolve => setTimeout(resolve, 24)); signal?.throwIfAborted(); }
+  if (onProgress || wordLayout.interactive) {
+    onProgress?.({ label: '쪽 배치를 준비하는 중…' });
+    await new Promise(resolve => setTimeout(resolve, 24));
+    signal?.throwIfAborted();
+  }
   const host = document.createElement('div');
   host.className = 'print-layout measuring';
   host.setAttribute('aria-label', '인쇄 미리보기 문서');
@@ -982,8 +1000,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     newPage();
     const children = [...source.children]; let processed = 0, yieldedAt = performance.now();
     for (const child of children) {
-      if (onProgress && (child.tagName === 'TABLE' || performance.now() - yieldedAt >= 32)) {
-        onProgress(child.tagName === 'TABLE' ? { label: '표의 쪽 배치를 계산하는 중…' } : { label: 'Word 쪽 배치를 계산하는 중…', completed: processed, total: children.length, unit: '항목' });
+      if ((onProgress && child.tagName === 'TABLE') ||
+          ((onProgress || wordLayout.interactive) && performance.now() - yieldedAt >= 32)) {
+        onProgress?.(child.tagName === 'TABLE' ? { label: '표의 쪽 배치를 계산하는 중…' } : { label: 'Word 쪽 배치를 계산하는 중…', completed: processed, total: children.length, unit: '항목' });
         await new Promise(resolve => setTimeout(resolve, 0)); signal?.throwIfAborted(); yieldedAt = performance.now();
       }
       append(child as HTMLElement); processed++;
@@ -1004,7 +1023,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // them once so every new sheet does not invalidate the live editor's styles.
     style.textContent = [...new Set(pageStyles)].join('\n');
     await layoutWordCellSpacing(host);
-    await layoutHwpSourceAdvances(host);
+    await layoutHwpSourceAdvances(host, wordLayout.interactive ? printCheckpoint(signal) : undefined);
     if (wordLayout.paintHwpCellLines !== false) {
       layoutHwpSourceCellLines(host);
       if (hwpSourceFlow?.missingCompactCellFace) {

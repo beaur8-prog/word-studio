@@ -372,6 +372,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   const showUpdates = useRef(updates.show);
   showUpdates.current = updates.show;
   const [printPreview, setPrintPreview] = useState<PrintLayout | null>(null);
+  const [previewPreparing, setPreviewPreparing] = useState(false);
   const [hwpFile, setHwpFile] = useState<File | null>(null);
   const [hwpOriginal, setHwpOriginal] = useState<File | null>(null);
   const [hwpExport, setHwpExport] = useState<HwpExportFile | null>(null);
@@ -390,6 +391,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   const [failedTransition, setFailedTransition] = useState<StudioDocument | null>(null);
   const transitioning = useRef(false);
   const outputLayout = useRef<PrintLayout | null>(null);
+  const pendingPreview = useRef<{ controller: AbortController; task: Promise<PrintLayout | undefined> } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null),
     imageInput = useRef<HTMLInputElement>(null),
     stackRef = useRef<HTMLDivElement>(null),
@@ -633,7 +635,13 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
         editor.view.dispatch(editor.state.tr.setMeta("addToHistory", false)),
       );
   }, [page, editor]);
-  useEffect(() => () => clearTimeout(toastTimer.current), []);
+  useEffect(() => () => {
+    clearTimeout(toastTimer.current);
+    pendingPreview.current?.controller.abort();
+    pendingPreview.current = null;
+    outputLayout.current?.dispose();
+    document.body.classList.remove('studio-printing');
+  }, []);
   const activateDocument = (doc: StudioDocument) => {
     if (!editor) return;
     setHwpOriginal(null);
@@ -647,8 +655,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     ++recoveryEpoch.current;
     startupTouched.current = true;
     pendingRecovery.current = true;
-    outputLayout.current?.dispose(); outputLayout.current = null;
-    document.body.classList.remove('studio-printing'); setPrintPreview(null);
+    closePreview();
     setFailedTransition(null);
     transitioning.current = false;
     setDocumentId(doc.id || crypto.randomUUID());
@@ -851,19 +858,45 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   };
   const preview = async () => {
     if (session.current) { setFileMenu(false); session.current.onViewer(); return; }
-    outputLayout.current?.dispose();
+    if (pendingPreview.current) return pendingPreview.current.task;
+    if (!editor) return;
+    if (outputLayout.current) return outputLayout.current;
+    const controller = new AbortController();
+    const model = editor.state.doc;
     const doc = currentRef.current;
-    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), doc.page, undefined, undefined, {
-      ...wordLayoutOptions(doc), nativeDesktop: !!window.wordDesktop,
-    }));
-    outputLayout.current = layout;
-    layout.element.classList.replace('measuring', 'preview');
-    document.body.classList.add('studio-printing');
-    setPrintPreview(layout);
+    setPreviewPreparing(true);
     setFileMenu(false);
-    return layout;
+    const stillCurrent = () => editor.state.doc === model && currentRef.current.page === doc.page;
+    const task = withoutEditorReflow(async () => {
+      const layout = await createPrintLayout(editor.getHTML(), doc.page, undefined, controller.signal, {
+        ...wordLayoutOptions(doc), nativeDesktop: !!window.wordDesktop, interactive: true,
+      });
+      if (controller.signal.aborted || !stillCurrent()) {
+        layout.dispose();
+        if (!controller.signal.aborted) notify('문서가 변경되어 인쇄 미리보기를 취소했습니다.');
+        return;
+      }
+      outputLayout.current = layout;
+      layout.element.classList.replace('measuring', 'preview');
+      document.body.classList.add('studio-printing');
+      setPrintPreview(layout);
+      return layout;
+    }).catch(error => {
+      if (!controller.signal.aborted) throw error;
+      return undefined;
+    }).finally(() => {
+      if (pendingPreview.current?.controller === controller) {
+        pendingPreview.current = null;
+        setPreviewPreparing(false);
+      }
+    });
+    pendingPreview.current = { controller, task };
+    return task;
   };
   const closePreview = () => {
+    pendingPreview.current?.controller.abort();
+    pendingPreview.current = null;
+    setPreviewPreparing(false);
     outputLayout.current?.dispose(); outputLayout.current = null;
     document.body.classList.remove('studio-printing'); setPrintPreview(null);
   };
@@ -873,7 +906,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     fileActionPending.current = true;
     setFileMenu(false);
     try {
-      if (!outputLayout.current) await preview();
+      if (!(outputLayout.current ?? await preview())) return;
       if (window.wordDesktop) {
         if (pdf) {
           if (
@@ -2971,6 +3004,9 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
           </button>
         </div>
       )}
+      {previewPreparing && <div className="busy-indicator" role="status">
+        인쇄 미리보기를 준비하는 중… <button onClick={closePreview}>미리보기 준비 취소</button>
+      </div>}
       {(busy || hwpOperation || fileOperation) && <div role="status" className={`busy-indicator ${hwpOperation && !fileOperation ? 'hwp-progress-floating' : ''}`}>
         {fileOperation ? <span className="file-operation-wait"><span className="file-operation-spinner" aria-hidden="true" />
           {fileOperation === 'open' ? '파일 선택창을 기다리는 중… 파일을 선택하거나 취소해 주세요.'
