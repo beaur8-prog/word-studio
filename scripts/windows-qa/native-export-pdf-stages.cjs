@@ -240,6 +240,10 @@ async function main() {
       const longest = await page.evaluate(start => Math.max(0, ...window.qaLongTasks
         .filter(task => task.at >= start).map(task => Math.round(task.duration))), rendererStart);
       console.log('WINDOWS_NATIVE_HOLD_LONGEST ' + longest);
+      if (process.env.WINDOWS_DIAGNOSE_WORD_LINE_BOXES === '1') {
+        const lines = await require('./word-density-line-boxes.cjs')(page, item.id);
+        console.log('WINDOWS_WORD_DENSITY_LINE_BOXES ' + JSON.stringify({ id:item.id, scale:requestedScale, lines }));
+      }
       if (process.env.WINDOWS_CAPTURE_PRINT_FACES === '1') {
         const cdp = await page.context().newCDPSession(page);
         try {

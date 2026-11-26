@@ -1,27 +1,19 @@
 name: Windows regression QA
-run-name: Validate Windows reference-density Word output on the eight remaining originals
+run-name: Locate the remaining Windows print density differences in two line boxes
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  display:
-    name: Windows density originals / ${{ matrix.group }}
+  line-box:
     runs-on: windows-latest
-    timeout-minutes: 32
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {group: flow, ids: '01-body,05-styles,07-characters,09-theme'}
-          - {group: objects, ids: '03-floating,04-nested,08-small-table,10-references'}
+    timeout-minutes: 22
     env:
-      QA_IDS: ${{ matrix.ids }}
+      WINDOWS_DIAGNOSE_WORD_LINE_BOXES: '1'
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -29,79 +21,18 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Save the same pinned Word files at three actual Windows scales
+      - run: npm run package:win:dir
+      - name: Measure actual source line and tab geometry at two Windows monitor scales
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/density-word" --ids $env:QA_IDS
+          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/word-line-box" --ids '02-tables,06-long-body'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $inventory = @(Get-Content "$env:RUNNER_TEMP/density-word/inventory.json" -Raw | ConvertFrom-Json)
-          $ids = @($env:QA_IDS.Split(','))
-          if (@($inventory | Where-Object verified).Count -ne $ids.Count) { throw 'A pinned Word input is unavailable' }
-          foreach ($item in $inventory) {
-            ConvertTo-Json -InputObject @($item) | Set-Content -Encoding utf8 "$env:RUNNER_TEMP/inventory-$($item.id).json"
-          }
-          $versions = [ordered]@{control='63c7a4dbb48cc8fb93d23377b3ad968a17d1d353';candidate='HEAD'}
-          foreach ($version in $versions.GetEnumerator()) {
-            git restore --source $version.Value -- src
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/word-line-box/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($verified -ne 2) { throw 'A pinned input is unavailable' }
+          $env:WORD_STUDIO_EXECUTABLE = "$((Get-Location).Path)/release/windows/Word Studio/Word Studio.exe"
+          foreach ($scale in @('1','1.25')) {
+            $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
+            node scripts/windows-qa/native-export-pdf-stages.cjs
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $version.Value -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            npm run package:win:dir
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $packaged = "$env:RUNNER_TEMP/word-app-$($version.Key)"
-            Move-Item release/windows $packaged
-            $env:WORD_STUDIO_EXECUTABLE = "$packaged/Word Studio/Word Studio.exe"
-            foreach ($id in $ids) {
-              $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/inventory-$id.json"
-              foreach ($scale in @('1','1.25','1.5')) {
-                Write-Host "WINDOWS_DENSITY_ORIGINAL $id $($version.Key) $scale"
-                $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
-                $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/word-$id-$($version.Key)-$scale.pdf"
-                $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$id-$($version.Key)-$scale.json"
-                node scripts/windows-qa/native-export-pdf-stages.cjs
-                if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-                Write-Host "WINDOWS_DENSITY_COMPARED $id $($version.Key) $scale"
-                node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-$id-control-1.json" $env:WINDOWS_NATIVE_PRINT_GEOMETRY $scale
-                if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-              }
-            }
           }
-      - name: Compare actual saved PDF paint without assuming all fonts rasterize identically
-        shell: powershell
-        run: |
-          foreach ($id in $env:QA_IDS.Split(',')) {
-            $expected = @(Get-Content "$env:RUNNER_TEMP/geometry-$id-control-1.json" -Raw | ConvertFrom-Json).Count
-            foreach ($version in @('control','candidate')) {
-              foreach ($scale in @('1','1.25','1.5')) {
-                if ($version -eq 'control' -and $scale -eq '1') { continue }
-                $count = @(Get-Content "$env:RUNNER_TEMP/geometry-$id-$version-$scale.json" -Raw | ConvertFrom-Json).Count
-                if ($count -ne $expected) {
-                  Write-Host "WINDOWS_DENSITY_DIFF_COUNT $id $version $scale $expected to $count"
-                  continue
-                }
-                Write-Host "WINDOWS_DENSITY_RASTER $id $version $scale"
-                scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/word-$id-control-1.pdf" -Candidate "$env:RUNNER_TEMP/word-$id-$version-$scale.pdf" -ExpectedPages $expected -ReportOnly
-              }
-            }
-          }
-  policy:
-    name: Word reference density / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-      - run: npm run test -- tests/word-windows-print-density.spec.ts tests/word-wrapping-reference-density.spec.ts --workers=1 --trace=off
