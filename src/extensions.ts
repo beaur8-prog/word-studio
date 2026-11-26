@@ -1,3 +1,4 @@
+import { hwpBoxedDigitAttribute, parseHwpBoxedDigit } from './hwp-boxed-digit';
 import {DocumentDrawingAnchor} from './drawing-group-anchor';
 import { Node, Extension, Mark } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -14,12 +15,18 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { CellAppearance } from './table-format';
 import { TableRowResize } from './table-row-resize';
 import { Pagination } from './pagination';
+import { CellCharacterScale } from './cell-character-scale';
 import { ImportedFormat, StudioTableView } from './imported-format';
+import { parseWordReflection, wordReflectionAttribute } from './word-reflection';
 import { DocumentTab, DocumentTabs } from './document-tabs';
 import { WordLineMetrics } from './word-line-metrics';
+import { WordCellSpacing } from './word-cell-spacing';
 import { WordContextualSpacing } from './word-contextual-spacing';
+import { WordParagraphBottomBorderLayout } from './word-paragraph-border-layout';
+import { ParagraphBorderBoxLayout } from './paragraph-border-box-layout';
 import { WordListLabels } from './word-list-labels';
 import { WordHeadingDefaults } from './word-heading-defaults';
+import { HwpSourceAdvanceEditor } from './hwp-text-advance-editor';
 import { HwpCellLineMetrics } from './hwp-cell-line-metrics';
 import { HwpBodyLineMetrics } from './hwp-body-line-metrics';
 import { WordOverlap } from './word-overlap';
@@ -34,6 +41,26 @@ import { SelectionNavigation } from './selection-navigation';
 import { DocumentTextBox, TextBoxLayout } from './textbox-frame';
 import { DOMParser as ProseMirrorDOMParser } from '@tiptap/pm/model';
 import { getSchema } from '@tiptap/core';
+
+const HwpBoxedDigit = Node.create({
+  name: 'hwpBoxedDigit', group: 'inline', inline: true, atom: true,
+  addAttributes: () => ({
+    box: { default: '', renderHTML: attrs => ({ [hwpBoxedDigitAttribute]: attrs.box }) },
+  }),
+  parseHTML: () => [{
+    tag: 'span[' + hwpBoxedDigitAttribute + ']',
+    getAttrs: element => {
+      const value = element.getAttribute(hwpBoxedDigitAttribute);
+      return parseHwpBoxedDigit(value)?.digit === element.textContent ? { box: value } : false;
+    },
+  }],
+  renderHTML: ({ node, HTMLAttributes }) => {
+    const box = parseHwpBoxedDigit(node.attrs.box);
+    return ['span', { ...HTMLAttributes, class: 'hwp-boxed-digit', style: 'font-size:' + (box ? box.size / 2 : 11) + 'pt' },
+      ['span', {}, box?.digit ?? '']];
+  },
+  renderText: ({ node }) => parseHwpBoxedDigit(node.attrs.box)?.digit ?? '',
+});
 
 export const PageBreak = Node.create({
   name: "pageBreak",
@@ -57,6 +84,31 @@ export const CommentAnchor = Mark.create({
   addAttributes: () => ({ ids: { default: '', parseHTML: el => el.getAttribute('data-comment-ids'), renderHTML: a => ({ 'data-comment-ids': a.ids }) } }),
   parseHTML: () => [{ tag: 'span[data-comment-ids]' }],
   renderHTML: ({ HTMLAttributes }) => ['span', { ...HTMLAttributes, class: 'comment-anchor' }, 0],
+});
+const WordReflection = Mark.create({
+  name: 'wordReflection',
+  // CommentAnchor consumes its span. Read both marks on that same span.
+  priority: 101,
+  inclusive: false,
+  addAttributes: () => ({
+    effect: {
+      default: null,
+      parseHTML: element => {
+        const effect = parseWordReflection(element.getAttribute(wordReflectionAttribute));
+        return effect ? JSON.stringify(effect) : null;
+      },
+      renderHTML: attrs => {
+        const effect = parseWordReflection(attrs.effect);
+        return effect ? { [wordReflectionAttribute]: JSON.stringify(effect) } : {};
+      },
+    },
+  }),
+  parseHTML: () => [{
+    tag: `span[${wordReflectionAttribute}]`,
+    consuming: false,
+    getAttrs: element => parseWordReflection((element as HTMLElement).getAttribute(wordReflectionAttribute)) ? {} : false,
+  }],
+  renderHTML: ({ HTMLAttributes }) => ['span', HTMLAttributes, 0],
 });
 export const SectionBreak = Node.create({
   name: 'sectionBreak', group: 'block', atom: true,
@@ -124,6 +176,7 @@ export const editorExtensions = [
   NoteReference, DocumentNote, DocumentField, ColumnGroup, SectionContent,
   DocumentSymbol,
   WordOverlap,
+  HwpBoxedDigit,
   DocumentTabs,
   Highlight.configure({ multicolor: true }),
   Subscript,
@@ -132,14 +185,19 @@ export const editorExtensions = [
   PageBreak,
   ColumnBreak,
   SectionBreak,
-  CommentAnchor,
+  CommentAnchor, WordReflection,
   ParagraphFormat,
   ImportedFormat,
   WordLineMetrics,
+  WordCellSpacing,
   WordContextualSpacing,
+  WordParagraphBottomBorderLayout,
+  ParagraphBorderBoxLayout,
   WordListLabels,
   WordHeadingDefaults,
+  CellCharacterScale,
   HwpCellLineMetrics,
+  HwpSourceAdvanceEditor,
   HwpBodyLineMetrics,
   ColumnLayout,
   FloatingLayout,

@@ -744,6 +744,17 @@ button:hover:not(:disabled) {
   color: #242932;
   caret-color: #2864a8;
 }
+.tiptap p[data-hwp-editor-single-cell-line],
+.tiptap p[data-hwp-editor-single-cell-line] :is(span,strong,b,em,i) {
+  white-space: pre !important;
+}
+.tiptap p[data-hwp-editor-single-cell-line] { text-indent: var(--hwp-editor-single-line-indent) !important; }
+/* Imported Word body paragraphs keep trailing spaces on a filled line. */
+.tiptap p[data-word-hanging-spaces] { white-space: pre-wrap; }
+.tiptap p[data-word-floating-spaces] {
+  white-space: pre-wrap;
+  word-spacing: var(--word-floating-space-adjustment);
+}
 .tiptap > :first-child {
   margin-top: 0;
 }
@@ -784,6 +795,10 @@ button:hover:not(:disabled) {
   min-height: 1.65em;
 }
 .tiptap { isolation: isolate; }
+table[data-hwp-centered-borders-active="true"] > :is(thead, tbody) > tr > :is(td, th)[style*="--hwp-centered-padding-top"] {
+  padding-top: var(--hwp-centered-padding-top) !important;
+  padding-bottom: var(--hwp-centered-padding-bottom) !important;
+}
 .column-break { break-before: column; height: 0; margin: 0; padding: 0; }
 .tiptap h1,
 .tiptap h2,
@@ -845,6 +860,27 @@ button:hover:not(:disabled) {
 .tiptap .tableWrapper table {
   margin: 0;
 }
+.tiptap td:has(> .cell-table-frame) {
+  vertical-align: top !important;
+}
+.tiptap td:has(> .cell-table-frame) > p {
+  display: inline-block;
+  vertical-align: top;
+  width: 0;
+  height: 0;
+  min-height: 0;
+  margin: 0 !important;
+}
+.tiptap td > .cell-table-frame {
+  display: inline-block;
+  vertical-align: top;
+  width: var(--cell-table-frame-width);
+  margin: var(--cell-table-top, 0px) 0 0 var(--cell-table-left, 0px) !important;
+}
+.tiptap td > .cell-table-frame > table {
+  width: var(--cell-table-width) !important;
+  margin: 0 !important;
+}
 .tiptap td,
 .tiptap th {
   border: 1px solid #c6ced8;
@@ -879,8 +915,47 @@ button:hover:not(:disabled) {
 .tiptap [data-exact-line-height]:not(:has([data-note-reference], sup, sub)) :is(span, strong, em, b, i, u, s, mark, a) {
   line-height: min(1em, var(--exact-line-height));
 }
-.tiptap [data-hwp-body-layout] :is(span, strong, em, b, i, u, s, mark, a) {
+.tiptap [data-exact-line-height]:has([data-hwp-footnote-mark]):not(:has(sup, sub, [data-note-reference]:not([data-hwp-footnote-mark])))
+  :is(span, strong, em, b, i, u, s, mark, a) {
+  line-height: min(1em, var(--exact-line-height));
+}
+.tiptap :is([data-hwp-body-layout="true"], [data-hwp-body-layout="mixed-top"]) :is(span, strong, em, b, i, u, s, mark, a) {
   line-height: var(--hwp-body-ratio) !important;
+}
+.tiptap [data-hwp-body-layout="paper-heading"] [data-hwp-body-run] {
+  line-height: var(--hwp-body-ratio) !important;
+}
+.tiptap [data-hwp-body-layout="mixed-top"] [data-hwp-body-run] {
+  position: relative;
+  top: calc(var(--hwp-body-ink-offset) + var(--hwp-editor-body-end-shift, 0px));
+}
+.tiptap [data-hwp-body-layout="top"] :is(span, strong, em, b, i, a):not(.pagination-gap, [data-flow-widget]) {
+  line-height: 1em;
+  vertical-align: top;
+}
+.tiptap p[data-hwp-inline-table-spaces-layout] :is(span, strong, em, b, i, u, s, mark, a):not([data-flow-widget]) {
+  vertical-align: top;
+}
+.tiptap p[data-hwp-column-end] {
+  display: flow-root;
+  break-inside: avoid;
+  line-height: var(--hwp-column-em) !important;
+  --exact-line-height: var(--hwp-column-em) !important;
+  height: var(--hwp-column-height, auto);
+}
+.tiptap p[data-hwp-column-scaled="true"] {
+  width: var(--hwp-column-scaled-width);
+  /* A view decoration can be withdrawn without touching the model style. */
+  text-indent: var(--hwp-column-scaled-indent) !important;
+  transform: scaleX(var(--hwp-column-scale));
+  transform-origin: left center;
+}
+.tiptap p[data-hwp-column-paint="true"] > span {
+  position: relative;
+  top: var(--hwp-column-paint-offset);
+}
+.tiptap [data-hwp-column-tail="true"] {
+  white-space: pre-wrap;
 }
 .tiptap .table-wrap-frame {
   float: left;
@@ -905,6 +980,9 @@ button:hover:not(:disabled) {
   z-index: 1;
 }
 .tiptap [data-word-line-rule] { letter-spacing: normal; }
+.tiptap p[style*="--word-fallback-space-adjustment"] {
+  word-spacing: var(--word-fallback-space-adjustment);
+}
 /* Imported heading runs already carry the resolved Word formatting. Studio's
    authored heading weight and extra top padding must not add another layer. */
 .tiptap :is(h1, h2, h3, h4, h5, h6)[data-word-line-rule] {
@@ -914,7 +992,52 @@ button:hover:not(:disabled) {
 }
 .word-overlap { display: inline-grid; vertical-align: baseline; text-indent: 0; }
 .word-overlap > span { grid-area: 1 / 1; align-self: center; justify-self: center; }
+.hwp-boxed-digit {
+  display: inline-grid;
+  place-items: center;
+  width: 1em;
+  height: 1em;
+  vertical-align: middle;
+  text-indent: 0;
+  line-height: 1em;
+  box-shadow: inset 0 0 0 .04em currentColor;
+}
+.tiptap .hwp-boxed-digit > span {
+  font-size: .7em;
+  line-height: 1em;
+}
 .tiptap p:empty::after { content: '\200b'; }
+/* The margin-to-padding transfer leaves text in place. The background is
+   sliced across native column fragments so only the logical endpoints get caps. */
+.tiptap [data-paragraph-border-box-layout] {
+  --paragraph-box-fill: linear-gradient(var(--paragraph-box-color), var(--paragraph-box-color));
+  margin-left: var(--paragraph-box-left-margin) !important;
+  margin-right: var(--paragraph-box-right-margin) !important;
+  padding-left: var(--paragraph-box-left-inset);
+  padding-right: var(--paragraph-box-right-inset);
+  background-image: var(--paragraph-box-fill), var(--paragraph-box-fill), var(--paragraph-box-fill), var(--paragraph-box-fill);
+  background-position: left top, right top, left top, left bottom;
+  background-size: var(--paragraph-box-stroke) 100%, var(--paragraph-box-stroke) 100%,
+    100% var(--paragraph-box-top, 0px), 100% var(--paragraph-box-bottom, 0px);
+  background-repeat: no-repeat;
+  box-decoration-break: slice;
+  print-color-adjust: exact;
+}
+.tiptap [data-paragraph-border-box-start] { --paragraph-box-top: var(--paragraph-box-stroke); }
+.tiptap [data-paragraph-border-box-end] { --paragraph-box-bottom: var(--paragraph-box-stroke); }
+.tiptap [data-word-bottom-border-layout]:not([data-print-soft-end]) {
+  position: relative;
+  padding-bottom: calc(var(--word-bottom-border-space) + var(--word-bottom-border-width));
+}
+.tiptap [data-word-bottom-border-layout]:not([data-print-soft-end])::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 var(--word-bottom-border-inset, 0px);
+  height: var(--word-bottom-border-width);
+  background-color: var(--word-bottom-border-color);
+  print-color-adjust: exact;
+  pointer-events: none;
+}
 .tiptap [data-print-trailing-break]::after { content: '\200b'; }
 /* Restore natural line boxes while measuring pagination. The document model,
    paragraph marks and undo history retain the original blank paragraphs. */
@@ -959,6 +1082,11 @@ button:hover:not(:disabled) {
   height: auto;
   margin: 10px 0 15px;
   break-inside: avoid;
+}
+/* A foreground overlay anchored to the paper paints beyond the cell that
+   holds its anchor. Keep ordinary and cell-bound images at the cell width. */
+.tiptap :is(td,th) img[data-image-floating]:not(:is([data-document-note],.document-furniture,.document-textbox) img) {
+  max-width: var(--table-cell-image-max-width, 100%);
 }
 .tiptap img.ProseMirror-selectednode {
   outline: 3px solid #86aede;
@@ -2046,6 +2174,9 @@ button:hover:not(:disabled) {
   body.studio-printing .print-page { margin: 0 !important; box-shadow: none !important; break-after: page; break-inside: avoid; }
   body.studio-printing .print-page:last-child { break-after: auto; }
   body.studio-printing .print-content { position: absolute !important; padding: 0 !important; }
+  body.studio-printing .print-content > [data-native-print-column-height]:only-child {
+    height: var(--native-print-column-height) !important;
+  }
   /* Positioned cells paint their fill over collapsed borders in Chromium PDF. */
   body.studio-printing .print-content td, body.studio-printing .print-content th { position: static !important; }
   body.studio-printing .print-content p, body.studio-printing .print-content h1, body.studio-printing .print-content h2, body.studio-printing .print-content h3 { orphans: 1; widows: 1; break-after: auto; }
@@ -2073,6 +2204,13 @@ button:hover:not(:disabled) {
 :is(.tiptap, .document-furniture) li[data-word-list-layout][data-list-glyph]::before { content: attr(data-list-glyph); }
 :is(.tiptap, .document-furniture) li[data-word-list-layout][data-print-list-continuation]::before { content: none; }
 :is(.tiptap, .document-furniture) [data-word-list-paragraph] { text-indent: 0 !important; }
+.tiptap li > p[data-word-native-list-indent] {
+  margin-left: var(--word-native-list-left) !important;
+  text-indent: var(--word-native-list-first) !important;
+}
+/* The hidden marker of a continued list fragment has no strut to match. */
+.tiptap li[data-word-symbol-body-strut-ready="yes"]:not([data-print-list-continuation]) { line-height: var(--word-symbol-body-strut); }
+.tiptap li[data-print-list-continuation] > p[data-word-native-list-indent] { text-indent: 0 !important; }
 
 /* An empty anchor has no glyphs. A zero font size still inherits an absolute
    paragraph leading, which adds descent and can push a table onto the next
@@ -2099,6 +2237,24 @@ button:hover:not(:disabled) {
 .print-footnotes { position: absolute; }
 .print-footnotes .document-note { border: 0; margin: 4px 0 0; padding: 0; }
 .print-footnotes:has(.document-note) { border-top: 1px solid #77818b; padding-top: 6px; }
+.print-footnotes[data-hwp-footnote-layout-active] {
+  border-top: var(--hwp-note-separator-stroke) solid transparent;
+  padding-top: var(--hwp-note-spacing-below);
+}
+.print-footnotes[data-hwp-footnote-layout-active]::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  top: calc(0px - var(--hwp-note-separator-stroke));
+  width: min(100%, var(--hwp-note-separator-width));
+  height: var(--hwp-note-separator-stroke);
+  background: #000;
+}
+.print-footnotes[data-hwp-footnote-layout-active] .document-note::before { display: none; }
+.print-footnotes[data-hwp-footnote-layout-active] .document-note > p:first-child { display: block; }
+.print-footnotes [data-hwp-footnote-label]::before {
+  content: attr(data-hwp-footnote-label);
+}
 
 .document-stack .tiptap:has(> .document-section-content) { padding: 0; min-height: 0; }
 .document-stack:has(.document-section-content) { min-height: 0 !important; }
@@ -2164,6 +2320,17 @@ button:hover:not(:disabled) {
 .document-textbox[data-textbox-position="floating"] > .document-textbox-content { position:absolute; left:0; top:0; transform:translate(var(--textbox-left,0px),var(--textbox-top,0px)); z-index:1; }
 .document-textbox-content { position:relative; overflow:visible; }
 .document-textbox-content:focus-within { outline:1px dotted #8795aa; outline-offset:2px; }
+.document-textbox-content[style*="--textbox-decoration-fill"]::after {
+  content:"";
+  position:absolute;
+  left:var(--textbox-decoration-x);
+  top:var(--textbox-decoration-y);
+  width:var(--textbox-decoration-width);
+  height:var(--textbox-decoration-height);
+  background:var(--textbox-decoration-fill);
+  z-index:1;
+  pointer-events:none;
+}
 
 .document-textbox-content[style*="--textbox-shape-fill"]::before { content:""; position:absolute; inset:0; background:var(--textbox-shape-fill); clip-path:polygon(0 0,calc(100% - var(--textbox-arrow-inset)) 0,100% 50%,calc(100% - var(--textbox-arrow-inset)) 100%,0 100%); z-index:-1; pointer-events:none; }
 

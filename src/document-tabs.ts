@@ -3,6 +3,28 @@ import { Extension, Node, type Editor } from '@tiptap/core';
 import { Plugin, TextSelection } from '@tiptap/pm/state';
 
 export type DocumentTabStop = { position: number; type: 'left' | 'right' | 'center' | 'decimal'; leader?: 'dot' | 'hyphen' | 'underscore' };
+
+export function isWordNumberingTabPosition(position: unknown): position is number {
+  // Use the same physical bound as ordinary tab stops, preserving source twips.
+  return typeof position === 'number' && Number.isInteger(position) && Math.abs(position) <= 150000;
+}
+
+export function normalizeWordNumberingTabs(positions: readonly unknown[]): number[] {
+  return [...new Set(positions.filter(isWordNumberingTabPosition))].sort((a, b) => a - b).slice(0, 100);
+}
+
+export function parseWordNumberingTabs(value: unknown): number[] {
+  if (typeof value !== 'string' || value.length > 10000) return [];
+  try {
+    const positions = JSON.parse(value);
+    return Array.isArray(positions) ? normalizeWordNumberingTabs(positions) : [];
+  } catch { return []; }
+}
+
+function serializeWordNumberingTabs(value: unknown): string | null {
+  const positions = parseWordNumberingTabs(value);
+  return positions.length ? JSON.stringify(positions) : null;
+}
 export function parseTabStops(value: unknown): DocumentTabStop[] {
   if (typeof value !== 'string' || value.length > 10000) return [];
   try {
@@ -121,6 +143,12 @@ export const DocumentTabs = Extension.create({
   addGlobalAttributes: () => [{ types: ['paragraph', 'heading'], attributes: {
     tabStops: { default: null, parseHTML: el => el.getAttribute('data-tab-stops'),
       renderHTML: a => a.tabStops ? { 'data-tab-stops': JSON.stringify(parseTabStops(a.tabStops)) } : {} },
+    wordNumberingTabs: { default: null, parseHTML: el => serializeWordNumberingTabs(el.dataset.wordNumberingTabs),
+      renderHTML: attrs => {
+        const positions = serializeWordNumberingTabs(attrs.wordNumberingTabs);
+        return positions ? { 'data-word-numbering-tabs': positions } : {};
+      },
+    },
   } }],
   addProseMirrorPlugins: () => [new Plugin({ view(view) {
     let frame = 0;

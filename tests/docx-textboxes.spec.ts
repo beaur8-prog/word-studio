@@ -1,5 +1,5 @@
 import { writeFile } from 'node:fs/promises';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import JSZip from 'jszip';
 
 const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -115,4 +115,260 @@ test('leaving the first textbox in a drawing group keeps the group intact and re
  await editor.locator('.document-textbox-content p').first().click();await page.keyboard.press('ControlOrMeta+End');await page.keyboard.press('ControlOrMeta+Enter');await page.keyboard.insertText('BODY EXIT ');await expect(editor.locator('p').filter({hasText:'BODY EXIT BODY AFTER'})).toHaveCount(1);const run=editor.locator('span').filter({hasText:'BODY EXIT BODY AFTER'});await expect(run).toHaveCSS('color','rgb(0, 85, 170)');await expect(run.locator('strong')).toHaveCSS('font-weight','700');await expect(editor.locator('.document-textbox').first()).toHaveAttribute('title',/Enter/);
  const model=await editor.evaluate((el:any)=>el.editor.getJSON());const first=model.content.findIndex((n:any)=>n.type==='documentTextBox');expect(model.content[first+1].type).toBe('documentTextBox');
  const output=await page.evaluate(async({bytes,content})=>{const{importFile,exportDocx}=await import('/src/document-io.ts');const original=await importFile(new File([new Uint8Array(bytes)],'source.docx'));return [...new Uint8Array(await(await exportDocx({...original.document,content})).arrayBuffer())];},{bytes:[...bytes],content:model});const zip=await JSZip.loadAsync(Buffer.from(output)),xml=await zip.file('word/document.xml')!.async('string');expect(xml.match(/<wp:anchor\b/g)).toHaveLength(1);expect(xml.match(/<wps:txbx\b/g)).toHaveLength(2);
+});
+
+test('floating textbox saves do not add empty anchor paragraphs to the body', async ({ page }, info) => {
+  const zip = await JSZip.loadAsync(await fixture('modern'));
+  const part = 'word/document.xml';
+  const source = await zip.file(part)!.async('string');
+  // This genuine authored blank is the same height as a generated carrier.
+  // It must survive even though the redundant export-only anchors must not.
+  const authoredBlank = '<w:p><w:pPr><w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/></w:pPr></w:p>';
+  zip.file(part, source.replace('<w:t>BODY BEFORE</w:t></w:r></w:p>', '$&' + authoredBlank));
+  const input = await zip.generateAsync({ type: 'nodebuffer' });
+
+  await page.goto('/');
+  const { stages, saves } = await page.evaluate(async sourceBytes => {
+    const { importFile, exportDocx, validateDocument } = await import('/src/document-io.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    type Model = ReturnType<typeof parseDocumentHtml>;
+    const text = (node: Model): string => (node.text ?? '') + (node.content ?? []).map(text).join('');
+    const stages = [];
+    const saves: number[][] = [];
+    let file = new File([new Uint8Array(sourceBytes)], 'textbox-anchor.docx');
+
+    for (let pass = 0; pass < 3; pass++) {
+      const opened = await importFile(file);
+      const content = parseDocumentHtml(opened.html!);
+      const document = { ...opened.document, content };
+      validateDocument(document);
+      const body = (content.content ?? []).map(node => ({ type: node.type, text: text(node) }));
+      const tinyBlanks = (content.content ?? []).filter(node =>
+        node.type === 'paragraph' && !text(node) && node.attrs?.wordLineRule === 'exact' &&
+        Math.abs(Number.parseFloat(node.attrs?.lineSpacing) - 0.05) < 0.001
+      ).length;
+      const frames = (content.content ?? []).filter(node => node.type === 'documentTextBox')
+        .map(node => JSON.parse(node.attrs!.frame));
+      stages.push({ body, tinyBlanks, frames });
+      if (pass < 2) {
+        const bytes = new Uint8Array(await (await exportDocx(document)).arrayBuffer());
+        saves.push([...bytes]);
+        file = new File([bytes], 'textbox-anchor.docx');
+      }
+    }
+    return { stages, saves };
+  }, [...input]);
+
+  for (const [index, bytes] of saves.entries()) {
+    const output = Buffer.from(bytes);
+    await writeFile(info.outputPath('textbox-save-anchor-' + (index + 1) + '.docx'), output);
+    const saved = await JSZip.loadAsync(output);
+    const xml = await saved.file(part)!.async('string');
+    expect(xml.match(/<wp:anchor\b/g)).toHaveLength(1);
+  }
+  await writeFile(info.outputPath('anchor-stages.json'), JSON.stringify(stages, null, 2));
+
+  await page.locator('input[type=file]').first().setInputFiles({
+    name: 'textbox-anchor-save2.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: Buffer.from(saves[1]),
+  });
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  const story = editor.locator('.document-textbox-content');
+  await expect(story).toHaveText('VISIBLE BOX TEXT');
+  await story.locator('p').click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.insertText(' EDIT');
+  await expect(story).toHaveText('VISIBLE BOX TEXT EDIT');
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect(story).toHaveText('VISIBLE BOX TEXT');
+
+  expect(stages[0].body).toEqual([
+    { type: 'paragraph', text: 'BODY BEFORE' },
+    { type: 'paragraph', text: '' },
+    { type: 'paragraph', text: '' },
+    { type: 'documentTextBox', text: 'VISIBLE BOX TEXT' },
+    { type: 'paragraph', text: 'BODY AFTER' },
+  ]);
+  expect(stages.map(stage => stage.tinyBlanks)).toEqual([1, 1, 1]);
+  for (const stage of stages.slice(1)) {
+    expect(stage.body).toEqual(stages[0].body);
+    expect(stage.frames).toEqual(stages[0].frames);
+  }
+});
+
+async function exportedFloatingTextbox(page: Page) {
+  await page.goto('/');
+  const savedBytes = await page.evaluate(async source => {
+    const { importFile, exportDocx } = await import('/src/document-io.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const opened = await importFile(new File([new Uint8Array(source)], 'textbox-anchor.docx'));
+    const file = await exportDocx({ ...opened.document, content: parseDocumentHtml(opened.html!) });
+    return [...new Uint8Array(await file.arrayBuffer())];
+  }, [...await fixture('modern')]);
+  return JSZip.loadAsync(Buffer.from(savedBytes));
+}
+
+test('a floating textbox anchor retains text added by an external editor', async ({ page }) => {
+  const zip = await exportedFloatingTextbox(page);
+  const part = 'word/document.xml';
+  const externalText = 'EXTERNALLY ADDED BODY TEXT';
+  const xml = await page.evaluate(({ source, wordNamespace, externalText }) => {
+    const doc = new DOMParser().parseFromString(source, 'application/xml');
+    const body = doc.getElementsByTagNameNS(wordNamespace, 'body')[0];
+    const carrier = Array.from(body.children).filter(paragraph =>
+      paragraph.namespaceURI === wordNamespace && paragraph.localName === 'p' &&
+      paragraph.firstElementChild?.getElementsByTagNameNS(wordNamespace, 'pStyle')[0]
+        ?.getAttributeNS(wordNamespace, 'val') === 'WordStudioTextBoxAnchor'
+    );
+    if (carrier.length !== 1) throw new Error('Expected one generated floating textbox carrier');
+    const drawing = carrier[0].getElementsByTagNameNS(wordNamespace, 'drawing')[0];
+    const drawingRun = drawing?.parentElement;
+    if (drawingRun?.parentElement !== carrier[0]) throw new Error('Expected the drawing in a direct carrier run');
+    const run = doc.createElementNS(wordNamespace, 'w:r');
+    const text = doc.createElementNS(wordNamespace, 'w:t');
+    text.textContent = externalText;
+    run.append(text);
+    drawingRun.after(run);
+    return new XMLSerializer().serializeToString(doc);
+  }, { source: await zip.file(part)!.async('string'), wordNamespace: W, externalText });
+  zip.file(part, xml);
+
+  await page.locator('input[type=file]').first().setInputFiles({
+    name: 'externally-edited-textbox-anchor.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: await zip.generateAsync({ type: 'nodebuffer' }),
+  });
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  const external = editor.locator('p').filter({ hasText: externalText });
+  const story = editor.locator('.document-textbox-content');
+  await expect(external).toHaveText(externalText);
+  expect(await external.evaluate(node => node.closest('.document-textbox') === null)).toBe(true);
+  await expect(story).toHaveText('VISIBLE BOX TEXT');
+  await story.locator('p').click();
+  await page.keyboard.press('ControlOrMeta+End');
+  await page.keyboard.insertText(' EDITED');
+  await expect(story).toHaveText('VISIBLE BOX TEXT EDITED');
+  await expect(external).toHaveText(externalText);
+});
+
+test('an externally added keepNext on the floating textbox anchor style preserves its paragraph', async ({ page }) => {
+  const zip = await exportedFloatingTextbox(page);
+  const part = 'word/styles.xml';
+  const xml = await page.evaluate(({ source, wordNamespace }) => {
+    const doc = new DOMParser().parseFromString(source, 'application/xml');
+    const styles = Array.from(doc.getElementsByTagNameNS(wordNamespace, 'style')).filter(style =>
+      style.getAttributeNS(wordNamespace, 'styleId') === 'WordStudioTextBoxAnchor'
+    );
+    if (styles.length !== 1) throw new Error('Expected one generated floating textbox anchor style');
+    const style = styles[0];
+    let properties = Array.from(style.children).find(child =>
+      child.namespaceURI === wordNamespace && child.localName === 'pPr'
+    );
+    if (!properties) {
+      properties = doc.createElementNS(wordNamespace, 'w:pPr');
+      const runProperties = Array.from(style.children).find(child =>
+        child.namespaceURI === wordNamespace && child.localName === 'rPr'
+      );
+      style.insertBefore(properties, runProperties ?? null);
+    }
+    if (properties.getElementsByTagNameNS(wordNamespace, 'keepNext').length) {
+      throw new Error('Expected no preexisting keepNext');
+    }
+    properties.prepend(doc.createElementNS(wordNamespace, 'w:keepNext'));
+    return new XMLSerializer().serializeToString(doc);
+  }, { source: await zip.file(part)!.async('string'), wordNamespace: W });
+  zip.file(part, xml);
+
+  const carrier = await page.evaluate(async bytes => {
+    const { importFile } = await import('/src/document-io.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const opened = await importFile(new File([new Uint8Array(bytes)], 'externally-styled-textbox.docx'));
+    const body = parseDocumentHtml(opened.html!).content ?? [];
+    const boxIndex = body.findIndex(node => node.type === 'documentTextBox');
+    const paragraph = body[boxIndex - 1];
+    return { boxIndex, type: paragraph?.type, keepNext: paragraph?.attrs?.wordKeepNext ?? null };
+  }, [...await zip.generateAsync({ type: 'nodebuffer' })]);
+  expect(carrier).toEqual({ boxIndex: 3, type: 'paragraph', keepNext: true });
+});
+
+async function scaledGroupFixture(wrapTrailSpaces: boolean) {
+  const zip = await JSZip.loadAsync(await groupedFixture());
+  const documentPart = 'word/document.xml';
+  const xml = await zip.file(documentPart)!.async('string');
+  const shapes = xml.match(/<wps:wsp>[\s\S]*?<\/wps:wsp>/g)!;
+  expect(shapes).toHaveLength(2);
+  const [first, second] = shapes;
+  const positive = first.replace('FIRST GROUP STORY', 'FIRST GROUP STORY with ordinary word spaces')
+    .replace('<a:ln><a:noFill/></a:ln>', '<a:ln w="6350"><a:solidFill><a:srgbClr val="AC2202"/></a:solidFill></a:ln>')
+    .replace('lIns="91440" tIns="0" rIns="91440" bIns="0" anchor="ctr"',
+      'lIns="91440" tIns="190500" rIns="182880" bIns="38100" anchor="t"');
+  const noWrap = second.replace('wrap="square"', 'wrap="none"').replace('anchor="ctr"', 'anchor="t"')
+    .replace('<a:ln><a:noFill/></a:ln>', '<a:ln w="6350"><a:solidFill><a:srgbClr val="AC2202"/></a:solidFill></a:ln>');
+  zip.file(documentPart, xml.replace(first, positive).replace(second, noWrap)
+    .replace('<a:ext cx="4667250" cy="762000"/>', '<a:ext cx="3733800" cy="838200"/>')
+    .replace('<wp:extent cx="2286000" cy="762000"/>', '<wp:extent cx="3733800" cy="838200"/>'));
+  const types = await zip.file('[Content_Types].xml')!.async('string');
+  zip.file('[Content_Types].xml', types.replace('</Types>',
+    '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>'));
+  const relsPart = 'word/_rels/document.xml.rels';
+  const rels = await zip.file(relsPart)!.async('string');
+  zip.file(relsPart, rels.replace('</Relationships>',
+    '<Relationship Id="settings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/></Relationships>'));
+  const styles = await zip.file('word/styles.xml')!.async('string');
+  zip.file('word/styles.xml', styles.replace('</w:styles>',
+    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>'));
+  zip.file('word/settings.xml', `<w:settings xmlns:w="${W}"><w:compat>${wrapTrailSpaces ? '<w:wrapTrailSpaces w:val="true"/>' : ''}</w:compat></w:settings>`);
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+test('grouped Word textbox scales horizontal insets, paints stroke outside line measurement and honors wrapTrailSpaces', async ({ page }) => {
+  const assertLayout = async (root: ReturnType<Page['locator']>, wrapTrailSpaces: boolean) => {
+    const boxes = root.locator('.document-textbox-content');
+    await expect(boxes).toHaveCount(2);
+    const box = boxes.filter({ hasText: 'FIRST GROUP STORY' });
+    const paragraph = box.locator('p');
+    await expect(paragraph).toHaveText('FIRST GROUP STORY with ordinary word spaces');
+    await expect(paragraph).toHaveCSS('white-space', wrapTrailSpaces ? 'break-spaces' : 'pre-wrap');
+    const geometry = await box.evaluate(element => {
+      const frame = JSON.parse(element.parentElement!.dataset.documentTextbox!);
+      const style = getComputedStyle(element);
+      const paragraph = getComputedStyle(element.querySelector('p')!);
+      return { frame, width: parseFloat(style.width), paragraphWidth: parseFloat(paragraph.width),
+        leftBorder: style.borderLeftWidth, rightBorder: style.borderRightWidth,
+        topBorder: parseFloat(style.borderTopWidth), shadow: style.boxShadow };
+    });
+    // The source child is 240 × 80 px, group transform is 0.8 × 1.1.
+    // Explicit left and right insets are 9.6 and 19.2 px in the child coordinates.
+    expect(geometry.frame.width).toBeCloseTo(192, 2);
+    expect(geometry.frame.height).toBeCloseTo(88, 2);
+    expect(geometry.frame.padding).toEqual([20, expect.closeTo(15.36, 2), 4, expect.closeTo(7.68, 2)]);
+    expect(geometry.frame.borderWidth).toBeCloseTo(2 / 3, 3);
+    expect(geometry.width).toBeCloseTo(192, 2);
+    expect(geometry.paragraphWidth).toBeCloseTo(192 - 15.36 - 7.68, 1);
+    expect(geometry.leftBorder).toBe('0px');
+    expect(geometry.rightBorder).toBe('0px');
+    expect(geometry.topBorder).toBeGreaterThan(0);
+    expect(geometry.shadow.match(/inset/g)).toHaveLength(2);
+    expect(geometry.shadow).toContain('rgb(172, 34, 2)');
+
+    const sibling = boxes.filter({ hasText: 'SECOND GROUP STORY' });
+    await expect(sibling.locator('p')).toHaveCSS('white-space', 'nowrap');
+    await expect(sibling).toHaveCSS('padding-left', '9.6px');
+    await expect(sibling).toHaveCSS('box-shadow', 'none');
+    expect(await sibling.evaluate(element => parseFloat(getComputedStyle(element).borderLeftWidth))).toBeGreaterThan(0);
+  };
+
+  for (const wrapTrailSpaces of [false, true]) {
+    await page.goto('/');
+    await page.locator('input[type=file]').first().setInputFiles({
+      name: wrapTrailSpaces ? 'word-group-wrap-trailing.docx' : 'word-group-default.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buffer: await scaledGroupFixture(wrapTrailSpaces),
+    });
+    await assertLayout(page.getByRole('textbox', { name: '문서 편집 영역', exact: true }), wrapTrailSpaces);
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    await assertLayout(page.locator('.print-content'), wrapTrailSpaces);
+  }
 });

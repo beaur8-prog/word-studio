@@ -1,11 +1,14 @@
-import { Table, TableCell, type ITableOptions, type ITableCellOptions } from 'docx';
+import { hwpCenteredCellLabelsNamespace } from './hwp-centered-cell-labels';
+import { Table, TableCell, TableRow, type ITableOptions, type ITableCellOptions, type ITableRowOptions } from 'docx';
 import { paragraphTableNamespace, type TableAnchor } from './table-anchor';
 
 /** Inline tables can continue across readers without clipping floating merged
  * cells. Ignorable per-table metadata preserves the editor's live reference. */
 export class PreservedTable extends Table {
   constructor(options: ITableOptions, private readonly anchor?: TableAnchor,
-    private readonly overlayPosition?: { x: number; y: number; width: number }) { super(options); }
+    private readonly overlayPosition?: { x: number; y: number; width: number },
+    private readonly topGap?: number, private readonly centeredBorders: boolean | 'inline' | 'continuation' = false, private readonly keptTablePage?: number,
+    private readonly continuation?: string, private readonly nestedLayout?: string, private readonly relatedLayout?: string) { super(options); }
   prepForXml(context: Parameters<Table['prepForXml']>[0]) {
     const result = super.prepForXml(context);
     const children = result?.['w:tbl'];
@@ -33,14 +36,51 @@ export class PreservedTable extends Table {
         } }] }] }];
       }
     }
-    if (this.anchor && Array.isArray(children)) {
+    if ((this.anchor || this.topGap || this.centeredBorders || this.keptTablePage || this.continuation || this.nestedLayout || this.relatedLayout) && Array.isArray(children)) {
       let attributes = children.find((entry: any) => entry && '_attr' in entry)?.['_attr'];
       if (!attributes) { attributes = {}; children.unshift({ _attr: attributes }); }
+      const layout = { ...(this.anchor ? { 'ws:anchor': JSON.stringify(this.anchor) } : {}),
+        ...(this.overlayPosition ? { 'ws:overlayPosition': JSON.stringify(this.overlayPosition) } : {}),
+        ...(this.topGap ? { 'ws:topGap': String(this.topGap) } : {}),
+        ...(this.centeredBorders ? { 'ws:centeredBorders': this.centeredBorders === true ? '1' : this.centeredBorders } : {}),
+        ...(this.keptTablePage ? { 'ws:keptTablePage': String(this.keptTablePage) } : {}),
+        ...(this.continuation ? { 'ws:continuation': this.continuation } : {}),
+        ...(this.nestedLayout ? { 'ws:nestedLayout': this.nestedLayout } : {}),
+        ...(this.relatedLayout ? { 'ws:relatedLayout': this.relatedLayout } : {}) };
       Object.assign(attributes, { 'xmlns:ws': paragraphTableNamespace,
         'xmlns:mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006',
-        'mc:Ignorable': 'ws', 'mc:PreserveAttributes': this.overlayPosition ? 'ws:anchor ws:overlayPosition' : 'ws:anchor',
-        'ws:anchor': JSON.stringify(this.anchor), ...(this.overlayPosition ? { 'ws:overlayPosition': JSON.stringify(this.overlayPosition) } : {}) });
+        'mc:Ignorable': 'ws', 'mc:PreserveAttributes': Object.keys(layout).join(' '), ...layout });
     }
+    return result;
+  }
+}
+
+export const hwpGridRowHeightNamespace = 'urn:wordstudio:hwp-grid-row-height:1';
+
+/** A native grid segment can be shorter than the surrounding merged cells'
+ * insets. Retain that minimum separately when Word's positive row value
+ * cannot encode it. The standard row and cell properties still stand alone. */
+export class PreservedTableRow extends TableRow {
+  constructor(options: ITableRowOptions, private readonly gridHeight?: number, private readonly continued = false,
+    private readonly reserve?: string, private readonly intact = false, private readonly intactTopRow?: string) { super(options); }
+  prepForXml(context: Parameters<TableRow['prepForXml']>[0]) {
+    const result = super.prepForXml(context), children = result?.['w:tr'];
+    if ((this.gridHeight === undefined && !this.continued && !this.intact && !this.reserve && !this.intactTopRow) || !Array.isArray(children)) return result;
+    let attrs = children.find((entry: any) => entry && '_attr' in entry)?._attr;
+    if (!attrs) { attrs = {}; children.unshift({ _attr: attrs }); }
+    const flags: Record<string, string> = {};
+    if (this.gridHeight !== undefined) flags['wsr:height'] = String(this.gridHeight);
+    if (this.continued) flags['wsr:continued'] = '1';
+    if (this.reserve) flags['wsr:reserve'] = this.reserve;
+    if (this.intact) flags['wsr:intact'] = '1';
+    if (this.intactTopRow) flags['wsr:intactTop'] = this.intactTopRow;
+    Object.assign(attrs, {
+      'xmlns:mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006',
+      'xmlns:wsr': hwpGridRowHeightNamespace,
+      'mc:Ignorable': 'wsr',
+      'mc:PreserveAttributes': Object.keys(flags).join(' '),
+      ...flags,
+    });
     return result;
   }
 }
@@ -48,7 +88,7 @@ export class PreservedTable extends Table {
 /** docx 9.x has no noWrap option. Extend its public XML serializer rather than
  * silently passing an ignored option or changing the table's column widths. */
 export class PreservedTableCell extends TableCell {
-  constructor(options: ITableCellOptions, private readonly noWrap: boolean) { super(options); }
+  constructor(options: ITableCellOptions, private readonly noWrap: boolean, private readonly centeredLabels?: string) { super(options); }
   prepForXml(context: Parameters<TableCell['prepForXml']>[0]) {
     const result = super.prepForXml(context);
     if (this.noWrap && result) {
@@ -60,6 +100,18 @@ export class PreservedTableCell extends TableCell {
           props.splice(index < 0 ? props.length : index, 0, { 'w:noWrap': {} });
         }
       }
+    }
+    const children = result?.['w:tc'];
+    if (this.centeredLabels && Array.isArray(children)) {
+      let attrs = children.find((entry: any) => entry && '_attr' in entry)?._attr;
+      if (!attrs) { attrs = {}; children.unshift({ _attr: attrs }); }
+      Object.assign(attrs, {
+        'xmlns:mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006',
+        'xmlns:wcl': hwpCenteredCellLabelsNamespace,
+        'mc:Ignorable': 'wcl',
+        'mc:PreserveAttributes': 'wcl:leading',
+        'wcl:leading': this.centeredLabels,
+      });
     }
     return result;
   }

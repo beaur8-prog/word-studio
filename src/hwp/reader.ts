@@ -1,3 +1,5 @@
+import type { HwpExportTextBox } from './export-textboxes';
+import type { NativePrintPlan } from './export-table-lead';
 import DOMPurify from 'dompurify';
 import type { EditableHwp } from './conversion';
 import type { PageSettings } from '../types';
@@ -120,10 +122,10 @@ export class HwpReaderSession {
     return prepareEditableHwp({ page: result.page, warnings: result.warnings, html: new TextDecoder().decode(result.htmlBytes) }, onProgress, AbortSignal.any([this.previewAbort.signal,
       AbortSignal.timeout(Math.max(1, Math.ceil(180000 - (performance.now() - started))))]));
   }
-  export(html: string, page: PageSettings, format: 'hwp' | 'hwpx', onProgress?: HwpProgressReporter): Promise<{ bytes: Uint8Array; pages: number; warnings: string[] }> {
+  export(html: string, page: PageSettings, format: 'hwp' | 'hwpx', onProgress?: HwpProgressReporter, textBoxes?: HwpExportTextBox[], nativePrint?: NativePrintPlan): Promise<{ bytes: Uint8Array; pages: number; warnings: string[] }> {
     checkHwpHtmlSize(hwpHtmlBytes(html));
     const htmlBytes = new TextEncoder().encode(html).buffer;
-    return this.call('export', { htmlBytes, page, format }, [htmlBytes], onProgress);
+    return this.call('export', { htmlBytes, page, format, textBoxes, nativePrint }, [htmlBytes], onProgress);
   }
   close(message = '읽기 작업이 취소됐습니다.') {
     this.previewAbort.abort(new Error(message));

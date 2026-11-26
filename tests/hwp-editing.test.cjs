@@ -23,7 +23,10 @@ const setup = (async () => {
     new Function('require', 'module', 'exports', code)(name => name.startsWith('.') && !path.extname(name) ? load(path.resolve(path.dirname(file), name + '.ts')) : nativeRequire(name), module, module.exports);
     return module.exports;
   };
-  return { HwpDocument, ...load(sourceFile), ...load(path.join(path.dirname(sourceFile), 'paragraph-layout.ts')) };
+  return { HwpDocument, ...load(sourceFile), ...load(path.join(path.dirname(sourceFile), 'paragraph-layout.ts')),
+    ...load(path.join(path.dirname(sourceFile), 'export-grid-rows.ts')),
+    ...load(path.join(path.dirname(sourceFile), 'script-fonts.ts')),
+    ...load(path.join(path.dirname(sourceFile), '../hwp-text-advances.ts')) };
 })();
 const paper = { size: 'Letter', orientation: 'landscape', margin: 20, margins: { top: 15, right: 18, bottom: 21, left: 24 }, header: '머리말', footer: '꼬리말', pageNumbers: false };
 const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
@@ -299,6 +302,250 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: supplementary Unicode bef
   } finally { doc.free(); }
 });
 
+test('before-spacing requires matching stored and painted lines across a cell continuation', async () => {
+  const { sourceSplitCellBefore } = await setup;
+  const address = [0, 0, 0, 0];
+  const run = (verticalPosition, textStart) =>
+    ({ verticalPosition, textStart, height: 16, textHeight: 16, spacing: 4 });
+  const raw = [[run(12, 0), run(32, 6), run(0, 12)], [run(28, 0), run(48, 6)]];
+  let terminalText = '';
+  const model = {
+    getCellParagraphCount: () => raw.length,
+    getCellParaPropertiesAt: (section, paragraph, control, cell, p) => JSON.stringify({
+      spacingBefore: p ? 16 : 24, spacingAfter: 0, headType: 'None', lineSpacingType: 'Percent', lineSpacing: 125,
+    }),
+    getCellCharPropertiesAt: () => JSON.stringify({ fontSize: 1200 }),
+    getTextInCellByPath: () => terminalText,
+    getParagraphLineMetrics: (section, paragraph, path) => JSON.stringify({
+      stored: true, controlCount: 0, lines: raw[JSON.parse(path)[0].cellParaIndex],
+    }),
+  };
+  const boxes = [{ pageIndex: 9, y: 60, h: 52 }, { pageIndex: 10, y: 60, h: 68 }];
+  const visual = (page, y) => ({ page, y, h: 16 });
+  const observed = new Map([
+    ['0:0:0:0:0', [visual(9, 74), visual(9, 94), visual(10, 62)]],
+    ['0:0:0:0:1', [visual(10, 90), visual(10, 110)]],
+  ]);
+  assert.deepEqual(sourceSplitCellBefore(model, address, observed, boxes, 2, 2),
+    { before: [12, 8], fillsFragments: true });
+  assert.deepEqual(sourceSplitCellBefore(model, address, observed, [{ ...boxes[0] }, { ...boxes[1], h: 70 }], 2, 2),
+    { before: [12, 8], fillsFragments: false });
+  // A source may continue stored offsets across the cut. Its visual
+  // starts must still match the stored text offsets and fill the fragments.
+  terminalText = 'abcdefghijklmnopqrstuvwx';
+  raw[0][2].verticalPosition = 52;
+  for (const runs of observed.values()) runs.forEach((visual, i) => { visual.charStart = i * 6; });
+  assert.equal(sourceSplitCellBefore(model, address, observed, boxes, 2, 2), undefined);
+  assert.deepEqual(sourceSplitCellBefore(model, address, observed, boxes, 2, 2, true),
+    { before: [12, 8], fillsFragments: true });
+  observed.get('0:0:0:0:0')[2].charStart++;
+  assert.equal(sourceSplitCellBefore(model, address, observed, boxes, 2, 2, true), undefined);
+  observed.get('0:0:0:0:0')[2].charStart--;
+  raw[0][2].verticalPosition = 0;
+  terminalText = '';
+
+  observed.get('0:0:0:0:0')[2].y += 4;
+  assert.equal(sourceSplitCellBefore(model, address, observed, boxes, 2, 2), undefined);
+
+  // Restore the same authored before-spacing when the page break lands
+  // just before a paragraph whose first line cannot fit the old fragment.
+  raw[0] = [run(12, 0), run(32, 6)];
+  raw[1] = [run(8, 0), run(28, 6)];
+  observed.set('0:0:0:0:0', [visual(9, 74), visual(9, 94)]);
+  observed.set('0:0:0:0:1', [visual(10, 70), visual(10, 90)]);
+  const boundaries = [{ ...boxes[0], h: 66 }, { ...boxes[1], h: 48 }];
+  assert.deepEqual(sourceSplitCellBefore(model, address, observed, boundaries, 2, 2),
+    { before: [12, 8], fillsFragments: true });
+  boundaries[0].h = 82;
+  assert.deepEqual(sourceSplitCellBefore(model, address, observed, boundaries, 2, 2),
+    { before: [12, 8], fillsFragments: false });
+
+  raw[0] = [run(12, 0), run(32, 6), run(0, 12), run(20, 18)];
+  raw[1] = [run(48, 0), run(0, 6), run(20, 12)];
+  raw[2] = [run(48, 0)];
+  observed.set('0:0:0:0:0', [visual(9, 74), visual(9, 94), visual(10, 62), visual(10, 82)]);
+  observed.set('0:0:0:0:1', [visual(10, 110), visual(11, 62), visual(11, 82)]);
+  const three = [boxes[0], boxes[1], { pageIndex: 11, y: 60, h: 68 }];
+  assert.deepEqual(sourceSplitCellBefore(model, address, observed, three, 2, 2),
+    { before: [12, 8, 8], fillsFragments: true });
+
+  terminalText = 'nonempty';
+  assert.equal(sourceSplitCellBefore(model, address, observed, three, 2, 2), undefined);
+  terminalText = '';
+  assert.deepEqual(sourceSplitCellBefore(model, address, observed, [three[0], { ...three[1], h: 75 }, three[2]], 2, 2),
+    { before: [12, 8, 8], fillsFragments: false });
+});
+
+test('painted HWP cell gaps require both the mixed line pitches and the terminal blank box', async () => {
+  const { sourcePaintedCellBefore } = await setup;
+  const address = [0, 5, 0, 3];
+  const line = (height, spacing, textStart = 0) => ({ height, textHeight: height, spacing, textStart, verticalPosition: 0 });
+  const stories = [
+    { text: '한글문단 표현확인', lines: [line(16, 6), line(16, 6, 5)] },
+    { text: '작은 문자', lines: [line(12, 5)] },
+    { text: '', lines: [line(12, 5)] },
+  ];
+  const story = path => stories[JSON.parse(path)[0].cellParaIndex];
+  const model = {
+    getCellParagraphCount: () => stories.length,
+    getCellParaPropertiesAt: () => JSON.stringify({ spacingBefore: 10, spacingAfter: 0, headType: 'None', lineSpacingType: 'Percent' }),
+    getTextInCellByPath: (_section, _paragraph, path) => story(path).text,
+    getParagraphLineMetrics: (_section, _paragraph, path) => JSON.stringify({ stored: true, controlCount: 0, lines: story(path).lines }),
+  };
+  const painted = new Map([
+    ['0:5:0:3:0', [{ page: 0, y: 107, h: 16, charStart: 0 }, { page: 1, y: 202, h: 16, charStart: 5 }]],
+    ['0:5:0:3:1', [{ page: 1, y: 229, h: 12, charStart: 0 }]],
+  ]);
+  const pitches = new Map([['page:0:5:0:3:2', 1], ['top:0:5:0:3:2', 251], ['height:0:5:0:3:2', 12]]);
+  const boxes = [{ pageIndex: 0, y: 100, h: 35 }, { pageIndex: 1, y: 200, h: 65 }];
+  assert.deepEqual(sourcePaintedCellBefore(model, address, painted, pitches, boxes, 2, 2),
+    { before: [5, 5, 5], cuts: [{ paragraph: 0, continuedLine: true }], terminalBlank: true, fillsRow: true });
+  painted.get('0:5:0:3:1')[0].y = 229.2;
+  assert.equal(sourcePaintedCellBefore(model, address, painted, pitches, boxes, 2, 2), undefined);
+  painted.get('0:5:0:3:1')[0].y = 229;
+  pitches.delete('top:0:5:0:3:2');
+  assert.equal(sourcePaintedCellBefore(model, address, painted, pitches, boxes, 2, 2), undefined);
+});
+
+test('a confirmed peer can explain a whole-paragraph cut, but cannot move its painted start', async () => {
+  const { sourcePaintedCellBefore } = await setup;
+  const address = [0, 5, 0, 3];
+  const line = { height: 16, textHeight: 16, spacing: 6, textStart: 0 };
+  const model = {
+    getCellParagraphCount: () => 2,
+    getCellParaPropertiesAt: () => JSON.stringify({ spacingBefore: 10, spacingAfter: 0, headType: 'None', lineSpacingType: 'Percent' }),
+    getTextInCellByPath: () => '본문',
+    getParagraphLineMetrics: () => JSON.stringify({ stored: true, controlCount: 0, lines: [line] }),
+  };
+  const first = { page: 0, y: 107, h: 16, charStart: 0 }, second = { page: 1, y: 207, h: 16, charStart: 0 };
+  const observed = new Map([['0:5:0:3:0', [first]], ['0:5:0:3:1', [second]]]);
+  const fragments = [{ pageIndex: 0, y: 100, h: 65 }, { pageIndex: 1, y: 200, h: 25 }];
+  assert.equal(sourcePaintedCellBefore(model, address, observed, new Map(), fragments, 2, 2), undefined);
+  assert.deepEqual(sourcePaintedCellBefore(model, address, observed, new Map(), fragments, 2, 2, false, true),
+    { before: [5, 5], cuts: [{ paragraph: 1, continuedLine: false }], terminalBlank: false, fillsRow: true });
+  second.y++;
+  assert.equal(sourcePaintedCellBefore(model, address, observed, new Map(), fragments, 2, 2, false, true), undefined);
+});
+
+test('authored cell breaks and an intact nested peer require their original measured positions', async () => {
+  const { sourcePaintedCellBefore, sourceInlinePeerInMiddleFragment } = await setup;
+  let secondStart = 4;
+  const line = textStart => ({ height: 16, textHeight: 16, spacing: 6, textStart });
+  const model = {
+    getCellParagraphCount: () => 1,
+    getCellParaPropertiesAt: () => JSON.stringify({ spacingBefore: 10, spacingAfter: 0, headType: 'None', lineSpacingType: 'Percent' }),
+    getTextInCellByPath: () => 'abc\nabc',
+    getParagraphLineMetrics: () => JSON.stringify({ stored: true, controlCount: 0, lines: [line(0), line(secondStart)] }),
+  };
+  const address = [0, 5, 0, 3];
+  const paint = [{ page: 0, y: 107, h: 16, charStart: 0 }, { page: 0, y: 129, h: 16, charStart: 4 }];
+  const map = new Map([['0:5:0:3:0', paint]]);
+  const fragments = [{ pageIndex: 0, y: 100, h: 47 }];
+  assert.equal(sourcePaintedCellBefore(model, address, map, new Map(), fragments, 2, 2), undefined);
+  assert.deepEqual(sourcePaintedCellBefore(model, address, map, new Map(), fragments, 2, 2, true),
+    { before: [5], cuts: [], terminalBlank: false, fillsRow: true });
+  paint[1].charStart = ++secondStart;
+  assert.equal(sourcePaintedCellBefore(model, address, map, new Map(), fragments, 2, 2, true), undefined);
+
+  const first = { cellIdx: 0, pageIndex: 3, x: 102, y: 204, w: 30, h: 20 };
+  const second = { cellIdx: 1, pageIndex: 3, x: 132, y: 204, w: 24, h: 20 };
+  const peer = {
+    getCellParagraphCount: () => 3,
+    getTextInCellByPath: () => '',
+    getParagraphLineMetrics: (_section, _paragraph, path) => JSON.stringify({
+      stored: true, lines: [line(0)],
+      ...(JSON.parse(path)[0].cellParaIndex === 1 ? { controlCount: 1, tables: [{ inline: true, index: 0 }] } : { controlCount: 0 }),
+    }),
+    getTableDimensionsByPath: () => JSON.stringify({ cellCount: 2 }),
+    getTableCellBboxesByPath: () => JSON.stringify([first, second]),
+  };
+  const middle = { pageIndex: 3, x: 100, y: 200, w: 60, h: 30 };
+  assert.equal(sourceInlinePeerInMiddleFragment(peer, address, middle), true);
+  second.pageIndex++;
+  assert.equal(sourceInlinePeerInMiddleFragment(peer, address, middle), false);
+  second.pageIndex--;
+  second.w += 10;
+  assert.equal(sourceInlinePeerInMiddleFragment(peer, address, middle), false);
+});
++test('natural HWP page endings use the stored text box only at a proven adjacent boundary', async () => {
+  const { sourceTerminalTextAtLineTop } = await setup;
+  const positions = new Map([
+    ['page:0:3', 0], ['page:0:4', 0], ['page:0:5', 1],
+    ['top:0:4', 583.7], ['height:0:4', 16], ['lines:0:4', 1], ['top:0:5', 100],
+  ]);
+  const paper = { marginTop: 80, marginHeader: 20, footerArea: { y: 600 }, columns: [{}] };
+  const line = { verticalPosition: 483.7, height: 16, textHeight: 16, spacing: 9.6, baseline: 13.6, textStart: 0 };
+  const model = {
+    getPageInfo: () => JSON.stringify(paper),
+    getParaPropertiesAt: () => JSON.stringify({ pageBreakBefore: false }),
+    getParagraphLineMetrics: (_section, paragraph) => JSON.stringify({
+      stored: true, controlCount: 0, lines: paragraph === 4 ? [line] :
+        [{ verticalPosition: 456.7, height: 17, spacing: 10 }],
+    }),
+  };
+  const top = () => sourceTerminalTextAtLineTop(model, 0, 4, positions, 16, 25.6);
+  assert.equal(top(), true);
+  positions.set('top:0:5', 104);
+  assert.equal(top(), false);
+  positions.set('top:0:5', 100);
+  paper.footerArea.y = 605;
+  assert.equal(top(), false);
+  paper.footerArea.y = 600;
+  line.verticalPosition += 2;
+  assert.equal(top(), false);
+  line.verticalPosition -= 2;
+  model.getParaPropertiesAt = () => JSON.stringify({ pageBreakBefore: true });
+  assert.equal(top(), false);
+});
+
+test('before-spacing in a split cell with a nested table requires both native fragments', async () => {
+  const { sourceBeforeNestedCellTail } = await setup;
+  const address = [0, 2, 0, 1];
+  const first = { pageIndex: 4, y: 60, h: 80 };
+  const tail = { pageIndex: 5, y: 60, h: 188, w: 200 };
+  const positions = [18, 58.4, 18];
+  const bounds = { pageIndex: 5, y: 65, h: 160, w: 170, rowSpan: 1, colSpan: 1 };
+  let terminalText = '';
+  let inline = true;
+  const model = {
+    getCellParagraphCount: () => positions.length,
+    getCellParaPropertiesAt: () => JSON.stringify({
+      spacingBefore: 36, spacingAfter: 0, headType: 'None', lineSpacingType: 'Percent', lineSpacing: 140,
+    }),
+    getCellCharPropertiesAt: () => JSON.stringify({ fontSize: 1200 }),
+    getTextInCellByPath: () => terminalText,
+    getParagraphLineMetrics: (_section, _paragraph, path) => {
+      const index = JSON.parse(path)[0].cellParaIndex;
+      const isTail = index === 2;
+      const height = isTail ? 166 : 16;
+      return JSON.stringify({
+        stored: true, controlCount: +isTail, tables: isTail ? [{ index: 0, inline, outerTop: 3, outerBottom: 3 }] : [],
+        lines: [{ verticalPosition: positions[index], textStart: 0, height, textHeight: height, spacing: 6.4 }],
+      });
+    },
+    getTableDimensionsByPath: () => JSON.stringify({ rowCount: 1, colCount: 1, cellCount: 1 }),
+    getTableCellBboxesByPath: () => JSON.stringify([bounds]),
+  };
+  const pitches = new Map([
+    ['page:0:2:0:1:0', 4], ['top:0:2:0:1:0', 80], ['height:0:2:0:1:0', 16], ['lines:0:2:0:1:0', 1],
+    ['page:0:2:0:1:1', 4], ['top:0:2:0:1:1', 120.4], ['height:0:2:0:1:1', 16], ['lines:0:2:0:1:1', 1],
+  ]);
+  const recover = (last = tail) => sourceBeforeNestedCellTail(model, address, pitches, first, last, 2, 2);
+  assert.deepEqual(recover(), [18, 18]);
+  assert.equal(recover({ ...tail, h: 184 }), undefined);
+  inline = false;
+  assert.equal(recover(), undefined);
+  inline = true;
+  terminalText = 'Separate title';
+  assert.equal(recover(), undefined);
+  terminalText = '';
+  bounds.pageIndex = 6;
+  assert.equal(recover(), undefined);
+  bounds.pageIndex = 5;
+  pitches.set('top:0:2:0:1:0', 81);
+  assert.equal(recover(), undefined);
+});
+
 test('custom physical paper and column spacing survive both Hancom writers and the edit bridge', async () => {
   const { HwpDocument, serializeHwp, editableHwp } = await setup;
   const page = { ...paper, size: 'Custom', width: 272, height: 394, orientation: 'portrait', columns: { count: 2, space: 18 } };
@@ -404,7 +651,7 @@ for (const fixture of [
         const doc = format === 'hwpx' ? source : new HwpDocument(source.exportHwp());
         try {
           const converted = editableHwp(doc);
-          const heights = [...converted.html.matchAll(/<tr style="height:([\d.]+)px;/g)].map(match => Number(match[1]));
+          const heights = [...converted.html.matchAll(/<tr\b[^>]*\sstyle="height:([\d.]+)px;/g)].map(match => Number(match[1]));
           assert.equal(heights.length, 4, format);
           heights.forEach((height, row) => assert.ok(Math.abs(height - fixture.heights[row] * 4 / 3) < .02, `${format} row ${row}: ${height}`));
           assert.ok(heights.reduce((a, b) => a + b, 0) >= 128 * 4 / 3 - .02);
@@ -762,4 +1009,350 @@ test('native CSS cascade applies inner formatting after inherited declarations',
       assert.equal(chars[3].italic, false);
     } finally { doc.free(); }
   }
+});
+
+test('large native exports retain tables and exact paragraph boundaries', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  const marker = '<div data-page-break="true"></div>';
+  const first = '<p style="text-align:right">첫 쪽</p><table><tr><td rowspan="2"><p>공통 셀</p></td><td><p>상단</p></td></tr><tr><td><p>하단</p></td></tr></table><p></p>';
+  const second = '<p style="text-align:center">둘째 쪽</p><p>마지막 문장</p>';
+  const padding = '한'.repeat(350000);
+  const padded = html => html.replace('<p style=', `<p title="${padding}" style=`);
+  const small = first + marker + second, large = padded(first) + marker + padded(second);
+  assert.ok(large.length < 2000000 && Buffer.byteLength(large) > 2000000);
+
+  function inventory(bytes) {
+    const doc = new HwpDocument(bytes);
+    try {
+      const paragraphs = Array.from({ length:doc.getParagraphCount(0) }, (_, index) => {
+        const properties = JSON.parse(doc.getParaPropertiesAt(0, index));
+        return [doc.getTextRange(0, index, 0, 0xffffffff), properties.alignment, properties.pageBreakBefore];
+      });
+      const tables = JSON.parse(doc.getControls()).filter(control => control.list === 0 && control.ctrlId === 'tbl');
+      assert.equal(tables.length, 1);
+      const [{ para, controlIndex }] = tables;
+      const dimensions = JSON.parse(doc.getTableDimensions(0, para, controlIndex));
+      assert.equal(dimensions.cellCount, 3);
+      const cells = Array.from({ length:dimensions.cellCount }, (_, index) =>
+        [JSON.parse(doc.getCellInfo(0, para, controlIndex, index)).rowSpan,
+          doc.getTextInCell(0, para, controlIndex, index, 0, 0, 0xffffffff)]);
+      return { pages:doc.pageCount(), paragraphs, cells };
+    } finally { doc.free(); }
+  }
+
+  const withoutFurniture = { ...paper, header:'', footer:'' };
+  for (const format of ['hwp','hwpx']) {
+    const expected = inventory(serializeHwp(HwpDocument, small, withoutFurniture, format).bytes);
+    assert.deepEqual(expected.cells, [[2,'공통 셀'],[1,'상단'],[1,'하단']]);
+    const actual = inventory(serializeHwp(HwpDocument, large, withoutFurniture, format).bytes);
+    assert.deepEqual(actual, expected);
+    const sharedPage = inventory(serializeHwp(HwpDocument, padded(first) + padded(second), withoutFurniture, format).bytes);
+    assert.deepEqual(sharedPage, inventory(serializeHwp(HwpDocument, first + second, withoutFurniture, format).bytes));
+    const indivisible = `<p title="${padding.repeat(2)}">한 문단</p>`;
+    assert.throws(() => serializeHwp(HwpDocument, indivisible, withoutFurniture, format), /문서 구조 보존 한도/);
+  }
+});
+
+test('measured flowing table stays editable beside its one-row label in both native formats', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  const label = '<table><tr><td><p>표 제목</p></td></tr></table>';
+  const blank = '<p><span></span></p>';
+  const flow = '<table data-hwp-centered-borders="continuation" data-table-anchor="{&quot;x&quot;:0,&quot;y&quot;:0,&quot;bottom&quot;:0,&quot;reference&quot;:&quot;paragraph&quot;,&quot;horizontal&quot;:&quot;margin&quot;}"><tr><th><p>표 머리</p></th></tr><tr><td><p>표 본문</p></td></tr></table>';
+  const page = { ...paper, header: '', footer: '' };
+
+  for (const format of ['hwp', 'hwpx']) {
+    for (const grouped of [true, false]) {
+      const before = grouped ? blank : '<p>보존할 문단</p>';
+      const { bytes } = serializeHwp(HwpDocument, label + before + flow, page, format);
+      const native = new HwpDocument(bytes);
+      try {
+        const tables = JSON.parse(native.getControls()).filter(control => control.list === 0 && control.ctrlId === 'tbl');
+        assert.equal(tables.length, 2);
+        const [heading, body] = tables;
+        const info = control => JSON.parse(native.getTableProperties(0, control.para, control.controlIndex));
+        assert.ok(info(heading).treatAsChar);
+        assert.equal(info(body).treatAsChar, !grouped);
+        assert.equal(info(body).pageBreak, grouped ? 2 : 0);
+        if (grouped) assert.deepEqual([info(heading).outerTop, info(heading).outerBottom], [0, 0]);
+        assert.equal(native.getTextRange(0, heading.para + 1, 0, 0xffffffff), grouped ? '' : '보존할 문단');
+        assert.equal(native.getTextInCell(0, body.para, body.controlIndex, 1, 0, 0, 0xffffffff), '표 본문');
+      } finally { native.free(); }
+    }
+  }
+});
+
+test('native body and cell runs retain authored widths, text color and spacing', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  const html = '<p><span style="--word-character-scale:95;color:rgb(12, 34, 56);letter-spacing:-.5pt">한글 &amp; latin</span><span style="color:#123456">그대로</span></p>' +
+    '<table><tr><td><p><span style="--word-character-scale:120;color:#c39"><b></b>지정 아님</span><span style="--word-character-scale:88;color:#1a2b3c">표 안쪽</span></p></td></tr></table>';
+  const settings = { ...paper, header:'', footer:'' };
+  for (const format of ['hwp','hwpx']) {
+    const { bytes, warnings } = serializeHwp(HwpDocument, html, settings, format);
+    assert.deepEqual(warnings, []);
+    const doc = new HwpDocument(bytes);
+    try {
+      const controls = JSON.parse(doc.getControls());
+      const table = controls.find(c=>c.list===0&&c.ctrlId==='tbl');
+      assert.ok(table);
+      const row = doc.getTextRange(0, 0, 0, 0xffffffff);
+      assert.equal(row, '한글 & latin그대로');
+      const width = props => [props.ratios, props.textColor.toLowerCase()];
+      const first = JSON.parse(doc.getCharPropertiesAt(0,0,0));
+      assert.deepEqual(width(first), [Array(7).fill(95), '#0c2238']);
+      const control = new HwpDocument(serializeHwp(HwpDocument, html.replace('--word-character-scale:95;', ''), settings, format).bytes);
+      try {
+        const withoutWidth = JSON.parse(control.getCharPropertiesAt(0,0,0));
+        assert.ok(withoutWidth.spacings.every(spacing => spacing < 0));
+        assert.deepEqual(first.spacings, withoutWidth.spacings);
+      } finally { control.free(); }
+      assert.deepEqual(width(JSON.parse(doc.getCharPropertiesAt(0,0,'한글 & latin'.length))), [Array(7).fill(100), '#123456']);
+      const literal = doc.getTextInCell(0,table.para,table.controlIndex,0,0,0,0xffffffff);
+      assert.equal(literal, '지정 아님표 안쪽');
+      assert.deepEqual(width(JSON.parse(doc.getCellCharPropertiesAt(0,table.para,table.controlIndex,0,0,0))), [Array(7).fill(100), '#cc3399']);
+      assert.deepEqual(width(JSON.parse(doc.getCellCharPropertiesAt(0,table.para,table.controlIndex,0,0,'지정 아님'.length))), [Array(7).fill(88), '#1a2b3c']);
+    } finally { doc.free(); }
+  }
+});
+
+test('native width survives an unstyled wrapper around the final spaces of the run', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  const html = '<p><span style="--word-character-scale:95;color:#123456;letter-spacing:-0.6pt">본문 한 줄<span> </span></span></p>';
+  const settings = { ...paper, header:'', footer:'' };
+  for (const format of ['hwp', 'hwpx']) {
+    const { bytes, warnings } = serializeHwp(HwpDocument, html, settings, format);
+    assert.deepEqual(warnings, []);
+    const doc = new HwpDocument(bytes);
+    const unscaled = new HwpDocument(serializeHwp(HwpDocument, html.replace('--word-character-scale:95;', ''), settings, format).bytes);
+    try {
+      const text = '본문 한 줄 ';
+      assert.equal(doc.getTextRange(0, 0, 0, 0xffffffff), text);
+      for (let index = 0; index < text.length; index++) {
+        const { ratios, spacings, textColor } = JSON.parse(doc.getCharPropertiesAt(0, 0, index));
+        assert.deepEqual(ratios, Array(7).fill(95));
+        const original = JSON.parse(unscaled.getCharPropertiesAt(0, 0, index));
+        assert.ok(original.spacings.every(spacing => spacing < 0));
+        assert.deepEqual(spacings, original.spacings);
+        assert.equal(textColor.toLowerCase(), '#123456');
+      }
+    } finally { unscaled.free(); doc.free(); }
+  }
+});
+
+test('unattributed native width colors fall back to the original editable document', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  class PasteWithoutMarker extends HwpDocument {
+    static createEmpty() {
+      const doc = HwpDocument.createEmpty();
+      const paste = doc.pasteHtml.bind(doc);
+      doc.pasteHtml = (s, p, at, html) => paste(s, p, at, html.replace(
+        /(--word-character-scale:95;color:)#[0-9a-f]{6}/, '$1#123456'));
+      return doc;
+    }
+  }
+  const html = '<p><span style="--word-character-scale:95;color:#123456">원래 색</span></p><p>다음 문단</p>';
+  const settings = { ...paper, header:'', footer:'' };
+  for (const format of ['hwp','hwpx']) {
+    const { bytes, warnings } = serializeHwp(PasteWithoutMarker, html, settings, format);
+    assert.match(warnings[0], /장평/);
+    const doc = new HwpDocument(bytes);
+    try {
+      assert.equal(doc.getTextRange(0, 0, 0, 0xffffffff), '원래 색');
+      assert.equal(doc.getTextRange(0, 1, 0, 0xffffffff), '다음 문단');
+      const properties = JSON.parse(doc.getCharPropertiesAt(0, 0, 0));
+      assert.equal(properties.textColor.toLowerCase(), '#123456');
+      assert.deepEqual(properties.ratios, Array(7).fill(100));
+    } finally { doc.free(); }
+  }
+});
+
+test('native spread circles for decimal labels preserve editable text in body and nested cells', async () => {
+  const { HwpDocument, editableHwp, serializeHwp } = await setup;
+  const html = '<p>BODYEND</p><table><tr><td><p>OUTER</p><table><tr><td><p>NESTEDEND</p></td></tr></table></td></tr></table><p>GUARDEND</p>';
+  const settings = { ...paper, header: '', footer: '' };
+  const staged = await JSZip.loadAsync(serializeHwp(HwpDocument, html, settings, 'hwpx').bytes);
+  const section = 'Contents/section0.xml';
+  const markup = await staged.file(section).async('string');
+  const circle = (a, b) => '</hp:t><hp:compose circleType="SHAPE_CIRCLE" charSz="-3" composeType="SPREAD" charPrCnt="2" composeText="' +
+    String.fromCodePoint(a, b) + '"><hp:charPr prIDRef="0"/><hp:charPr prIDRef="0"/></hp:compose><hp:t>';
+  staged.file(section, markup
+    .replace('BODYEND', 'BODY' + circle(0xf0289, 0xf0293) + 'END')
+    .replace('NESTEDEND', 'NESTED' + circle(0xf0289, 0xf0298) + 'END')
+    .replace('GUARDEND', 'GUARD' + circle(0xf0288, 0xf0293) + 'END'));
+  const hwpx = await staged.generateAsync({type:'uint8array'});
+  const output = new HwpDocument(hwpx);
+  let hwp;
+  try { hwp = output.exportHwp(); } finally { output.free(); }
+  for (const bytes of [hwp, hwpx]) {
+    const native = new HwpDocument(bytes);
+    try {
+      const data = editableHwp(native);
+      const text = data.html.replace(/<[^>]+>/g, '');
+      assert.match(text, /BODY⑪END/);
+      assert.match(text, /NESTED⑯END/);
+      assert.match(text, /GUARD.*(?:변환하지 못한 개체|원본 보기에서 확인).*END/);
+      assert.doesNotMatch(data.html, /[\u{F0288}-\u{F029B}]/u);
+    } finally { native.free(); }
+  }
+});
+
+test('native save restores a short merged grid after the native parser inflated its cell', async () => {
+  const { HwpDocument, serializeHwp, planHwpGridRows } = await setup;
+  const settings = { ...paper, header:'', footer:'' };
+  const rows = '<table style="width:220px"><tr style="height:24px"><td rowspan="3" style="width:100px;height:52px"><p>MERGED</p></td><td style="width:120px;height:24px"><p>TOP</p></td></tr>' +
+    '<tr data-hwp-grid-row="true" style="height:4px"><td style="width:120px;height:4px"><p></p></td></tr>' +
+    '<tr style="height:24px"><td style="width:120px;height:24px"><p>BOTTOM</p></td></tr></table>';
+  const state = doc => {
+    const c=JSON.parse(doc.getControls()).find(control=>control.list===0&&control.ctrlId==='tbl');
+    const pos=[0,c.para,c.controlIndex];
+    const props=JSON.parse(doc.getCellProperties(...pos,2));
+    const text=Array.from({length:4},(_,cell)=>doc.getTextInCell(...pos,cell,0,0,0xffffffff));
+    return [props.height,text];
+  };
+  const input = serializeHwp(HwpDocument,rows.replace(' data-hwp-grid-row="true"', ''),settings,'hwpx');
+  const intermediate = await JSZip.loadAsync(input.bytes), section = 'Contents/section0.xml';
+  const xml = await intermediate.file(section).async('string');
+  const adjusted = xml.replace(/<hp:tc\b[\s\S]*?<\/hp:tc>/g, cell =>
+    /<hp:cellAddr\b[^>]*\browAddr="1"/.test(cell) ? cell.replace(/(<hp:cellSz\b[^>]*\bheight=")300"/, (tag, prefix) => prefix + '1000"') : cell);
+  assert.notEqual(xml,adjusted);
+  intermediate.file(section,adjusted);
+  const source = new HwpDocument(await intermediate.generateAsync({type:'uint8array'}));
+  try {
+    assert.deepEqual(state(source), [1000,['MERGED','TOP','','BOTTOM']]);
+    // A cell size explicitly different from its row size is a separate user
+    // setting. The reverse layout proof cannot revise it on the row's behalf.
+    const mismatched = rows.replace('width:120px;height:4px','width:120px;height:5px');
+    assert.equal(planHwpGridRows(mismatched)(HwpDocument,source), source);
+    const restored=planHwpGridRows(rows)(HwpDocument,source);
+    assert.notEqual(restored,source);
+    try {
+      assert.deepEqual(state(restored), [300,['MERGED','TOP','','BOTTOM']]);
+      for (const bytes of [restored.exportHwpx(),restored.exportHwp()]) {
+        const reopened = new HwpDocument(bytes);
+        try { assert.deepEqual(state(reopened),state(restored)); } finally { reopened.free(); }
+      }
+    } finally { restored.free(); }
+  } finally { source.free(); }
+});
+
+test('a native cell page reference retains its original numeric display and unique bookmark target', async () => {
+  const { HwpDocument, editableHwp, serializeHwp } = await setup;
+  const settings = { ...paper, header: '', footer: '' };
+  const html = '<p><span data-docx-bookmark="대상 &amp; 절"></span>DESTINATION</p>' +
+    '<table><tr><td><p>LEFT12</p></td><td><p>GUARD34</p></td></tr></table>';
+  const staging = await JSZip.loadAsync(serializeHwp(HwpDocument,html,settings,'hwpx').bytes);
+  const name='Contents/section0.xml', xml=await staging.file(name).async('string');
+  const field = (id, target, digits) =>
+    '</hp:t><hp:ctrl><hp:fieldBegin id="' + id + '" type="CROSSREF" name="" editable="0" dirty="0">' +
+    '<hp:parameters cnt="1" name=""><hp:stringParam name="Command">?' + target +
+    ';6;0;1;0;</hp:stringParam></hp:parameters></hp:fieldBegin></hp:ctrl><hp:t>' + digits +
+    '</hp:t><hp:ctrl><hp:fieldEnd beginIDRef="' + id + '"/></hp:ctrl><hp:t>';
+  staging.file(name,xml.replace('LEFT12','LEFT' + field(301,'대상 &amp; 절','12'))
+    .replace('GUARD34','GUARD' + field(302,'없는 책갈피','34')));
+  const zipped = await staging.generateAsync({type:'uint8array'}), origin=new HwpDocument(zipped);
+  let binary; try { binary=origin.exportHwp(); } finally { origin.free(); }
+  for (const native of [zipped,binary]) {
+    const d=new HwpDocument(native);
+    try {
+      const result=editableHwp(d);
+      assert.match(result.html,/LEFT<a href="#대상 &amp; 절">12<\/a>/);
+      assert.match(result.html,/data-docx-bookmark="대상 &amp; 절"/);
+      assert.match(result.html,/GUARD34/);
+      assert.match(result.html,/\[변환하지 못한 개체/);
+      assert.doesNotMatch(result.html,/href="#없는 책갈피"/);
+      assert.ok(result.warnings.some(w=>w.includes('쪽 번호를 표시')));
+    }finally {d.free();}
+  }
+});
+
+test('binary save preserves identical intentional body paragraphs on explicit separate pages', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  const settings = { ...paper, header: '', footer: '' };
+  const body = '<p>Keep this repeated line.</p>', breakTag = '<div data-page-break="true"></div>';
+  const { bytes, pages, warnings } = serializeHwp(HwpDocument,[body,body,body].join(breakTag),settings,'hwp');
+  assert.equal(pages,3);
+  assert.deepEqual(warnings,[]);
+  const reopened = new HwpDocument(bytes);
+  try {
+    for (let page = 0; page < 3; page++) {
+      const runs = JSON.parse(reopened.getPageTextLayout(page)).runs.filter(run=>!run.headerFooter);
+      assert.equal(runs.map(run=>run.text).join(''),'Keep this repeated line.');
+    }
+  } finally { reopened.free(); }
+});
+
+test('native table keeps the measured one-line lead and the complete following table together', async () => {
+  const { HwpDocument, serializeHwp } = await setup;
+  const settings = { size: 'A4', orientation: 'portrait', margin: 20,
+    margins: { top: 30, right: 20, bottom: 20, left: 20 }, header: '', footer: '', pageNumbers: false };
+  const lead = '조판 검증을 위한 한 줄 예시이며 원본의 글자와 표 속 내용을 그대로 유지할 수 있습니다'.slice(0,44);
+  const line = text => '<p style="text-align:justify;text-indent:-40px;line-height:130%;margin:0">' +
+    '<span style="font-family:serif;font-size:14pt">' + text + '</span></p>';
+  const table = '<table style="width:600px"><tr style="height:854px"><td style="width:600px;height:854px"><p>TABLE CELL</p></td></tr></table>';
+  const html = line('STATIONARY') + line(lead) + table + '<div data-page-break="true"></div>' + line('FOLLOWING');
+  const printed = { pages: 2, tableLeads: [{ sheet: 0, literal: lead, width: 600, height: 854, rows: 1 }] };
+  const normal = serializeHwp(HwpDocument, html, settings, 'hwpx');
+  const corrected = serializeHwp(HwpDocument, html, settings, 'hwpx', undefined, [], printed);
+  assert.equal(normal.pages, 3);
+  assert.equal(corrected.pages, 2);
+  assert.deepEqual(corrected.warnings, normal.warnings);
+  const doc = new HwpDocument(corrected.bytes);
+  try {
+    const runs = JSON.parse(doc.getPageTextLayout(0)).runs;
+    const leadRuns = runs.filter(run => run.paraIdx === 1 && !run.cellPath?.length);
+    assert.equal(leadRuns.length, 1);
+    assert.equal(leadRuns[0].text, lead);
+    assert.equal(doc.getTextInCell(0, 2, 0, 0, 0, 0, 0xffffffff), 'TABLE CELL');
+    assert.equal(JSON.parse(doc.getPageTextLayout(1)).runs.map(run => run.text).join(''), 'FOLLOWING');
+  } finally { doc.free(); }
+  printed.tableLeads[0].literal = lead + 'X';
+  const unproven = serializeHwp(HwpDocument, html, settings, 'hwpx', undefined, [], printed);
+  assert.deepEqual(unproven.bytes, normal.bytes);
+});
+
+test('a mixed column pair requires two physically painted lines at the stored cut', async () => {
+  const { parseHwpSourceWrap, preserveHwpColumnLineEnds } = await setup;
+  const text = '첫째 줄 둘째 줄';
+  const html = '<p><span>' + text + '</span></p>';
+  const stored = { stored: true, controlCount: 0, lines: [
+    { textStart: 0, verticalPosition: 40, width: 320, height: 18, textHeight: 18, spacing: 7.2 },
+    { textStart: 5, verticalPosition: 65.2, width: 320, height: 15.3, textHeight: 15.3, spacing: 6.1 },
+  ] };
+  const first = { page: 0, y: 140, h: 18, charStart: 0 };
+  const second = { page: 0, y: 165.2, h: 15.3, charStart: 5 };
+  const proof = (painted, record = stored) => {
+    const marked = preserveHwpColumnLineEnds(html, text, () => JSON.stringify(record), painted);
+    assert.equal(marked.replace(/ data-hwp-source-wrap="[^"]+"/, ''), html);
+    return parseHwpSourceWrap(marked.match(/data-hwp-source-wrap="([^"]+)"/)?.[1].replaceAll('&quot;', '"'));
+  };
+  const matched = proof([first, second]);
+  assert.deepEqual(matched.ends, [3, 6]);
+  assert.equal(matched.columnWidth, 320);
+  assert.deepEqual(matched.columnPitches, [25.2, 21.4]);
+  for (const invalid of [{ ...second, page: 1 }, { ...second, y: 166 }, { ...second, h: 18 }, { ...second, charStart: 6 }]) {
+    const { columnPitches, ...oldProof } = matched;
+    assert.deepEqual(proof([first, invalid]), oldProof);
+  }
+  for (const invalid of [[25.2], [25.2, 25.2], [25.2, -1], [25.2, 10000]]) {
+    assert.equal(parseHwpSourceWrap(JSON.stringify({ ...matched, columnPitches: invalid })), undefined);
+  }
+});
+
+test('whole-paragraph peers must supply the measured end of every source fragment', async () => {
+  const { sourceWholeParagraphPeerRow } = await setup;
+  const profile = (count, cuts, fillsRow) => ({
+    before: Array(count).fill(12),
+    cuts: cuts.map(paragraph => ({ paragraph, continuedLine: false })),
+    terminalBlank: false,
+    fillsRow,
+  });
+  const compact = profile(2, [1], false), longer = profile(5, [1], true);
+  const two = [[true, true], [false, true]];
+  assert.equal(sourceWholeParagraphPeerRow([compact, longer], two), true);
+  assert.equal(sourceWholeParagraphPeerRow([compact, longer], [[true, false], [false, true]]), false);
+  const long = profile(11, [3, 8], true), middle = profile(5, [1], false);
+  const three = [[true, false], [false, true], [true, false]];
+  assert.equal(sourceWholeParagraphPeerRow([long, middle], three), true);
+  assert.equal(sourceWholeParagraphPeerRow([long, middle], [[true, false], [false, false], [true, false]]), false);
+  assert.equal(sourceWholeParagraphPeerRow([long, { ...middle, terminalBlank: true }], three), false);
+  assert.equal(sourceWholeParagraphPeerRow([long, { ...middle, cuts: [{ paragraph: 1, continuedLine: true }] }], three), false);
 });

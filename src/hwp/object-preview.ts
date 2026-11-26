@@ -151,7 +151,13 @@ export async function rasterizeHwpObject(raw: string, width: number, height: num
         ctx.setLineDash([.1, ctx.lineWidth * 2]);
         for (const leader of op.leaders) {
           const start = number(leader.startX), end = number(leader.endX);
-          if (leader.fillType !== 3 || start < 0 || end <= start || end > b.width + .5) throw Error('Unsupported object tab leader');
+          // RHWP puts stops in run-local coordinates, but a right tab can
+          // extend past the associated text box. Verify the physical span in
+          // the isolated object; the source clip still constrains its paint.
+          const left = b.x + start, right = b.x + end;
+          if (leader.fillType !== 3 || start < 0 || end <= start ||
+              left < bounds.x || right > bounds.x + bounds.width)
+            throw Error('Unsupported object tab leader');
           ctx.beginPath(); ctx.moveTo(b.x + start, b.y + size / 2); ctx.lineTo(b.x + end, b.y + size / 2); ctx.stroke();
         }
         return;

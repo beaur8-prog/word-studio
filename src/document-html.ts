@@ -1,7 +1,17 @@
+import { hwpRelatedTableLayoutAttribute } from './hwp-related-table-layout';
+import { hwpNestedTableLayoutAttribute } from './hwp-nested-table-layout';
+import { hwpIntactRowAttribute } from './hwp-intact-row';
+import { hwpCenteredCellLabelsAttribute } from './hwp-centered-cell-labels';
+import { hwpCellRasterFillAttribute, parseHwpCellRasterFill } from './hwp-cell-raster-fill';
+import { hwpBoxedDigitAttribute } from './hwp-boxed-digit';
 import DOMPurify from "dompurify";
 import documentLimits from '../electron/document-limits.json';
 import { encodeHwpCellLine, parseHwpCellLine } from './hwp-cell-line';
 import { encodeHwpBodyLine, parseHwpBodyLine } from './hwp-body-line';
+import { parseWordReflection, wordReflectionAttribute, wordParagraphReflectionAttribute } from './word-reflection';
+import { hwpSourceSpacesAttribute, hwpSourceWrapAttribute } from './hwp-text-advances';
+import { characterScaleProperty, parseCharacterScale } from './character-scale';
+import { hwpFootnoteLayoutAttribute, hwpFootnoteMarkAttribute } from './hwp-footnote-layout';
 // Base64 expansion of one supported embedded raster, plus its data-URI header.
 const MAX_IMAGE_SOURCE_LENGTH = Math.ceil(documentLimits.embeddedImageBytes / 3) * 4 + 64;
 export const RASTER_DATA =
@@ -90,32 +100,38 @@ export function sanitizeImportedHtml(source: string): {
       "data-inline-image",
       "data-image-floating", "data-drawing-group-anchor",
       "data-document-textbox", "data-textbox-content",
-      "data-table-anchor",
-      "data-docx-tab", "data-tab-stops",
+      "data-table-anchor", "data-hwp-table-top-gap", hwpNestedTableLayoutAttribute, hwpRelatedTableLayoutAttribute, "data-hwp-centered-borders", "data-cell-table-position",
+      "data-docx-tab", "data-tab-stops", "data-word-numbering-tabs",
       "data-word-line-rule", "data-word-line", "data-word-heading-marks",
       "data-word-auto-space-de", "data-word-auto-space-dn",
       "data-word-paragraph-style", "data-word-paragraph-style-name", "data-word-outline-level", "data-word-contextual-spacing", "data-word-keep-next", "data-word-keep-lines",
+      "data-word-paragraph-bottom-border", "data-paragraph-border-box", wordReflectionAttribute, wordParagraphReflectionAttribute,
       "data-word-table-layout", "data-word-table-width-auto", "data-word-cell-width-auto", "data-word-text-alignment",
       "data-exact-line-height",
-      "data-hwp-cell-line",
-      "data-hwp-body-line",
+      "data-hwp-cell-line", hwpCenteredCellLabelsAttribute, hwpCellRasterFillAttribute, hwpSourceSpacesAttribute, hwpSourceWrapAttribute,
+      "data-hwp-body-line", "data-hwp-inline-table-spaces", "data-hwp-grid-row", "data-hwp-row-continued", "data-hwp-row-reserve", "data-hwp-row-intact", hwpIntactRowAttribute, "data-hwp-kept-table-page", "data-hwp-table-continuation",
       "data-word-row-rule", "data-word-row-split",
       "data-row-split", "data-cell-split",
-      "data-word-overlap",
+      "data-word-overlap", hwpBoxedDigitAttribute,
       "data-docx-bookmark", "id",
       "data-list-id", "data-list-level", "data-list-format", "data-list-pattern", "data-list-label", "data-list-suffix", "data-list-font", "data-list-start",
-      "data-document-note", "data-note-reference", "data-note-kind", "data-note-label", "data-page-number",
+      "data-document-note", "data-note-reference", "data-note-kind", "data-note-label",
+      hwpFootnoteLayoutAttribute, hwpFootnoteMarkAttribute, "data-page-number",
       "data-column-count", "data-column-space", "data-column-balance", "data-section-content",
       "data-symbol-font", "data-symbol-code", "data-symbol-glyph",
     ],
     // These values are literal label/font text, not URIs. URI whitespace
     // stripping includes U+2022 and otherwise drops a perfectly valid bullet.
-    ADD_URI_SAFE_ATTR: ['data-list-pattern', 'data-list-label', 'data-list-font'],
+    ADD_URI_SAFE_ATTR: ['data-list-pattern', 'data-list-label', 'data-list-font', hwpCellRasterFillAttribute],
     ALLOW_DATA_ATTR: false,
   });
   const template = document.createElement("template");
   template.innerHTML = purified;
   const warnings: string[] = [];
+  for (const element of template.content.querySelectorAll(`[${hwpCellRasterFillAttribute}]`)) {
+    if (!element.matches('td') || !parseHwpCellRasterFill(element.getAttribute(hwpCellRasterFillAttribute)))
+      element.removeAttribute(hwpCellRasterFillAttribute);
+  }
   let removedImages = 0;
   for (const img of template.content.querySelectorAll("img")) {
     if (!validImage(img.getAttribute("src"))) {
@@ -133,6 +149,16 @@ export function sanitizeImportedHtml(source: string): {
     if (!safeLink(anchor.getAttribute("href"))) anchor.removeAttribute("href");
     anchor.setAttribute("rel", "noopener noreferrer");
     anchor.setAttribute("target", "_blank");
+  }
+  for (const [attribute, tags] of [
+    [wordReflectionAttribute, 'span'],
+    [wordParagraphReflectionAttribute, 'p,h1,h2,h3,h4,h5,h6'],
+  ]) {
+    for (const element of template.content.querySelectorAll('[' + attribute + ']')) {
+      const reflection = element.matches(tags) && parseWordReflection(element.getAttribute(attribute));
+      if (reflection) element.setAttribute(attribute, JSON.stringify(reflection));
+      else element.removeAttribute(attribute);
+    }
   }
   const safeStyles = new Set([
     "font-family",
@@ -170,6 +196,8 @@ export function sanitizeImportedHtml(source: string): {
     if (bodyLine) element.dataset.hwpBodyLine = encodeHwpBodyLine(bodyLine);
     else element.removeAttribute('data-hwp-body-line');
     const output: string[] = [];
+    const characterScale = element.tagName === 'SPAN' && parseCharacterScale(oldStyle.getPropertyValue(characterScaleProperty));
+    if (characterScale && characterScale !== 100) output.push(`${characterScaleProperty}:${characterScale}`);
     // New Chromium versions enumerate white-space's longhands instead of the
     // authored shorthand. Retain the validated shorthand for import parsers.
     if (oldStyle.whiteSpace && !/url\s*\(|var\s*\(|\\/i.test(oldStyle.whiteSpace)) output.push(`white-space:${oldStyle.whiteSpace}`);
@@ -187,4 +215,3 @@ export function sanitizeImportedHtml(source: string): {
   }
   return { html: template.innerHTML || "<p></p>", warnings };
 }
-

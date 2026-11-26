@@ -52,8 +52,14 @@ test(`${format} ${mode} ${kind}: terminal cell budget survives page fragments, e
           ...(i ? [] : [cell]), { type: 'tableCell', attrs: { ...cell.attrs, rowspan: 1, cellSplit: null, colwidth: [240], verticalAlign: 'top' }, content: [p('RIGHT' + i)] },
         ] }));
       }
-      if (mode === 'headers' || mode.startsWith('merge-header-')) table.content.unshift({ type: 'tableRow', attrs: { ...table.content[0].attrs, rowHeight: 40, rowSplit: 'allow' }, content:
-        (mode === 'headers' ? [160] : [160, 240]).map((width, i) => ({ type: 'tableHeader', attrs: { ...cell.attrs, rowspan: 1, cellSplit: null, colwidth: [width] }, content: [p('HEADER' + i)] })) });
+      if (mode === 'headers' || mode.startsWith('merge-header-')) {
+        const headerAttrs = { ...cell.attrs };
+        // These body-cell attributes are absent from the tableHeader schema.
+        delete headerAttrs.hwpCenteredCellLabels;
+        delete headerAttrs.hwpCellRasterFill;
+        table.content.unshift({ type: 'tableRow', attrs: { ...table.content[0].attrs, rowHeight: 40, rowSplit: 'allow' }, content:
+          (mode === 'headers' ? [160] : [160, 240]).map((width, i) => ({ type: 'tableHeader', attrs: { ...headerAttrs, rowspan: 1, cellSplit: null, colwidth: [width] }, content: [p('HEADER' + i)] })) });
+      }
       doc.content.content!.unshift(p('LEAD', '140px'));
       const original = structuredClone(doc), states = [];
       for (let save = 0; save < 3; save++) {

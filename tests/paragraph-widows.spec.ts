@@ -76,3 +76,42 @@ test('external DOCX widow inheritance, direct overrides and defaults survive two
     { text: 'DIRECT-OFF', enabled: false }, { text: 'DEFAULT-ON', enabled: true },
   ]);
 });
+
+test('unmarked HTML paragraphs keep their page splits through two DOCX saves', async ({ page }) => {
+  await page.goto('/');
+  const states = await page.evaluate(async () => {
+    const { exportDocx, importFile } = await import('/src/document-io.ts');
+    const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js');
+    const { createPrintLayout } = await import('/src/print-layout.ts');
+
+    const style = 'margin-top:0;margin-bottom:0;font-family:Arial;font-size:12px';
+    const source = `<p style="${style};line-height:235px">LEAD</p>` +
+      `<p style="${style};line-height:20px">LINE0<br>LINE1<br>LINE2<br>LINE3</p>`;
+    let file = new File([source], 'source.html');
+    const reports = [];
+    for (let pass = 0; pass < 3; pass++) {
+      const opened = await importFile(file);
+      const doc = { ...opened.document, content: parseDocumentHtml(opened.html!) };
+      if (pass === 0) {
+        const mm = 25.4 / 96;
+        doc.page = { ...doc.page, size: 'Custom', width: 400 * mm, height: 400 * mm, margin: 50 * mm, pageNumbers: false };
+      }
+      const layout = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+      try {
+        reports.push({
+          pages: [...layout.element.querySelectorAll('.print-content')].map(body => body.textContent!.match(/LEAD|LINE[0-3]/g)),
+          widowControl: doc.content.content![1].attrs?.wordWidowControl,
+        });
+      } finally { layout.dispose(); }
+      if (pass < 2) file = new File([await exportDocx(doc)], 'again.docx');
+    }
+    return reports;
+  });
+  const pages = [['LEAD', 'LINE0', 'LINE1', 'LINE2'], ['LINE3']];
+  expect(states).toEqual([
+    { pages, widowControl: null },
+    { pages, widowControl: false },
+    { pages, widowControl: false },
+  ]);
+});

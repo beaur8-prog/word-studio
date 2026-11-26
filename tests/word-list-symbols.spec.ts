@@ -1,6 +1,8 @@
 import { test, expect } from '@playwright/test';
+import type { Editor } from '@tiptap/core';
 import fs from 'node:fs/promises';
-import { Document, Packer, Paragraph, Header, Footer, Table, TableRow, TableCell, LevelFormat } from 'docx';
+import { Document, Packer, Paragraph, Header, Footer, Table, TableRow, TableCell, LevelFormat, LevelSuffix, LineRuleType, Tab, TabStopType, TextRun } from 'docx';
+import JSZip from 'jszip';
 
 const defaults = { document: { run: { font: 'Arial', size: 20 }, paragraph: { spacing: { line: 276, before: 0, after: 0 } } } };
 
@@ -149,4 +151,251 @@ test('printing a resolved marker keeps neighboring paragraph coordinates and sou
     await page.pdf({ path: info.outputPath('list-reading-order.pdf'), printBackground: true, preferCSSPageSize: true });
     await fs.writeFile(info.outputPath('list-reading-order-expected.txt'), expected);
   } finally { await page.evaluate(() => { (window as any).listOrderLayout.dispose(); document.body.classList.remove('studio-printing'); }); }
+});
+
+const numberingTabCases = [
+  { name: 'INHERITED', reference: 'NumberTab', effective: '[1080]', align: true },
+  { name: 'DIRECT', reference: 'NoNumberTab', direct: TabStopType.NUM, effective: '[1080]', align: true },
+  { name: 'ABSENT', reference: 'NoNumberTab', effective: null, align: false },
+  { name: 'ORDINARY', reference: 'NumberTab', direct: TabStopType.LEFT, effective: null, align: false },
+  { name: 'INLINE', reference: 'NumberTab', inline: true, effective: '[1080]', align: false },
+  { name: 'CLEARED', reference: 'NumberTab', direct: TabStopType.CLEAR, effective: null, align: false },
+];
+
+async function numberingTabFixture() {
+  const definitions = ['NumberTab', 'NoNumberTab'].map(reference => ({
+    reference,
+    levels: [{
+      level: 0,
+      format: LevelFormat.BULLET,
+      suffix: LevelSuffix.TAB,
+      text: '\uf0b7',
+      style: {
+        run: { font: 'Symbol' },
+        paragraph: {
+          indent: { left: 1080, hanging: 360 },
+          ...(reference === 'NumberTab' ? { leftTabStop: 1080 } : {}),
+        },
+      },
+    }],
+  }));
+  const children = numberingTabCases.map(({ name, reference, direct, inline }) => new Paragraph({
+    numbering: { reference, level: 0 },
+    ...(direct ? { tabStops: [{ type: direct, position: 1080 }] } : {}),
+    ...(inline ? { tabStops: [{ type: TabStopType.LEFT, position: 2160 }] } : {}),
+    children: [
+      inline ? new TextRun({ children: [name + '-HEAD', new Tab(), 'FIELD'] }) : new TextRun(name + '-HEAD'),
+      new TextRun({ text: name + '-TAIL', break: 1 }),
+    ],
+  }));
+  const zip = await JSZip.loadAsync(await Packer.toBuffer(new Document({
+    styles: { default: defaults },
+    numbering: { config: definitions },
+    sections: [{ children }],
+  })));
+  const part = 'word/numbering.xml';
+  const xml = await zip.file(part)!.async('string');
+  // The packer's typed level options expose a left tab only. Replace just
+  // that generated level's sentinel with the independently authored NUM.
+  let levelEdits = 0;
+  const numbered = xml.replace(/<w:tab\b[^>]*\/>/g, tag => {
+    if (!tag.includes('w:val="left"') || !tag.includes('w:pos="1080"')) return tag;
+    levelEdits++;
+    return tag.replace('w:val="left"', 'w:val="num"');
+  });
+  expect(levelEdits).toBe(1);
+  zip.file(part, numbered);
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+function measureNumberTabItems(root: HTMLElement) {
+  const bodyLeft = root.getBoundingClientRect().left;
+  return Array.from(root.querySelectorAll<HTMLElement>('li[data-list-id]'), li => {
+    const paragraph = li.querySelector<HTMLElement>(':scope > p')!;
+    const marks = new Map<string, number>();
+    const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const text = walker.currentNode as Text;
+      for (const match of text.data.matchAll(/[A-Z]+-(HEAD|TAIL)|FIELD/g)) {
+        const range = document.createRange();
+        range.setStart(text, match.index!);
+        range.setEnd(text, match.index! + 1);
+        marks.set(match[1] ?? 'FIELD', range.getBoundingClientRect().left - bodyLeft);
+      }
+    }
+    return {
+      name: paragraph.textContent!.split('-HEAD')[0],
+      text: paragraph.textContent,
+      pattern: li.dataset.listPattern,
+      font: li.dataset.listFont,
+      marker: getComputedStyle(li, '::marker').content,
+      before: getComputedStyle(li, '::before').content,
+      absoluteMarker: li.hasAttribute('data-word-list-layout'),
+      ordinalStops: paragraph.dataset.wordNumberingTabs ?? null,
+      bodyTabStops: JSON.parse(paragraph.dataset.tabStops ?? '[]'),
+      bodyTabs: paragraph.querySelectorAll('[data-docx-tab]').length,
+      first: marks.get('HEAD'),
+      continued: marks.get('TAIL'),
+      field: marks.get('FIELD'),
+    };
+  });
+}
+
+test('Symbol numbering tabs align continuation text without replacing the native marker or an authored body tab', async ({ page }, info) => {
+  let bytes = await numberingTabFixture();
+  const stages = [];
+  await page.goto('/');
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  const title = page.getByRole('textbox', { name: '문서 제목', exact: true });
+  const protect = page.getByRole('dialog', { name: '변경 내용 보관' });
+  for (let pass = 0; pass < 3; pass++) {
+    const name = 'symbol-number-tab-' + pass;
+    await page.locator('input[type=file]').first().setInputFiles({
+      name: name + '.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      buffer: bytes,
+    });
+    await expect.poll(async () => await title.inputValue() === name || await protect.isVisible()).toBe(true);
+    if (await protect.isVisible()) await protect.getByRole('button', { name: '복구본 보관 후 계속' }).click();
+    await expect(title).toHaveValue(name);
+    await expect(editor.locator('li[data-list-glyph]')).toHaveCount(numberingTabCases.length);
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page.locator('.busy-indicator')).toBeHidden();
+    await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const editing = await editor.evaluate(measureNumberTabItems);
+
+    await page.getByRole('button', { name: '보기', exact: true }).click();
+    await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+    const print = page.locator('.print-content');
+    await expect(print).toHaveCount(1);
+    const printing = await print.evaluate(measureNumberTabItems);
+    stages.push({ editing, printing });
+    await page.getByRole('button', { name: '편집으로 돌아가기', exact: true }).click();
+
+    if (pass < 2) {
+      await page.getByRole('button', { name: '파일', exact: true }).click();
+      const pending = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Word 문서 (.docx) Microsoft Word에서 열고 편집', exact: true }).click();
+      const download = await pending;
+      const saved = info.outputPath(`list-save-numbering-tab-${pass + 1}.docx`);
+      await download.saveAs(saved);
+      bytes = await fs.readFile(saved);
+    }
+  }
+
+  await fs.writeFile(info.outputPath('numbering-tab-stages.json'), JSON.stringify(stages, null, 2));
+  for (const [pass, stage] of stages.entries()) {
+    for (const [mode, rows] of Object.entries(stage)) {
+      const absent = rows.find(row => row.name === 'ABSENT')!;
+      expect(rows.map(row => row.name)).toEqual(numberingTabCases.map(item => item.name));
+      for (const [index, item] of numberingTabCases.entries()) {
+        const row = rows[index];
+        const at = `save ${pass}, ${mode}, ${item.name}`;
+        expect.soft(row.ordinalStops, at).toBe(item.effective);
+        expect.soft(row.pattern, at).toBe('\uf0b7');
+        expect.soft(row.font, at).toBe('Symbol');
+        expect.soft(row.marker, at).toBe('"• "');
+        expect.soft(row.before, at).not.toContain('•');
+        expect.soft(row.absoluteMarker, at).toBe(false);
+        expect.soft(row.bodyTabs, at).toBe(item.inline ? 1 : 0);
+        expect.soft(row.bodyTabStops.map((tab: { position: number; type: string }) => [tab.position, tab.type]), at)
+          .toEqual(item.name === 'ORDINARY' ? [[72, 'left']] : item.inline ? [[144, 'left']] : []);
+        expect.soft(row.text?.replace(/\s+/g, ''), at)
+          .toBe(item.name + '-HEAD' + (item.inline ? 'FIELD' : '') + item.name + '-TAIL');
+        expect.soft(Math.abs(row.first! - absent.first!), at + ', first line x').toBeLessThan(1);
+        expect.soft(Math.abs(row.continued! - (absent.continued! - (item.align ? 25 : 0))), at + ', continuation x').toBeLessThan(1);
+        if (item.inline) expect.soft(row.field!, at + ', separate body tab advances following text').toBeGreaterThan(row.first! + 30);
+      }
+    }
+  }
+
+  const readModel = () => editor.evaluate(root => (root as HTMLElement & { editor: Editor }).editor.getJSON());
+  const beforeUnlist = await readModel();
+  const inherited = editor.locator('p').filter({ hasText: 'INHERITED-HEAD' });
+  const originalGeometry = stages.at(-1)!.editing.find(item => item.name === 'INHERITED');
+  await page.getByRole('button', { name: '홈', exact: true }).click();
+  await inherited.click();
+  await page.getByRole('button', { name: '글머리 기호', exact: true }).click();
+  await expect.poll(async () => {
+    const document = await readModel();
+    const paragraph = document.content?.find(node => node.type === 'paragraph' &&
+      node.content?.some(child => child.text?.includes('INHERITED-HEAD')));
+    return paragraph ? paragraph.attrs?.wordNumberingTabs ?? null : 'missing standalone paragraph';
+  }).toBeNull();
+  await expect(inherited).not.toHaveAttribute('data-word-numbering-tabs', '[1080]');
+  await expect(inherited).not.toHaveAttribute('data-word-native-list-indent', 'true');
+
+  await page.keyboard.press('ControlOrMeta+z');
+  await expect.poll(readModel).toEqual(beforeUnlist);
+  await expect(inherited).toHaveAttribute('data-word-numbering-tabs', '[1080]');
+  await expect.poll(async () => (await editor.evaluate(measureNumberTabItems)).find(item => item.name === 'INHERITED'))
+    .toEqual(originalGeometry);
+});
+
+test('a real tab late in a split Symbol list item keeps every fragment on its native margin', async ({ page }, info) => {
+  const tabLine = 27;
+  const lines = Array.from({ length: 38 }, (_, index) => 'ITEM' + String(index).padStart(2, '0'));
+  const input = await Packer.toBuffer(new Document({
+    styles: { default: defaults },
+    numbering: { config: [{
+      reference: 'LongNumberTab',
+      levels: [{
+        level: 0, format: LevelFormat.BULLET, suffix: LevelSuffix.TAB, text: '\uf0b7',
+        style: { run: { font: 'Symbol' }, paragraph: { indent: { left: 1080, hanging: 360 } } },
+      }],
+    }] },
+    sections: [{
+      properties: { page: { size: { width: 6000, height: 6000 }, margin: { top: 750, right: 750, bottom: 750, left: 750 } } },
+      children: [new Paragraph({
+        numbering: { reference: 'LongNumberTab', level: 0 },
+        tabStops: [{ type: TabStopType.NUM, position: 1080 }],
+        spacing: { before: 0, after: 0, line: 300, lineRule: LineRuleType.EXACT },
+        children: lines.map((text, index) => new TextRun({
+          children: index === tabLine ? [text, new Tab(), 'FIELD'] : [text],
+          break: index > 0 ? 1 : 0,
+        })),
+      })],
+    }],
+  }));
+  await page.goto('/');
+  await page.locator('input[type=file]').first().setInputFiles({
+    name: 'split-numbered-tab.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: input,
+  });
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  const paragraph = editor.locator('li > p');
+  await expect(paragraph).toContainText(lines.at(-1)!);
+  await expect(paragraph).toHaveAttribute('data-word-numbering-tabs', '[1080]');
+  await expect(paragraph.locator('[data-docx-tab]')).toHaveCount(1);
+  await expect(paragraph).toHaveCSS('margin-left', '72px');
+  await page.evaluate(() => document.fonts.ready);
+  const before = await paragraph.evaluate(p => p.textContent);
+  expect(before).toBe(lines.map((line, index) => index === tabLine ? line + '\tFIELD' : line).join(''));
+
+  await page.getByRole('button', { name: '보기', exact: true }).click();
+  await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
+  const items = page.locator('.print-content li[data-list-id]');
+  await expect.poll(() => items.count()).toBeGreaterThan(2);
+  const fragments = await items.evaluateAll(items => items.map(li => {
+    const p = li.querySelector(':scope > p')!;
+    return {
+      text: p.textContent,
+      tabs: p.querySelectorAll('[data-docx-tab]').length,
+      marker: getComputedStyle(li, '::marker').content,
+      continuation: li.hasAttribute('data-print-list-continuation'),
+      appliedNumberTabIndent: p.hasAttribute('data-word-native-list-indent'),
+      marginLeft: getComputedStyle(p).marginLeft,
+    };
+  }));
+  await fs.writeFile(info.outputPath('split-numbered-tab-fragments.json'), JSON.stringify(fragments, null, 2));
+
+  expect.soft(fragments[0].continuation).toBe(false);
+  expect.soft(fragments[0].marker).toBe('"• "');
+  expect.soft(fragments.slice(1).every(fragment => fragment.continuation && fragment.marker === '""')).toBe(true);
+  expect.soft(fragments[0].tabs).toBe(0);
+  expect.soft(fragments.reduce((count, fragment) => count + fragment.tabs, 0)).toBe(1);
+  expect.soft(fragments.map(fragment => fragment.text).join('')).toBe(before);
+  expect.soft(fragments.map(fragment => fragment.appliedNumberTabIndent)).toEqual(fragments.map(() => false));
+  expect(fragments.map(fragment => fragment.marginLeft)).toEqual(fragments.map(() => '72px'));
 });

@@ -58,7 +58,7 @@ scope.onmessage = async ({ data }) => {
       result = { count, pages, fonts: info.fontsUsed ?? [], version: info.version, warnings: JSON.parse(document.getValidationWarnings()).count ?? 0, conversionBlock: layoutMetadata.conversionBlock };
     } else if (action === 'export') {
       if (!(data.htmlBytes instanceof ArrayBuffer) || data.htmlBytes.byteLength > documentLimits.hwpEditableHtmlBytes) throw new Error('편집용 변환 데이터의 크기가 올바르지 않습니다.');
-      const output = serializeHwp(HwpDocument, new TextDecoder().decode(data.htmlBytes), data.page, data.format, progress);
+      const output = serializeHwp(HwpDocument, new TextDecoder().decode(data.htmlBytes), data.page, data.format, progress, data.textBoxes, data.nativePrint);
       result = output; transfer.push(output.bytes.buffer as ArrayBuffer);
     } else {
       if (!document) throw new Error('문서를 먼저 열어 주세요.');
