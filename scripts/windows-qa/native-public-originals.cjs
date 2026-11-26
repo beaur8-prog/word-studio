@@ -61,12 +61,19 @@ async function main() {
       await page.evaluate(() => document.fonts.ready);
       const stack = page.locator('.document-stack');
       await expect(stack).toHaveAttribute('data-pages', /^[1-9]\d*$/, { timeout: 60000 });
-      // Use a frame matching the preview opening, after editor pagination settles.
-      await page.getByRole('button', { name: '보기', exact: true }).click();
       const editorPages = Number(await stack.getAttribute('data-pages'));
       stage = 'preview-command';
       const previewStarted = Date.now();
-      await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click({ timeout: 75000 });
+      if (process.env.QA_PREVIEW_COMMAND === 'palette') {
+        await page.keyboard.press('ControlOrMeta+Shift+k');
+        await page.getByRole('textbox', { name: '명령 검색' }).fill('인쇄 미리보기', { timeout: 90000 });
+        const command = page.getByRole('button', { name: /^인쇄 미리보기/ });
+        await command.waitFor({ state: 'visible', timeout: 90000 });
+        await command.press('Enter', { timeout: 90000 });
+      } else {
+        await page.getByRole('button', { name: '보기', exact: true }).click();
+        await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click({ timeout: 75000 });
+      }
       stage = 'preview-layout';
       const toolbar = page.getByRole('toolbar', { name: '인쇄 미리보기', exact: true });
       await toolbar.waitFor({ state: 'visible', timeout: 120000 });
