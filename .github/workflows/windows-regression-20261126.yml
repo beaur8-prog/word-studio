@@ -1,61 +1,44 @@
 name: Windows regression QA
-run-name: Verify Windows widow round-trip fix 46defb8
+run-name: Word Studio Windows complete regression and installer validation
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  validation:
-    name: Windows widow / ${{ matrix.check }}
+  browser:
+    name: Windows browser / ${{ matrix.group }}
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 70
     strategy:
       fail-fast: false
       matrix:
-        check: [electron, widows, hwp-docx]
+        group: [hwp-terminal, hwpx-terminal, hwp-large, remaining-1, remaining-2, remaining-3, remaining-4, remaining-5, remaining-6]
     env:
+      QA_GROUP: ${{ matrix.group }}
       PLAYWRIGHT_CHANNEL: chromium
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          ref: 50f3e313ae55efcad876d2ef4350d224a2879e1e
           persist-credentials: false
-      - name: Verify exact widow-fix source tree
+      - name: Verify the current product tree
         shell: pwsh
         run: |
-          git -c advice.detachedHead=false checkout --detach 'HEAD^'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $tree = git rev-parse 'HEAD^{tree}'
-          if ($tree -ne '572dde8683694d4fc5f598930128768d37c5dfcc') { throw "Unexpected source tree $tree" }
-          Write-Host "Verified source tree $tree"
+          if ((git rev-parse 'HEAD^{tree}') -ne '572dde8683694d4fc5f598930128768d37c5dfcc') { throw 'Unexpected test source' }
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Install pinned Electron
-        if: matrix.check == 'electron'
-        run: node node_modules/electron/install.js
-      - name: Build and test the actual Windows app
-        if: matrix.check == 'electron'
-        shell: pwsh
-        run: |
-          npm run build
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run test:desktop
-      - name: Install pinned Playwright Chromium
-        if: matrix.check != 'electron'
-        run: npx playwright install chromium
-      - name: Verify browser widow policy and document round trips
-        if: matrix.check != 'electron'
+      - run: npx playwright install chromium
+      - name: Exercise a disjoint desktop browser group
         shell: pwsh
         run: |
           @'
           import { registerHooks } from 'node:module';
           import { pathToFileURL } from 'node:url';
           import { resolve } from 'node:path';
-
           const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
           registerHooks({
             load(url, context, next) {
@@ -66,22 +49,88 @@ jobs:
           });
           '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
           $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP 'widow-tests.json'
-          if ('${{ matrix.check }}' -eq 'widows') {
-            $files = @('tests/paragraph-widows.spec.ts', 'tests/word-widow-splits.spec.ts',
-              'tests/word-short-paragraphs.spec.ts', 'tests/word-auto-lefttab-widow.spec.ts',
-              'tests/word-paragraph-keeps.spec.ts', 'tests/word-wrapping-reference-density.spec.ts')
+          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP 'windows-full.json'
+          $flags = @('--trace=off', '--reporter=line,json')
+          if ($env:QA_GROUP -match '^(hwp|hwpx)-terminal$') {
+            $files = @('tests/hwp-cell-terminal.spec.ts')
+            $flags += @('--grep', ("\b" + $Matches[1] + " "))
+          } elseif ($env:QA_GROUP -eq 'hwp-large') {
+            $files = @('tests/hwp-editing.spec.ts')
           } else {
-            $files = @('tests/hwp-script-cells.spec.ts', 'tests/hwp-body-text-top.spec.ts', 'tests/hwp-cell-break-policy.spec.ts',
-              'tests/hwp-empty-lines.spec.ts', 'tests/docx-textboxes.spec.ts', 'tests/word-furniture-empty-lines.spec.ts')
+            $alreadyPassed = @('paragraph-widows.spec.ts', 'word-widow-splits.spec.ts',
+              'word-short-paragraphs.spec.ts', 'word-auto-lefttab-widow.spec.ts', 'word-paragraph-keeps.spec.ts',
+              'word-wrapping-reference-density.spec.ts', 'hwp-script-cells.spec.ts', 'hwp-body-text-top.spec.ts',
+              'hwp-cell-break-policy.spec.ts', 'hwp-empty-lines.spec.ts', 'docx-textboxes.spec.ts', 'word-furniture-empty-lines.spec.ts')
+            $isolated = @('hwp-cell-terminal.spec.ts', 'hwp-editing.spec.ts')
+            $files = @(
+              Get-ChildItem tests -Recurse -Filter '*.spec.ts' | Sort-Object FullName |
+                Where-Object { $_.Name -notlike 'android-*' -and $_.Name -notin $alreadyPassed -and $_.Name -notin $isolated } |
+                ForEach-Object { (Resolve-Path -Relative $_.FullName).Replace('\','/') -replace '^\./','' }
+            )
+            $shard = $env:QA_GROUP.Split('-')[-1]
+            $flags += "--shard=$shard/6"
           }
-          node node_modules/@playwright/test/cli.js test @files --trace=off --reporter=line,json
+          node node_modules/@playwright/test/cli.js test @files @flags
           $status = $LASTEXITCODE
           if (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE) {
-            $stats = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
-            if (($stats.expected + $stats.unexpected) -eq 0) { throw 'No regression cases executed' }
-            $line = "Windows widow ${{ matrix.check }} | expected $($stats.expected) | unexpected $($stats.unexpected) | skipped $($stats.skipped) | flaky $($stats.flaky)"
+            $report = Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json
+            $stats = $report.stats
+            if (($stats.expected + $stats.unexpected + $stats.flaky) -eq 0) { throw 'No tests executed' }
+            $line = "Windows complete $env:QA_GROUP | expected $($stats.expected) | unexpected $($stats.unexpected) | skipped $($stats.skipped) | flaky $($stats.flaky)"
             Write-Host $line
             Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $line
-          } elseif ($status -eq 0) { throw 'Missing browser test result' }
+          } elseif ($status -eq 0) {
+            throw 'Missing test report'
+          }
           exit $status
+
+  native:
+    name: Windows build, Setup and update bridge
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 50f3e313ae55efcad876d2ef4350d224a2879e1e
+          persist-credentials: false
+      - name: Verify the current product tree
+        shell: pwsh
+        run: |
+          if ((git rev-parse 'HEAD^{tree}') -ne '572dde8683694d4fc5f598930128768d37c5dfcc') { throw 'Unexpected test source' }
+          Write-Host "Microsoft Word automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\Word.Application)"
+          Write-Host "Hancom HWP automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\HWPFrame.HwpObject)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Native Node regression
+        run: npm run test:native
+      - name: Update unit regression
+        run: npm run test:updates
+      - name: Build a Windows QA Setup
+        run: npm run package:win
+      - name: Exercise the Electron update bridge
+        run: npm run test:updates:desktop
+      - name: Exercise Windows update helper and cancellation
+        run: node scripts/test-windows-updater-handoff.cjs
+      - name: Install, verify document associations, reinstall and uninstall
+        shell: pwsh
+        run: |
+          ./scripts/test-windows-installer.ps1
+          if (Test-Path '.cache/installer-test.json') {
+            Write-Host ('Windows installer verification ' + (Get-Content '.cache/installer-test.json' -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 8 -Compress))
+          }
+
+      - name: Real in-place update from the official 1.4.12 Setup
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.4.12 --repo beaur8-prog/word-studio --pattern 'Word-Studio-1.4.12-windows-x64-setup.exe' --dir .cache/legacy-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git fetch origin refs/tags/v1.4.12:refs/tags/v1.4.12 --depth=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git show v1.4.12:electron/studio-update-windows.ps1 | Set-Content .cache/legacy-update/helper-1.4.12.ps1 -Encoding utf8BOM
+          ./scripts/test-windows-update-in-place.ps1
