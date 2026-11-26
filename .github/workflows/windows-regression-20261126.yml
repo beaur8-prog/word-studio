@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Verify Windows exam reopens while keeping original ZIP parts encoded
+run-name: Validate the Windows installer and isolate English HWP output
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,14 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-2, id: 08-math-exam, pages: '20,20'}
           - {group: hwp-1, id: 07-english-exam, pages: ''}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_DOCX_DIAGNOSE: '1'
       WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
       WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
@@ -46,53 +44,55 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
           $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
           node scripts/windows-qa/native-export-pdf-stages.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet run --project scripts/word-openxml-validator -- "$env:WINDOWS_NATIVE_DOCX_DIR" 2 *> "$env:RUNNER_TEMP/native-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_FINAL_SDK Hangul $($env:QA_ID) count 2 exit $status"
-          exit $status
+          exit $LASTEXITCODE
 
-  story-assets:
-    name: Exact Unicode and story relationships / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
+  native:
+    name: Windows build, Setup and update bridge
+    runs-on: windows-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Verify the current product tree
+        shell: pwsh
+        run: |
+          if ((git rev-parse 'HEAD:src') -ne '795b0450cd9c21f58a05d386d40278e213487a8e') { throw 'Unexpected test source' }
+          Write-Host "Microsoft Word automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\Word.Application)"
+          Write-Host "Hancom HWP automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\HWPFrame.HwpObject)"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - name: Check media in header, footer and text-box relationships
+      - run: node node_modules/electron/install.js
+      - name: Native Node regression
+        run: npm run test:native
+      - name: Update unit regression
+        run: npm run test:updates
+      - name: Build a Windows QA Setup
+        run: npm run package:win
+      - name: Exercise the Electron update bridge
+        run: npm run test:updates:desktop
+      - name: Exercise Windows update helper and cancellation
+        run: node scripts/test-windows-updater-handoff.cjs
+      - name: Install, verify document associations, reinstall and uninstall
         shell: pwsh
         run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
-          npm run test -- tests/docx-unicode.spec.ts tests/official-sample-regressions.spec.ts tests/docx-inactive-stories.spec.ts tests/docx-textboxes.spec.ts tests/docx-grouped-pictures.spec.ts tests/hwp-notes.spec.ts --workers=1 --trace=off
-          exit $LASTEXITCODE
+          ./scripts/test-windows-installer.ps1
+          if (Test-Path '.cache/installer-test.json') {
+            Write-Host ('Windows installer verification ' + (Get-Content '.cache/installer-test.json' -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 8 -Compress))
+          }
+
+      - name: Real in-place update from the official 1.4.12 Setup
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.4.12 --repo beaur8-prog/word-studio --pattern 'Word-Studio-1.4.12-windows-x64-setup.exe' --dir .cache/legacy-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git fetch origin refs/tags/v1.4.12:refs/tags/v1.4.12 --depth=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git show v1.4.12:electron/studio-update-windows.ps1 | Set-Content .cache/legacy-update/helper-1.4.12.ps1 -Encoding utf8BOM
+          ./scripts/test-windows-update-in-place.ps1

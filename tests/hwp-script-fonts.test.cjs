@@ -35,7 +35,7 @@ test('entities, explicit breaks and native HTML indentation preserve logical off
   const result = restoreScriptFonts(html, source, run(source));
   assert.match(result, /A&amp;B\u00a0C/);
   assert.match(result, /<br>/);
-  assert.equal((result.match(/Latin Face/g) || []).length, 2);
+  assert.equal((result.match(/font-family:&quot;Latin Face&quot;;/g) || []).length, 2);
 });
 
 test('source character shape boundaries and UTF-16 supplementary characters do not shift text', () => {
@@ -91,7 +91,7 @@ test('a known base script face does not inherit the native combined fallback lis
   const source = '한글 Latin';
   const html = `<p><span style="font-family:Hangul Face,Latin Face;font-size:12pt;letter-spacing:-.5px">${source}</span></p>`;
   const result = restoreScriptFonts(html, source, run(source));
-  assert.match(result, /font-family:&quot;Hangul Face&quot;;">한글 <\/span>/);
+  assert.match(result, /font-family:&quot;Hangul Face&quot;;" data-hwp-latin-font="\[&quot;Hangul Face&quot;,&quot;Latin Face&quot;\]">한글 <\/span>/);
   assert.match(result, /font-family:&quot;Latin Face&quot;;">Latin<\/span>/);
   assert.match(result, /font-size:12pt;letter-spacing:-\.5px/);
   assert.equal(result.replace(/<[^>]*>/g, ''), source);
