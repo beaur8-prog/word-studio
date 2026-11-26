@@ -1,24 +1,21 @@
 name: Windows regression QA
-run-name: Identify the wrapping and tab advances of displaced math equations
+run-name: Check the deterministic mixed-font proof fixture on Windows and Linux
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  hangul-density:
-    name: Packaged Hangul display density / ${{ matrix.id }}
-    runs-on: windows-latest
-    timeout-minutes: 30
+  story-assets:
+    name: Portable mixed-font line and actual ink / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {group: hwp-2, id: 08-math-exam}
+        os: [windows-latest, ubuntu-latest]
     env:
-      WINDOWS_MATH_EQUATIONS: '1'
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
+      PLAYWRIGHT_CHANNEL: chromium
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,21 +25,26 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Print at actual 100, 125 and 150 percent native display scale
+      - run: npx playwright install chromium
+        if: runner.os == 'Windows'
+      - run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+      - name: Check exact line and column placement
         shell: pwsh
         run: |
-          if ((git rev-parse 'HEAD:src') -ne 'f15f4cabb706a1555cae3e5704f0204521a3b624') { throw 'Unexpected baseline product source' }
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/hangul-density" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/hangul-density/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          foreach ($density in @('1','1.25','1.5')) {
-            $env:WINDOWS_FORCE_DEVICE_SCALE = $density
-            $env:WINDOWS_MATH_EQUATIONS_RESULT = "$env:RUNNER_TEMP/equations-$density.json"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          node scripts/windows-qa/math-equation-density.cjs "$env:RUNNER_TEMP"
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type)
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
+          npm run test -- tests/word-font-fallbacks.spec.ts tests/hwp-column-terminal.spec.ts tests/hwp-body-terminal-ink.spec.ts --workers=1 --trace=off
           exit $LASTEXITCODE

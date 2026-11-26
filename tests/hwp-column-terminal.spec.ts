@@ -262,10 +262,14 @@ test('a stored mixed-font column line keeps its authored advance while its ink f
     root.className = 'tiptap print-content';
     Object.assign(root.style, { position: 'fixed', left: '-10000px', top: '0', padding: '0', width: '840px' });
     root.innerHTML = `<div data-column-count="2" style="column-count:2;column-gap:12px">
-      <p style="margin:0 0 0 15px;text-align:justify;text-indent:-15px;font-family:'Noto Sans KR';font-size:18px"><span style="font-family:'Noto Sans KR';font-size:18px">01. Alpha</span><span style="font-family:'Studio Text';font-size:17.5px"> 가나다 Vyg.</span></p></div>`;
+      <p style="margin:0 0 0 15px;text-align:justify;text-indent:-15px;font-family:'Column Fixture High';font-size:18px"><span style="font-family:'Column Fixture High';font-size:18px">01. Alpha</span><span style="font-family:'Column Fixture Low';font-size:17.5px"> Line spacing.</span></p></div>`;
+    const file = 'url("/src/assets/fonts/texgyreadventor-regular.otf")';
+    const higher = new FontFace('Column Fixture High', file, { ascentOverride: '100%', descentOverride: '20%', lineGapOverride: '0%' });
+    const lower = new FontFace('Column Fixture Low', file, { ascentOverride: '72%', descentOverride: '22%', lineGapOverride: '0%' });
+    for (const face of [higher, lower]) document.fonts.add(face);
     document.body.append(root);
     try {
-      await Promise.all([document.fonts.load('18px "Noto Sans KR"', '01. Alpha'), document.fonts.load('17.5px "Studio Text"', '가나다 Vyg.')]);
+      await Promise.all([higher.load(), lower.load()]);
       const paragraph = root.querySelector('p')!, group = paragraph.parentElement!;
       const format = { percent: 130, font: 18, base: 23.4 };
       paragraph.dataset.hwpBodyLine = encodeHwpBodyLine(format);
@@ -291,7 +295,10 @@ test('a stored mixed-font column line keeps its authored advance while its ink f
       layoutHwpBodyLines(root, true);
       return { ordinary, fitted, applied, preserved, proof, width, nativeKeepsNatural,
         changedWidth, changedContent:paragraph.hasAttribute('data-hwp-stored-mixed-pitch') };
-    } finally { root.remove(); }
+    } finally {
+      root.remove();
+      for (const face of [higher, lower]) document.fonts.delete(face);
+    }
   });
   expect(result.proof?.width).toBeCloseTo(result.width, 3);
   expect(result.applied, JSON.stringify(result)).toBe(true);
