@@ -112,6 +112,9 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
     try {
       const readback = native.pageCount();
       if (!pages || readback < 1 || readback !== Number(pages[2])) throw new Error('Native Hangul readback disagreed');
+      const expected = process.env.WINDOWS_EXPECT_NATIVE_PAGES?.split(',').map(Number);
+      if (expected && readback !== expected[format === 'hwp' ? 0 : 1])
+        throw new Error('Native Hangul final page count disagreed');
       console.log('WINDOWS_NATIVE_HANGUL ' + JSON.stringify({ id:item.id, format, bytes:bytes.length,
         printPages:Number(pages[1]), savedPages:readback, seconds:(Date.now()-started)/1000 }));
       if (item.id === '04-language-plan' && process.env.WINDOWS_NATIVE_LINE_WITNESS === '1') {
@@ -342,7 +345,7 @@ async function main() {
       const editorLongTasks = await page.evaluate(start => window.qaLongTasks.filter(task => task.at >= start)
         .map(task => Math.round(task.duration)).sort((a,b) => b-a).slice(0,5), rendererStarted);
       console.log('WINDOWS_HWP_EDITOR_READY ' + JSON.stringify({ id: item.id, editorPages, editorMilliseconds, editorLongTasks }));
-      if (process.env.WINDOWS_NATIVE_DOCX_DIR) {
+      if (process.env.WINDOWS_NATIVE_DOCX_DIR && process.env.WINDOWS_NATIVE_DOCX_AFTER_PRINT !== '1') {
         await saveTwoDocxAndReopen(app, page, item, process.env.WINDOWS_NATIVE_DOCX_DIR, name => { stage = name; });
         if (!Core) { measured++; continue; }
       }
@@ -451,6 +454,12 @@ async function main() {
         for (const sheet of sheets) console.log('WINDOWS_WORD_TABLE_SHEET ' + JSON.stringify(sheet));
       }
       await finishProfile?.();
+      if (process.env.WINDOWS_NATIVE_DOCX_DIR && process.env.WINDOWS_NATIVE_DOCX_AFTER_PRINT === '1') {
+        stage = 'close-print-preview-before-docx';
+        const preview = page.locator('.print-preview-controls');
+        if (await preview.isVisible()) await preview.getByRole('button', { name:'편집으로 돌아가기', exact:true }).click();
+        await saveTwoDocxAndReopen(app, page, item, process.env.WINDOWS_NATIVE_DOCX_DIR, name => { stage = name; });
+      }
       measured++;
     } catch (error) {
       // Playwright errors can include source content. Emit only fixed stage labels.
