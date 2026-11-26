@@ -25,7 +25,7 @@ import { stageHwpColumns } from './export-columns';
 import { stageHwpSections } from './export-sections';
 import { stageHwpFurniture } from './export-furniture';
 import { stageHwpPictures } from './export-pictures';
-import { hwpBookmark, hwpTabAttribute, stageHwpTextNavigation } from './text-navigation';
+import { hwpBookmark, hwpExplicitTabStops, hwpTabAttribute, stageHwpTextNavigation } from './text-navigation';
 import { hwpTableGrid } from './table-grid';
 import { sourceCentersContinuedBorders, sourceCentersMultilineRowBorders, sourceCentersTableBorders } from './source-centered-table-borders';
 import { sourceAlignedHeaderEnds, sourceContinuedRowReserve, sourceEmptyMergeCuts, sourceFirstTableOverhang, sourceIntactTopRow, sourceTableContinuation } from './source-table-continuation';
@@ -48,7 +48,7 @@ import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { restoreNativeContinuationPlacement, restoreNativePaperHeaderTable, restoreNativeRasterTablePair } from './export-table-placement';
 import { restoreStandalonePictureLine } from './export-picture-line';
-import { repairBinaryTerminalEmptyPage, restoreTerminalEmptyFonts } from './export-empty-paragraph-format';
+import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts } from './export-empty-paragraph-format';
 import { restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
 import { stageHwpTables } from './export-tables';
@@ -2023,9 +2023,14 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         // leading policy below. Keep its input markup separate from the tag.
         open = witnessed.match(/^<p\b[^>]*>/)?.[0] ?? open;
       }
+      const blank = !textLength && !paragraphControls.length;
       if (whole.includes('\t')) open = open.replace(/>$/, `${hwpTabAttribute(equationMetadata().get(`${section}:${para}`)?.tabStops)}>`);
+      else if (blank && properties.tabStops?.length)
+        open = open.replace(/>$/, `${hwpTabAttribute(hwpExplicitTabStops(properties.tabStops))}>`);
       const paragraphChar = JSON.parse(doc.getCharPropertiesAt(section, para, 0));
       open = paragraphAutoSpace(cssStyle(open, paragraphCss(properties, paragraphChar)), properties);
+      if (blank && /^#[0-9a-f]{6}$/i.test(paragraphChar.textColor))
+        open = cssStyle(open, `color:${paragraphChar.textColor};`);
       if (blankAfterFloatingTable === para && !textLength && !paragraphControls.length && !startsNewFlow && !stories)
         open = cssStyle(open, 'margin-top:0px;');
       if (para > borderGroup.end) borderGroup = connectedHwpBorderGroup(doc, section, para, paragraphCount, properties, continuesBorder, supportsBorder);
@@ -2662,7 +2667,9 @@ function pasteHwpBody(doc: HwpDocument, converted: string, breakToken: string, o
   }
 }
 
-export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageSettings, format: 'hwp' | 'hwpx', onProgress?: HwpProgressReporter, textBoxes: readonly HwpExportTextBox[] = [], nativePrint?: NativePrintPlan) {
+export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageSettings, format: 'hwp' | 'hwpx',
+  onProgress?: HwpProgressReporter, textBoxes: readonly HwpExportTextBox[] = [], nativePrint?: NativePrintPlan
+): { bytes: Uint8Array; pages: number; warnings: string[] } {
   if (typeof html !== 'string' || !html) throw new Error('저장할 편집 문서가 없습니다.');
   checkHwpHtmlSize(hwpHtmlBytes(html));
   if (!['hwp', 'hwpx'].includes(format)) throw new Error('지원하지 않는 한글 저장 형식입니다.');
@@ -2705,6 +2712,13 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withFields !== doc) { doc.free(); doc = withFields; }
     const withNavigation = navigation.restore(Core, doc);
     if (withNavigation !== doc) { doc.free(); doc = withNavigation; }
+    const empty = nativePrint?.emptyParagraphs;
+    if (nativePrint && empty && !restorePastedEmptyParagraphs(doc, empty)) {
+      const result = serializeHwp(Core, html.replaceAll(empty.text, ''), page, format, onProgress,
+        textBoxes, { ...nativePrint, emptyParagraphs: undefined });
+      result.warnings.push('일부 빈 문단의 글자 서식을 한글 형식으로 옮기지 못했습니다.');
+      return result;
+    }
     const withTables = tables.restore(Core, doc);
     if (withTables !== doc) { doc.free(); doc = withTables; }
     const withColumns = columns.restore(Core, doc);

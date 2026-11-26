@@ -1,20 +1,22 @@
 name: Windows regression QA
-run-name: Windows isolate startup failure in VML document test
+run-name: Windows authored blank paragraphs and Hancom reverse contrast
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  vml-witness:
+  language-plan:
     runs-on: windows-latest
-    timeout-minutes: 12
+    timeout-minutes: 32
     env:
       PLAYWRIGHT_CHANNEL: chromium
+      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
+      WINDOWS_REQUIRE_REOPEN: '1'
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 4288c66580e7090426c74c890f6b1fc8cc31ecac
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -22,22 +24,82 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install chromium
-      - name: Recheck the failed VML test on the same product and capture startup status
+      - name: Compare exact same public input before and after on one Windows runner
         shell: pwsh
         run: |
-          @'
-
-          test.afterEach(async ({ page }, info) => {
-            if (info.status === info.expectedStatus || page.isClosed()) return;
-            const startup = await page.evaluate(() => ({
-              inputs: document.querySelectorAll('input[type=file]').length,
-              editors: document.querySelectorAll('.tiptap').length,
-              overlays: document.querySelectorAll('vite-error-overlay').length,
-              scripts: [...document.querySelectorAll('script[src]')].length,
-              ready: document.readyState
-            })).catch(() => ({ unavailable: true }));
-            console.log('WINDOWS_VML_STARTUP ' + JSON.stringify(startup));
-          });
-          '@ | Add-Content tests/official-sample-regressions.spec.ts
-          npm run test -- tests/official-sample-regressions.spec.ts --grep 'VML image dimensions' --repeat-each=3 --workers=1 --trace=off
+          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/language-plan" --ids 04-language-plan
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/language-plan/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified)
+          if ($verified.Count -ne 1) { throw 'Fixed original unavailable' }
+          $statuses = @()
+          foreach ($variant in @('4288c66580e7090426c74c890f6b1fc8cc31ecac', 'HEAD')) {
+            git restore --source $variant -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "WINDOWS_BLANK_PRODUCT $variant"
+            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+            $statuses += $LASTEXITCODE
+          }
+          if ($statuses -contains 1) { exit 1 }
+  other-originals:
+    name: Windows Hancom / ${{ matrix.id }}
+    runs-on: windows-latest
+    timeout-minutes: 32
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { group: hwp-3, id: 06-mixed-document }
+          - { group: hwp-2, id: 08-math-exam }
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
+      WINDOWS_REQUIRE_REOPEN: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - name: Recheck native output and DOCX content on two independent originals
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/blank-control" --ids $env:QA_ID
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/blank-control/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified)
+          if ($verified.Count -ne 1) { throw 'Fixed original unavailable' }
+          if ($env:QA_ID -eq '08-math-exam') {
+            $env:WINDOWS_REQUIRE_REVERSE='1'
+            $env:WINDOWS_EXACT_REVERSE_PAGES='1'
+          }
+          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
           exit $LASTEXITCODE
+  focused:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run test -- tests/hwp-empty-paragraph-export.spec.ts tests/hwp-empty-lines.spec.ts tests/hwp-sections.spec.ts tests/hwp-navigation.spec.ts tests/hwp-compound-tabs.spec.ts tests/hwp-native-table-lead-ink.spec.ts --workers=1 --trace=off

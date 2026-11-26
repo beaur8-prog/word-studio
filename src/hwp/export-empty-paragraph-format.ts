@@ -5,6 +5,28 @@ import { retainedTextBands } from '../hwp-line-ink';
 import { boundedNativeParts, nativeBodyRuns, nativePaintedControls, type NativeBodyRun } from './export-binary-pages';
 import { directHwpPageBreak, elementRanges } from './markup-ranges';
 
+export type PastedEmptyParagraphs = { text: string; count: number };
+
+export function restorePastedEmptyParagraphs(doc: HwpDocument, { text, count }: PastedEmptyParagraphs) {
+  const locations: number[] = [];
+  const total = doc.getParagraphCount(0);
+  for (let paragraph = 0; paragraph < total; paragraph++) {
+    if (doc.getParagraphLength(0, paragraph) === text.length &&
+        doc.getTextRange(0, paragraph, 0, text.length) === text) locations.push(paragraph);
+  }
+  if (locations.length !== count) return false;
+  return locations.every(paragraph => {
+    const { charShapeId } = JSON.parse(doc.getCharPropertiesAt(0, paragraph, 0));
+    if (!Number.isSafeInteger(charShapeId) || charShapeId < 0 ||
+        !JSON.parse(doc.deleteText(0, paragraph, 0, text.length)).ok ||
+        doc.getParagraphLength(0, paragraph) !== 0) return false;
+    // A temporary tab-setting run can leave its preceding default style at
+    // offset zero. Reuse the actual authored shape from the removed text.
+    return JSON.parse(doc.getCharPropertiesAt(0, paragraph, 0)).charShapeId === charShapeId ||
+      JSON.parse(doc.setCharShapeId(0, paragraph, 0, 0, charShapeId)).ok;
+  });
+}
+
 export type TerminalEmptyFonts = {
   page: number; heading: string; terminal: string;
   beforeHeading: number; beforeTerminal: number;

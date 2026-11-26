@@ -104,7 +104,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
           pictureReadback = { count: reopened.length, exactByteOrder: reopened.length === expected.length &&
             reopened.every((image, index) => image.split(',')[1] === expected[index].split(',')[1]) };
         }
-        reverse.push({format, pages, valid: pages > 0, warningCount: saved.warnings.length, pictureReadback});
+        reverse.push({format, pages, valid: pages > 0, blankWarning: saved.warnings.some(warning => warning.startsWith('일부 빈 문단')), warningCount: saved.warnings.length, pictureReadback});
       } catch (error) {
         const reason = String(error);
         reverse.push({format, valid: false,
@@ -114,12 +114,17 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       await qa.logOriginalStage('reverse-' + format, reverse.at(-1)?.pages ?? 0);
     }
     return { nativeOriginalPages, printPages, preservation, reverse, saves };
-  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' });
+  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1' });
   expect(result.printPages).toHaveLength(3);
   expect(result.printPages.every(pages => pages > 0)).toBe(true);
   expect(result.saves).toBe(2);
   const { saves: _, ...metrics } = result;
   console.log('WINDOWS_PUBLIC_RESULT ' + JSON.stringify({ id: item.id, ext: item.ext, ...metrics }));
+  if (process.env.WINDOWS_REQUIRE_REOPEN === '1') {
+    expect(result.reverse.map(out => ({ format: out.format, valid: out.valid }))).toEqual([
+      { format: 'hwp', valid: true }, { format: 'hwpx', valid: true },
+    ]);
+  }
   if (process.env.WINDOWS_REQUIRE_REVERSE === '1') {
     expect(result.reverse).toHaveLength(2);
     expect(result.reverse.map(out => ({ format: out.format, valid: out.valid, pictures: out.pictureReadback?.count }))).toEqual([

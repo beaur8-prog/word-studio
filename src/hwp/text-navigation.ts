@@ -18,6 +18,17 @@ const types = ['left', 'right', 'center', 'decimal'] as const;
 // literally swaps the publisher's dotted TOC and dashed leaders.
 const leaders: Record<string, DocumentTabStop['leader']> = { SOLID: 'underscore', DOT: 'hyphen', DASH: 'dot' };
 
+/** Retain explicit settings even when an empty paragraph has no tab glyph. */
+export function hwpExplicitTabStops(stops: { position: number; type: number; fill: number }[] = []): DocumentTabStop[] {
+  const fills = [undefined, 'underscore', 'hyphen', 'dot'] as const;
+  return stops.slice(0, 100).flatMap(stop => {
+    const position = stop.position / 150, type = types[stop.type];
+    if (!type || !Number.isFinite(position) || position < 0 || position > 10000) return [];
+    return [{ position: Math.round(position * 100) / 100, type, leader: fills[stop.fill] }];
+  });
+}
+
+
 /** Read normalized engine HWPX: default branches retain the doubled native
  * units, unlike HWPUNIT switch cases. Paragraph IDs also cover nested cells. */
 export function hwpTabDefinitions(files: Record<string, Uint8Array>) {

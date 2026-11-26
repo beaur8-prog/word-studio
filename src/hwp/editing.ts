@@ -35,6 +35,8 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
   document.body.append(root);
   try {
     const textBoxes = prepareHwpExportTextBoxes(root);
+    const emptyText = 'WORDSTUDIO-EMPTY-PARAGRAPH-' + crypto.randomUUID();
+    let emptyCount = 0;
     for (const element of root.querySelectorAll<HTMLElement>('p,h1,h2,h3,h4,h5,h6')) {
       const computed = getComputedStyle(element), paragraph = document.createElement('p'), span = document.createElement('span');
       paragraph.style.cssText = element.style.cssText;
@@ -55,7 +57,14 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
         if (indent < 0 && left > -indent)
           paragraph.setAttribute('style', `${paragraph.style.cssText} margin-left: ${computed.marginLeft};`);
       }
-      span.append(...element.childNodes); paragraph.append(span); element.replaceWith(paragraph);
+      if (element.parentElement === root && element.tagName === 'P' && !element.childNodes.length &&
+          element.style.fontSize && font > 0 && line > 0) {
+        // A blank authored paragraph still has a character style. The native
+        // HTML parser drops an empty span, so carry the style through paste.
+        span.textContent = emptyText;
+        emptyCount++;
+      } else span.append(...element.childNodes);
+      paragraph.append(span); element.replaceWith(paragraph);
     }
     // The Hancom parser reads cell dimensions, rather than Tiptap's grid attrs
     // and TR heights. Materialize the same grid in TD CSS before serialization.
@@ -72,7 +81,7 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
     // The engine's CSS attribute reader does not decode HTML attribute entities.
     // Single quotes keep family names readable without changing document text.
     const html = root.innerHTML.replace(/style="([^"]*)"/g, (_, css: string) => `style="${css.replace(/&quot;/g, "'")}"`) || '<p></p>';
-    return { html, ...textBoxes };
+    return { html, ...textBoxes, emptyParagraphs: emptyCount ? { text: emptyText, count: emptyCount } : undefined };
   } finally { root.remove(); }
 }
 
@@ -245,7 +254,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const session = new HwpReaderSession();
   try {
     const result = await session.export(rendered.html, exportPage, format, onProgress, rendered.boxes,
-      { pages: wordPages, tableLeads, continuations, paperHeaderTable, rasterTablePairs, terminalEmptyFonts, terminalPageBreaks, emptyTableRows });
+      { pages: wordPages, tableLeads, continuations, paperHeaderTable, rasterTablePairs, terminalEmptyFonts, terminalPageBreaks, emptyTableRows, emptyParagraphs: rendered.emptyParagraphs });
     warnings.push(`쪽 수 비교: Word 인쇄 ${wordPages}쪽 → ${format.toUpperCase()} 원본 보기 ${result.pages}쪽.` + (wordPages !== result.pages ? ' 쪽 배치가 달라졌습니다. 정확한 쪽 참조가 필요한 문서는 원본과 대조하세요.' : ' 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'));
     return { blob: new Blob([new Uint8Array(result.bytes)], { type: format === 'hwp' ? 'application/x-hwp' : 'application/vnd.hancom.hwpx' }), warnings: [...new Set([...warnings, ...result.warnings])] };
   } finally { session.close(); }
