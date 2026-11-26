@@ -1,3 +1,4 @@
+import { hwpNativeCompactRowAttribute } from '../hwp-centered-cell-labels';
 import { hwpNativeGridAttribute, parseHwpNativeGrid } from '../hwp-native-grid';
 import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
@@ -7,10 +8,11 @@ import { elementRanges } from './markup-ranges';
 
 type Cell = { row: number; rows: number; columns: number; text: string };
 type Grid = { width: number; columns: number; cells: { column: number; width: number }[] };
-type Plan = { cells: Cell[]; heights: (number | undefined)[]; grid?: Grid };
+type CompactRow = { row: number; height: number; reduction: number };
+type Plan = { cells: Cell[]; heights: (number | undefined)[]; grid?: Grid; compact?: CompactRow };
 type TableAddress = { section: number; paragraph: number; global: number; cells: number };
 type Box = { x: number; y: number; w: number; h: number };
-type CellBox = Box & { cellIdx: number; pageIndex: number };
+type CellBox = Box & { cellIdx: number; pageIndex: number; row: number; rowSpan: number };
 
 const attribute = (tag: string, key: string) => tag.match(new RegExp(`\\b${key}="([^"]*)"`))?.[1];
 const text = (markup: string) => entities(markup.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ')).replace(/\s/gu, '');
@@ -49,7 +51,7 @@ function explicitMergedGrid(cells: readonly Cell[], declared: readonly number[][
   return { columns: widths.length, cells: positions, width };
 }
 
-function sourcePlan(table: string, body: string) {
+function sourcePlan(table: string, body: string, preserveCompact: boolean) {
   if (/<(?:table|img|svg)\b|\bdata-(?:note-reference|document-field|page-number)\b/.test(body)) return;
   const hasMergedWidths = body.includes('colwidth=') && body.includes('colspan=') && body.includes('rowspan=');
   if (!hasMergedWidths && !body.includes('data-hwp-grid-row="true"')) return;
@@ -57,7 +59,14 @@ function sourcePlan(table: string, body: string) {
   const authored = rows.map(row => size(row.open));
   const hasHeights = authored.every(height => Number.isFinite(height) && height > 0);
   const thin = rows.map(row => row.open.includes('data-hwp-grid-row="true"'));
+  const row = rows.length - 1;
+  const last = authored[row];
+  const compact = hasMergedWidths && hasHeights && preserveCompact && row > 0
+    ? Number(attribute(rows[row].open, hwpNativeCompactRowAttribute)) : NaN;
   const plan: Plan = { cells: [], heights: [] };
+  if (compact > 0 && compact < last - .5)
+    plan.compact = { row, height: compact, reduction: Math.round(last * 75) - Math.round(compact * 75) };
+
   const declared: number[][] = [];
   for (const [row, markup] of rows.entries()) {
     const cells = [...elementRanges(markup.inner, 'td'), ...elementRanges(markup.inner, 'th')].sort((a,b) => a.start - b.start);
@@ -69,8 +78,10 @@ function sourcePlan(table: string, body: string) {
       const height = size(cell.open), sum = authored.slice(row, row + rows).reduce((a,b) => a + b, 0);
       // The normal reverse bridge materializes row sizes in cell CSS. A
       // different height can be an authored cell constraint of its own.
-      plan.heights.push(hasHeights && Math.abs(height - sum) < .05 && thin.slice(row, row + rows).includes(true)
-        ? Math.round(height * 75) : undefined);
+      const shrink = plan.compact && row + rows - 1 === plan.compact.row ? plan.compact.reduction : 0;
+      if (shrink && (!(height > shrink / 75) || Math.abs(height - sum) >= .05)) return;
+      plan.heights.push(hasHeights && Math.abs(height - sum) < .05 && (shrink || thin.slice(row, row + rows).includes(true))
+        ? Math.round(height * 75) - shrink : undefined);
     }
   }
   if (hasMergedWidths) plan.grid = explicitMergedGrid(plan.cells, declared, table);
@@ -95,7 +106,7 @@ const overhang = (span: Box, bounds: Box) => Math.max(bounds.x - span.x, bounds.
   span.x + span.w - bounds.x - bounds.w, span.y + span.h - bounds.y - bounds.h, 0);
 
 type Control = { list: number; para: number; controlIndex: number; ctrlId: string };
-function paintedTable(doc: HwpDocument, controls: readonly Control[], address: TableAddress) {
+function paintedTable(doc: HwpDocument, controls: readonly Control[], address: TableAddress, compact?: CompactRow) {
   const candidates = controls.filter(c => c.list === 0 && c.para === address.global && c.ctrlId === 'tbl');
   if (candidates.length !== 1) return;
   const control = candidates[0].controlIndex, args = [address.section,address.paragraph,control] as const;
@@ -127,8 +138,11 @@ function paintedTable(doc: HwpDocument, controls: readonly Control[], address: T
   if (!glyphs.size) return;
   const right = cells.reduce((edge, cell) => Math.max(edge, cell.x + cell.w), -Infinity);
   const left = cells.reduce((edge, cell) => Math.min(edge, cell.x), Infinity);
+  const compactCells = compact ? cells.filter(cell => cell.row === compact.row && cell.rowSpan === 1) : [];
+  const compactHeight = compact && compactCells.length === 2 && compactCells.every(cell => glyphs.has(cell.cellIdx) &&
+    Math.abs(cell.h - compact.height) <= .14);
   return { literal: JSON.stringify([...glyphs].sort((a,b) => a[0]-b[0])), overflow,
-    rightExcess: right - paper.w, width: right - left };
+    rightExcess: right - paper.w, width: right - left, page: cells[0].pageIndex, compactHeight };
 }
 
 function gridWidths(table: string, grid: Grid, columns: readonly number[]): string | undefined {
@@ -149,32 +163,34 @@ function gridWidths(table: string, grid: Grid, columns: readonly number[]): stri
 /** Native HTML paste can inflate short merged grid rows to its default
  * minimum. Recover their measured cell sizes only after the table, its
  * fonts, and its actual section geometry are present in the native writer. */
-export function planHwpGridRows(html: string) {
+export function planHwpGridRows(html: string, preserveCompact = true) {
   const plans = new Map<string, Plan | null>();
   if (html.includes('data-hwp-grid-row="true"') || html.includes('colwidth=') && html.includes('colspan=') && html.includes('rowspan='))
     for (const table of elementRanges(html,'table')) {
-      const proof = sourcePlan(table.open, table.inner);
+      const proof = sourcePlan(table.open, table.inner, preserveCompact);
       if (!proof) continue;
       const signature = key(proof.rows,proof.plan.cells);
       plans.set(signature, plans.has(signature) ? null : proof.plan);
     }
 
+  const hasCompact = [...plans.values()].some(plan => plan?.compact);
   return (Core: typeof HwpDocument, doc: HwpDocument): HwpDocument => {
     if (!plans.size) return doc;
+    const usual = () => hasCompact ? planHwpGridRows(html, false)(Core, doc) : doc;
     try {
       let size = 0;
       const files = unzipSync(doc.exportHwpx(), { filter: entry => {
         if ((size += entry.originalSize) > documentLimits.documentInflatedBytes) throw Error('Native table proof too large');
         return true;
       } });
-      const matches = new Map<string,{ address: TableAddress; file: string; start: number; end: number; xml: string; grid?: { xml: string; width: number } }[]>();
+      const matches = new Map<string,{ address: TableAddress; file: string; start: number; end: number; xml: string; grid?: { xml: string; width: number }; compact?: CompactRow }[]>();
       const sections = new Map<string, string>();
       let global = 0;
       for (let section = 0; section < doc.getSectionCount(); section++) {
         const file = `Contents/section${section}.xml`, source = strFromU8(files[file]);
         sections.set(file, source);
         const paragraphs = elementRanges(source, 'hp:p');
-        if (paragraphs.length !== doc.getParagraphCount(section)) return doc;
+        if (paragraphs.length !== doc.getParagraphCount(section)) return usual();
         for (const [paragraph, owner] of paragraphs.entries()) {
           for (const table of elementRanges(owner.inner,'hp:tbl')) {
             if (table.inner.includes('<hp:tbl')) continue;
@@ -191,12 +207,20 @@ export function planHwpGridRows(html: string) {
               });
               next = next.slice(0,cell.start) + cell.open + part + '</hp:tc>' + next.slice(cell.end);
             }
+            const compact = expected.compact;
+            if (compact) {
+              if (native.ranges.length !== expected.heights.length || next === table.inner) continue;
+              const size = /^<hp:sz\b[^>]*\/>/.exec(next)?.[0];
+              const previous = Number(attribute(size ?? '', 'height'));
+              if (!size || !Number.isSafeInteger(previous) || previous <= compact.reduction) continue;
+              next = size.replace(/\bheight="\d+"/, `height="${previous - compact.reduction}"`) + next.slice(size.length);
+            }
             const start = owner.start + owner.open.length + table.start;
             const found = matches.get(signature) ?? [];
             const grid = expected.grid && expected.grid.columns === Number(attribute(table.open, 'colCnt'))
               ? gridWidths(next, expected.grid, native.columns) : undefined;
             found.push({ address: { section, paragraph, global: global + paragraph, cells: native.cells.length },
-              file, start, end: start + table.end - table.start, xml: table.open + next + '</hp:tbl>',
+              file, start, end: start + table.end - table.start, compact, xml: table.open + next + '</hp:tbl>',
               grid: grid && expected.grid ? { xml: table.open + grid + '</hp:tbl>', width: expected.grid.width / 75 } : undefined });
             matches.set(signature, found);
           }
@@ -216,7 +240,7 @@ export function planHwpGridRows(html: string) {
         const grid = before.rightExcess > .65 ? entry.grid : undefined;
         return original !== entry.xml || grid ? [{ ...entry, original, before, grid }] : [];
       });
-      if (!affected.length) return doc;
+      if (!affected.length) return usual();
 
       const verified = (useWidths: boolean): HwpDocument | undefined => {
         const edited = new Map<string,string>();
@@ -233,10 +257,13 @@ export function planHwpGridRows(html: string) {
         try {
           const candidate = alternate = new Core(zipSync(parts,{ level: 1 }));
           const trialControls: Control[] = JSON.parse(candidate.getControls());
-          if (useWidths && candidate.pageCount() > doc.pageCount()) return;
+          const compactCount = applied.filter(entry => entry.compact).length;
+          const countDifference = candidate.pageCount() - doc.pageCount();
+          if ((useWidths || compactCount) && countDifference > 0 || compactCount && countDifference < -compactCount) return;
           for (const entry of applied) {
-            const after = paintedTable(candidate, trialControls, entry.address);
+            const after = paintedTable(candidate, trialControls, entry.address, entry.compact);
             if (!after || after.literal !== entry.before.literal ||
+                entry.compact && (!after.compactHeight || after.page > entry.before.page) ||
                 useWidths && entry.grid && (after.rightExcess > .65 || Math.abs(after.width - entry.grid.width) > .2) ||
                 [...after.overflow].some(([id, overhang]) => overhang > (entry.before.overflow.get(id) ?? 0) + .65)) return;
           }
@@ -246,11 +273,11 @@ export function planHwpGridRows(html: string) {
           return;
         } finally { alternate?.free(); }
       };
-      return (affected.some(entry => entry.grid) ? verified(true) : undefined) ?? verified(false) ?? doc;
+      return (affected.some(entry => entry.grid) ? verified(true) : undefined) ?? verified(false) ?? usual();
     } catch {
       // Precise geometry is optional. A failed proof keeps the native file
       // made with its normal parsed cells and all of its original contents.
-      return doc;
+      return usual();
     }
   };
 }

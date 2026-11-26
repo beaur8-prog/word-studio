@@ -192,7 +192,9 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
             const value = { format, pages: saved.pageCount(), outsideRight: outside, tableCount: tables,
               marginLeft, marginRight, ...witness(original, saved, 39, null), table,
               terminal: process.env.WINDOWS_TERMINAL_WITNESS
-                ? require('../../scripts/windows-qa/hancom-terminal-witness.cjs')(original, saved) : undefined };
+                ? require('../../scripts/windows-qa/hancom-terminal-witness.cjs')(original, saved) : undefined,
+              compact: process.env.WINDOWS_COMPACT_ROW_WITNESS
+                ? require('../../scripts/windows-qa/hancom-compact-row-witness.cjs')(original, saved) : undefined };
             preciseMargins.push(value);
             console.log('WINDOWS_HANCOM_MARGIN_WITNESS ' + JSON.stringify(value));
           } finally { original.free(); }
