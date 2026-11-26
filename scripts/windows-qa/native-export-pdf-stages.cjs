@@ -528,6 +528,8 @@ async function main() {
           console.log('WINDOWS_PRINT_ACTUAL_FACES ' + JSON.stringify(faces));
         } finally { await cdp.detach(); }
       }
+      if (process.env.WINDOWS_ENGLISH_TERMINAL_DETAIL === '1')
+        await require('./hwp-column-terminal-witness.cjs')(page, item.path);
       if (process.env.WINDOWS_NATIVE_PRINT_GEOMETRY) {
         stage = 'pdf-geometry';
         const geometry = await require('./print-geometry.cjs')(page);

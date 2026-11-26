@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Identify the exact Windows terminal column fit requirement
+run-name: Measure the painted runs and actual Windows faces before the first extra sheet
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -20,6 +20,7 @@ jobs:
       QA_ID: ${{ matrix.id }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_TRACE_COLUMN_END: '1'
+      WINDOWS_ENGLISH_TERMINAL_DETAIL: '1'
       WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
     steps:
       - uses: actions/checkout@v4
