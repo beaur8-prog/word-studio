@@ -31,7 +31,7 @@ import { hwpTableGrid } from './table-grid';
 import { sourceCentersContinuedBorders, sourceCentersMultilineRowBorders, sourceCentersTableBorders } from './source-centered-table-borders';
 import { sourceAlignedHeaderEnds, sourceContinuedRowReserve, sourceEmptyMergeCuts, sourceFirstTableOverhang, sourceIntactTopRow, sourceTableContinuation } from './source-table-continuation';
 import { hwpIntactRowAttribute, type HwpIntactRow } from '../hwp-intact-row';
-import { sourceCenteredCellLabels, sourceCompactContinuedCell } from './source-centered-cell-labels';
+import { sourceCenteredCellLabels } from './source-centered-cell-labels';
 import { sourceCellCaptionLine, sourceScaledCellLine, type NativeCellInkRun } from './source-caption-cell-line';
 import { sourceHwpCompactCellFace, type CompactCellFacePosition } from './source-cell-face';
 import { encodeHwpCellRasterFill, hwpCellRasterFillAttribute, type HwpCellRasterPicture } from '../hwp-cell-raster-fill';
@@ -992,13 +992,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
         if (!first || !Number.isFinite(authoredCellWidths.get(cell.index)) || (cellPages.get(cell.index)?.size ?? 0) < 2 ||
             cell.verticalAlign !== 1 || cell.textDirection || cell.diagonalSlash || cell.diagonalBackSlash) continue;
         const proof = sourceCenteredCellLabels(doc, section, para, control, cell.index, first, splitCellLines, merged !== undefined);
-        if (!proof) continue;
-        const peer = own.length === 2 && merged && own.find(item => item.index !== cell.index);
-        const headPeer = peer && head.find(box => box.cellIdx === peer.index);
-        const tailPeer = peer && boxes.find(box => box.cellIdx === peer.index && box.pageIndex === firstPage + 1);
-        const compact = headPeer && tailPeer && first.h < rows[row] - sourceCellBoundsTolerance &&
-          sourceCompactContinuedCell(doc, section, para, control, headPeer, tailPeer);
-        centeredLabels.set(cell.index, compact ? proof + ' first ' + compact : proof);
+        if (proof) centeredLabels.set(cell.index, proof);
       }
     }
   }
