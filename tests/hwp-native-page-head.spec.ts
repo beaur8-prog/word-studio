@@ -11,17 +11,19 @@ test('rejoin a verified source page heading and body only across an automatic bo
     const doc = HwpDocument.createEmpty();
     let repaired;
     try {
-      const head = 'First line on a new sheet', body = 'The body follows its heading';
+      const head = 'First line on a new sheet', body = ' The body follows its heading';
       doc.createBlankDocument();
-      doc.pasteHtml(0, 0, 0, '<p>Previous text</p><p>' + head + '</p><p>' + body + '</p>');
+      doc.pasteHtml(0, 0, 0, '<p>Previous text</p><p>' + head + '</p><p>' + body.trimStart() + '</p>');
       doc.insertParagraph(0, 2);
       const table = [...Array(doc.getParagraphCount(0))].map((_, i) => doc.getTextRange(0, i, 0, 0xffffffff));
-      const leadIndex = table.indexOf(head), following = table.indexOf(body);
+      const leadIndex = table.indexOf(head), following = table.indexOf(body.trimStart());
       if (following !== leadIndex + 2) throw Error('Synthetic spacer is not between the two paragraphs');
+      doc.insertText(0, following, 0, ' ');
+      doc.applyCharFormat(0, following, 0, 1, JSON.stringify({ bold: true }));
       doc.applyCharFormat(0, leadIndex + 1, 0, 0, JSON.stringify({ fontSize: 400 }));
       doc.applyParaFormat(0, leadIndex, JSON.stringify({ pageBreakBefore: true }));
       const y = (owner: number, page: number) =>
-        JSON.parse(doc.getPageTextLayout(page)).runs.find(run => run.paraIdx === owner && run.text.trim())?.y;
+        JSON.parse(doc.getPageTextLayout(page)).runs.find(run => run.paraIdx === owner && run.charStart === 0)?.y;
       const geometry = { page: 2, y: y(leadIndex, 1), nextY: y(following, 1), spacer: 400, next: hwpWrapFingerprint(body) };
       const a = document.createElement('div'), b = document.createElement('div');
       a.dataset.page = '1';
@@ -39,9 +41,11 @@ test('rejoin a verified source page heading and body only across an automatic bo
       text.textContent = body + ' edit';
       const changed = measuredNativePageHead(a, b);
       doc.applyParaFormat(0, following, JSON.stringify({ pageBreakBefore: true }));
+      const startingRun = JSON.parse(doc.getPageTextLayout(2)).runs.find(run => run.paraIdx === following);
+      const leadingSpaceSeparate = startingRun?.charStart === 0 && startingRun.text === ' ';
       repaired = restoreNativePageHead(HwpDocument, doc, automatic ? [automatic] : [], 2);
-      const restored = (owner: number) => JSON.parse(repaired.getPageTextLayout(1)).runs.find(run => run.paraIdx === owner && run.text.trim())?.y;
-      return { table, preserved: repaired.getTextRange(0, following, 0, 0xffffffff), geometry,
+      const restored = (owner: number) => JSON.parse(repaired.getPageTextLayout(1)).runs.find(run => run.paraIdx === owner && run.charStart === 0)?.y;
+      return { leadingSpaceSeparate, preserved: repaired.getTextRange(0, following, 0, 0xffffffff), geometry,
         explicit, changed, before: doc.pageCount(), after: repaired.pageCount(), positions: [restored(leadIndex), restored(following)] };
     } finally {
       if (repaired && repaired !== doc) repaired.free();
@@ -53,6 +57,7 @@ test('rejoin a verified source page heading and body only across an automatic bo
   expect(result.changed).toBeUndefined();
   expect(result.before).toBe(3);
   expect(result.after).toBe(2);
-  expect(result.preserved).toBe('The body follows its heading');
+  expect(result.leadingSpaceSeparate).toBe(true);
+  expect(result.preserved).toBe(' The body follows its heading');
   expect(result.positions).toEqual([result.geometry.y, result.geometry.nextY]);
 });
