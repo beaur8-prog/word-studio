@@ -1,84 +1,22 @@
 name: Windows regression QA
-run-name: Verify packaged Hancom saving, the next authored line, and reversed Windows print reuse
+run-name: Measure the first actual Windows Hancom save of the 163-page case
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native-flow:
-    name: Windows authored single line / ${{ matrix.id }}
-    runs-on: windows-latest
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { group: hwp-3, id: 06-mixed-document, watch: '80,122,136', product: 'HEAD' }
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      WINDOWS_NATIVE_EXPORT_FLOW: ${{ matrix.watch }}
-      QA_PRODUCT: ${{ matrix.product }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-      - name: Check both actual formats for the page-tail candidate and isolate the earlier 04 gap
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/native-flow" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-flow/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          $product = $env:QA_PRODUCT
-          git restore --source $product -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code $product -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $env:WINDOWS_AUTHORED_TAIL_PROOF = '1'
-            $env:WINDOWS_HANCOM_SINGLE_BODY_LINE = '1'
-            $env:WINDOWS_PAGE_OFFSETS = '1'
-            $env:WINDOWS_ADJACENT_TABLE_WITNESS = '1'
-            $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/candidate-margin.json"
-            $env:WINDOWS_VERIFY_NATIVE_GEOMETRY = '1'
-            $env:WINDOWS_VERIFY_REVERSE_MEDIA = '1'
-            $env:WINDOWS_REQUIRE_REOPEN = '1'
-          } else { $env:WINDOWS_NATIVE_FLOW_ONLY = '1' }
-          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-          exit $LASTEXITCODE
-      - uses: actions/setup-dotnet@v4
-        if: matrix.id == '06-mixed-document'
-        with:
-          dotnet-version: '8.0.x'
-      - name: Validate the two actual Windows DOCX saves
-        if: matrix.id == '06-mixed-document'
-        shell: pwsh
-        run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/tail-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
-          exit $status
   native:
-    name: Packaged Windows two DOCX and two Hancom files
+    name: Packaged Windows 163-page HWPX export
     runs-on: windows-latest
-    timeout-minutes: 38
+    timeout-minutes: 35
     env:
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_PAGE_TAIL_READBACK: '1'
+      WINDOWS_NATIVE_HWP_FORMATS: hwpx
+      WINDOWS_NATIVE_HWP_TRACE: '1'
+      WINDOWS_NATIVE_HWP_PROFILE: '1'
+      WINDOWS_NATIVE_LARGE_HANGUL: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -88,95 +26,23 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Build the verified page-tail product tree
+      - name: Prepare the source-pinned large file and start the native export
         shell: pwsh
         run: |
-          $version = 'f355f3795f3dba0c7253a3b3163d051f1e53525a'
-          git restore --source $version --staged --worktree -- src
+          $product = 'f355f3795f3dba0c7253a3b3163d051f1e53525a'
+          git restore --source $product --staged --worktree -- src
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code $version -- src electron vendor package.json package-lock.json
+          git diff --exit-code $product -- src electron vendor package.json package-lock.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run package:win:dir
-          exit $LASTEXITCODE
-      - name: Save and reopen both DOCX through the packaged app
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py hwp-3 "$env:RUNNER_TEMP/qa-input" --ids 06-mixed-document
+          npm run build -- --sourcemap
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-input/inventory.json"
-          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
+          node scripts/package-win.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/large-native" --ids 02-work-rules
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/large-native/inventory.json"
           $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
           node scripts/windows-qa/native-export-pdf-stages.cjs
           exit $LASTEXITCODE
-      - name: Validate the two DOCX packages written by the Windows app
-        shell: pwsh
-        run: |
-          $files = @(Get-ChildItem "$env:RUNNER_TEMP/native-docx" -File -Filter '*.docx')
-          if ($files.Count -ne 2) { throw 'Missing the two native DOCX files' }
-          dotnet run --project scripts/word-openxml-validator -- "$env:RUNNER_TEMP/native-docx" 2 *> "$env:RUNNER_TEMP/native-sdk.txt"
-          $validated = $LASTEXITCODE
-          Write-Host "WINDOWS_NATIVE_DOCX_SDK $($files.Count) exit $validated"
-          exit $validated
-  pixel:
-    name: Windows PDF pixels / ${{ matrix.id }}
-    runs-on: windows-latest
-    timeout-minutes: 43
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {group: hwp-2, id: 02-work-rules, pages: 163}
-          - {group: public-2, id: moel-harassment-manual, pages: 97}
-    env:
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      QA_PAGES: ${{ matrix.pages }}
-      WINDOWS_NATIVE_PRINT_PROFILE: '1'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Build and print the same pinned case from both product trees
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/pdf-paint" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/pdf-paint/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          $versions = [ordered]@{
-            candidate = '81158268ca8007085b85db5374b1644cde6aa5c7'
-            control = '0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2'
-          }
-          foreach ($item in $versions.GetEnumerator()) {
-            Write-Host "WINDOWS_PDF_PIXEL_PRODUCT $($item.Key)"
-            git restore --source $item.Value --staged --worktree -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $item.Value -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            npm run build -- --sourcemap
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            node scripts/package-win.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Move-Item release/windows "$env:RUNNER_TEMP/pdf-app-$($item.Key)"
-            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/pdf-app-$($item.Key)/Word Studio/Word Studio.exe"
-            $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/$($item.Key)-paint.pdf"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-      - name: Compare the decoded pixels with the Windows PDF renderer
-        shell: powershell
-        run: |
-          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/control-paint.pdf" -Candidate "$env:RUNNER_TEMP/candidate-paint.pdf" -ExpectedPages $env:QA_PAGES

@@ -128,6 +128,29 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
             throw Error('The packaged Windows save disagreed with the native page-tail witness');
         } finally { original.free(); }
       }
+      if (item.id === '02-work-rules' && process.env.WINDOWS_NATIVE_LARGE_HANGUL === '1') {
+        const original = new Core(await fs.readFile(item.path));
+        try {
+          const snapshot = doc => {
+            let glyphs = 0, tables = 0, images = 0, outside = 0;
+            for (let index = 0; index < doc.pageCount(); index++) {
+              const paper = JSON.parse(doc.getPageInfo(index));
+              for (const run of JSON.parse(doc.getPageTextLayout(index)).runs) {
+                if (!run.headerFooter && Number.isInteger(run.paraIdx) && run.paraIdx !== 0xffffffff)
+                  glyphs += run.text.replace(/\s/gu, '').length;
+              }
+              for (const object of JSON.parse(doc.getPageControlLayout(index)).controls) {
+                if (object.headerFooter) continue;
+                if (object.type === 'table') tables++;
+                if (object.type === 'image') images++;
+                if (object.type === 'table' && (object.x < -.2 || object.x + object.w > paper.width + .2)) outside++;
+              }
+            }
+            return { pages: doc.pageCount(), glyphs, tables, images, outside };
+          };
+          console.log('WINDOWS_LARGE_NATIVE_READBACK ' + JSON.stringify({ format, source: snapshot(original), saved: snapshot(native) }));
+        } finally { original.free(); }
+      }
       const comparison = process.env.WINDOWS_NATIVE_HWP_COMPARISON;
       if (comparison) {
         const hash = createHash('sha256');
