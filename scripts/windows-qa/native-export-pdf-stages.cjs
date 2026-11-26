@@ -149,6 +149,16 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
             return { pages: doc.pageCount(), glyphs, tables, images, outside };
           };
           console.log('WINDOWS_LARGE_NATIVE_READBACK ' + JSON.stringify({ format, source: snapshot(original), saved: snapshot(native) }));
+          if (process.env.WINDOWS_NATIVE_LARGE_TEXT === '1') {
+            const { execFileSync } = require('node:child_process');
+            const originalPackage = path.join(directory, 'logical-source.hwpx');
+            const savedPackage = path.join(directory, 'logical-saved.hwpx');
+            await fs.writeFile(originalPackage, original.exportHwpx());
+            if (format === 'hwp') await fs.writeFile(savedPackage, native.exportHwpx());
+            const result = execFileSync('python', [path.join(__dirname, 'hancom-package-text-audit.py'),
+              originalPackage, format === 'hwp' ? savedPackage : output], { encoding: 'utf8' });
+            console.log('WINDOWS_LARGE_NATIVE_LOGICAL ' + JSON.stringify({ format, ...JSON.parse(result) }));
+          }
         } finally { original.free(); }
       }
       const comparison = process.env.WINDOWS_NATIVE_HWP_COMPARISON;
