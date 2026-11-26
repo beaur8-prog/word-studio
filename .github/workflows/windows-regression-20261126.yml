@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Windows Studio native original retry on measured gaps
+run-name: Windows Studio remaining public Hancom native retry
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,12 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - group: hwp-2
-            ids: 02-work-rules
-          - group: hwp-3
-            ids: 06-mixed-document
-          - group: public-1
-            ids: mois-sop,law-request
+          - group: public-2
+            ids: mois-budget,moel-harassment-manual,law-register
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_IDS: ${{ matrix.ids }}
