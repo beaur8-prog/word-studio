@@ -1,32 +1,22 @@
 name: Windows regression QA
-run-name: Verify authored terminal wrapping across actual Hancom saves
+run-name: Validate combined source in the packaged Windows app
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  originals:
-    name: Windows authored terminal wrap / ${{ matrix.id }}
+  native:
+    name: Native Windows DOCX twice and Hancom readback
     runs-on: windows-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { group: hwp-3, id: 06-mixed-document }
-          - { group: hwp-1, id: 04-language-plan }
+    timeout-minutes: 38
     env:
-      PLAYWRIGHT_CHANNEL: chromium
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
+      WINDOWS_NATIVE_HWP_SAVES: '1'
+      WINDOWS_NATIVE_TERMINAL_WITNESS: '1'
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -36,51 +26,48 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - run: npm ci
-      - run: npx playwright install chromium
-      - name: Compare native terminal wrapping against the original
+      - run: node node_modules/electron/install.js
+      - run: npm run package:win:dir
+      - name: Save and reopen both DOCX and both Hancom formats through the installed menus
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/exact-margins" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py hwp-3 "$env:RUNNER_TEMP/qa-input" --ids 06-mixed-document
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/exact-margins/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          $variants = @('HEAD')
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $variants = @('63c7a4dbb48cc8fb93d23377b3ad968a17d1d353','HEAD')
-          }
-          foreach ($variant in $variants) {
-            Write-Host "WINDOWS_PRECISE_MARGIN_PRODUCT $variant"
-            git restore --source $variant -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            if ($env:QA_ID -eq '06-mixed-document') { $env:WINDOWS_TABLE_INSET_WITNESS = '1'; $env:WINDOWS_TERMINAL_WITNESS = '1'; $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/margins-$variant.json" }
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $old = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[0]).json" -Raw | ConvertFrom-Json)
-            $new = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[-1]).json" -Raw | ConvertFrom-Json)
-            if ($old.Count -ne 2 -or $new.Count -ne 2) { throw 'Expected both Hancom formats' }
-            foreach ($index in 0,1) {
-              $control=$old[$index]; $candidate=$new[$index]
-              Write-Host "WINDOWS_AUTHORED_TERMINAL $($candidate.format) total $($control.pages) to $($candidate.pages); following text page $($control.terminal.saved.nextPage) to $($candidate.terminal.saved.nextPage); source $($candidate.terminal.source.nextPage)"
-              if ($candidate.format -ne $control.format -or $candidate.pages -ne ($control.pages - 1) -or
-                  $candidate.outsideRight -ne 0 -or $candidate.tableCount -ne $control.tableCount -or
-                  $control.terminal.saved.lines.Count -ne 3 -or
-                  -not $candidate.terminal.matches -or
-                  $candidate.table.continuationHeight -ne $control.table.continuationHeight) {
-                throw 'The source terminal line positions were not recovered'
-              }
-            }
-          }
-      - name: Validate both actual DOCX packages
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-input/inventory.json"
+          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
+          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          exit $LASTEXITCODE
+      - name: Validate the two DOCX packages written by the Windows app
         shell: pwsh
         run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/exact-margin-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
-          exit $status
+          $files = @(Get-ChildItem "$env:RUNNER_TEMP/native-docx" -File -Filter '*.docx')
+          if ($files.Count -ne 2) { throw 'Missing the two native DOCX files' }
+          dotnet run --project scripts/word-openxml-validator -- "$env:RUNNER_TEMP/native-docx" *> "$env:RUNNER_TEMP/native-sdk.txt"
+          $validated = $LASTEXITCODE
+          Write-Host "WINDOWS_NATIVE_DOCX_SDK $($files.Count) exit $validated"
+          exit $validated
+  focused:
+    name: Combined layout contracts / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+      - run: npx playwright install chromium
+        if: runner.os == 'Windows'
+      - run: npm run test -- tests/word-windows-print-density.spec.ts tests/hwp-native-terminal-break.spec.ts tests/hwp-native-table-lead-ink.spec.ts tests/print-native-column-height.spec.ts tests/print-page-style.spec.ts tests/hwp-source-centered-merged-labels.spec.ts --workers=1 --trace=off

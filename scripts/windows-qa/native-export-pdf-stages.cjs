@@ -7,6 +7,40 @@ const path = require('node:path');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 
+async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
+  const title = page.locator('.topbar').getByRole('textbox', { name: '문서 제목', exact: true });
+  await fs.mkdir(directory, { recursive: true });
+  for (let generation = 1; generation <= 2; generation++) {
+    selectStage('native-docx-save-' + generation);
+    const name = item.id + '-native-save-' + generation;
+    const output = path.join(directory, name + '.docx');
+    await app.evaluate(({ dialog, Menu }, destination) => {
+      dialog.showSaveDialog = async (_parent, options) => {
+        if (!options.filters?.some(filter => filter.extensions.includes('docx')))
+          throw Error('Missing DOCX filter');
+        return { canceled: false, filePath: destination };
+      };
+      const file = Menu.getApplicationMenu().items.find(item => item.label === 'File');
+      const command = file?.submenu?.items.find(item => item.label.startsWith('Export Word Document '));
+      if (!command) throw Error('Native DOCX export missing');
+      setTimeout(() => command.click(), 0);
+    }, output);
+    await expect.poll(async () => {
+      const bytes = await fs.readFile(output).catch(() => null);
+      return bytes?.length > 64 && bytes.subarray(0, 2).toString('latin1') === 'PK';
+    }, {timeout: 180000}).toBe(true);
+    selectStage('native-docx-reopen-' + generation);
+    await app.evaluate(({ dialog }, source) => {
+      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [source] });
+    }, output);
+    await page.keyboard.press('ControlOrMeta+o');
+    await expect(title).toHaveValue(name, {timeout: 180000});
+    await page.locator('.busy-indicator').waitFor({state: 'hidden', timeout: 180000});
+    await page.evaluate(() => document.fonts.ready);
+    console.log('WINDOWS_NATIVE_DOCX_SAVED_AND_REOPENED ' + generation);
+  }
+}
+
 async function saveHangulFile(app, page, item, directory, Core, phase) {
   const requested = (process.env.WINDOWS_NATIVE_HWP_FORMATS || 'hwp,hwpx').split(',');
   const formats = ['hwp', 'hwpx'].filter(format => requested.includes(format));
@@ -72,6 +106,14 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
           const result = witness(original, native);
           console.log('WINDOWS_HANCOM_LINE_WITNESS ' + JSON.stringify({format, ...result}));
           if (result.lines !== 1 || result.nextPage !== 8) throw Error('Native saved line disagreed with the pinned witness');
+        } finally { original.free(); }
+      }
+      if (item.id === '06-mixed-document' && process.env.WINDOWS_NATIVE_TERMINAL_WITNESS === '1') {
+        const original = new Core(await fs.readFile(item.path));
+        try {
+          const witness = require('./hancom-terminal-witness.cjs')(original, native);
+          console.log('WINDOWS_NATIVE_TERMINAL_WITNESS ' + JSON.stringify({format, ...witness}));
+          if (!witness.matches) throw Error('Native terminal positions disagreed with the original');
         } finally { original.free(); }
       }
       const comparison = process.env.WINDOWS_NATIVE_HWP_COMPARISON;
@@ -198,6 +240,8 @@ async function main() {
         .map(task => Math.round(task.duration)).sort((a,b) => b-a).slice(0,5), rendererStarted);
       console.log('WINDOWS_HWP_EDITOR_READY ' + JSON.stringify({ id: item.id, editorPages, editorMilliseconds, editorLongTasks }));
       if (Core) {
+        if (process.env.WINDOWS_NATIVE_DOCX_DIR)
+          await saveTwoDocxAndReopen(app, page, item, process.env.WINDOWS_NATIVE_DOCX_DIR, name => { stage = name; });
         const finishHangulProfile = process.env.WINDOWS_NATIVE_HWP_PROFILE === '1'
           ? await require('./print-profile.cjs')(page, 'hangul') : undefined;
         try {
