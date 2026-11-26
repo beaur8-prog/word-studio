@@ -1,3 +1,4 @@
+import type { HwpDocument } from '@rhwp/core';
 import { hwpLatinFont, hwpLatinFontAttribute } from '../hwp-latin-font';
 import { characterScaleProperty } from '../character-scale';
 import { hwpSingleBodyFace, hwpSourceSpacesAttribute, hwpSourceWrapAttribute, hwpWrapFingerprint, normalizeHwpWrapText, parseHwpSourceWrap, type HwpSourceOrigin } from '../hwp-text-advances';
@@ -127,7 +128,29 @@ function textTokens(html: string) {
   return tokens;
 }
 
-type BodyLineWitness = { origin: HwpSourceOrigin; hanging: number; painted: readonly { y: number; charStart?: number }[] };
+/** Compare the actual metric-bearing run properties across a re-numbering
+ * of native character shapes. Unused script family slots can change on save. */
+export function nativeLineTypography(doc: Pick<HwpDocument, 'getCharShapeRuns' | 'getCharPropertiesAt'>, section: number, paragraph: number, length: number) {
+  const runs = JSON.parse(doc.getCharShapeRuns(section, paragraph, 0, length)) as
+    { startOffset: number; endOffset: number }[];
+  if (!runs.length || runs.length > 24) return;
+  let end = 0;
+  const shape: [number, string][] = [];
+  for (const run of runs) {
+    if (run.startOffset !== end || run.endOffset <= end || run.endOffset > length) return;
+    const { fontFamily, fontSize, bold, italic, subscript, superscript, kerning, ratios, spacings, relativeSizes, charOffsets } =
+      JSON.parse(doc.getCharPropertiesAt(section, paragraph, end));
+    const metrics = JSON.stringify([fontFamily, fontSize, bold, italic, subscript, superscript,
+      kerning, ratios, spacings, relativeSizes, charOffsets]);
+    const last = shape.at(-1);
+    end = run.endOffset;
+    if (last?.[1] === metrics) last[0] = end;
+    else shape.push([end, metrics]);
+  }
+  if (end === length) return hwpWrapFingerprint(JSON.stringify(shape));
+}
+
+type BodyLineWitness = { origin: HwpSourceOrigin; hanging: number; tailRightMargin?: number; nativeSingle?: string; painted: readonly { y: number; charStart?: number }[] };
 type ColumnPaintLine = { y: number; h: number; page: number; charStart?: number };
 
 /** Record a complete authored paragraph from one physical text area. The
@@ -142,9 +165,10 @@ function preserveHwpMeasuredLineEnds(html: string, text: string, readLines: () =
   try {
     const { stored, controlCount, lines } = JSON.parse(readLines()) as {
       stored: boolean; controlCount: number;
-      lines?: { textStart: number; verticalPosition: number; width: number; height: number; textHeight: number; spacing: number }[];
+      lines?: { textStart: number; verticalPosition: number; width: number; height: number; textHeight: number; spacing: number; baseline: number }[];
     };
-    if (!stored || controlCount || !lines || lines.length < 2 || lines.length > 80 || lines[0].textStart !== 0) return html;
+    const singleNative = lines?.length === 1 ? body?.nativeSingle : undefined;
+    if (!stored || controlCount || !lines || (!singleNative && lines.length < 2) || lines.length > 80 || lines[0].textStart !== 0) return html;
     const width = lines[0].width;
     if (!(width > 0 && width <= 10000) ||
         lines.some((line, index) => line.width !== width || !Number.isInteger(line.textStart) ||
@@ -170,7 +194,11 @@ function preserveHwpMeasuredLineEnds(html: string, text: string, readLines: () =
       if (previous && (!earlier || earlier.cellWidth || earlier.columnWidth !== undefined ||
           earlier.fingerprint !== fingerprint || earlier.ends.length !== ends.length ||
           earlier.ends.some((end, index) => end !== ends[index]))) return html;
-      geometry = { ...earlier, authoredBodyLines: { origin: body.origin, width, hanging: body.hanging, size, pitch } };
+      const witness = { origin: body.origin, width, hanging: body.hanging, size, pitch };
+      geometry = singleNative ? { ...earlier, authoredNativeLine: { ...witness,
+        top: lines[0].verticalPosition, ascent: lines[0].baseline, typography: singleNative } }
+        : body.tailRightMargin ? { ...earlier, authoredTailInk: { ...witness, rightMargin: body.tailRightMargin } }
+        : { ...earlier, authoredBodyLines: witness };
     } else {
       geometry = { columnWidth: width };
       const [first, last] = lines;
