@@ -50,8 +50,34 @@ module.exports = async function wordWrapWidthWitness(page) {
         first, last, natural: physical({ zoom:1,first,last }),
         referenceDensity: physical({ zoom:1/devicePixelRatio,first,last }),
       }));
+      const savedWordSpacing = p.style.wordSpacing;
+      const windows = [], pitch = [];
+      const base = parseFloat(style.wordSpacing) || 0;
+      const grain = [0, 1, 2, 3, 4, 5, 6];
+      try {
+        for (const ticks of grain) {
+          p.style.wordSpacing = (base - ticks / 64) + 'px';
+          const lines = [];
+          const bandTops = [];
+          const edges = [];
+          const area = p.getBoundingClientRect();
+          for (const [index, node] of nodes.entries()) {
+            range.setStart(node.node, node.index);
+            range.setEnd(node.node, node.index + node.segment.length);
+            const bounds = range.getBoundingClientRect();
+            if (!bandTops.length || Math.abs(bandTops.at(-1) - bounds.top) > .5) {
+              lines.push(index);
+              bandTops.push(bounds.top);
+            }
+            edges.push(bounds.right - area.right);
+          }
+          windows.push({ ticks, starts: lines, height: area.height, rightOvershoot: Math.max(...edges) });
+          pitch.push(bandTops.map((top, i) => i ? top - bandTops[i - 1] : 0));
+        }
+      } finally { p.style.wordSpacing = savedWordSpacing; }
       records.push({ width: raw.width, font: style.fontFamily, fontSize: style.fontSize, fontWeight: style.fontWeight,
-        indent: style.textIndent, leftMargin: style.marginLeft, tab: tab.getBoundingClientRect().width, printed });
+        indent: style.textIndent, leftMargin: style.marginLeft, tab: tab.getBoundingClientRect().width, printed,
+        spacingWitness: windows, pitch });
     }
     return records;
   });
