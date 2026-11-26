@@ -194,7 +194,9 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
               terminal: process.env.WINDOWS_TERMINAL_WITNESS
                 ? require('../../scripts/windows-qa/hancom-terminal-witness.cjs')(original, saved) : undefined,
               compact: process.env.WINDOWS_COMPACT_ROW_WITNESS
-                ? require('../../scripts/windows-qa/hancom-compact-row-witness.cjs')(original, saved) : undefined };
+                ? require('../../scripts/windows-qa/hancom-compact-row-witness.cjs')(original, saved) : undefined,
+              adjacent: process.env.WINDOWS_ADJACENT_TABLE_WITNESS
+                ? require('../../scripts/windows-qa/hancom-adjacent-tables-witness.cjs')(original, saved) : undefined };
             preciseMargins.push(value);
             console.log('WINDOWS_HANCOM_MARGIN_WITNESS ' + JSON.stringify(value));
           } finally { original.free(); }

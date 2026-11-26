@@ -31,7 +31,7 @@ import { hwpTableGrid } from './table-grid';
 import { sourceCentersContinuedBorders, sourceCentersMultilineRowBorders, sourceCentersTableBorders } from './source-centered-table-borders';
 import { sourceAlignedHeaderEnds, sourceContinuedRowReserve, sourceEmptyMergeCuts, sourceFirstTableOverhang, sourceIntactTopRow, sourceTableContinuation } from './source-table-continuation';
 import { hwpIntactRowAttribute, type HwpIntactRow } from '../hwp-intact-row';
-import { sourceCenteredCellLabels } from './source-centered-cell-labels';
+import { sourceCenteredCellLabels, sourceCompactContinuedCell } from './source-centered-cell-labels';
 import { sourceCellCaptionLine, sourceScaledCellLine, type NativeCellInkRun } from './source-caption-cell-line';
 import { sourceHwpCompactCellFace, type CompactCellFacePosition } from './source-cell-face';
 import { encodeHwpCellRasterFill, hwpCellRasterFillAttribute, type HwpCellRasterPicture } from '../hwp-cell-raster-fill';
@@ -52,6 +52,7 @@ import { restoreStandalonePictureLine } from './export-picture-line';
 import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts, withoutPastedEmptyCarriers } from './export-empty-paragraph-format';
 import { restoreAuthoredTerminalWrap, restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
+import { restoreAdjacentNativeTables } from './export-adjacent-tables';
 import { stageHwpTables } from './export-tables';
 import { tableCaptionDefinitions, renderTableCaptions, restoreTableCaptions } from './table-captions';
 import { hwpInlineTableTop, hwpInlineTableTopAttribute, hwpTableTopGap } from '../table-anchor-data';
@@ -188,6 +189,29 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     pageBodies.set(pageIndex, body);
     return body;
   };
+  if (declaredCellBreak && !tableProperties.hasCaption && tableProperties.cellSpacing === 0 &&
+      tableProperties.restrictInPage && !tableProperties.allowOverlap && tableProperties.textWrap === 'TopAndBottom') {
+    for (const [row, merged] of mergesByRow) {
+      if (merged.length !== 1) continue;
+      const owner = cells.find(cell => cell.index === merged[0]);
+      const peers = cellsByRow.get(row);
+      const boxes = boxesByRow.get(row);
+      if (!owner || owner.row >= row || owner.row + owner.rowSpan !== row + 1 ||
+          cellPages.get(owner.index)?.size !== 2 || peers?.length !== 2 || boxes?.length !== 2 ||
+          peers.some(cell => cell.isHeader || cell.rowSpan !== 1 || cell.colSpan !== 1 || cell.height <= 0)) continue;
+      const [head, tail] = boxes;
+      const height = px(peers[0].height), paper = sourceBody(head.pageIndex);
+      if (peers[0].height !== peers[1].height || height <= rows[row] + .1 || paper.columns !== 1 ||
+          head.y < paper.top - .1 || head.y + height > paper.bottom + .1 ||
+          head.pageIndex !== tail.pageIndex || Math.abs(head.y - tail.y) > .1 ||
+          boxes.some(box => Math.abs(box.h - height) > .1)) continue;
+      const fragment = pageBoxes.find(box => box.cellIdx === owner.index && box.pageIndex === head.pageIndex);
+      // The authored height of an intact ordinary row is independent of
+      // the short stored height on the earlier spanning cell.
+      if (fragment && fragment.y < head.y && Math.abs(fragment.y + fragment.h - head.y - height) <= .1)
+        rows[row] = height;
+    }
+  }
   const columnCellBox = dims.cellCount === 1 && dims.rowCount === 1 && dims.colCount === 1 && pageBoxes.length === 1 &&
     tableProperties.restrictInPage && !tableProperties.allowOverlap && !tableProperties.hasCaption &&
     !tableProperties.cellSpacing ? pageBoxes[0] : undefined;
@@ -992,7 +1016,13 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
         if (!first || !Number.isFinite(authoredCellWidths.get(cell.index)) || (cellPages.get(cell.index)?.size ?? 0) < 2 ||
             cell.verticalAlign !== 1 || cell.textDirection || cell.diagonalSlash || cell.diagonalBackSlash) continue;
         const proof = sourceCenteredCellLabels(doc, section, para, control, cell.index, first, splitCellLines, merged !== undefined);
-        if (proof) centeredLabels.set(cell.index, proof);
+        if (!proof) continue;
+        const peer = own.length === 2 && merged && own.find(item => item.index !== cell.index);
+        const headPeer = peer && head.find(box => box.cellIdx === peer.index);
+        const tailPeer = peer && boxes.find(box => box.cellIdx === peer.index && box.pageIndex === firstPage + 1);
+        const compact = headPeer && tailPeer && first.h < rows[row] - sourceCellBoundsTolerance &&
+          sourceCompactContinuedCell(doc, section, para, control, headPeer, tailPeer);
+        centeredLabels.set(cell.index, compact ? proof + ' first ' + compact : proof);
       }
     }
   }
@@ -2787,6 +2817,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withEmptyTableRows !== doc) { doc.free(); doc = withEmptyTableRows; }
     const withAuthoredTerminal = restoreAuthoredTerminalWrap(Core, doc, nativePrint?.authoredTerminalWraps, nativePrint?.pages);
     if (withAuthoredTerminal !== doc) { doc.free(); doc = withAuthoredTerminal; }
+    const withAdjacentTables = restoreAdjacentNativeTables(Core, doc, nativePrint?.adjacentTables, nativePrint?.pages);
+    if (withAdjacentTables !== doc) { doc.free(); doc = withAdjacentTables; }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {

@@ -1,3 +1,4 @@
+import { hwpCenteredCellLabelsAttribute, hwpNativeCompactRowAttribute, markHwpNativeCompactRow } from '../hwp-centered-cell-labels';
 import { activeHwpLatinFont, hwpLatinFontAttribute } from '../hwp-latin-font';
 import { characterScaleProperty } from '../character-scale';
 import { clearHwpNestedCellFaceProjection } from '../hwp-nested-cell-face-print';
@@ -20,6 +21,7 @@ import { parseHwpBodyLine } from '../hwp-body-line';
 import { tableAnchor } from '../table-anchor';
 import { sealHwpRowReserves } from '../hwp-row-reserve';
 import { nativeBoxAnchor, prepareHwpExportTextBoxes } from './export-textbox-projection';
+import { measuredAdjacentNativeTables, type AdjacentNativeTables } from './export-adjacent-tables';
 import { measuredTableLead } from './export-table-lead';
 import { measuredContinuationPlacement, measuredPaperHeaderTable, measuredRasterTablePair, nativeContinuedTableAttribute, type PaperHeaderTable,
   type RasterTablePair, type TablePlacement } from './export-table-placement';
@@ -182,6 +184,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const wordPages = layout.pages;
   const tableLeads: NonNullable<ReturnType<typeof measuredTableLead>>[] = [];
   const continuations: TablePlacement[] = [];
+  const adjacentTables: AdjacentNativeTables[] = [];
   const rasterTablePairs: RasterTablePair[] = [];
   const terminalEmptyFonts: TerminalEmptyFonts[] = [];
   const terminalPageBreaks: TerminalPageBreak[] = [];
@@ -196,7 +199,9 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     // Preserve Word's measured page boundaries. Letting one enormous HTML table
     // reflow in the engine can collapse hundreds of pages into a few dozen.
     let previousPage = doc.page;
-    root.innerHTML = [...layout.element.querySelectorAll('.print-page')].map((sheet, index) => {
+    root.innerHTML = [...layout.element.querySelectorAll<HTMLElement>('.print-page')].map((sheet, index, sheets) => {
+      const adjacent = index && measuredAdjacentNativeTables(sheets[index - 1], sheet);
+      if (adjacent) adjacentTables.push(adjacent);
       const paper = sheet.getBoundingClientRect();
       for (const table of sheet.querySelectorAll<HTMLElement>('table.table-overlay-active')) {
         const anchor = tableAnchor(table.dataset.tableAnchor); if (!anchor?.overlay) continue;
@@ -244,6 +249,8 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
         const centered = Math.abs(x * 2 + bounds.width - paper.width) < .3 && Math.abs(y * 2 + bounds.height - paper.height) < .3;
         box.setAttribute(nativeBoxAnchor, `${x} ${y} ${Number(centered)}`);
       }
+      const terminalTable = content?.lastElementChild;
+      if (content && terminalTable instanceof HTMLTableElement) markHwpNativeCompactRow(terminalTable, content);
       const body = content?.innerHTML || '<p></p>';
       const original = layout.pageSettings.get(sheet) ?? previousPage;
       const first = sheet.getAttribute('data-section-first') === 'true';
@@ -276,7 +283,19 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       [box.dataset.documentTextbox, box.getAttribute(nativeBoxAnchor)] as const);
     const continuedTables = [...root.querySelectorAll<HTMLTableElement>('table')].map(table =>
       table.hasAttribute(nativeContinuedTableAttribute) ? table.dataset.tableAnchor : undefined);
+    const compactRows = root.querySelector(`tr[${hwpNativeCompactRowAttribute}]`)
+      ? [...root.querySelectorAll<HTMLTableRowElement>('tr')].map(row =>
+        [row.getAttribute(hwpNativeCompactRowAttribute), row.cells[0]?.getAttribute(hwpCenteredCellLabelsAttribute)] as const)
+      : undefined;
     root.innerHTML = sanitizeImportedHtml(root.innerHTML).html;
+    if (compactRows) {
+      const rows = root.querySelectorAll<HTMLTableRowElement>('tr');
+      if (rows.length === compactRows.length) rows.forEach((row, index) => {
+        const [height, label] = compactRows[index];
+        if (height && label && row.cells[0]?.getAttribute(hwpCenteredCellLabelsAttribute) === label)
+          row.setAttribute(hwpNativeCompactRowAttribute, height);
+      });
+    }
     const tables = root.querySelectorAll<HTMLTableElement>('table');
     if (tables.length === continuedTables.length) tables.forEach((table, index) => {
       const anchor = continuedTables[index];
@@ -305,7 +324,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const session = new HwpReaderSession();
   try {
     const result = await session.export(rendered.html, exportPage, format, onProgress, rendered.boxes,
-      { pages: wordPages, tableLeads, continuations, paperHeaderTable, rasterTablePairs, terminalEmptyFonts, terminalPageBreaks, authoredTerminalWraps, emptyTableRows, emptyParagraphs: rendered.emptyParagraphs });
+      { pages: wordPages, tableLeads, continuations, adjacentTables, paperHeaderTable, rasterTablePairs, terminalEmptyFonts, terminalPageBreaks, authoredTerminalWraps, emptyTableRows, emptyParagraphs: rendered.emptyParagraphs });
     warnings.push(`쪽 수 비교: Word 인쇄 ${wordPages}쪽 → ${format.toUpperCase()} 원본 보기 ${result.pages}쪽.` + (wordPages !== result.pages ? ' 쪽 배치가 달라졌습니다. 정확한 쪽 참조가 필요한 문서는 원본과 대조하세요.' : ' 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'));
     return { blob: new Blob([new Uint8Array(result.bytes)], { type: format === 'hwp' ? 'application/x-hwp' : 'application/vnd.hancom.hwpx' }), warnings: [...new Set([...warnings, ...result.warnings])] };
   } finally { session.close(); }
