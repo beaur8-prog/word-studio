@@ -597,10 +597,27 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     stack.addEventListener('pagecount', update); update();
     return () => { cancelAnimationFrame(frame); stack.removeEventListener('pagecount', update); };
   }, [editor, page, pages]);
-  const furnitureForPaper = (index: number) => {
-    const change = paperStories.filter(item => item.index <= index).at(-1);
-    return pageFurniture(change?.settings ?? page, index + 1, index === (change?.index ?? 0));
-  };
+  const paperFurniture = useMemo(() => {
+    const sanitizedStories = new Map<string, string>();
+    const safeStory = (html: string | undefined, literal: string) => {
+      const source = html || `<p>${escapeHtml(literal)}</p>`;
+      let safe = sanitizedStories.get(source);
+      if (safe === undefined) {
+        safe = sanitizeImportedHtml(source).html;
+        sanitizedStories.set(source, safe);
+      }
+      return safe;
+    };
+    return Array.from({ length: pages }, (_, index) => {
+      const change = paperStories.filter(item => item.index <= index).at(-1);
+      const story = pageFurniture(change?.settings ?? page, index + 1, index === (change?.index ?? 0));
+      return {
+        header: safeStory(story.headerHtml, story.header),
+        footer: safeStory(story.footerHtml, story.footer),
+        showPageNumber: story.pageNumbers && !/data-page-number/.test((story.headerHtml || '') + (story.footerHtml || '')),
+      };
+    });
+  }, [page, pages, paperStories]);
   useEffect(() => {
     const stack = stackRef.current; if (!stack || !editor) return;
     let frame = 0;
@@ -2340,7 +2357,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
                 }
               >
                 <div className="paper-backgrounds" aria-hidden="true">
-                  {Array.from({ length: pages }, (_, i) => (
+                  {paperFurniture.map((story, i) => (
                     <div
                       key={i}
                       className="paper"
@@ -2353,7 +2370,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
                           right: margins.right * 96 / 25.4,
                           top: page.headerDistance !== undefined ? page.headerDistance * 96 / 25.4 : Math.max(12, margin / 2 - 8),
                         }}
-                        dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(furnitureForPaper(i).headerHtml || `<p>${escapeHtml(furnitureForPaper(i).header)}</p>`).html }}
+                        dangerouslySetInnerHTML={{ __html: story.header }}
                       />
                       <div
                         className="paper-footer"
@@ -2363,8 +2380,8 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
                           bottom: page.footerDistance !== undefined ? page.footerDistance * 96 / 25.4 : Math.max(12, margins.bottom * 96 / 25.4 / 2 - 8),
                         }}
                       >
-                        <div className="document-furniture" dangerouslySetInnerHTML={{ __html: sanitizeImportedHtml(furnitureForPaper(i).footerHtml || `<p>${escapeHtml(furnitureForPaper(i).footer)}</p>`).html }} />
-                        {furnitureForPaper(i).pageNumbers && !/data-page-number/.test((furnitureForPaper(i).headerHtml || '') + (furnitureForPaper(i).footerHtml || '')) && <span>{i + 1}</span>}
+                        <div className="document-furniture" dangerouslySetInnerHTML={{ __html: story.footer }} />
+                        {story.showPageNumber && <span>{i + 1}</span>}
                       </div>
                     </div>
                   ))}
