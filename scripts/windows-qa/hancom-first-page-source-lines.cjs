@@ -107,13 +107,15 @@ module.exports = function trial(Core, source, output) {
   const expand = process.env.WINDOWS_HWP_FIRST_PAGE_EXPAND === '1';
   const includeLong = expand && process.env.WINDOWS_HWP_FIRST_PAGE_INCLUDE_LONG === '1';
   const matchFixedSpaces = includeLong && process.env.WINDOWS_HWP_FIRST_PAGE_PROJECT_FWSPACE === '1';
+  const traceLanes = matchFixedSpaces && process.env.WINDOWS_HWP_FIRST_PAGE_TRACE_LANES === '1';
   const from = indexText(source, matchFixedSpaces ? original : undefined), to = indexText(output);
   const limit = expand ? 40 : 4;
   const originalPaint = paint(source,limit);
   const proof = [];
   for (const [text,index] of from) {
     const next = to.get(text), originalOwner = original.paras[index], savedOwner = saved.paras[next];
-    const page = originalPaint.get(index)?.values().next().value?.page;
+    const start = originalPaint.get(index)?.values().next().value;
+    const page = start?.page;
     if (index===null || !Number.isInteger(next) || !originalOwner || !savedOwner ||
         page===undefined || !expand && page!==0 || text.length<8 || !includeLong && text.length>200 ||
         /[^\p{L}\p{N}\p{P}\p{S}\p{Zs}\t]/u.test(text) || /<hp:(?:ctrl|pic|tbl|shape)\b/.test(originalOwner.inner)) continue;
@@ -122,13 +124,14 @@ module.exports = function trial(Core, source, output) {
     const line = originalOwner.inner.match(cache)?.[0];
     const authoredUnit = before?.inner.match(unit)?.[0], generatedUnit = after?.inner.match(unit)?.[0];
     if (line && authoredUnit && generatedUnit && JSON.parse(source.getParagraphLineMetrics(0,index,'[]')).controlCount===0)
-      proof.push({index,next,page,length:text.length,projected:matchFixedSpaces &&
+      proof.push({index,next,page,lane:start.lane,length:text.length,projected:matchFixedSpaces &&
         source.getTextRange(0,index,0,0xffffffff)!==text,owner:savedOwner,after,line,authoredUnit,generatedUnit,tab:text.includes('\t')});
   }
   if (!proof.some(row=>row.tab)) throw Error('Missing an unchanged authored tab row');
   const count = (doc, title) => {
     const painted = paint(doc,limit);
     let starts=0, exactLineBreaks=0, firstPageStarts=0, firstPageExactLineBreaks=0;
+    const pageTrace = {};
     for (const row of proof) {
       const a = [...(originalPaint.get(row.index)?.values()??[])];
       const b = [...(painted.get(row.next)?.values()??[])];
@@ -137,11 +140,24 @@ module.exports = function trial(Core, source, output) {
       starts += Number(sameStart);
       exactLineBreaks += Number(sameLines);
       if (row.page===0) { firstPageStarts += Number(sameStart); firstPageExactLineBreaks += Number(sameLines); }
+      if (traceLanes) {
+        const report = pageTrace[row.page+1] ??= { fixed:0, sameStart:0, sameLines:0, emittedPages:{} };
+        const destination = b[0] ? b[0].page+1 : 'unmapped';
+        report.fixed++;
+        report.sameStart += Number(sameStart);
+        report.sameLines += Number(sameLines);
+        report.emittedPages[destination] = (report.emittedPages[destination] ?? 0) + 1;
+        if (!sameStart && !report.earliestShift) report.earliestShift = {
+          sourceOwner: row.index, savedOwner: row.next, sourceLane: a[0]?.lane,
+          savedLane: b[0]?.lane, startPage: destination, literalLength: row.length,
+          lineCounts: [a.length,b.length], correspondsByFixedSpace: row.projected,
+        };
+      }
     }
     const unchanged = [...to].every(([text,index])=>index===null||doc.getTextRange(0,index,0,0xffffffff)===text);
     if (!unchanged) throw Error('Changed paragraph payload');
     const {body,cell} = pageAgreement(source,doc);
-    return { title,pages:doc.pageCount(),starts,exactLineBreaks,firstPageStarts,firstPageExactLineBreaks,body,cell };
+    return { title,pages:doc.pageCount(),starts,exactLineBreaks,firstPageStarts,firstPageExactLineBreaks,body,cell,...(traceLanes ? { pageTrace } : {}) };
   };
   const results = [count(output, 'ordinary output')];
   const literal = row => !row.projected;
@@ -156,6 +172,12 @@ module.exports = function trial(Core, source, output) {
       ['new matches after source page two',row=>literal(row) || row.page>=2],
       ['new matches after source page three',row=>literal(row) || row.page>=3],
       ['new matches after source page four',row=>literal(row) || row.page>=4]] : []),
+    ...(traceLanes ? [
+      ['new matches after source page one',row=>literal(row) || row.page>=1],
+      ['new matches from second source page left',row=>literal(row) || row.page>=2 || row.page===1 && row.lane===0],
+      ['new matches from second source page right',row=>literal(row) || row.page>=2 || row.page===1 && row.lane===1],
+      ['new matches from first right and later',row=>literal(row) || row.page>=1 || row.page===0 && row.lane===1],
+    ] : []),
   ];
   for (const [scope,include] of scopes) {
     if (scope==='title only' && titleAlreadyAuthored) continue;
