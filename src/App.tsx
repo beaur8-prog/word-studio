@@ -799,7 +799,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       }
       const doc = structuredClone(currentRef.current);
       if (extension === 'hwp' || extension === 'hwpx') {
-        const result = await exportEditableHwp(doc, extension, report);
+        const result = await withoutEditorReflow(() => exportEditableHwp(doc, extension, report));
         setHwpExport({ ...result, extension, name: `${doc.title.replace(/[<>:"/\\|?*]/g, '-') || '문서'}.${extension}` });
         return false; // The conversion review owns the subsequent native save.
       }

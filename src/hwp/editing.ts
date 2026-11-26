@@ -147,7 +147,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   if (allSettings.some(page => page.differentFirstPage)) warnings.push('첫 쪽만 다른 머리말·꼬리말은 별도의 한글 구역으로 저장해 현재 쪽의 모양을 유지합니다.');
   if (allSettings.some(page => [page.headerHtml, page.footerHtml, page.evenHeaderHtml, page.evenFooterHtml].some(html => html?.includes('data-image-floating')))) warnings.push('머리말·꼬리말의 그림은 저장하지만 떠 있는 개체의 좌표·겹침은 달라질 수 있습니다.');
   const layout = await createPrintLayout(source, doc.page, onProgress, undefined, { paintHwpCellLines: false, hwpNativeExport: true,
-    language: wordContentLanguage(doc.wordDefaultLanguage) });
+    language: wordContentLanguage(doc.wordDefaultLanguage), interactive: !!onProgress });
   let rendered: ReturnType<typeof renderedBody>, exportPage = doc.page;
   const wordPages = layout.pages;
   const tableLeads: NonNullable<ReturnType<typeof measuredTableLead>>[] = [];

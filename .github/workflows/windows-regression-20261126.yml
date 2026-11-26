@@ -1,19 +1,18 @@
 name: Windows regression QA
-run-name: Windows preserve declared physical grids in merged tables
+run-name: Windows native HWPX save layout and worker timing A-B
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  language-plan:
+  native:
     runs-on: windows-latest
-    timeout-minutes: 32
+    timeout-minutes: 38
     env:
-      PLAYWRIGHT_CHANNEL: chromium
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
+      WINDOWS_NATIVE_HWP_SAVES: '1'
+      WINDOWS_NATIVE_HWP_FORMATS: 'hwpx'
+      WINDOWS_NATIVE_HWP_TRACE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,72 +23,38 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx playwright install chromium
-      - name: Compare exact same public input before and after on one Windows runner
+      - run: node node_modules/electron/install.js
+      - name: Build exact candidate and its paired control
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/language-plan" --ids 04-language-plan
+          npm run package:win:dir
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/language-plan/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified)
-          if ($verified.Count -ne 1) { throw 'Fixed original unavailable' }
-          $statuses = @()
-          foreach ($variant in @('f3a77c994aa81c8ba2d822fc2eaf46af87c1bb83', 'HEAD')) {
-            git restore --source $variant -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Write-Host "WINDOWS_BLANK_PRODUCT $variant"
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-            $statuses += $LASTEXITCODE
+          Move-Item release/windows "$env:RUNNER_TEMP/hangul-candidate"
+          git restore --source f74a42ae2c18506a783590b7498ff52e7b248819 -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code f74a42ae2c18506a783590b7498ff52e7b248819 -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run package:win:dir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item release/windows "$env:RUNNER_TEMP/hangul-control"
+      - name: Trace the real save command without modifying either renderer
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/native-hangul" --ids 04-language-plan
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-hangul/inventory.json"
+          $status = @{}
+          foreach ($variant in @('candidate','control')) {
+            Write-Host "WINDOWS_NATIVE_HANGUL_PRODUCT $variant"
+            $env:WORD_STUDIO_EXECUTABLE="$env:RUNNER_TEMP/hangul-$variant/Word Studio/Word Studio.exe"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            $status[$variant] = $LASTEXITCODE
+            Write-Host "WINDOWS_NATIVE_HANGUL_EXIT $variant $LASTEXITCODE"
           }
-          if ($statuses -contains 1) { exit 1 }
-  other-originals:
-    name: Windows Hancom / ${{ matrix.id }}
+          exit $status['candidate']
+  affected:
     runs-on: windows-latest
-    timeout-minutes: 32
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { group: hwp-2, id: 08-math-exam }
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-      - name: Recheck native output and DOCX content on two independent originals
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/blank-control" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/blank-control/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified)
-          if ($verified.Count -ne 1) { throw 'Fixed original unavailable' }
-          if ($env:QA_ID -eq '08-math-exam') {
-            $env:WINDOWS_REQUIRE_REVERSE='1'
-            $env:WINDOWS_EXACT_REVERSE_PAGES='1'
-          }
-          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-          exit $LASTEXITCODE
-  focused:
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
+    timeout-minutes: 18
     env:
       PLAYWRIGHT_CHANNEL: chromium
     steps:
@@ -102,4 +67,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install chromium
-      - run: npm run test -- tests/hwp-native-merged-grid-width.spec.ts tests/hwp-thin-merged-row.spec.ts tests/hwp-nested-grid.spec.ts tests/hwp-merge-row-break.spec.ts tests/hwp-long-merged-row.spec.ts --workers=1 --trace=off
+      - run: npm run test -- tests/desktop-print-coordination.spec.ts tests/export-layout-suspension.spec.ts tests/hwp-reader.spec.ts tests/hwp-empty-paragraph-export.spec.ts tests/hwp-sections.spec.ts --workers=1 --trace=off

@@ -63,3 +63,31 @@ test('two HWP table DOCX exports complete with the same live editor present and 
   }
   await expect.poll(async () => Number(await page.locator('.document-stack').getAttribute('data-pages'))).toBeGreaterThan(1);
 });
+
+test('desktop Hangul saving holds live layout while preparing the review', async ({ page }) => {
+  await page.goto('/');
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  await editor.fill('Keep this editable during the native format review.');
+  await page.evaluate(async () => {
+    const { editorLayoutSuspended } = await import('/src/editor-layout-task.ts');
+    const layoutStates: boolean[] = [];
+    const observer = new MutationObserver(() => {
+      if (/쪽 배치|문서의 쪽 나누기/.test(document.querySelector('.hwp-progress-panel strong')?.textContent ?? ''))
+        layoutStates.push(editorLayoutSuspended());
+    });
+    const check = () => ({ layoutStates: layoutStates.slice(), suspended: editorLayoutSuspended() });
+    (window as any).readHwpLayoutLease = check;
+    observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
+  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.getByRole('button', { name: '한글 표준 문서로 내보내기 HWPX', exact: true }).click();
+  const review = page.getByRole('dialog', { name: '한글 문서로 내보내기' });
+  await expect(review).toBeVisible();
+  const states = await page.evaluate(() => (window as any).readHwpLayoutLease());
+  expect(states.layoutStates.length).toBeGreaterThan(0);
+  expect(states.layoutStates.every(Boolean)).toBe(true);
+  expect(states.suspended).toBe(false);
+  await review.getByRole('button', { name: '취소', exact: true }).click();
+  await expect(review).toBeHidden();
+  await expect(editor).toHaveText('Keep this editable during the native format review.');
+});
