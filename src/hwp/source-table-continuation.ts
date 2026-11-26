@@ -125,8 +125,20 @@ export function sourceFirstTableOverhang(doc: HwpDocument, section: number, para
       }
       fingerprints.push(hwpOverhangCellFingerprint(literals));
     }
+    // The first physical fragment starts at the implicit object inset,
+    // without an author-specified indent in its empty host.
+    const style = JSON.parse(doc.getTableProperties(section, paragraph, control));
+    const host = JSON.parse(doc.getParaPropertiesAt(section, paragraph));
+    const defaultHostOrigin = heads.length === fingerprints.length && !style.treatAsChar && !style.hasCaption &&
+      style.horzRelTo === 'Column' && style.horzAlign === 'Left' && style.horzOffset === 0 && style.outerLeft === 283 &&
+      style.textWrap === 'TopAndBottom' && style.restrictInPage && !style.allowOverlap &&
+      Math.abs(shapes[0].x - paper.bodyLeft - style.outerLeft / 75) <= tolerance &&
+      host.marginLeft === 0 && host.marginRight === 0 && host.indent === 0 &&
+      doc.getParagraphLength(section, paragraph) === 0 &&
+      JSON.parse(doc.getParagraphLineMetrics(section, paragraph, '[]')).controlCount === 1;
     return { row, rows, bodyWidth: width, bodyHeight: bottom - top, tableTop: Math.max(0, tableTop - top),
       cells: fingerprints, overhang: { page: first + 1, end: tableEnd - top,
+        ...(defaultHostOrigin ? { defaultHostOrigin: true } : {}),
         ...(heads.length === fingerprints.length ? { heads } : {}) } };
   } catch { /* Without a complete source witness, let the table paginate normally. */ }
 }

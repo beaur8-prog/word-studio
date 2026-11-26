@@ -1,5 +1,7 @@
 import { hwpWrapFingerprint, normalizeHwpWrapText } from './hwp-text-advances';
 
+export const nativeOverhangOriginAttribute = 'data-print-hwp-overhang-origin';
+
 export type HwpTableContinuation = {
   row: number;
   rows: number;
@@ -7,7 +9,7 @@ export type HwpTableContinuation = {
   bodyHeight: number;
   tableTop: number;
   cells: string[];
-  overhang?: { page: number; end: number; heads?: { end: number; fingerprint: string }[] };
+  overhang?: { page: number; end: number; heads?: { end: number; fingerprint: string }[]; defaultHostOrigin?: true };
 };
 
 export function parseHwpTableContinuation(value: unknown): HwpTableContinuation | undefined {
@@ -23,12 +25,15 @@ export function parseHwpTableContinuation(value: unknown): HwpTableContinuation 
     if (overhang !== undefined && (!overhang || !Number.isSafeInteger(overhang.page) ||
         overhang.page < 1 || overhang.page > 10000 || !Number.isFinite(overhang.end) ||
         overhang.end <= bodyHeight || overhang.end > 10000 ||
+        overhang.defaultHostOrigin !== undefined && overhang.defaultHostOrigin !== true ||
         overhang.heads !== undefined && (!Array.isArray(overhang.heads) || overhang.heads.length !== cells.length ||
           overhang.heads.some((head: { end?: number; fingerprint?: string } | null) => !head ||
             !Number.isSafeInteger(head.end) || head.end! < 1 || head.end! > 2000 ||
             typeof head.fingerprint !== 'string' || !/^[a-f0-9]{16}$/.test(head.fingerprint))))) return;
     return { row, rows, bodyWidth, bodyHeight, tableTop, cells,
-      ...(overhang ? { overhang: { page: overhang.page, end: overhang.end, ...(overhang.heads ? { heads: overhang.heads } : {}) } } : {}) };
+      ...(overhang ? { overhang: { page: overhang.page, end: overhang.end,
+        ...(overhang.heads ? { heads: overhang.heads } : {}),
+        ...(overhang.defaultHostOrigin ? { defaultHostOrigin: true as const } : {}) } } : {}) };
   } catch { /* The saved table can still use its ordinary layout. */ }
 }
 
@@ -75,7 +80,7 @@ function printedOverhangFingerprint(cell: HTMLTableCellElement) {
 }
 
 type HwpOverhang = { table: HTMLTableElement; row: HTMLTableRowElement; body: HTMLElement; bottom: number; cells: string[];
-  heads?: NonNullable<HwpTableContinuation['overhang']>['heads'] };
+  heads?: NonNullable<HwpTableContinuation['overhang']>['heads']; defaultHostOrigin?: true };
 
 /** Check the real sheet and the intact editable row before offering a cut.
  * This only extends the current table's split boundary. */
@@ -97,7 +102,8 @@ export function firstTableOverhang(table: HTMLTableElement, row: HTMLTableRowEle
       Math.abs(box.top - frame.top - proof.tableTop) > framePrecision + stroke / 2 ||
       box.left < frame.left - framePrecision || box.right > frame.right + framePrecision ||
       end >= sheet.bottom || !clearBottomFurniture(paper)) return;
-  return { table, row, body, bottom: end, cells: proof.cells, heads: sourceCut ? details.heads : undefined };
+  return { table, row, body, bottom: end, cells: proof.cells,
+    ...(sourceCut ? { heads: details.heads, defaultHostOrigin: details.defaultHostOrigin } : {}) };
 }
 
 function clearBottomFurniture(paper: Element) {

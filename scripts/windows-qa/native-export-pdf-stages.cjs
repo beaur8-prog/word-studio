@@ -143,6 +143,8 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
     await review.getByRole('button', {name: format.toUpperCase() + ' 파일 저장', exact: true}).click({ timeout: 30000 });
     await review.waitFor({ state: 'hidden', timeout: 90000 });
     const bytes = await fs.readFile(output), native = new Core(bytes);
+    if (process.env.WINDOWS_NATIVE_HWP_COPY)
+      await fs.writeFile(process.env.WINDOWS_NATIVE_HWP_COPY + '.' + format, bytes);
     try {
       const readback = native.pageCount();
       if (!pages || readback < 1 || readback !== Number(pages[2])) throw new Error('Native Hangul readback disagreed');

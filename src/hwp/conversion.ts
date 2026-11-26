@@ -2463,12 +2463,26 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             const top = hwpInlineTableTop(inlineProperties.outerTop);
             if (top !== undefined)
               controlHtml = controlHtml.replace(/^<table\b/, `<table ${hwpInlineTableTopAttribute}="${top}"`);
-            // An authored whitespace host is carried separately in DOCX.
-            // Keep the inline table's own short trailing margin in HWP.
-            if (spacesOnObjectLine) {
-              const bottom = hwpInlineTableBottom(inlineProperties.outerBottom);
+            const bottom = hwpInlineTableBottom(inlineProperties.outerBottom);
+            if (bottom !== undefined) {
               const dims = JSON.parse(doc.getTableDimensions(section, para, c.controlIndex));
-              if (bottom !== undefined && dims.rowCount > 1 && dims.colCount > 1)
+              let terminal = false;
+              if (!spacesOnObjectLine && top === bottom && inlineProperties.vertRelTo === 'Para' &&
+                  inlineProperties.vertAlign === 'Top' && inlineProperties.vertOffset === 0 &&
+                  paragraphControls.length === 1 && doc.getParagraphLength(section, para) === 0) {
+                const position = controlPosition(section, para, c.controlIndex);
+                const native = JSON.parse(doc.getParagraphLineMetrics(section, para, '[]'));
+                if (position && native.stored && native.lines?.length === 1) {
+                  const paper = JSON.parse(doc.getPageInfo(position.page));
+                  const clearance = Number(paper.footerArea?.y) - position.y - position.h;
+                  // This intact authored line uses its short outer margins
+                  // near the body boundary. The paste default can spill it.
+                  terminal = clearance >= 0 && clearance <= native.lines[0].spacing &&
+                    JSON.parse(doc.getTableCellBboxes(section, para, c.controlIndex))
+                      .every((box: { pageIndex: number }) => box.pageIndex === position.page);
+                }
+              }
+              if ((spacesOnObjectLine || terminal) && dims.rowCount > 1 && dims.colCount > 1)
                 controlHtml = controlHtml.replace(/^<table\b/, `<table ${hwpInlineTableBottomAttribute}="${bottom}"`);
             }
           }

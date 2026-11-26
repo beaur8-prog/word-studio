@@ -1,62 +1,20 @@
 name: Windows regression QA
-run-name: Verify the save-review contract and identify packaged math DOCX reopening
+run-name: Verify the authored HWPX bottom reserve in the actual Windows app
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  exact-isolates:
-    name: Windows exact native review contract
-    runs-on: windows-latest
-    timeout-minutes: 60
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-      - name: Check the active review and release contract
-        shell: pwsh
-        run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
-          npm run test -- tests/export-layout-suspension.spec.ts --grep "desktop Hangul saving holds live layout" --workers=1 --trace=off
-          exit $LASTEXITCODE
-
-  native-hwp:
-    name: Packaged Windows Hangul / ${{ matrix.id }}
+  paired:
+    name: Actual Windows before and after on the same housing sample
     runs-on: windows-latest
     timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {group: hwp-2, id: 08-math-exam}
     env:
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
+      QA_GROUP: hwp-1
+      QA_ID: 10-lh-plan
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_DOCX_DIAGNOSE: '1'
       WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
@@ -72,18 +30,35 @@ jobs:
           dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Run the file-menu export and reopen both native outputs
+      - name: Compare actual packaged HWP and HWPX on the same runner
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/final-native" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/paired-native" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> "$env:RUNNER_TEMP/native-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_FINAL_SDK Hangul $($env:QA_ID) count 2 exit $status"
-          exit $status
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/paired-native/inventory.json"
+          $profiles = [ordered]@{ control='18f295a132ed3aab3af75af47a89fd63031adf25'; candidate='HEAD' }
+          foreach ($product in $profiles.GetEnumerator()) {
+            git restore --source $product.Value -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $product.Value -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run package:win:dir
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Move-Item release/windows "$env:RUNNER_TEMP/paired-$($product.Key)"
+            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/paired-$($product.Key)/Word Studio/Word Studio.exe"
+            $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/paired-$($product.Key)-docx"
+            $env:WINDOWS_NATIVE_HWP_COPY = "$env:RUNNER_TEMP/$($product.Key)"
+            $env:WINDOWS_PRODUCT = $product.Key
+            $env:WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES = '1'
+            if ($product.Key -eq 'candidate') { $env:WINDOWS_EXPECT_NATIVE_PAGES = '8,8' }
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> "$env:RUNNER_TEMP/$($product.Key)-sdk.log"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "WINDOWS_FINAL_SDK Hangul 10-lh-plan $($product.Key) count 2 exit 0"
+          }
+          foreach ($format in @('hwp','hwpx')) {
+            Write-Host "WINDOWS_COMPARE_NATIVE_FORMAT $format"
+            node scripts/windows-qa/compare-native-table-reserve.cjs "$env:RUNNER_TEMP/control.$format" "$env:RUNNER_TEMP/candidate.$format"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
