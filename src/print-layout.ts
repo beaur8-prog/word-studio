@@ -966,7 +966,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   try {
     onProgress?.({ label: '문서의 글꼴을 준비하는 중…' });
     const sample = source.textContent || '한글';
-    const serifFallback = /휴먼명조|한양신명조|HY신명조|함초롬바탕|바탕|Batang/i.test(html);
+    const serifFallback = /휴먼명조|한양신명조|함초롬바탕|바탕|Batang/i.test(html);
     const fontRequests: PrintFontRequest[] = [];
     for (const family of ['Noto Serif KR', 'Noto Sans KR', 'Studio Text', 'Studio Math', 'Studio Symbols', 'Studio Symbols 2', 'Studio Devanagari', 'Studio Emoji']) if (html.includes(family) || (family === 'Noto Serif KR' && serifFallback))
       for (const weight of [400, 700]) fontRequests.push({ font: `${weight} 12px "${family}"`, text: sample });
