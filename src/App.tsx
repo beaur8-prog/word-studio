@@ -713,10 +713,12 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     setHwpFile(null);
     setBusy(true);
     try {
-      const result = await importFile(file);
-      const loaded = await loadDoc(result.document, result.html);
-      if (loaded) { setHwpFile(null); setHwpOriginal(null); }
-      if (loaded && result.warnings.length) notify(result.warnings.join(" "));
+      await withoutEditorReflow(async () => {
+        const result = await importFile(file);
+        const loaded = await loadDoc(result.document, result.html);
+        if (loaded) { setHwpFile(null); setHwpOriginal(null); }
+        if (loaded && result.warnings.length) notify(result.warnings.join(" "));
+      });
     } catch (e) {
       notify(
         `파일을 열지 못했습니다: ${e instanceof Error ? e.message : String(e)}`,
