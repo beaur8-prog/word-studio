@@ -37,7 +37,7 @@ function filesForStories(zip: JSZip) {
         if (/<!DOCTYPE|<!ENTITY/i.test(source)) return zip.files;
         const relationships = new DOMParser().parseFromString(source, 'application/xml');
         if (relationships.getElementsByTagName('parsererror').length) return zip.files;
-        for (const relation of all(relationships, 'Relationship')) {
+        for (const relation of Array.from(relationships.getElementsByTagNameNS('*', 'Relationship'))) {
           if (relation.getAttribute('TargetMode') === 'External') continue;
           const target = relation.getAttribute('Target');
           if (!target) continue;

@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Reopen both Windows math DOCX saves with an exact smaller story package
+run-name: Verify the Windows math and English DOCX reopen after retaining only referenced story media
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,14 +14,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-2, id: 08-math-exam}
+          - {group: hwp-2, id: 08-math-exam, pages: '20,20'}
+          - {group: hwp-1, id: 07-english-exam, pages: ''}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
       WINDOWS_NATIVE_DOCX_DIAGNOSE: '1'
-      WINDOWS_EXPECT_NATIVE_PAGES: '20,20'
+      WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
       WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
@@ -52,3 +53,46 @@ jobs:
           $status = $LASTEXITCODE
           Write-Host "WINDOWS_FINAL_SDK Hangul $($env:QA_ID) count 2 exit $status"
           exit $status
+
+  story-assets:
+    name: Exact story relationships / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+        if: runner.os == 'Windows'
+      - run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+      - name: Check media in header, footer and text-box relationships
+        shell: pwsh
+        run: |
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type)
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
+          npm run test -- tests/official-sample-regressions.spec.ts tests/docx-inactive-stories.spec.ts tests/docx-textboxes.spec.ts tests/docx-grouped-pictures.spec.ts tests/hwp-notes.spec.ts --workers=1 --trace=off
+          exit $LASTEXITCODE
