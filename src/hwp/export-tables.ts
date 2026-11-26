@@ -13,6 +13,7 @@ const set = (tag: string, values: Record<string, string | number>) => {
   return tag;
 };
 const pasteOuterMargin = 283;
+const pasteTableIndent = 20;
 /** The source table follows a one-row label and an intact blank on the
  * same printed sheet. An isolated continuation needs the ordinary paste
  * placement to avoid creating another sheet for its empty native carrier. */
@@ -59,17 +60,18 @@ function projectedInlineInsets(table: string, anchor: TableAnchor) {
   if (anchor.reference !== 'paragraph' || anchor.horizontal !== 'margin' || anchor.wrap || anchor.overlay ||
       /\bdata-hwp-(?:centered-borders|table-continuation)=/.test(table)) return;
   const top = Math.round(anchor.y * 75), bottom = Math.round(anchor.bottom * 75);
+  const left = Math.round(anchor.x * 75);
   // A table already converted to ordinary flow can retain its authored
   // before/after reserve without acquiring a larger pasted footprint.
   if (top <= pasteOuterMargin && bottom <= pasteOuterMargin && (top !== pasteOuterMargin || bottom !== pasteOuterMargin))
-    return { mode: 'inline-insets', top, bottom } as const;
+    return { mode: 'inline-insets', top, bottom, left: left <= pasteOuterMargin ? left : undefined } as const;
 }
 
 /** Sentinels in an existing cell identify its real control after HTML import;
  * no marker paragraph or original text is removed. */
 export function stageHwpTables(html: string) {
   type Placement = { mode: 'label' } | { mode: 'overlay'; anchor: TableAnchor } |
-    { mode: 'flow'; anchor: TableAnchor; breakMode: 'CELL' | 'TABLE' } | { mode: 'inline-insets'; top: number; bottom?: number };
+    { mode: 'flow'; anchor: TableAnchor; breakMode: 'CELL' | 'TABLE' } | { mode: 'inline-insets'; top: number; bottom?: number; left?: number };
   const prefix = `WORDSTUDIO-TABLE-${crypto.randomUUID()}-`, records = new Map<string, Placement>();
   const flowTables = nativeParagraphFlowTables(html);
   const topAttribute = new RegExp(`\\b${hwpInlineTableTopAttribute}="([^"]*)"`);
@@ -102,8 +104,15 @@ export function stageHwpTables(html: string) {
       if ((size += file.originalSize) > documentLimits.documentInflatedBytes) throw Error('한글 표 배치 데이터가 너무 큽니다.');
       return true;
     } });
-    for (const name of Object.keys(files).filter(n => /^Contents\/section\d+\.xml$/.test(n))) {
-      let xml = strFromU8(files[name]), anchorsChanged = false;
+    const pasteIndent: { section: number; paragraph: number }[] = [];
+    const hasInlineLeft = [...records.values()].some(record => record.mode === 'inline-insets' && record.left !== undefined);
+    for (const [name, bytes] of Object.entries(files)) {
+      const sectionName = /^Contents\/section(\d+)\.xml$/.exec(name);
+      if (!sectionName) continue;
+      const section = Number(sectionName[1]);
+      let xml = strFromU8(bytes), anchorsChanged = false;
+      const hosts = hasInlineLeft ? elementRanges(xml, 'hp:p') : [];
+      let owner = hosts.length - 1;
       for (const table of elementRanges(xml, 'hp:tbl').reverse()) {
         const tokens = table.inner.match(new RegExp(`${prefix}\\d+-END`, 'g')) || [];
         if (!tokens.length) continue;
@@ -116,6 +125,24 @@ export function stageHwpTables(html: string) {
               const values: Record<string, number> = {};
               if (/\btop="283"/.test(tag)) values.top = record.top;
               if (record.bottom !== undefined && /\bbottom="283"/.test(tag)) values.bottom = record.bottom;
+              if (record.left !== undefined && /\bleft="283"/.test(tag)) {
+                while (owner >= 0 && hosts[owner].start > table.start) owner--;
+                const host = hosts[owner];
+                // The paste engine indents a generated table carrier by 20px.
+                // Only move an otherwise empty, single-control carrier whose
+                // default inset would shift the measured anchor to the right.
+                if (host && host.end > table.end && doc.getTextRange(section, owner, 0, 0xffffffff) === '') {
+                  const paragraph = JSON.parse(doc.getParaPropertiesAt(section, owner));
+                  const metrics = JSON.parse(doc.getParagraphLineMetrics(section, owner, '[]'));
+                  if (paragraph.marginLeft === pasteTableIndent && paragraph.marginRight === 0 && paragraph.indent === 0 &&
+                      metrics.controlCount === 1 && /<hp:pos\b[^>]*\bhorzRelTo="PARA"/.test(prefix) &&
+                      /<hp:pos\b[^>]*\bhorzAlign="LEFT"/.test(prefix) &&
+                      /<hp:pos\b[^>]*\bhorzOffset="0"/.test(prefix)) {
+                    values.left = record.left;
+                    pasteIndent.push({ section, paragraph: owner });
+                  }
+                }
+              }
               return set(tag, values);
             }) : prefix).replace(tokens[0], '');
           xml = xml.slice(0, table.start) + table.open + inner + '</hp:tbl>' + xml.slice(table.end);
@@ -144,6 +171,18 @@ export function stageHwpTables(html: string) {
       files[name] = strToU8(anchorsChanged ? xml.replace(/<hp:linesegarray\b[^>]*>[\s\S]*?<\/hp:linesegarray>/g, '') : xml);
     }
     if (restored !== records.size) throw Error('일부 떠 있는 표를 한글로 저장하지 못했습니다.');
-    return new Core(zipSync(files, { level: 1 }));
+    const result = new Core(zipSync(files, { level: 1 }));
+    try {
+      if (pasteIndent.length) {
+        result.beginBatch();
+        try {
+          for (const { section, paragraph } of pasteIndent) {
+            const adjusted = JSON.parse(result.applyParaFormat(section, paragraph, JSON.stringify({ marginLeft: 0 })));
+            if (!adjusted.ok) throw Error('한글 표의 본문 들여쓰기를 복원하지 못했습니다.');
+          }
+        } finally { result.endBatch(); }
+      }
+      return result;
+    } catch (error) { result.free(); throw error; }
   } };
 }

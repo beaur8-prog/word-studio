@@ -10,8 +10,9 @@ function tables(document, shapes) {
       if (table.type !== 'table' || table.cellPath?.length ||
           !shapes.some(([rows, columns]) => table.rowCount === rows && table.colCount === columns)) continue;
       const key = [table.secIdx, table.paraIdx, table.controlIdx].join(':');
-      const entry = result.get(key) ?? { table, pages: [] };
+      const entry = result.get(key) ?? { table, pages: [], left: [] };
       entry.pages.push(index + 1);
+      entry.left.push(table.x);
       result.set(key, entry);
     }
   }
@@ -46,5 +47,7 @@ module.exports = function hancomTableInsets(original, saved) {
   const { outerTop: top, outerBottom: bottom } = JSON.parse(saved.getTableProperties(secIdx, paraIdx, controlIdx));
   return { sourcePage: source[0].pages[0], sourceContinuationPage: source[0].pages[1],
     page: lead[0].pages[0], continuationPage: tail[0].pages[0], top, bottom,
+    sourceX: source[0].left[0], sourceContinuationX: source[0].left[1],
+    x: lead[0].left[0], continuationX: tail[0].left[0],
     textLength: sourceCells.flat().reduce((total, text) => total + text.length, 0) };
 };

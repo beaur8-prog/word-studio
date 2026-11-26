@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 import { strFromU8, unzipSync } from 'fflate';
 
-test('a paragraph-anchored table keeps its vertical reserve when saved into Hancom flow', async ({ page }, info) => {
+test('a paragraph-anchored table keeps its offset and vertical reserve when saved into Hancom flow', async ({ page }, info) => {
   await page.goto('/');
   const result = await page.evaluate(async () => {
     const { importFile, exportDocx } = await import('/src/document-io.ts');
@@ -12,7 +12,7 @@ test('a paragraph-anchored table keeps its vertical reserve when saved into Hanc
       const metadata = anchor ? ` data-table-anchor="${JSON.stringify(anchor).replaceAll('"', '&quot;')}"` : '';
       return `<table${metadata}><tr><td colwidth="580"><p>${text}</p></td></tr></table>`;
     };
-    const anchor = { x: 0, y: .8, bottom: 1.88, reference: 'paragraph', horizontal: 'margin' };
+    const anchor = { x: 2, y: .8, bottom: 1.88, reference: 'paragraph', horizontal: 'margin' };
     const fixture = '<p>Start</p>' + grid('Projected table', anchor) + '<p>Between</p>' +
       grid('Ordinary table') + '<p>Next</p>' +
       grid('Larger reserve', { ...anchor, y: 12 }) + '<p>End</p>';
@@ -35,14 +35,14 @@ test('a paragraph-anchored table keeps its vertical reserve when saved into Hanc
   const section = strFromU8(unzipSync(Uint8Array.from(result.hwpx))['Contents/section0.xml']);
   const placements = [...section.matchAll(/<hp:tbl\b[^>]*>[\s\S]*?<\/hp:tbl>/g)].map(([table]) => ({
     inline: /<hp:pos\b[^>]*\btreatAsChar="1"/.test(table),
-    margins: [...table.match(/<hp:outMargin\b[^>]*\/>/)![0].matchAll(/\b(top|bottom)="(\d+)"/g)]
+    margins: [...table.match(/<hp:outMargin\b[^>]*\/>/)![0].matchAll(/\b(left|top|bottom)="(\d+)"/g)]
       .map(([, side, size]) => [side, Number(size)]),
     text: [...table.matchAll(/<hp:t>([^<]+)<\/hp:t>/g)].map(([, text]) => text).join(''),
   }));
   expect(placements).toEqual([
-    { inline: true, margins: [['top', 60], ['bottom', 141]], text: 'Projected table' },
-    { inline: true, margins: [['top', 283], ['bottom', 283]], text: 'Ordinary table' },
-    { inline: true, margins: [['top', 283], ['bottom', 283]], text: 'Larger reserve' },
+    { inline: true, margins: [['left', 150], ['top', 60], ['bottom', 141]], text: 'Projected table' },
+    { inline: true, margins: [['left', 283], ['top', 283], ['bottom', 283]], text: 'Ordinary table' },
+    { inline: true, margins: [['left', 283], ['top', 283], ['bottom', 283]], text: 'Larger reserve' },
   ]);
   expect(section).not.toContain('WORDSTUDIO-TABLE-');
 });
