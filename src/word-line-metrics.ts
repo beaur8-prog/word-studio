@@ -275,7 +275,7 @@ export function layoutWordListLines(root: HTMLElement) {
     }
   }
 }
-export function layoutWordLines(root: HTMLElement, referenceDensity = false) {
+export function layoutWordLines(root: HTMLElement) {
   for (const p of root.querySelectorAll<HTMLElement>('[data-word-body-strut="true"]:not([data-print-word-space],[data-print-paragraph-fragment])')) {
     const delta = measuredBodySpaceAdjustment(p);
     if (delta !== null) p.style.setProperty(fallbackSpaceProperty, `${delta}px`);
@@ -289,8 +289,8 @@ export function layoutWordLines(root: HTMLElement, referenceDensity = false) {
     const ordinary = p.dataset.wordBodyStrut === 'true';
     const alignedBullet = p.parentElement?.hasAttribute(symbolStrutFlag) && isWordAlignedBulletParagraph(p);
     if ((ordinary || alignedBullet) && !p.hasAttribute('data-print-paragraph-fragment') && frozen === null) {
-      const normal = wordLineHeight(p, false, referenceDensity);
-      const measured = measuredCalibriLineHeight(p) ?? (ordinary ? wordLineHeight(p, true, referenceDensity) : null);
+      const normal = wordLineHeight(p);
+      const measured = measuredCalibriLineHeight(p) ?? (ordinary ? wordLineHeight(p, true) : null);
       frozen = measured !== null && measured !== normal ? String(measured) : '';
       p.setAttribute('data-print-word-body-line', frozen);
     }
@@ -299,7 +299,7 @@ export function layoutWordLines(root: HTMLElement, referenceDensity = false) {
       frozen = reference === null ? '' : String(reference);
       p.setAttribute('data-print-word-body-line', frozen);
     }
-    const height = frozen ? Number(frozen) : wordLineHeight(p, false, referenceDensity);
+    const height = frozen ? Number(frozen) : wordLineHeight(p);
     if (height !== null) p.style.lineHeight = `${height}px`;
   }
   layoutWordListLines(root);

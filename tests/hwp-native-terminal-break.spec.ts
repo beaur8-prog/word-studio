@@ -3,7 +3,8 @@ import { expect, test } from '@playwright/test';
 test('terminal export accepts unchanged authored wraps and leaves edited or resized wraps measured', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async () => {
-    const { measuredTerminalPageBreak } = await import('/src/hwp/export-terminal-page-break');
+    const { measuredAuthoredTerminalWrap, measuredTerminalPageBreak } = await import('/src/hwp/export-terminal-page-break');
+    const { hiddenEmptyLineClass } = await import('/src/page-empty-lines');
     const { hwpWrapFingerprint } = await import('/src/hwp-text-advances');
     const frame = document.createElement('div');
     frame.style.cssText = 'position:absolute;left:10px;top:10px;width:160px;height:130px;';
@@ -23,7 +24,8 @@ test('terminal export accepts unchanged authored wraps and leaves edited or resi
       fingerprint: hwpWrapFingerprint(literal), ends: [5,9,20],
       authoredBodyLines: { origin: { page: 1, x: 10, y: 24 }, width: 160, hanging: 20, size: 20, pitch: 32 },
     };
-    frame.append(empty(), terminal, empty());
+    const trailing = empty();
+    frame.append(empty(), terminal, trailing);
     document.body.append(frame);
     try {
       const measured = measuredTerminalPageBreak(frame, 0);
@@ -34,7 +36,14 @@ test('terminal export accepts unchanged authored wraps and leaves edited or resi
       terminal.dataset.hwpSourceWrap = JSON.stringify(proof);
       frame.style.width = '162px';
       const resized = measuredTerminalPageBreak(frame, 0);
-      return { measured, authored, edited, resized, literal };
+      frame.style.width = '160px';
+      trailing.style.height = '0px';
+      const unclassified = measuredAuthoredTerminalWrap(frame, 0);
+      trailing.classList.add(hiddenEmptyLineClass);
+      const edge = measuredAuthoredTerminalWrap(frame, 0);
+      terminal.dataset.hwpSourceWrap = JSON.stringify({ ...proof, fingerprint: '0000000000000000' });
+      const edgeEdited = measuredAuthoredTerminalWrap(frame, 0);
+      return { measured, authored, edited, resized, literal, unclassified, edge, edgeEdited };
     } finally { frame.remove(); }
   });
 
@@ -45,6 +54,10 @@ test('terminal export accepts unchanged authored wraps and leaves edited or resi
   expect(result.authored?.origin).toBe(result.measured?.origin);
   expect(result.edited?.starts).toEqual(result.measured?.starts);
   expect(result.resized?.starts).toEqual(result.measured?.starts);
+  expect(result.unclassified).toBeUndefined();
+  expect(result.edge?.starts).toEqual([0,6,11]);
+  expect(result.edge?.literal).toBe(result.literal);
+  expect(result.edgeEdited).toBeUndefined();
 });
 
 test('a short printed table row keeps the size of its authored empty cell lines', async ({ page }) => {

@@ -50,7 +50,7 @@ import { encodeHwpBodyLine } from '../hwp-body-line';
 import { restoreNativeContinuationPlacement, restoreNativePaperHeaderTable, restoreNativeRasterTablePair } from './export-table-placement';
 import { restoreStandalonePictureLine } from './export-picture-line';
 import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts, withoutPastedEmptyCarriers } from './export-empty-paragraph-format';
-import { restoreTerminalPageBreak } from './export-terminal-page-break';
+import { restoreAuthoredTerminalWrap, restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
 import { stageHwpTables } from './export-tables';
 import { tableCaptionDefinitions, renderTableCaptions, restoreTableCaptions } from './table-captions';
@@ -2785,6 +2785,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withTerminalBreak !== doc) { doc.free(); doc = withTerminalBreak; }
     const withEmptyTableRows = restoreNativeEmptyTableRows(Core,doc,nativePrint?.emptyTableRows,nativePrint?.pages,format);
     if (withEmptyTableRows !== doc) { doc.free(); doc = withEmptyTableRows; }
+    const withAuthoredTerminal = restoreAuthoredTerminalWrap(Core, doc, nativePrint?.authoredTerminalWraps, nativePrint?.pages);
+    if (withAuthoredTerminal !== doc) { doc.free(); doc = withAuthoredTerminal; }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {

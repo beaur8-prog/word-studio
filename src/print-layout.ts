@@ -92,11 +92,6 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (paragraph instanceof HTMLParagraphElement && isOrdinaryWordBodyParagraph(paragraph, source))
       paragraph.dataset.wordFloatingSpaceSource = 'true';
   const wrappingAnchors = wordFlowHasWrappingAnchors(source);
-  // The surrounding paragraphs also determine which sheet receives the table.
-  // Keep the existing high-density policy for Word flows without tables.
-  const referenceDensity = wordLayout.nativeDesktop === true && window.wordDesktop?.platform === 'win32' &&
-    Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 1 && document.body.currentCSSZoom === 1 &&
-    !!source.querySelector('table[data-word-table-layout]');
   if (wrappingAnchors && wordLayout.wordBodyStrut) markWordReferenceDensity(source);
   const canPlaceProtectedTable = protectedTablePlacement(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
@@ -234,11 +229,11 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     refreshNotes();
     layoutTableAnchors(content);
     layoutWordAutoFitTables(content, true);
-    layoutWordLines(content, referenceDensity);
+    layoutWordLines(content);
     layoutHwpCellLines(content);
     layoutHwpBodyLines(content, wordLayout.paintHwpCellLines !== false);
     layoutTabs(content);
-    layoutColumns(content, content.getBoundingClientRect().bottom, referenceDensity);
+    layoutColumns(content, content.getBoundingClientRect().bottom);
     // Removing overlay flow can move its zero-height frame to another
     // column. Resolve its coordinates against the final column geometry.
     layoutTableAnchors(content);
@@ -336,7 +331,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     table.querySelectorAll(':scope > colgroup').forEach(columns => probe.append(columns.cloneNode(true)));
     const body = probe.createTBody();
     holder.append(probe);
-    const refresh = () => { layoutWordLines(probe, referenceDensity); layoutHwpCellLines(probe); layoutTabs(probe); };
+    const refresh = () => { layoutWordLines(probe); layoutHwpCellLines(probe); layoutTabs(probe); };
     const copyRow = (row: HTMLTableRowElement) => row.cloneNode(true) as HTMLTableRowElement;
     const repeats = headers.map(copyRow);
     const fragments: HTMLTableRowElement[][] = [];

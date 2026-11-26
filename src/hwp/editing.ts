@@ -25,7 +25,7 @@ import { measuredContinuationPlacement, measuredPaperHeaderTable, measuredRaster
   type RasterTablePair, type TablePlacement } from './export-table-placement';
 import { measuredStandaloneBitmapSources, nativeStandalonePictureAttribute } from './export-picture-line';
 import { measuredTerminalEmptyFonts, type TerminalEmptyFonts } from './export-empty-paragraph-format';
-import { measuredTerminalPageBreak, type TerminalPageBreak } from './export-terminal-page-break';
+import { measuredAuthoredTerminalWrap, measuredTerminalPageBreak, type AuthoredTerminalWrap, type TerminalPageBreak } from './export-terminal-page-break';
 import { measuredEmptyTableRows, type EmptyTableRows } from './export-empty-table-rows';
 
 function renderedBody(root: HTMLElement, doc: StudioDocument) {
@@ -185,6 +185,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const rasterTablePairs: RasterTablePair[] = [];
   const terminalEmptyFonts: TerminalEmptyFonts[] = [];
   const terminalPageBreaks: TerminalPageBreak[] = [];
+  const authoredTerminalWraps: AuthoredTerminalWrap[] = [];
   const emptyTableRows: EmptyTableRows[] = [];
   let paperHeaderTable: PaperHeaderTable | undefined;
   let standaloneBitmaps: string[] = [];
@@ -232,6 +233,8 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       if (emptyFonts) terminalEmptyFonts.push(emptyFonts);
       const terminalBreak = content && index+1 < wordPages ? measuredTerminalPageBreak(content,index) : undefined;
       if (terminalBreak) terminalPageBreaks.push(terminalBreak);
+      const wrap = content && !terminalBreak && index+1 < wordPages ? measuredAuthoredTerminalWrap(content, index) : undefined;
+      if (wrap) authoredTerminalWraps.push(wrap);
       if (content) emptyTableRows.push(...measuredEmptyTableRows(content));
       for (const box of content?.querySelectorAll(':scope > [data-textbox-position="floating"]') ?? []) {
         const frame = box.querySelector(':scope > [data-textbox-content]');
@@ -302,7 +305,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const session = new HwpReaderSession();
   try {
     const result = await session.export(rendered.html, exportPage, format, onProgress, rendered.boxes,
-      { pages: wordPages, tableLeads, continuations, paperHeaderTable, rasterTablePairs, terminalEmptyFonts, terminalPageBreaks, emptyTableRows, emptyParagraphs: rendered.emptyParagraphs });
+      { pages: wordPages, tableLeads, continuations, paperHeaderTable, rasterTablePairs, terminalEmptyFonts, terminalPageBreaks, authoredTerminalWraps, emptyTableRows, emptyParagraphs: rendered.emptyParagraphs });
     warnings.push(`쪽 수 비교: Word 인쇄 ${wordPages}쪽 → ${format.toUpperCase()} 원본 보기 ${result.pages}쪽.` + (wordPages !== result.pages ? ' 쪽 배치가 달라졌습니다. 정확한 쪽 참조가 필요한 문서는 원본과 대조하세요.' : ' 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'));
     return { blob: new Blob([new Uint8Array(result.bytes)], { type: format === 'hwp' ? 'application/x-hwp' : 'application/vnd.hancom.hwpx' }), warnings: [...new Set([...warnings, ...result.warnings])] };
   } finally { session.close(); }

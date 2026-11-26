@@ -4,6 +4,7 @@ import { parseHwpBodyLine } from '../hwp-body-line';
 import { retainedTextBands } from '../hwp-line-ink';
 import { hwpSourceWrapAttribute, hwpWrapFingerprint, normalizeHwpWrapText, parseHwpSourceWrap } from '../hwp-text-advances';
 import { paragraphLineOffsets } from '../paragraph-fragments';
+import { hiddenEmptyLineClass } from '../page-empty-lines';
 import { authoredEmptySize } from './export-empty-paragraph-format';
 import { boundedNativeParts, nativeBodyRuns, nativeGlyphBaselines, nativePaintedControls, type NativeBodyRun } from './export-binary-pages';
 import { directHwpPageBreak, elementRanges } from './markup-ranges';
@@ -189,4 +190,112 @@ export function restoreTerminalPageBreak(Core: typeof HwpDocument, doc: HwpDocum
   } finally {
     baseline?.free();
   }
+}
+
+export type AuthoredTerminalWrap = {
+  page: number; literal: string; starts: number[]; x: number; y: number;
+  width: number; hanging: number; font: number; pitch: number; percent: number;
+};
+
+/** When the last blank fits only as a page-edge carrier, the complete
+ * preceding body paragraph still owns its original line starts. */
+export function measuredAuthoredTerminalWrap(body: Element, page: number): AuthoredTerminalWrap | undefined {
+  const blank = body.lastElementChild, terminal = blank?.previousElementSibling;
+  if (!(blank instanceof HTMLParagraphElement) || blank.childNodes.length ||
+      !blank.classList.contains(hiddenEmptyLineClass) ||
+      !(terminal instanceof HTMLParagraphElement) || terminal.hasAttribute('data-print-paragraph-fragment') ||
+      !(terminal.previousElementSibling instanceof HTMLParagraphElement) ||
+      terminal.previousElementSibling.childNodes.length ||
+      terminal.querySelector('img,svg,br,table,[data-docx-tab],[data-note-reference],[data-document-field]')) return;
+  const literal = terminal.textContent ?? '';
+  if (!visible(literal) || literal.length > 512 || /[\x00-\x1f\ufffc\uD800-\uDFFF]/u.test(literal)) return;
+  const format = parseHwpBodyLine(terminal.dataset.hwpBodyLine);
+  const reference = parseHwpSourceWrap(terminal.dataset.hwpSourceWrap)?.authoredBodyLines;
+  if (!format || !reference || format.font <= 0 || format.percent <= 100 ||
+      Math.abs(format.font * format.percent / 100 - format.base) > .08 ||
+      blank.getBoundingClientRect().height !== 0) return;
+  const frame = body.getBoundingClientRect(), count = paragraphLineOffsets(terminal).length + 1;
+  const starts = authoredTerminalStarts(terminal, literal, page, frame.width, format.font, format.base, count);
+  if (!starts || starts.length < 2 || starts.length > 16 || !retainedTextBands(terminal, document.createRange(), frame)) return;
+  return { page, literal, starts, x: reference.origin.x, y: reference.origin.y, width: frame.width, hanging: reference.hanging,
+    font: units(format.font), pitch: units(format.font * format.percent / 100), percent: format.percent };
+}
+
+function applyAuthoredTerminalWrap(Core: typeof HwpDocument, source: HwpDocument, proof: AuthoredTerminalWrap) {
+  const { page } = proof;
+  const before = ink(source, page), spill = ink(source, page + 1), first = spill[0];
+  if (!first || first.cellPath?.length || nativePaintedControls(source, page + 1).length) return;
+  const { secIdx: section, paraIdx: paragraph } = first;
+  const owns = (run: NativeBodyRun) => run.secIdx === section && run.paraIdx === paragraph && !run.cellPath?.length;
+  if (!spill.every(owns) || paragraph < 1 || paragraph + 2 >= source.getParagraphCount(section) ||
+      source.getParagraphLength(section, paragraph - 1) || source.getParagraphLength(section, paragraph + 1) ||
+      source.getTextRange(section, paragraph, 0, 0xffffffff) !== proof.literal ||
+      JSON.parse(source.getPageOfPosition(section, paragraph + 2)).page !== page + 2 ||
+      !JSON.parse(source.getParaPropertiesAt(section, paragraph + 2)).pageBreakBefore) return;
+  const terminal = before.filter(owns), lead = terminal[0];
+  if (!lead || lead.charStart !== 0 || before.at(-1) !== terminal.at(-1) ||
+      Math.abs(lead.x - proof.x) > .15 || Math.abs(lead.y - proof.y) > .15 ||
+      visible([...terminal, ...spill].map(run => run.text).join('')) !== visible(proof.literal)) return;
+  const paper = JSON.parse(source.getPageInfo(page));
+  const pageDef = JSON.parse(source.getPageDef(section));
+  const width = (pageDef.landscape ? pageDef.height : pageDef.width) -
+    pageDef.marginLeft - pageDef.marginRight - pageDef.marginGutter;
+  const style = JSON.parse(source.getParaPropertiesAt(section, paragraph));
+  const { stored, controlCount } = JSON.parse(source.getParagraphLineMetrics(section, paragraph, '[]'));
+  if (paper.columns.length !== 1 || !Number.isSafeInteger(width) || width <= 0 || Math.abs(width / 75 - proof.width) > .15 ||
+      stored || controlCount || style.lineSpacingType !== 'Percent' || style.lineSpacing !== proof.percent ||
+      Math.abs(style.indent + proof.hanging) > .15 ||
+      JSON.parse(source.getCharPropertiesAt(section, paragraph, 0)).fontSize !== proof.font) return;
+
+  const baseline = nativeGlyphBaselines(source.renderPageSvg(page))(lead);
+  if (baseline === undefined) return;
+  const ascent = units(baseline - lead.y), origin = units(baseline - paper.marginTop - paper.marginHeader) - ascent;
+  if (ascent <= 0 || ascent > proof.font || origin < 0) return;
+  const bodyBottom = paper.height - paper.marginBottom - paper.marginFooter;
+  if (lead.y + ((proof.starts.length - 1) * proof.pitch + proof.font) / 75 > bodyBottom + .15) return;
+
+  const file = `Contents/section${section}.xml`, parts = boundedNativeParts(source.exportHwpx());
+  const xml = strFromU8(parts[file]), owners = elementRanges(xml, 'hp:p'), owner = owners[paragraph];
+  if (!owner || owners.length !== source.getParagraphCount(section) || /<hp:(?:linesegarray|ctrl|tbl|pic)\b/.test(owner.inner)) return;
+  const offset = owner.end - '</hp:p>'.length;
+  const cache = lineCache(proof.starts, origin, proof.font, proof.pitch, ascent, width);
+  parts[file] = strToU8(xml.slice(0, offset) + cache + xml.slice(offset));
+  const candidate = new Core(zipSync(parts, { level: 1 }));
+  let accepted = false;
+  try {
+    const merged = ink(candidate, page), restored = merged.filter(owns);
+    const starts = [...new Set(restored.map(run => run.y))].map(y => restored.find(run => run.y === y)!.charStart);
+    if (candidate.pageCount() + 1 !== source.pageCount() || !same(starts, proof.starts) ||
+        candidate.getTextRange(section, paragraph, 0, 0xffffffff) !== proof.literal ||
+        visible(restored.map(run => run.text).join('')) !== visible(proof.literal) ||
+        JSON.parse(candidate.getPageOfPosition(section, paragraph + 1)).page !== page ||
+        JSON.parse(candidate.getPageOfPosition(section, paragraph + 2)).page !== page + 1 ||
+        restored.some(run => run.x < 0 || run.x + run.w > paper.width + .15 ||
+          run.y < lead.y - .15 || run.y + run.h > bodyBottom + .15) ||
+        !same(before.filter(run => !owns(run)).map(display), merged.filter(run => !owns(run)).map(display)) ||
+        !same(nativePaintedControls(source, page), nativePaintedControls(candidate, page))) return;
+    for (let i = 0; i < candidate.pageCount(); i++) {
+      if (i === page) continue;
+      const previous = i < page ? i : i + 1;
+      if (!same(ink(source, previous).map(display), ink(candidate, i).map(display)) ||
+          !same(nativePaintedControls(source, previous), nativePaintedControls(candidate, i))) return;
+    }
+    accepted = true;
+    return candidate;
+  } finally {
+    if (!accepted) candidate.free();
+  }
+}
+
+export function restoreAuthoredTerminalWrap(Core: typeof HwpDocument, doc: HwpDocument,
+  proofs: readonly AuthoredTerminalWrap[] = [], printedPages = 0): HwpDocument {
+  if (!proofs.length || doc.pageCount() <= printedPages) return doc;
+  for (const proof of proofs) {
+    if (proof.page < 0 || proof.page + 2 >= doc.pageCount()) continue;
+    try {
+      const restored = applyAuthoredTerminalWrap(Core, doc, proof);
+      if (restored) return restored;
+    } catch { /* Keep the ordinary native composition without a complete proof. */ }
+  }
+  return doc;
 }
