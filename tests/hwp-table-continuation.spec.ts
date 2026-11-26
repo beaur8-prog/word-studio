@@ -74,7 +74,7 @@ test('native export uses only the witnessed cell heads in the clear bottom margi
   await page.goto('/');
   const result = await page.evaluate(async () => {
     const { createPrintLayout } = await import('/src/print-layout.ts');
-    const { hwpOverhangCellFingerprint, nativeOverhangOriginAttribute } = await import('/src/hwp-table-continuation.ts');
+    const { hwpOverhangCellFingerprint } = await import('/src/hwp-table-continuation.ts');
     const { normalizeHwpWrapText, hwpWrapFingerprint } = await import('/src/hwp-text-advances.ts');
     const settings = { size: 'Custom', width: 100, height: 90, orientation: 'portrait',
       margin: 10, header: '', footer: '', pageNumbers: false } as const;
@@ -102,7 +102,7 @@ test('native export uses only the witnessed cell heads in the clear bottom margi
     }
     const proof = { row:2, rows:4, bodyWidth:paper.width, bodyHeight:paper.height, tableTop:0,
       cells: originals.map(value => hwpOverhangCellFingerprint([value])),
-      overhang: { page:1, end:paper.height + 16, defaultHostOrigin:true, heads:heads.map(text => {
+      overhang: { page:1, end:paper.height + 16, heads:heads.map(text => {
         const normalized = normalizeHwpWrapText(text);
         return { end:normalized.length, fingerprint:hwpWrapFingerprint(normalized) };
       }) },
@@ -118,7 +118,6 @@ test('native export uses only the witnessed cell heads in the clear bottom margi
         return [...layout.element.querySelectorAll<HTMLTableRowElement>('[data-test-row="2"]')].map(row => ({
           page:Number(row.closest<HTMLElement>('.print-page')?.dataset.page),
           text:[...row.cells].map(cell => cell.textContent ?? ''),
-          verifiedOrigin: row.closest('table')!.hasAttribute(nativeOverhangOriginAttribute),
         }));
       } finally { layout.dispose(); }
     }
@@ -127,7 +126,6 @@ test('native export uses only the witnessed cell heads in the clear bottom margi
   expect(result.wrong).toEqual(result.ordinary);
   expect(result.ordinary[0].page).toBeGreaterThan(1);
   expect(result.verified[0].page).toBe(1);
-  expect(result.verified.map(part => part.verifiedOrigin)).toEqual([true, ...result.verified.slice(1).map(() => false)]);
   expect(result.verified[0].text.map(text => text.trimEnd())).toEqual(result.heads);
   expect(result.originals.every((value, col) => result.verified.map(part => part.text[col]).join('') === value)).toBe(true);
 });

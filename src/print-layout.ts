@@ -5,7 +5,7 @@ import { layoutHwpNestedCellFaces } from './hwp-nested-cell-face-print';
 import { layoutHwpNestedTables } from './hwp-nested-table-print';
 import { layoutHwpRelatedTables } from './hwp-related-table-print';
 import { printedHwpContainerHeight, reserveHwpInlineStrokes } from './hwp-row-reserve';
-import { activeHwpTableOverhang, firstTableOverhang, matchesHwpTableFragment, nativeOverhangOriginAttribute, parseHwpTableContinuation, visibleHwpTableOverhang } from './hwp-table-continuation';
+import { activeHwpTableOverhang, firstTableOverhang, matchesHwpTableFragment, parseHwpTableContinuation, visibleHwpTableOverhang } from './hwp-table-continuation';
 import { hwpKeptTablePage, hwpTableTopGap } from './table-anchor-data';
 import { layoutHwpCenteredTableBorders, tableBorderFits } from './hwp-centered-table-borders';
 import { layoutWordCellSpacing } from './word-cell-spacing';
@@ -592,7 +592,6 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
           const tail = splitElement(group[0], overhang.bottom);
           if (tail && fits()) {
             retainedOverhang = true;
-            if (overhang.defaultHostOrigin) part.table.setAttribute(nativeOverhangOriginAttribute, 'true');
             rows.splice(end, 0, tail as HTMLTableRowElement);
             return;
           }
