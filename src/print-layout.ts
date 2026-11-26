@@ -237,7 +237,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutTableAnchors(content);
     layoutWordAutoFitTables(content, true);
     layoutWordLines(content, referenceDensity);
-    layoutHwpCellLines(content);
+    layoutHwpCellLines(content, wordLayout.nativeDesktop === true);
     layoutHwpBodyLines(content, wordLayout.paintHwpCellLines !== false);
     layoutTabs(content);
     if (windowsDensity && !referenceDensity) reserveWordTabbedStruts(content, tabbedStruts);
