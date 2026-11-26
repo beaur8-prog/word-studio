@@ -12,7 +12,7 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
   await fs.mkdir(directory, { recursive: true });
   for (let generation = 1; generation <= 2; generation++) {
     selectStage('native-docx-save-' + generation);
-    const name = item.id + '-native-save-' + generation;
+    const name = 'textbox-save-' + item.id + '-native-' + generation;
     const output = path.join(directory, name + '.docx');
     await app.evaluate(({ dialog, Menu }, destination) => {
       dialog.showSaveDialog = async (_parent, options) => {
@@ -239,9 +239,11 @@ async function main() {
       const editorLongTasks = await page.evaluate(start => window.qaLongTasks.filter(task => task.at >= start)
         .map(task => Math.round(task.duration)).sort((a,b) => b-a).slice(0,5), rendererStarted);
       console.log('WINDOWS_HWP_EDITOR_READY ' + JSON.stringify({ id: item.id, editorPages, editorMilliseconds, editorLongTasks }));
+      if (process.env.WINDOWS_NATIVE_DOCX_DIR) {
+        await saveTwoDocxAndReopen(app, page, item, process.env.WINDOWS_NATIVE_DOCX_DIR, name => { stage = name; });
+        if (!Core) { measured++; continue; }
+      }
       if (Core) {
-        if (process.env.WINDOWS_NATIVE_DOCX_DIR)
-          await saveTwoDocxAndReopen(app, page, item, process.env.WINDOWS_NATIVE_DOCX_DIR, name => { stage = name; });
         const finishHangulProfile = process.env.WINDOWS_NATIVE_HWP_PROFILE === '1'
           ? await require('./print-profile.cjs')(page, 'hangul') : undefined;
         try {

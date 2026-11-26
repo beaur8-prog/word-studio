@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 for (const scenario of ['sole balanced', 'web preview', 'one column', 'preceding sibling', 'following sibling'] as const) {
   test('measured desktop print column height has the expected scope for ' + scenario, async ({ page }) => {
     await page.goto('/');
+    await page.locator('#root .tiptap[role="textbox"]').waitFor();
     await page.evaluate(async scenario => {
       const { createPrintLayout } = await import('/src/print-layout.ts');
       const { defaultPage } = await import('/src/types.ts');

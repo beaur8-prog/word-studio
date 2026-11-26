@@ -1,11 +1,50 @@
 name: Windows regression QA
-run-name: Verify combined print and Hancom contracts on Windows and Linux
+run-name: Check Windows print readiness and native DOCX SDK
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
+  native:
+    name: Native Windows two DOCX packages for SDK
+    runs-on: windows-latest
+    timeout-minutes: 38
+    env:
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run package:win:dir
+      - name: Save and reopen both DOCX through the packaged app
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py hwp-3 "$env:RUNNER_TEMP/qa-input" --ids 06-mixed-document
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-input/inventory.json"
+          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
+          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          exit $LASTEXITCODE
+      - name: Validate the two DOCX packages written by the Windows app
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem "$env:RUNNER_TEMP/native-docx" -File -Filter '*.docx')
+          if ($files.Count -ne 2) { throw 'Missing the two native DOCX files' }
+          dotnet run --project scripts/word-openxml-validator -- "$env:RUNNER_TEMP/native-docx" 2 *> "$env:RUNNER_TEMP/native-sdk.txt"
+          $validated = $LASTEXITCODE
+          Write-Host "WINDOWS_NATIVE_DOCX_SDK $($files.Count) exit $validated"
+          exit $validated
   focused:
     name: Combined layout contracts / ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

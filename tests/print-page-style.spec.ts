@@ -2,6 +2,7 @@ import{test,expect}from'@playwright/test';
 import{writeFile}from'node:fs/promises';
 test('many printed pages preserve section paper sizes without invalidating document styles per page',async({page})=>{
  await page.goto('/');
+ await page.locator('#root .tiptap[role="textbox"]').waitFor();
  const result=await page.evaluate(async()=>{
   const{createPrintLayout}=await import('/src/print-layout.ts'),{defaultPage}=await import('/src/types.ts');
   const first={...defaultPage,size:'Custom' as const,width:120,height:180,margin:10,pageNumbers:false};
