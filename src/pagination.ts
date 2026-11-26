@@ -1,7 +1,8 @@
 import { layoutWordAutoFitTables } from './word-table-autofit';
 import { canMeasureMergedFragments } from './editor-merged-fragments';
+import { canSplitProtectedMergedRows, protectedTablePlacement } from './table-fragments';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
-import { wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
+import { wordFlowHasWrappingAnchors, wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
 import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { documentScale } from './document-scale';
 import { Extension } from '@tiptap/core';
@@ -19,7 +20,7 @@ import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
 
 const key = new PluginKey('studioPagination');
 type RepeatingHeader = { table: HTMLTableElement; rows: HTMLTableRowElement[]; height: number };
-type Piece = { pos: number; end: number; top: number; height: number; columns?: number; columnFlow?: boolean; cellRow?: HTMLTableRowElement; listItem?: PMNode; mergedRows?: HTMLTableRowElement[]; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[]; header?: RepeatingHeader; tableTop?: number };
+type Piece = { pos: number; end: number; top: number; height: number; columns?: number; columnFlow?: boolean; cellRow?: HTMLTableRowElement; listItem?: PMNode; mergedRows?: HTMLTableRowElement[]; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[]; header?: RepeatingHeader; protectedHeader?: RepeatingHeader; protectedRows?: boolean; tableTop?: number };
 
 /** Printed continuations have a new table edge. Measuring only the original
  * header rows omits its collapsed half border and can admit an extra line. */
@@ -47,7 +48,7 @@ function continuationHeaderHeight(table: HTMLTableElement, headers: HTMLTableRow
 /** Use real block/row geometry. A form is often one large table cell containing
  * paragraphs and nested tables, so treating only top-level nodes as indivisible
  * blocks lets text run straight through page margins. */
-function pieces(view: EditorView, usableHeight: number, scale: number, removed: { top: number; height: number }[], root: PMNode, start: number, domRoot: HTMLElement) {
+function pieces(view: EditorView, usableHeight: number, scale: number, removed: { top: number; height: number }[], root: PMNode, start: number, domRoot: HTMLElement, canPlaceProtectedTable: (table: HTMLTableElement) => boolean) {
   const origin = domRoot.getBoundingClientRect().top;
   const result: Piece[] = [];
   const rect = (element: HTMLElement) => {
@@ -111,6 +112,8 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
       const rowPos = pos + 1 + offset, rowDom = view.nodeDOM(rowPos) as HTMLElement;
       if (rowDom) rows.push({ node: row, pos: rowPos, dom: rowDom });
     });
+    const table = rows[0]?.dom.closest('table');
+    const protectedTableFlow = !!table && canPlaceProtectedTable(table);
     let headerEnd = 0;
     while (headerEnd < rows.length && rows[headerEnd].node.childCount > 0 && rows[headerEnd].node.content.content.every(cell => cell.type.name === 'tableHeader')) headerEnd++;
     const header: RepeatingHeader | undefined = headerEnd && headerEnd < rows.length ? {
@@ -165,7 +168,12 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
         let columns = 0; row.node.forEach(cell => { columns += Number(cell.attrs.colspan || 1); });
         const cellRow = end === i + 1 && continues && row.node.content.content.every(c => Number(c.attrs.rowspan || 1) === 1)
           ? row.dom as HTMLTableRowElement : undefined;
-        result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns, cellRow, header: i >= headerEnd ? headerFor(row.dom as HTMLTableRowElement) : undefined, tableTop: rect(rows[0].dom).top, mergedRows: end > i + 1 ? rows.slice(i, end).map(r => r.dom as HTMLTableRowElement) : undefined });
+        const mergedRows = end > i + 1 ? rows.slice(i, end).map(r => r.dom as HTMLTableRowElement) : undefined;
+        const protectedRows = protectedTableFlow && mergedRows && canSplitProtectedMergedRows(i >= headerEnd && header ? [...header.rows, ...mergedRows] : mergedRows);
+        const protectedHeader = i === 0 && header && protectedRows ? headerFor(rows[headerEnd].dom as HTMLTableRowElement) : undefined;
+        result.push({ pos: row.pos, end: rows[end - 1].pos + rows[end - 1].node.nodeSize, top: first.top, height, columns, cellRow,
+          header: i >= headerEnd ? headerFor(row.dom as HTMLTableRowElement) : undefined,
+          protectedHeader, protectedRows, tableTop: rect(rows[0].dom).top, mergedRows });
       }
       i = end;
     }
@@ -226,6 +234,8 @@ export const Pagination = Extension.create({
             else contexts.push({ node: view.state.doc, start: 0, dom: view.dom, sheet });
             let totalCount = 0;
             const placedNotes = new Set<string>();
+            const wrappingAnchors = wordFlowHasWrappingAnchors(view.dom);
+            const canPlaceProtectedTable = protectedTablePlacement(view.dom);
             for (const context of contexts) {
               const h = Number(context.sheet.dataset.pageHeight) || Number(sheet.dataset.pageHeight) || 1122.52;
               const top = Number(context.sheet.dataset.margin ?? sheet.dataset.margin ?? 96);
@@ -275,7 +285,10 @@ export const Pagination = Extension.create({
                 }
                 return header.height;
               };
-              const flow = pieces(view, usable, scale, removed, context.node, context.start, context.dom);
+              const uniformTableBody = context.sheet.dataset.uniformTablePageBody === 'true';
+              const paper = { width: context.sheet.clientWidth, height: h, top, bottom };
+              const canPlaceTable = (table: HTMLTableElement) => uniformTableBody && canPlaceProtectedTable(table, paper);
+              const flow = pieces(view, usable, scale, removed, context.node, context.start, context.dom, canPlaceTable);
               // Print removes automatically-created trailing blank sheets.
               // Retain the empty paragraphs in the model, but do not insert
               // page gaps for them until they contain text or an object.
@@ -363,7 +376,7 @@ export const Pagination = Extension.create({
                 // once its notes (including references near its end) follow
                 // it. Expand only that item into the existing paragraph flow.
                 if (piece.listItem && !wholeListItem(piece.height, usable - reserve(page, refs.map(ref => ({ ...ref, page }))))) {
-                  const children = pieces(view, usable, scale, removed, piece.listItem, piece.pos + 1, context.dom);
+                  const children = pieces(view, usable, scale, removed, piece.listItem, piece.pos + 1, context.dom, canPlaceTable);
                   queue.splice(index, 1, ...children); index--; continue;
                 }
 
@@ -379,8 +392,26 @@ export const Pagination = Extension.create({
                 // A permitted merge may be shorter than a whole sheet but
                 // still need a row-boundary break after preceding content.
                 if (piece.mergedRows && y + piece.height > end + .5) {
-                  const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed, repeatAt, measureRepeatAt, reserveAt: page => reserve(page, refs) });
-                  if (flow) { commitHeaders(); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }
+                  const protectedRows = piece.protectedRows === true;
+                  const header = protectedRows ? piece.protectedHeader : undefined;
+                  const measureHeader = (target: number) => target > page ? header?.height ?? 0 : 0;
+                  const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed,
+                    repeatAt: header ? target => {
+                      const height = measureHeader(target);
+                      if (height) trialPages.add(target);
+                      return height;
+                    } : repeatAt,
+                    measureRepeatAt: header ? measureHeader : measureRepeatAt,
+                    continuationHeaders: protectedRows ? (header ?? piece.header)?.rows : undefined,
+                    longProtectedGroup: Boolean(header),
+                    reserveAt: page => reserve(page, refs) }, protectedRows);
+                  if (flow) {
+                    if (header) {
+                      tablePages.set(header.table, page);
+                      trialPages.forEach(target => repeat(header, target));
+                    } else commitHeaders();
+                    dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue;
+                  }
                 }
                 if (piece.cellRow && y + piece.height > end + .5) {
                   const flow = paginateCellRow(view, piece.cellRow, piece.pos, { origin, scale, top, bottom, height: h, extra, removed, repeatAt,
@@ -396,7 +427,7 @@ export const Pagination = Extension.create({
                 if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
                   if (paragraph instanceof HTMLElement && /^(P|H[1-6])$/.test(paragraph.tagName)) {
-                    const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed,
+                    const flow = paginateParagraph(view, paragraph, { origin, scale, top, bottom, height: h, extra, removed, wrappingAnchors,
                       references: (piece.references ?? []).filter(ref => refs.some(r => r.id === ref.id)).map(ref => ({ id: ref.id, top: piece.top + ref.offset })),
                       reserveAt: (page, own) => reserve(page, own) });
                     if (flow) { assignNotes(flow.references); dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue; }

@@ -1,5 +1,7 @@
 import { countDocxCheckboxes } from './docx-checkboxes';
 import { readWordBackground, validWordBackground, writeWordBackground } from './docx-background';
+import { W } from './docx-format';
+import { wordDefaultHangingSpacesProperty } from './word-trailing-spaces';
 import { sameSectionFrameSettings } from './section-frame-settings';
 import { encodeDocxXmlParts } from './docx-package-text';
 import { paragraphTextAlignment } from './paragraph-text-alignment';
@@ -7,9 +9,11 @@ import { exportedRowCantSplit } from './row-split-policy';
 import {parseDrawingGroup} from './drawing-group';
 import {writeDrawingGroups} from './docx-drawing-groups';
 import { wordListFontName } from './word-list-marker';
-import { prepareTextBoxes, writeTextBoxes, type TextBoxExport } from './docx-textboxes';
+import { prepareTextBoxes, textBoxAnchorStyle, writeTextBoxes, type TextBoxExport } from './docx-textboxes';
 import { textBoxFrame } from './textbox-frame';
 import { wordHeadingMarks } from './word-heading-defaults';
+import { parseWordParagraphBottomBorder } from './word-paragraph-border';
+import { parseWordReflection, wordReflectionXmlAttributes } from './word-reflection';
 import { sanitizeImportedHtml, validImage, safeLink, RASTER_DATA } from "./document-html";
 import { activeHwpCellLine, cssPixels, encodeHwpCellLine, hwpCellFont, parseHwpCellLine } from './hwp-cell-line';
 import { HwpCellParagraph } from './docx-hwp-cell-line';
@@ -24,6 +28,7 @@ import {
   Document as DocxDocument,
   ExternalHyperlink,
   InternalHyperlink,
+  NumberValueElement, ImportedXmlComponent,
   Bookmark,
   Footer,
   Header,
@@ -50,6 +55,7 @@ import {
   VerticalAlignTable,
   HeightRule,
   Tab,
+  TabStopType,
   SimpleField,
   FootnoteReferenceRun, EndnoteReferenceRun, SectionType, SymbolRun,
 } from "docx";
@@ -64,7 +70,7 @@ import { defaultPage, pageMargins, basePageMargins, paperSize } from "./types";
 import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE, TABLE_END_STYLE } from './docx-metadata';
 import { emptyLineDocxProperty, emptyLineCompatibilityWarning } from './page-empty-lines';
 import { normalizeDocxTables } from './docx-table-grid';
-import { parseTabStops } from './document-tabs';
+import { parseTabStops, parseWordNumberingTabs } from './document-tabs';
 import { overlapParts } from './word-overlap';
 import { rowHeight, MAX_ROW_HEIGHT } from './table-row-resize';
 import { storyHtml, documentNotes, attachDocumentNotes, structureDocxSections } from './docx-stories';
@@ -76,6 +82,8 @@ import { tableAnchor, tableWrapFits } from './table-anchor';
 import { encodeHwpBodyLine, hwpBodyTextLine, hwpBodyFallback, type HwpBodyLine } from './hwp-body-line';
 import documentLimits from '../electron/document-limits.json';
 const bookmarkNamesProperty = 'WordStudio.BookmarkNames';
+const wordStudioCreator = 'Word Studio';
+const wordStudioDescription = 'Created with Word Studio';
 
 export interface ImportResult {
   document: StudioDocument;
@@ -116,7 +124,7 @@ const MARKS = new Set([
   "highlight",
   "link",
   "code",
-  "commentAnchor",
+  "commentAnchor", "wordReflection",
 ]);
 
 function fail(message: string): never {
@@ -156,12 +164,18 @@ export function validateDocument(input: unknown): StudioDocument {
   if (!object(input)) fail("Word Studio 문서가 올바른 JSON 객체가 아닙니다.");
   keysOnly(
     input,
-    ["id", "format", "version", "title", "content", "page", "comments", "updatedAt"],
+    ["id", "format", "version", "title", "content", "page", "wordAutoHyphenation", "wordWrapTrailSpaces", "wordDefaultHangingSpaces", "comments", "updatedAt"],
     "문서",
   );
   if (input.format !== "word-studio" || input.version !== 1)
     fail("지원하지 않는 Word Studio 문서 버전입니다.");
   if (input.id !== undefined && (typeof input.id !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(input.id))) fail('문서 ID가 올바르지 않습니다.');
+  if (input.wordAutoHyphenation !== undefined && typeof input.wordAutoHyphenation !== 'boolean')
+    fail('Word 자동 하이픈 설정이 올바르지 않습니다.');
+  if (input.wordWrapTrailSpaces !== undefined && typeof input.wordWrapTrailSpaces !== 'boolean')
+    fail('Word 줄 끝 공백 설정이 올바르지 않습니다.');
+  if (input.wordDefaultHangingSpaces !== undefined && input.wordDefaultHangingSpaces !== true)
+    fail('Word 기본 공백 조판 설정이 올바르지 않습니다.');
   if (!boundedString(input.title, 512) || !validDate(input.updatedAt))
     fail("문서 제목 또는 저장 날짜가 올바르지 않습니다.");
   const page = input.page;
@@ -297,6 +311,12 @@ export function validateDocument(input: unknown): StudioDocument {
     if (attrs?.wordParagraphStyleKind != null && !/^(?:paragraph|heading[1-6])$/.test(String(attrs.wordParagraphStyleKind))) fail('문단 스타일 종류가 올바르지 않습니다.');
     for (const key of ['wordKeepNext', 'wordKeepLines']) if (attrs?.[key] != null && typeof attrs[key] !== 'boolean') fail('문단 묶음 정책이 올바르지 않습니다.');
     if (attrs?.wordContextualSpacing != null && typeof attrs.wordContextualSpacing !== 'boolean') fail('문단 간격 정책이 올바르지 않습니다.');
+    if (attrs?.wordParagraphBottomBorder != null &&
+        (!['paragraph', 'heading'].includes(type) || !parseWordParagraphBottomBorder(attrs.wordParagraphBottomBorder)))
+      fail('문단 하단 테두리 정보가 올바르지 않습니다.');
+    if (attrs?.wordParagraphReflection != null &&
+        (!['paragraph', 'heading'].includes(type) || !parseWordReflection(attrs.wordParagraphReflection)))
+      fail('문단 반사 효과 정보가 올바르지 않습니다.');
     if (attrs?.wordTextAlignment != null && !paragraphTextAlignment(attrs.wordTextAlignment)) fail('문단 글줄 정렬이 올바르지 않습니다.');
     if (attrs?.hwpCellLine != null && !parseHwpCellLine(attrs.hwpCellLine)) fail('한글 셀의 줄 간격 정보가 올바르지 않습니다.');
     if (type === 'documentSymbol' && (!boundedString(attrs?.font, 100) || !attrs?.font || !/^\d{1,5}$/.test(String(attrs?.code)) || !finite(Number(attrs?.code), 0, 65535) || !boundedString(attrs?.glyph, 100))) fail('기호 글자가 올바르지 않습니다.');
@@ -365,6 +385,8 @@ export function validateDocument(input: unknown): StudioDocument {
             ))
         )
           fail("텍스트 서식 속성이 올바르지 않습니다.");
+        if (mark.type === 'wordReflection' && (type !== 'text' || !object(mark.attrs) || !parseWordReflection(mark.attrs.effect)))
+          fail('글자 반사 효과 정보가 올바르지 않습니다.');
         if (
           mark.type === "link" &&
           (!object(mark.attrs) || !safeLink(mark.attrs.href))
@@ -698,11 +720,16 @@ export async function importFile(file: File): Promise<ImportResult> {
   // DOCX has no equivalent of Hancom's conditional two-line section rule.
   // Keep just that policy in a standard custom property, without replacing
   // real paragraphs or freezing their heights to the current pagination.
+  let defaultHangingSpaces = false;
   const customPart = zip.file('docProps/custom.xml');
   if (customPart) {
     const raw = await customPart.async('string');
     if (raw.length <= 65536) {
       const properties = elements(xml(raw), 'property');
+      const hangingSpaces = properties.find(p => p.getAttribute('name') === wordDefaultHangingSpacesProperty &&
+        p.namespaceURI === 'http://schemas.openxmlformats.org/officeDocument/2006/custom-properties')?.firstElementChild;
+      defaultHangingSpaces = hangingSpaces?.namespaceURI === 'http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes' &&
+        hangingSpaces.localName === 'lpwstr' && hangingSpaces.textContent === 'hang';
       const names = properties.find(p => p.getAttribute('name') === bookmarkNamesProperty);
       if (names) try {
         const pairs = JSON.parse(names.textContent || 'null');
@@ -727,8 +754,36 @@ export async function importFile(file: File): Promise<ImportResult> {
     }
   }
   doc.page = pages[0] ?? { ...defaultPage };
-  const backgroundSettings = zip.file('word/settings.xml');
-  const background = readWordBackground(body, backgroundSettings ? xml(await backgroundSettings.async('string')) : undefined, warnings);
+  const settingsPart = zip.file('word/settings.xml');
+  const settings = settingsPart ? xml(await settingsPart.async('string')) : undefined;
+  const settingsRoot = settings?.documentElement;
+  if (settingsRoot?.namespaceURI === W && settingsRoot.localName === 'settings') {
+    const wordChild = (parent: Element | undefined, name: string) => parent && Array.from(parent.children)
+      .find(el => el.namespaceURI === W && el.localName === name);
+    const readOption = (element?: Element) => {
+      if (!element) return;
+      const value = element.getAttributeNS(W, 'val');
+      if (value === null || value === 'true' || value === '1' || value === 'on') return true;
+      if (value === 'false' || value === '0' || value === 'off') return false;
+    };
+    const autoHyphenation = readOption(wordChild(settingsRoot, 'autoHyphenation'));
+    if (autoHyphenation !== undefined) doc.wordAutoHyphenation = autoHyphenation;
+    const wrapTrailSpaces = readOption(wordChild(wordChild(settingsRoot, 'compat'), 'wrapTrailSpaces'));
+    if (wrapTrailSpaces !== undefined) doc.wordWrapTrailSpaces = wrapTrailSpaces;
+  }
+  if (doc.wordWrapTrailSpaces === undefined) {
+    // Older Studio exports of HWP and Word share the same package signature.
+    // Its existing whitespace policy stays in effect unless the file carries
+    // the Word default, with explicit Word settings taking precedence.
+    const corePart = zip.file('docProps/core.xml');
+    const coreText = await corePart?.async('string');
+    const core = coreText && coreText.length <= 65536 ? xml(coreText).documentElement : undefined;
+    const dc = 'http://purl.org/dc/elements/1.1/';
+    const legacyStudio = core?.getElementsByTagNameNS(dc, 'creator')[0]?.textContent === wordStudioCreator &&
+      core.getElementsByTagNameNS(dc, 'description')[0]?.textContent === wordStudioDescription;
+    if (defaultHangingSpaces || !legacyStudio) doc.wordDefaultHangingSpaces = true;
+  }
+  const background = readWordBackground(body, settings, warnings);
   if (background) for (const page of new Set([doc.page, ...pages])) page.wordBackground = background;
   const checkboxCount = await countDocxCheckboxes(zip, body);
   if (checkboxCount) warnings.push(`체크 상자 ${checkboxCount}개를 선택 상태가 유지되는 기호로 가져왔습니다. Word 양식 컨트롤은 기호로 변환됩니다.`);
@@ -835,14 +890,47 @@ function inheritCellText(nodes: JSONContent[], attrs: Record<string, unknown> = 
     return node.content ? { ...node, content: inheritCellText(node.content, inherited) } : node;
   });
 }
+const propertiesBeforeCharacterSpacing = new Set([
+  'rStyle', 'rFonts', 'b', 'bCs', 'i', 'iCs', 'caps', 'smallCaps', 'strike', 'dstrike',
+  'outline', 'shadow', 'emboss', 'imprint', 'noProof', 'snapToGrid', 'vanish', 'webHidden', 'color',
+].map(name => `w:${name}`));
+
+class DocumentTextRun extends TextRun {
+  private readonly explicitZeroSpacing: boolean;
+
+  constructor(options: IRunOptions, reflection?: unknown) {
+    super(options);
+    // docx 9.x omits numeric zero, which explicitly cancels inherited tracking.
+    this.explicitZeroSpacing = options.characterSpacing === 0;
+    if (this.explicitZeroSpacing) this.properties.push(new NumberValueElement('w:spacing', 0));
+    const attributes = wordReflectionXmlAttributes(reflection);
+    if (attributes) this.properties.push(new ImportedXmlComponent('w14:reflection', attributes));
+  }
+
+  prepForXml(context: Parameters<TextRun['prepForXml']>[0]) {
+    const result = super.prepForXml(context);
+    if (!this.explicitZeroSpacing) return result;
+    const children = result?.['w:r'];
+    if (!Array.isArray(children)) return result;
+    const properties = children.find(child => child && typeof child === 'object' && 'w:rPr' in child)?.['w:rPr'];
+    if (!Array.isArray(properties)) return result;
+    const spacing = properties.findIndex(property => property && Object.hasOwn(property, 'w:spacing'));
+    const position = properties.findIndex(property =>
+      property && Object.keys(property).some(name => !propertiesBeforeCharacterSpacing.has(name)));
+    // Match the library's nonzero spacing order, ahead of size and later properties.
+    if (position >= 0 && position < spacing) properties.splice(position, 0, properties.splice(spacing, 1)[0]);
+    return result;
+  }
+}
+
 /** Word may discard a whitespace-only literal tab inside w:t on save.
  * Emit each authored tab as the standard run control, retaining run marks. */
-function documentTextRun(options: IRunOptions): TextRun {
-  if (!options.text?.includes('\t')) return new TextRun(options);
+function documentTextRun(options: IRunOptions, reflection?: unknown): TextRun {
+  if (!options.text?.includes('\t')) return new DocumentTextRun(options, reflection);
   const { text, ...properties } = options;
-  return new TextRun({ ...properties, children: text.split('\t').flatMap((part, i) => [
+  return new DocumentTextRun({ ...properties, children: text.split('\t').flatMap((part, i) => [
     ...(i ? [new Tab()] : []), ...(part ? [part] : []),
-  ]) });
+  ]) }, reflection);
 }
 function runOptions(node: JSONContent): IRunOptions {
   const options: { -readonly [K in keyof IRunOptions]: IRunOptions[K] } = {
@@ -944,6 +1032,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
   // large glyphs and inline pictures to grow; imported Word rules stay intact.
   const authoredDefault = node.type === 'paragraph' && !lineHeight;
   const headingDefaults = wordHeadingMarks(node.attrs?.wordHeadingMarks);
+  const bottomBorder = parseWordParagraphBottomBorder(node.attrs?.wordParagraphBottomBorder);
   const defaultLine = Math.round(Math.max(fontPoints(node.attrs?.paragraphSize) ?? 11,
     ...(node.content ?? []).flatMap(n => (n.marks ?? []).filter(m => m.type === 'textStyle')
       .map(m => fontPoints(m.attrs?.fontSize) ?? 0))) * 1.65 * 20);
@@ -973,6 +1062,7 @@ function paragraphOptions(node: JSONContent, defaultAfter = 150, measuredCellLin
         : {}),
     },
     ...(typeof node.attrs?.wordContextualSpacing === 'boolean' ? { contextualSpacing: node.attrs.wordContextualSpacing } : {}),
+    ...(bottomBorder ? { border: { bottom: bottomBorder } } : {}),
     // Flatten the visible policy. Native/HWP headings have no Word keep
     // attributes; do not acquire docx's built-in heading keeps on reopen.
     keepNext: node.attrs?.wordKeepNext === true,
@@ -1145,7 +1235,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         // Paragraph rPr formats the paragraph mark in OOXML, not every text
         // run. Materialize inherited CSS font/size/color on otherwise plain
         // text, while retaining each run's explicit overrides.
-        const run = documentTextRun({ ...defaults, ...runOptions(node), ...(node.type === 'documentTab' ? { text: '\t' } : {}) });
+        const reflection = node.type === 'text' ? node.marks?.find(mark => mark.type === 'wordReflection')?.attrs?.effect : undefined;
+        const run = documentTextRun({ ...defaults, ...runOptions(node), ...(node.type === 'documentTab' ? { text: '\t' } : {}) }, reflection);
         const link = node.marks?.find((m) => m.type === "link");
         if (
           link &&
@@ -1190,6 +1281,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     tableGap?: number;
     width?: number;
     list?: { reference: string; level: number };
+    importedList?: boolean;
   };
   // Consumers coalesce adjacent tables when no paragraph separates them. The
   // later narrow table can then resize every preceding row of the long table.
@@ -1236,6 +1328,16 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         ];
         const bodyLine = context.cellRun ? null : hwpBodyTextLine(node);
         let paragraph = paragraphOptions(node, context.list ? 75 : context.cellRun ? 0 : 150, cellLineHeights.get(node), bodyLine);
+        if (context.importedList) {
+          const textStops = paragraph.tabStops ?? [];
+          const textPositions = new Set(textStops.map(stop => stop.position));
+          // Numbering levels are regenerated on export. Materialize effective
+          // list stops per paragraph so a direct override stays local.
+          const numberingStops = parseWordNumberingTabs(node.attrs?.wordNumberingTabs)
+            .filter(position => !textPositions.has(position))
+            .map(position => ({ position, type: TabStopType.NUM }));
+          if (numberingStops.length) paragraph = { ...paragraph, tabStops: [...textStops, ...numberingStops].sort((a, b) => a.position - b.position) };
+        }
         const sourceStyle = paragraphStyles.get(node.attrs?.wordParagraphStyle);
         if (sourceStyle) paragraph = { ...paragraph, style: sourceStyle.id };
         const cellLine = activeHwpCellLine(node.attrs);
@@ -1280,7 +1382,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             } : {}),
           }) : undefined, bodyLine ? JSON.stringify({ policy: encodeHwpBodyLine(bodyLine),
             line: paragraph.spacing?.line, rule: paragraph.spacing?.lineRule }) : undefined,
-            { de: node.attrs?.wordAutoSpaceDE, dn: node.attrs?.wordAutoSpaceDN }, node.attrs?.wordTextAlignment),
+            { de: node.attrs?.wordAutoSpaceDE, dn: node.attrs?.wordAutoSpaceDN }, node.attrs?.wordTextAlignment, node.attrs?.wordParagraphReflection),
         );
       } else if (node.type === "image")
         output.push(
@@ -1341,7 +1443,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             output.push(...await blocks([child], {
               cellRun: context.cellRun, width: context.width, tableGap: context.tableGap,
               depth: level + 1,
-              ...(first && isParagraph ? { list: { reference, level } } : {}),
+              ...(first && isParagraph ? { list: { reference, level }, importedList: !!imported?.wordListId } : {}),
               ...(!first && isParagraph ? { indent: 720 * (level + 1) } : {}),
             }));
             if (isParagraph) first = false;
@@ -1598,15 +1700,18 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     resolved: comment.resolved, children: comment.html ? await blocks(parseDocumentHtml(sanitizeImportedHtml(comment.html).html).content || []) : comment.text.split('\n').map(text => new Paragraph({ children: [documentTextRun({ text })] })) })));
   const docx = new DocxDocument({
     title: document.title,
-    creator: 'Word Studio',
-    description: 'Created with Word Studio',
+    creator: wordStudioCreator,
+    description: wordStudioDescription,
     customProperties: [
+      ...(document.wordWrapTrailSpaces === undefined && document.wordDefaultHangingSpaces
+        ? [{ name: wordDefaultHangingSpacesProperty, value: 'hang' }] : []),
       ...(groups.some(group => group.page.hideEmptyLines) ? [{ name: emptyLineDocxProperty, value: JSON.stringify(groups.flatMap((group, index) => group.page.hideEmptyLines ? [index] : [])) }] : []),
       ...(bookmarkAliases.size ? [{ name: bookmarkNamesProperty, value: JSON.stringify([...bookmarkAliases].map(([name, alias]) => [alias, name])) }] : []),
     ],
     evenAndOddHeaderAndFooters: differentOddEven,
+    hyphenation: { autoHyphenation: document.wordAutoHyphenation },
     compatibility: { noColumnBalance: groups.some(group => group.page.columns?.balance === false), doNotBreakWrappedTables: false,
-      suppressBottomSpacing: document.page.suppressBottomSpacing !== false },
+      suppressBottomSpacing: document.page.suppressBottomSpacing !== false, wrapTrailSpaces: document.wordWrapTrailSpaces },
     numbering: { config: numbering },
     footnotes, endnotes,
     comments: { children: comments },
@@ -1614,21 +1719,36 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       paragraphStyles: [
         ...[...paragraphStyles.values()].filter(style => !style.builtIn),
         ...[TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE].map(id => ({ id, name: id === TABLE_GAP_STYLE ? 'Table spacing' : id === SECTION_BOUNDARY_STYLE ? 'Section boundary' : 'Table anchor', run: { size: 2 }, paragraph: { spacing: { before: 0, after: 0, line: 1, lineRule: LineRuleType.EXACT } } })),
+        ...(textBoxes.some(({frame}) => frame.position === 'floating' && !frame.drawingGroup)
+          ? [textBoxAnchorStyle]
+          : []),
         ...(hasTableEnd ? [{ id: TABLE_END_STYLE, name: 'Table end', next: 'Normal', semiHidden: true, run: { size: 2 },
           paragraph: { spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT } } }] : []),
       ] },
     sections,
   });
   const blob = await Packer.toBlob(docx);
-  if (!bookmarkNames.size && !document.comments.length && !geometries.size && !textBoxes.length && groups.length === 1 && !page.wordBackground) return blob;
+  const explicitNoWrapTrailSpaces = document.wordWrapTrailSpaces === false;
+  if (!bookmarkNames.size && !document.comments.length && !geometries.size && !textBoxes.length &&
+      groups.length === 1 && !page.wordBackground && !explicitNoWrapTrailSpaces) return blob;
   // docx 9.12 emits resolution metadata only for replies. Standalone comments
   // need the same standard OOXML part; use its generated paragraph IDs.
   const zip = await JSZip.loadAsync(await blob.arrayBuffer());
-  if (page.wordBackground) {
-    const main = xml(await zip.file('word/document.xml')!.async('string'));
+  if (page.wordBackground || explicitNoWrapTrailSpaces) {
     const settings = xml(await zip.file('word/settings.xml')!.async('string'));
-    writeWordBackground(main, settings, page.wordBackground);
-    zip.file('word/document.xml', new XMLSerializer().serializeToString(main));
+    if (page.wordBackground) {
+      const main = xml(await zip.file('word/document.xml')!.async('string'));
+      writeWordBackground(main, settings, page.wordBackground);
+      zip.file('word/document.xml', new XMLSerializer().serializeToString(main));
+    }
+    if (explicitNoWrapTrailSpaces) {
+      // The writer omits false compatibility flags. Restore the authored off
+      // value after the generated legacy flags and before the mode setting.
+      const compat = settings.getElementsByTagNameNS(W, 'compat')[0];
+      const flag = settings.createElementNS(W, 'w:wrapTrailSpaces');
+      flag.setAttributeNS(W, 'w:val', 'false');
+      compat.insertBefore(flag, compat.getElementsByTagNameNS(W, 'compatSetting')[0] ?? null);
+    }
     zip.file('word/settings.xml', new XMLSerializer().serializeToString(settings));
   }
   if (bookmarkNames.size) {

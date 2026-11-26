@@ -1,6 +1,331 @@
 import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
+import { cssPixels, parseHwpCellLine } from './hwp-cell-line';
+import { documentScale } from './document-scale';
+import { imageFloating } from './image-floating';
 import { paragraphLineOffsets, paragraphTextWalker, splitText, textUnitLength } from './paragraph-fragments';
+
+function headerRow(row: HTMLTableRowElement) {
+  return row.cells.length > 0 && [...row.cells].every(cell => cell.tagName === 'TH');
+}
+
+type TablePaper = { width: number; height: number; top: number; bottom: number };
+
+function previousBodyBlock(element: Element) {
+  let previous = element.previousElementSibling;
+  while (previous?.classList.contains('ProseMirror-widget')) previous = previous.previousElementSibling;
+  return previous;
+}
+
+function isLiteralFenceParagraph(block: Element | null) {
+  if (!(block instanceof HTMLParagraphElement) ||
+      !block.textContent?.replace(/[\s\u200b\u2060\ufeff]/gu, '') ||
+      block.matches('[data-word-keep-next="true"],[data-word-keep-lines="true"],' +
+        '[data-word-outline-level]:not([data-word-outline-level="9"]),[data-section-page],[data-page-break],[data-column-break],[data-column-count]'))
+    return false;
+  return [...block.querySelectorAll('*')].every(child => child.matches('img.ProseMirror-separator,br.ProseMirror-trailingBreak') ||
+    (child.matches('span,strong,em,b,i,u,s') &&
+      !child.matches('[data-document-field],[data-note-reference],[data-page-number],[data-docx-tab],[data-symbol-font],[data-docx-bookmark]')));
+}
+
+/** Read authored body order before print moves any source node to a sheet. */
+export function protectedTablePlacement(root: HTMLElement): (table: HTMLTableElement, paper: TablePaper) => boolean {
+  if (root.querySelector('[data-note-reference],table[data-table-anchor],[data-document-textbox]')) return () => false;
+  const images = root.querySelectorAll<HTMLImageElement>('img[data-image-floating]');
+  if (!images.length) return () => true;
+  if (images.length !== 1) return () => false;
+
+  const image = images[0], owner = image.closest('p'), flow = owner?.parentElement;
+  if (!owner || !flow || owner.querySelectorAll('img:not(.ProseMirror-separator)').length !== 1 || owner.closest('[data-column-count],td,th') ||
+    !(flow === root || flow.matches('[data-section-content]') && flow.parentElement === root ||
+      flow.classList.contains('section-editable') && flow.parentElement?.classList.contains('document-section-content') &&
+      flow.parentElement.parentElement === root)) return () => false;
+
+  // Source content before a top-level break keeps it from being absorbed
+  // into a section start. The next block owns the only picture.
+  const fence = previousBodyBlock(owner);
+  if (!fence?.matches('div[data-page-break="true"]:not([data-column-break],[data-section-page])')) return () => false;
+  const preceding = previousBodyBlock(fence);
+  const block = preceding && isLiteralFenceParagraph(preceding) ? previousBodyBlock(preceding) : preceding;
+  const table = block instanceof HTMLTableElement ? block :
+    block?.classList.contains('tableWrapper') ? block.querySelector<HTMLTableElement>(':scope > table') : null;
+  if (!table?.rows.length) return () => false;
+
+  const floating = imageFloating(image.dataset.imageFloating);
+  if (!floating || floating.drawingGroup || floating.behindDocument ||
+    floating.wrap?.type !== 1 || floating.wrap.side !== 'bothSides' ||
+    (floating.margins && Object.values(floating.margins).some(margin => margin !== 0))) return () => false;
+  const { horizontalPosition: x, verticalPosition: y } = floating;
+  if (x.relative !== 'page' || y.relative !== 'page' || x.align || y.align ||
+    x.offset === undefined || y.offset === undefined) return () => false;
+  const width = Number(image.getAttribute('width')), height = Number(image.getAttribute('height'));
+  const left = x.offset / 9525, top = y.offset / 9525;
+  return (candidate, paper) => candidate === table && width > 0 && height > 0 &&
+    left >= 0 && left + width <= paper.width && top >= paper.top && top + height <= paper.height - paper.bottom;
+}
+
+export function centeredContinuationParagraph(cell: HTMLTableCellElement) {
+  const paragraph = cell.firstElementChild, alignment = getComputedStyle(cell).verticalAlign;
+  if (!(paragraph instanceof HTMLParagraphElement) || cell.children.length !== 1) return;
+  if (alignment === 'top' || alignment === 'middle' &&
+    !paragraph.querySelector('[data-docx-tab],[data-docx-bookmark],[data-word-overlap],[data-symbol-font]')) return paragraph;
+}
+
+export function hasCenteredOrdinaryCell(rows: HTMLTableRowElement[]) {
+  return rows.some(row => [...row.cells].some(cell =>
+    cell.tagName === 'TD' && cell.rowSpan === 1 && getComputedStyle(cell).verticalAlign === 'middle'));
+}
+
+export function hasHwpCellLines(rows: HTMLTableRowElement[]) {
+  return rows.some(row => row.querySelector('[data-hwp-cell-line]'));
+}
+
+export function ordinaryHwpTerminalCells(rows: HTMLTableRowElement[]) {
+  return rows.flatMap(row => [...row.cells].filter(cell =>
+    cell.tagName === 'TD' && cell.rowSpan === 1 && cell.firstElementChild instanceof HTMLParagraphElement &&
+    cell.firstElementChild.dataset.hwpCellTerminal === 'true'));
+}
+
+// Only HWP owners with two plain, nonempty paragraphs take this path.
+function hwpOwnerParagraphs(cell: HTMLTableCellElement) {
+  const paragraphs = [...cell.children];
+  if (cell.tagName !== 'TD' || cell.colSpan !== 1 || paragraphs.length !== 2 ||
+    getComputedStyle(cell).verticalAlign !== 'middle' ||
+    paragraphs[0].hasAttribute('data-hwp-cell-line') ||
+    !paragraphs[1].hasAttribute('data-hwp-cell-line')) return null;
+  if (!paragraphs.every(paragraph => {
+    if (!(paragraph instanceof HTMLParagraphElement) || !paragraph.textContent?.trim() ||
+      paragraph.dataset.wordLineRule !== 'exact' || paragraphLineOffsets(paragraph).length !== 0 ||
+      paragraph.querySelector('br:not(.ProseMirror-trailingBreak),sup,sub,img:not(.ProseMirror-separator),svg,' +
+        '[data-document-field],[data-docx-tab],[data-docx-bookmark],[data-word-overlap],[data-symbol-font]')) return false;
+    const style = getComputedStyle(paragraph);
+    return parseFloat(style.marginTop) === 0 && parseFloat(style.marginBottom) === 0;
+  })) return null;
+  return paragraphs as HTMLParagraphElement[];
+}
+
+export function multiParagraphHwpOwners(rows: HTMLTableRowElement[]) {
+  return rows.flatMap(row => [...row.cells].filter(cell => cell.rowSpan > 1 && hwpOwnerParagraphs(cell)));
+}
+
+export function precedingSourceRow(row: HTMLTableRowElement) {
+  let previous = row.previousElementSibling;
+  while (previous?.classList.contains('ProseMirror-widget')) previous = previous.previousElementSibling;
+  return previous instanceof HTMLTableRowElement ? previous : null;
+}
+
+// Compare the two painted lines, irrespective of how inline decorations
+// divide their text nodes in the editable view or a detached print fragment.
+export function measureHwpTerminalParagraph(paragraph: HTMLElement) {
+  if (paragraph.dataset.hwpCellTerminal !== 'true' || paragraph.querySelector('br:not(.ProseMirror-trailingBreak)')) return null;
+  const advance = Number(paragraph.dataset.hwpCellAdvance), end = Number(paragraph.dataset.hwpCellEnd);
+  const starts = paragraphLineOffsets(paragraph);
+  if (starts.length !== 1 || !(end > 0 && advance > end + .05)) return null;
+  const bounds = paragraph.getBoundingClientRect(), scale = documentScale(paragraph);
+  const width = bounds.width / scale, height = bounds.height / scale;
+  if (Math.abs(height - advance - end) > .5) return null;
+
+  const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+  const ink: [DOMRect[], DOMRect[]] = [[], []], range = document.createRange();
+  let prefix = '', rest = '';
+  while (walker.nextNode()) {
+    const node = walker.currentNode as Text;
+    if (!node.length) continue;
+    const leading = !!node.parentElement?.closest('[data-hwp-cell-prefix]');
+    if (leading && rest) return null;
+    if (leading) prefix += node.data;
+    else rest += node.data;
+    range.selectNodeContents(node);
+    ink[leading ? 0 : 1].push(...[...range.getClientRects()].filter(rect => rect.width > .1 && rect.height > .1));
+  }
+  if (!prefix.trim() || !rest.trim() || prefix.length !== starts[0] || ink.some(line => !line.length)) return null;
+  const boxes = ink.map(line => [
+    (Math.min(...line.map(r => r.left)) - bounds.left) / scale,
+    (Math.min(...line.map(r => r.top)) - bounds.top) / scale,
+    (Math.max(...line.map(r => r.right)) - bounds.left) / scale,
+    (Math.max(...line.map(r => r.bottom)) - bounds.top) / scale,
+  ]);
+  if (Math.abs(boxes[1][1] - boxes[0][1] - advance) > .5) return null;
+  return { prefix, rest, dimensions: [width, height, advance, end, ...boxes.flat()] };
+}
+
+export function sameHwpTerminalParagraph(
+  before: NonNullable<ReturnType<typeof measureHwpTerminalParagraph>>, after: ReturnType<typeof measureHwpTerminalParagraph>,
+) {
+  return after !== null && before.prefix === after.prefix && before.rest === after.rest &&
+    before.dimensions.every((value, index) => Math.abs(value - after.dimensions[index]) <= .5);
+}
+
+function canMoveHwpCellParagraph(paragraph: HTMLElement) {
+  if (!(paragraph instanceof HTMLParagraphElement) || paragraph.dataset.wordLineRule !== 'exact' ||
+    paragraph.matches('[data-hwp-cell-full-line],[data-hwp-cell-continuation]') ||
+    paragraph.querySelector('sup,sub,[data-document-field]')) return false;
+  const cell = paragraph.parentElement;
+  if (!(cell instanceof HTMLTableCellElement) || cell.colSpan !== 1 ||
+    (cell.tagName === 'TH' && cell.rowSpan !== 1) ||
+    getComputedStyle(cell).verticalAlign !== 'middle' ||
+    (centeredContinuationParagraph(cell) !== paragraph &&
+      !(cell.rowSpan > 1 && hwpOwnerParagraphs(cell)?.includes(paragraph)))) return false;
+
+  const line = parseHwpCellLine(paragraph.dataset.hwpCellLine);
+  const size = cssPixels(paragraph.dataset.hwpCellAuthoredSize), exact = cssPixels(paragraph.dataset.wordLine);
+  const css = getComputedStyle(paragraph);
+  const font = cssPixels(css.fontSize), height = cssPixels(css.lineHeight);
+  if (!line || (line.rule !== 'Fixed' && line.rule !== 'Percent') || size === null || exact === null || font === null || height === null ||
+    Math.abs(line.font - size) > .05 || Math.abs(line.base - exact) > .05 ||
+    Math.abs(font - size) > .05 || Math.abs(height - line.end) > .05) return false;
+
+  const text = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+  while (text.nextNode()) if (text.currentNode.textContent?.length &&
+    Math.abs(parseFloat(getComputedStyle(text.currentNode.parentElement!).fontSize) - size) > .05) return false;
+  if (!paragraph.textContent?.trim()) return false;
+  if (paragraph.dataset.hwpCellTerminal === 'true') {
+    return cell.tagName === 'TD' && line.rule === 'Percent' && Math.abs(line.base - line.advance) <= .05 &&
+      Math.abs(Number(paragraph.dataset.hwpCellAdvance) - line.advance) <= .05 &&
+      Math.abs(Number(paragraph.dataset.hwpCellEnd) - line.end) <= .05 &&
+      measureHwpTerminalParagraph(paragraph) !== null;
+  }
+  if (paragraph.querySelector('[data-hwp-cell-prefix]') || Math.abs(line.end - line.base) > .05) return false;
+  // A compact single line keeps its measured end height only while it fits.
+  // Wrapped or explicitly broken text can activate a different terminal box.
+  // A merged owner must retain its original single line in the shorter cell.
+  // Repeated headers and merged owners must reproduce a single line.
+  const uniform = cell.tagName === 'TD' && cell.rowSpan === 1 && line.advance === line.end;
+  return uniform || (!paragraph.querySelector('br:not(.ProseMirror-trailingBreak)') && paragraphLineOffsets(paragraph).length === 0);
+}
+
+export function canSplitProtectedMergedRows(rows: HTMLTableRowElement[]) {
+  const table = rows[0]?.closest('table');
+  if (!table || table.dataset.wordTableLayout !== 'fixed' || table.dataset.tableAnchor ||
+    table.parentElement?.closest('td,th,[data-column-count]:not([data-column-count="1"]),.document-textbox,.document-furniture')) return false;
+  const firstBody = rows.findIndex(row => !headerRow(row));
+  if (firstBody < 0 || rows.length - firstBody < 2) return false;
+  const body = rows.slice(firstBody);
+  const centeredOwner = body.some(row => [...row.cells].some(cell =>
+    cell.rowSpan > 1 && getComputedStyle(cell).verticalAlign === 'middle'));
+  const supportedRows = rows.every((row, index) => (index < firstBody ? [...row.cells].every(cell => cell.rowSpan === 1) :
+      row.dataset.rowSplit === 'avoid' && row.dataset.wordRowRule !== 'exact' && Number.parseFloat(row.style.height) > 0 &&
+      [...row.cells].every(cell => cell.tagName === 'TD') && [...row.cells].some(cell => cell.rowSpan === 1)) &&
+    [...row.cells].every(cell => cell.rowSpan >= 1 && !cell.style.height && !cell.style.minHeight) &&
+    !row.querySelector('table,img:not(.ProseMirror-separator),svg,[data-note-reference],[data-page-number],[data-word-keep-next="true"]') &&
+    [...row.querySelectorAll<HTMLElement>('[data-hwp-cell-line]')].every(paragraph =>
+      centeredOwner && canMoveHwpCellParagraph(paragraph)) &&
+    row.getBoundingClientRect().height > 0);
+  if (!supportedRows) return false;
+  if (!centeredOwner) return true;
+
+  // The editor must reproduce the next physical paper's used border without
+  // changing row height or moving other paragraphs. Limit this path to cells
+  // whose whole paragraph can be mapped back to the continuous editable row.
+  const columns = table.querySelector(':scope > colgroup')?.children.length ?? 0;
+  const previous = precedingSourceRow(body[0]);
+  // The print plan for a wrapped ordinary cell starts at the table edge.
+  // An earlier body row can change the collapsed borders of that plan.
+  if (previous && !headerRow(previous) &&
+    (ordinaryHwpTerminalCells(body).length || multiParagraphHwpOwners(body).length)) return false;
+  return columns > 0 &&
+    (!previous || !previous.querySelector(':scope > [data-print-merge-continuation]') &&
+      [...previous.cells].reduce((width, cell) => width + cell.colSpan, 0) === columns) &&
+    body.every(row => [...row.cells].every(cell => {
+      if (cell.rowSpan === 1) return centeredContinuationParagraph(cell);
+      const paragraph = cell.firstElementChild, alignment = getComputedStyle(cell).verticalAlign;
+      return !!hwpOwnerParagraphs(cell) || paragraph instanceof HTMLParagraphElement && cell.childElementCount === 1 &&
+        (alignment === 'top' || alignment === 'middle');
+    }));
+}
+
+function mergeContentFitsOwnerRow(cell: HTMLTableCellElement, row: HTMLTableRowElement, borderFactor: number) {
+  if (cell.dataset.printMergeContinuation && !cell.hasChildNodes()) return true;
+  const p = cell.firstElementChild;
+  const style = getComputedStyle(cell);
+  if (style.verticalAlign !== 'top' || cell.children.length !== 1 || !p?.matches('p') ||
+    p.querySelector('[data-docx-tab],[data-docx-bookmark],[data-word-overlap]')) return false;
+  const padding = Number.parseFloat(style.paddingBottom) || 0;
+  const border = (Number.parseFloat(style.borderBottomWidth) || 0) * borderFactor;
+  const margin = Math.max(0, Number.parseFloat(getComputedStyle(p).marginBottom) || 0);
+  const range = document.createRange();
+  range.selectNodeContents(p);
+  const contentBottom = Math.max(p.getBoundingClientRect().bottom, range.getBoundingClientRect().bottom);
+  return contentBottom + margin + padding + border <= row.getBoundingClientRect().bottom + .5;
+}
+
+function measureCenteredParagraph(paragraph: HTMLParagraphElement) {
+  if (!paragraph.textContent?.trim() ||
+    paragraph.querySelector('[data-docx-tab],[data-docx-bookmark],[data-word-overlap],[data-symbol-font]')) return null;
+  const walker = paragraphTextWalker(paragraph), range = document.createRange(), ink: DOMRect[] = [];
+  while (walker.nextNode()) {
+    if (!(walker.currentNode instanceof Text)) continue;
+    range.selectNodeContents(walker.currentNode);
+    ink.push(...[...range.getClientRects()].filter(rect => rect.width > .1 && rect.height > .1));
+  }
+  if (!ink.length) return null;
+  const terminal = paragraph.dataset.hwpCellTerminal === 'true' ? measureHwpTerminalParagraph(paragraph) : null;
+  if (paragraph.dataset.hwpCellTerminal === 'true' && !terminal) return null;
+  const box = paragraph.getBoundingClientRect();
+  const css = getComputedStyle(paragraph);
+  const blockTop = box.top - Math.max(0, parseFloat(css.marginTop) || 0);
+  const blockBottom = box.bottom + Math.max(0, parseFloat(css.marginBottom) || 0);
+  return { box, ink, terminal, blockTop, blockBottom, lines: paragraphLineOffsets(paragraph),
+    top: Math.min(blockTop, ...ink.map(rect => rect.top)), bottom: Math.max(blockBottom, ...ink.map(rect => rect.bottom)) };
+}
+
+export function measureCenteredCell(cell: HTMLTableCellElement) {
+  if (getComputedStyle(cell).verticalAlign !== 'middle') return null;
+  const first = cell.firstElementChild;
+  const paragraphs = cell.childElementCount === 1 && first instanceof HTMLParagraphElement ?
+    [first] : hwpOwnerParagraphs(cell);
+  if (!paragraphs) return null;
+  const bands = paragraphs.map(measureCenteredParagraph);
+  return bands.every(band => band !== null) ? bands : null;
+}
+
+export function centeredCellFits(
+  cell: HTMLTableCellElement, before: NonNullable<ReturnType<typeof measureCenteredCell>>,
+  borderFactor: number, allowInkInVerticalPadding = false,
+) {
+  const bands = measureCenteredCell(cell);
+  if (!bands || bands.length !== before.length) return false;
+  const bounds = cell.getBoundingClientRect(), css = getComputedStyle(cell);
+  const innerTop = bounds.top + (parseFloat(css.borderTopWidth) || 0) * borderFactor;
+  const innerBottom = bounds.bottom - (parseFloat(css.borderBottomWidth) || 0) * borderFactor;
+  const top = innerTop + (parseFloat(css.paddingTop) || 0);
+  const bottom = innerBottom - (parseFloat(css.paddingBottom) || 0);
+  const left = bounds.left + (parseFloat(css.paddingLeft) || 0) + (parseFloat(css.borderLeftWidth) || 0) * borderFactor;
+  const right = bounds.right - (parseFloat(css.paddingRight) || 0) - (parseFloat(css.borderRightWidth) || 0) * borderFactor;
+  const inkTop = allowInkInVerticalPadding ? innerTop : top;
+  const inkBottom = allowInkInVerticalPadding ? innerBottom : bottom;
+  return bands.every((after, i) => {
+    const source = before[i];
+    if (i > 0) {
+      const previous = bands[i - 1];
+      if (after.blockTop < previous.blockBottom - .5 ||
+        Math.min(...after.ink.map(ink => ink.top)) < Math.max(...previous.ink.map(ink => ink.bottom)) - .5 ||
+        Math.abs(after.box.top - bands[0].box.top - (source.box.top - before[0].box.top)) > .5) return false;
+    }
+    // A compressed line's glyph bounds can extend slightly past its line box.
+    if (after.blockTop < top - .5 || after.blockBottom > bottom + .5) return false;
+    return centeredParagraphFits(after, source, { left, right, top: inkTop, bottom: inkBottom });
+  });
+}
+
+type MeasuredParagraph = NonNullable<ReturnType<typeof measureCenteredParagraph>>;
+
+function centeredParagraphFits(after: MeasuredParagraph, before: MeasuredParagraph, bounds: {
+  left: number; right: number; top: number; bottom: number;
+}) {
+  if (!after || after.lines.length !== before.lines.length || after.lines.some((line, index) => line !== before.lines[index]) ||
+    after.ink.length !== before.ink.length || Math.abs(after.box.width - before.box.width) > .5 ||
+    Math.abs(after.box.height - before.box.height) > .5) return false;
+  if (before.terminal ? !sameHwpTerminalParagraph(before.terminal, after.terminal) : after.terminal) return false;
+  if (after.top < bounds.top - .5 || after.bottom > bounds.bottom + .5) return false;
+  return after.ink.every((ink, index) => {
+    const source = before.ink[index];
+    return ink.left >= bounds.left - .5 && ink.right <= bounds.right + .5 &&
+      Math.abs(ink.x - after.box.x - (source.x - before.box.x)) <= .5 &&
+      Math.abs(ink.y - after.box.y - (source.y - before.box.y)) <= .5 &&
+      Math.abs(ink.width - source.width) <= .5 && Math.abs(ink.height - source.height) <= .5;
+  });
+}
 
 interface FragmentContext { bodyHeight(): number; hasDeferredNote(element: HTMLElement): boolean; deferredNotes(): ReadonlySet<string> }
 
@@ -133,10 +458,11 @@ export function tableFragmenter(context: FragmentContext) {
     if (element.matches('tr')) { element.style.removeProperty('height'); tail.style.removeProperty('height'); }
     return tail;
   }
-  // Only explicitly permitted continuing merges may cross a row boundary. Keep
-  // the grid and every cell's content exactly once; this is print DOM only.
-  function splitMergedGroup(group: HTMLTableRowElement[], boundary: number): HTMLTableRowElement[] | null {
-    if (group.length < 2 || group.some(r => rowSplitPolicy(r.dataset) === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
+  function splitMergedGroup(group: HTMLTableRowElement[], boundary: number, protectedFit?: () => boolean): HTMLTableRowElement[] | null {
+    if (group.length < 2) return null;
+    if (protectedFit) {
+      if (group.at(-1)!.getBoundingClientRect().bottom <= boundary + .5) return null;
+    } else if (group.some(r => rowSplitPolicy(r.dataset) === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
     const entries: { cell: HTMLTableCellElement; row: number; col: number }[] = [];
     const occupied: number[] = [];
     for (let row = 0; row < group.length; row++) {
@@ -148,11 +474,56 @@ export function tableFragmenter(context: FragmentContext) {
         col += cell.colSpan;
       }
     }
-    for (let cut = group.length - 1; cut > 0; cut--) {
+    const firstBody = protectedFit ? group.findIndex(row => !headerRow(row)) : 0;
+    if (firstBody < 0) return null;
+    const borderFactor = protectedFit && getComputedStyle(group[0].closest('table')!).borderCollapse === 'collapse' ? .5 : 1;
+    for (let cut = group.length - 1; cut > firstBody; cut--) {
       if (group[cut - 1].getBoundingClientRect().bottom > boundary + .5) continue;
       const crossings = entries.filter(e => e.row < cut && e.row + e.cell.rowSpan > cut);
-      if (!crossings.length || crossings.some(e => e.cell.dataset.cellSplit !== 'allow')) continue;
+      if (!crossings.length) continue;
       const tails = group.slice(cut);
+      if (protectedFit) {
+        // Keep all owner paragraphs intact. Their layout is measured
+        // again in the shortened cell because its unsplit center cannot be
+        // used to decide whether their ink fits in the retained fragment.
+        const centered = new Map<HTMLTableCellElement, NonNullable<ReturnType<typeof measureCenteredCell>>>();
+        for (const { cell } of crossings) {
+          const bands = measureCenteredCell(cell);
+          if (bands) centered.set(cell, bands);
+        }
+        if (crossings.some(({ cell, row }) => !centered.has(cell) && !mergeContentFitsOwnerRow(cell, group[row], borderFactor))) continue;
+        const headRows = group.slice(0, cut);
+        const rowHeights = centered.size ? headRows.map(row => row.getBoundingClientRect().height) : [];
+        const parent = tails[0].parentNode!;
+        const followingRow = tails.at(-1)!.nextSibling;
+        const spans = crossings.sort((a, b) => a.col - b.col).map(({ cell, row, col }) => {
+          const span = cell.rowSpan;
+          const next = cell.cloneNode(false) as HTMLTableCellElement;
+          next.dataset.printMergeContinuation = 'true';
+          next.rowSpan = row + span - cut;
+          cell.rowSpan = cut - row;
+          const following = entries.find(entry => entry.row === cut && entry.col > col)?.cell;
+          tails[0].insertBefore(next, following || null);
+          return { cell, span, next, row };
+        });
+        tails.forEach(row => row.remove());
+        const fitsTop = () => group[cut - 1].getBoundingClientRect().bottom <= boundary + .5 &&
+          spans.every(({ cell, row }) => mergeContentFitsOwnerRow(cell, group[row], borderFactor)) && protectedFit();
+        const fitsCentered = () => protectedFit() && group[cut - 1].getBoundingClientRect().bottom <= boundary + .5 &&
+          headRows.every((row, index) => Math.abs(row.getBoundingClientRect().height - rowHeights[index]) <= .5) &&
+          spans.every(({ cell, row }) => {
+            const prior = centered.get(cell);
+            return prior ? centeredCellFits(cell, prior, borderFactor) : mergeContentFitsOwnerRow(cell, group[row], borderFactor);
+          });
+        if (centered.size ? fitsCentered() : fitsTop()) {
+          group.splice(cut);
+          return tails;
+        }
+        for (const { cell, span, next } of spans) { cell.rowSpan = span; next.remove(); }
+        for (const tail of tails) parent.insertBefore(tail, followingRow);
+        continue;
+      }
+      if (crossings.some(e => e.cell.dataset.cellSplit !== 'allow')) continue;
       // The continuation starts at a source row boundary, not at the bottom
       // of the sheet. Filling the unused area below that row stretches the
       // retained rows and makes editor and print disagree about the grid.

@@ -744,6 +744,12 @@ button:hover:not(:disabled) {
   color: #242932;
   caret-color: #2864a8;
 }
+/* Imported Word body paragraphs keep trailing spaces on a filled line. */
+.tiptap p[data-word-hanging-spaces] { white-space: pre-wrap; }
+.tiptap p[data-word-floating-spaces] {
+  white-space: pre-wrap;
+  word-spacing: var(--word-floating-space-adjustment);
+}
 .tiptap > :first-child {
   margin-top: 0;
 }
@@ -905,6 +911,9 @@ button:hover:not(:disabled) {
   z-index: 1;
 }
 .tiptap [data-word-line-rule] { letter-spacing: normal; }
+.tiptap p[style*="--word-fallback-space-adjustment"] {
+  word-spacing: var(--word-fallback-space-adjustment);
+}
 /* Imported heading runs already carry the resolved Word formatting. Studio's
    authored heading weight and extra top padding must not add another layer. */
 .tiptap :is(h1, h2, h3, h4, h5, h6)[data-word-line-rule] {
@@ -915,6 +924,19 @@ button:hover:not(:disabled) {
 .word-overlap { display: inline-grid; vertical-align: baseline; text-indent: 0; }
 .word-overlap > span { grid-area: 1 / 1; align-self: center; justify-self: center; }
 .tiptap p:empty::after { content: '\200b'; }
+.tiptap [data-word-bottom-border-layout]:not([data-print-soft-end]) {
+  position: relative;
+  padding-bottom: calc(var(--word-bottom-border-space) + var(--word-bottom-border-width));
+}
+.tiptap [data-word-bottom-border-layout]:not([data-print-soft-end])::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 var(--word-bottom-border-inset, 0px);
+  height: var(--word-bottom-border-width);
+  background-color: var(--word-bottom-border-color);
+  print-color-adjust: exact;
+  pointer-events: none;
+}
 .tiptap [data-print-trailing-break]::after { content: '\200b'; }
 /* Restore natural line boxes while measuring pagination. The document model,
    paragraph marks and undo history retain the original blank paragraphs. */
@@ -2073,6 +2095,13 @@ button:hover:not(:disabled) {
 :is(.tiptap, .document-furniture) li[data-word-list-layout][data-list-glyph]::before { content: attr(data-list-glyph); }
 :is(.tiptap, .document-furniture) li[data-word-list-layout][data-print-list-continuation]::before { content: none; }
 :is(.tiptap, .document-furniture) [data-word-list-paragraph] { text-indent: 0 !important; }
+.tiptap li > p[data-word-native-list-indent] {
+  margin-left: var(--word-native-list-left) !important;
+  text-indent: var(--word-native-list-first) !important;
+}
+/* The hidden marker of a continued list fragment has no strut to match. */
+.tiptap li[data-word-symbol-body-strut-ready="yes"]:not([data-print-list-continuation]) { line-height: var(--word-symbol-body-strut); }
+.tiptap li[data-print-list-continuation] > p[data-word-native-list-indent] { text-indent: 0 !important; }
 
 /* An empty anchor has no glyphs. A zero font size still inherits an absolute
    paragraph leading, which adds descent and can push a table onto the next
@@ -2164,11 +2193,23 @@ button:hover:not(:disabled) {
 .document-textbox[data-textbox-position="floating"] > .document-textbox-content { position:absolute; left:0; top:0; transform:translate(var(--textbox-left,0px),var(--textbox-top,0px)); z-index:1; }
 .document-textbox-content { position:relative; overflow:visible; }
 .document-textbox-content:focus-within { outline:1px dotted #8795aa; outline-offset:2px; }
+.document-textbox-content[style*="--textbox-decoration-fill"]::after {
+  content:"";
+  position:absolute;
+  left:var(--textbox-decoration-x);
+  top:var(--textbox-decoration-y);
+  width:var(--textbox-decoration-width);
+  height:var(--textbox-decoration-height);
+  background:var(--textbox-decoration-fill);
+  z-index:1;
+  pointer-events:none;
+}
 
 .document-textbox-content[style*="--textbox-shape-fill"]::before { content:""; position:absolute; inset:0; background:var(--textbox-shape-fill); clip-path:polygon(0 0,calc(100% - var(--textbox-arrow-inset)) 0,100% 50%,calc(100% - var(--textbox-arrow-inset)) 100%,0 100%); z-index:-1; pointer-events:none; }
 
-/* View-only strut for an authored paragraph containing only a grouped anchor. */
-.tiptap [data-print-drawing-anchor]::after { content:''; display:inline-block; width:0; }
+/* View-only paragraph-mark strut where static HTML has no inline line box. */
+.tiptap [data-print-drawing-anchor]::after,
+.tiptap [data-print-empty-heading]::after { content:''; display:inline-block; width:0; }
 
 /* Screen magnification must never change PDF/physical page dimensions. */
 @media screen { .print-layout.preview > .print-page { zoom: var(--print-preview-scale, 1); } }

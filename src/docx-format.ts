@@ -1,6 +1,8 @@
 import { paragraphTextAlignment } from './paragraph-text-alignment';
+import { isWordNumberingTabPosition, normalizeWordNumberingTabs } from './document-tabs';
 import type JSZip from 'jszip';
 import { wordNumberText } from './word-numbering';
+import { parseWordParagraphBottomBorder } from './word-paragraph-border';
 
 export const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 export const all = (root: Element | Document, tag: string) => Array.from(root.getElementsByTagNameNS(W, tag));
@@ -34,6 +36,27 @@ export async function docxFormat(zip: JSZip) {
   const settings = settingsFile ? new DOMParser().parseFromString(await settingsFile.async('string'), 'application/xml') : undefined;
   const balanceWidths = settings && all(settings, 'balanceSingleByteDoubleByteWidth')[0];
   const themeLanguage = settings && val(all(settings, 'themeFontLang')[0], 'eastAsia');
+  const borderColorMapping = settings && all(settings, 'clrSchemeMapping')[0];
+  const themeColors = theme?.getElementsByTagNameNS('*', 'clrScheme')[0];
+  function paragraphBorderColor(border: Element) {
+    const themeColor = val(border, 'themeColor'), fallback = val(border, 'color');
+    // Word writes the resolved RGB alongside tint/shade. With a transformed
+    // theme color and no usable fallback, keep the unsupported color out.
+    if (themeColor && (val(border, 'themeTint') || val(border, 'themeShade')))
+      return hex(fallback) ? fallback : null;
+    const aliases: Record<string, string> = {
+      dark1: 'dk1', dark2: 'dk2', light1: 'lt1', light2: 'lt2', text1: 'dk1', text2: 'dk2',
+      background1: 'lt1', background2: 'lt2', hyperlink: 'hlink', followedHyperlink: 'folHlink',
+    };
+    const mappedKeys: Record<string, string> = {
+      text1: 't1', text2: 't2', background1: 'bg1', background2: 'bg2',
+      hyperlink: 'hyperlink', followedHyperlink: 'followedHyperlink',
+    };
+    const mapped = val(borderColorMapping, mappedKeys[themeColor] || themeColor) || themeColor;
+    const value = child(themeColors, aliases[mapped] || mapped)?.firstElementChild;
+    return [value?.getAttribute('val'), value?.getAttribute('lastClr'), fallback]
+      .find(color => color && hex(color)) || (fallback === 'auto' ? fallback : undefined);
+  }
   function themeFont(value: string, language: string) {
     const group = theme?.getElementsByTagNameNS('*', value.startsWith('major') ? 'majorFont' : 'minorFont')[0];
     if (!group || !/^(major|minor)(Ascii|HAnsi|EastAsia|Bidi)$/.test(value)) return '';
@@ -189,6 +212,28 @@ export async function docxFormat(zip: JSZip) {
       }
       return enabled;
     },
+    paragraphBottomBorder(p: Element) {
+      if (p.parentElement?.localName !== 'body') return null;
+      // Resolve each side before checking scope. A direct pBdr with just a
+      // bottom side does not remove another side inherited from a style.
+      const sides = new Map<string, Element>();
+      for (const properties of paragraphProperties(p)) {
+        const border = child(properties, 'pBdr');
+        if (border) for (const side of border.children) if (side.namespaceURI === W) sides.set(side.localName, side);
+      }
+      const bottom = sides.get('bottom');
+      if (!bottom || sides.size !== 1) return null;
+      const style = val(bottom);
+      if (style === 'none' || style === 'nil') return { style };
+      if (style !== 'single' || ['shadow', 'frame'].some(flag => !['', 'false', '0', 'off'].includes(val(bottom, flag)))) return null;
+      const rawSize = val(bottom, 'sz').trim();
+      const rawSpace = bottom.getAttributeNS(W, 'space')?.trim();
+      if (!/^\+?\d+$/.test(rawSize) || (rawSpace !== undefined && !/^\+?\d+$/.test(rawSpace))) return null;
+      const color = paragraphBorderColor(bottom);
+      if (color === null) return null;
+      return parseWordParagraphBottomBorder(JSON.stringify({ style, size: Number(rawSize),
+        ...(rawSpace !== undefined ? { space: Number(rawSpace) } : {}), ...(color ? { color } : {}) }));
+    },
     headingMarks(p: Element) {
       // Typing defaults belong to the source paragraph style/mark, separately
       // from the actual text runs and their explicit formatting overrides.
@@ -285,16 +330,25 @@ export async function docxFormat(zip: JSZip) {
     },
     run(run: Element, script: 'ascii' | 'eastAsia' = 'ascii') { return runCss(runLayers(ancestor(run, 'p')!, run), script); },
     tabs(p: Element) {
-      const stops = new Map<number, { position: number; type: string; leader: string }>();
+      const stops = new Map<number, { type: string; leader: string }>();
       for (const props of paragraphProperties(p)) {
         for (const tab of Array.from(child(props, 'tabs')?.children ?? [])) {
-          const position = Number(val(tab, 'pos')) / 15, type = val(tab);
+          const sourcePosition = val(tab, 'pos').trim(), type = val(tab);
+          const position = Number(sourcePosition);
+          if (!sourcePosition || !Number.isFinite(position)) continue;
+          // A tab stop of either kind can replace or clear a lower-layer stop.
           if (type === 'clear') stops.delete(position);
-          else if (['left', 'right', 'center', 'decimal'].includes(type) && Number.isFinite(position))
-            stops.set(position, { position, type, leader: val(tab, 'leader') });
+          else if (['left', 'right', 'center', 'decimal'].includes(type) ||
+            (type === 'num' && /^[+-]?\d+$/.test(sourcePosition) && isWordNumberingTabPosition(position)))
+            stops.set(position, { type, leader: val(tab, 'leader') });
         }
       }
-      return JSON.stringify([...stops.values()]);
+      const ordinary = [], numbering = [];
+      for (const [position, stop] of stops) {
+        if (stop.type === 'num') numbering.push(position);
+        else ordinary.push({ position: position / 15, ...stop });
+      }
+      return { ordinary, numbering: normalizeWordNumberingTabs(numbering) };
     },
     paragraph(p: Element) {
       const style = document.createElement('p').style;

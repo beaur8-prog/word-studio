@@ -1,13 +1,14 @@
+import { layoutWordCellSpacing } from './word-cell-spacing';
 import { layoutWordAutoFitTables } from './word-table-autofit';
 import { preparePrintFonts, type PrintFontRequest } from './print-fonts';
-import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
+import { wordKeepChains, wordKeepParagraph, wordKeepPrefixHeight, wordFlowHasWrappingAnchors, wordWidowSplitBounds } from './word-keep-policy';
 import { rowSplitPolicy } from './row-split-policy';
 import { layoutTextBoxes } from './textbox-frame';
 import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
-import { tableFragmenter } from './table-fragments';
-import { pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
+import { canSplitProtectedMergedRows, centeredCellFits, hasCenteredOrdinaryCell, hasHwpCellLines, measureCenteredCell, multiParagraphHwpOwners, ordinaryHwpTerminalCells, protectedTablePlacement, tableFragmenter } from './table-fragments';
+import { hasUniformTablePageBody, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { layoutTabs } from './document-tabs';
-import { layoutWordLines, layoutWordListLines } from './word-line-metrics';
+import { layoutWordLines, markWordReferenceDensity, layoutWordListLines, markMeasuredWordSymbolItems } from './word-line-metrics';
 import { layoutWordContextualSpacing } from './word-contextual-spacing';
 import { layoutWordListLabels } from './word-list-labels';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
@@ -15,12 +16,14 @@ import { layoutHwpBodyLines } from './hwp-body-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns, columnGroupFits } from './column-layout';
 import { applyFloatingLayout } from './floating-layout';
+import { layoutWordParagraphBottomBorders } from './word-paragraph-border-layout';
 import { imageOutsidePaper, imageFloating } from './image-floating';
-import { layoutFurnitureImages } from './furniture-layout';
+import { layoutFurnitureImages, tableStoryExtent } from './furniture-layout';
 import { layoutTableAnchors, tableAnchor } from './table-anchor';
 import { paragraphFitBottom } from './paragraph-fit';
 import { splitListItem, wholeListItem } from './list-fragments';
 import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
+import { isOrdinaryWordBodyParagraph, isWordAlignedBulletParagraph, isWordGroupedTextBoxParagraph, type WordLayoutOptions } from './word-trailing-spaces';
 
 export type PrintLayout = { element: HTMLElement; pages: number; pageSettings: WeakMap<Element, PageSettings>; warnings: string[]; dispose(): void };
 export type PrintLayoutProgress = { label: string; completed?: number; total?: number; unit?: string };
@@ -28,7 +31,8 @@ const PX = 96 / 25.4;
 const dimensions = paperDimensions;
 
 /** Build one measured page tree used unchanged by preview, PDF and native printing. */
-export async function createPrintLayout(html: string, initialPage: PageSettings, onProgress?: (value: PrintLayoutProgress) => void, signal?: AbortSignal): Promise<PrintLayout> {
+export async function createPrintLayout(html: string, initialPage: PageSettings,
+  onProgress?: (value: PrintLayoutProgress) => void, signal?: AbortSignal, wordLayout: WordLayoutOptions = {}): Promise<PrintLayout> {
   signal?.throwIfAborted();
   if (onProgress) { onProgress({ label: '쪽 배치를 준비하는 중…' }); await new Promise(resolve => setTimeout(resolve, 24)); signal?.throwIfAborted(); }
   const host = document.createElement('div');
@@ -37,9 +41,34 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   document.body.append(host);
   const style = document.createElement('style'); host.append(style);
   const source = document.createElement('div'); source.innerHTML = html;
+  const flatSectionBoundaries = !!source.querySelector(':scope > [data-section-page]');
+  const framesWithSectionBoundaries = new WeakSet(
+    [...source.querySelectorAll('[data-section-content]')].filter(frame => frame.querySelector('[data-section-page]')),
+  );
+  const wordFloatingSpaces = wordLayout.wordHangingSpaces && !source.querySelector('[data-note-reference]');
+  if (wordFloatingSpaces) for (const paragraph of source.children)
+    if (paragraph instanceof HTMLParagraphElement && isOrdinaryWordBodyParagraph(paragraph, source))
+      paragraph.dataset.wordFloatingSpaceSource = 'true';
+  const wrappingAnchors = wordFlowHasWrappingAnchors(source);
+  if (wrappingAnchors && wordLayout.wordBodyStrut) markWordReferenceDensity(source);
+  const canPlaceProtectedTable = protectedTablePlacement(source);
+  if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
+    for (const paragraph of source.querySelectorAll<HTMLParagraphElement>('p[data-word-paragraph-style]')) {
+      const ordinary = isOrdinaryWordBodyParagraph(paragraph, source);
+      if (wordLayout.wordHangingSpaces && (ordinary || isWordAlignedBulletParagraph(paragraph)))
+        paragraph.dataset.wordHangingSpaces = 'true';
+      if (wordLayout.wordBodyStrut && ordinary) paragraph.dataset.wordBodyStrut = 'true';
+    }
+  }
+  if (wordLayout.wordHangingSpaces) {
+    for (const paragraph of source.querySelectorAll<HTMLParagraphElement>('[data-textbox-content] > p[data-word-paragraph-style]'))
+      if (isWordGroupedTextBoxParagraph(paragraph)) paragraph.dataset.wordHangingSpaces = 'true';
+  }
   prepareParagraphEnds(source);
+  layoutWordParagraphBottomBorders(source);
   layoutWordContextualSpacing(source);
   layoutWordListLabels(source);
+  if (wordLayout.wordBodyStrut && !wrappingAnchors) markMeasuredWordSymbolItems(source);
   // The editable table NodeView fixes the width from colgroup; static HTML
   // must do the same or nested tables stretch to the whole printable width.
   for (const table of source.querySelectorAll('table')) {
@@ -121,8 +150,15 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutWordListLines(header); layoutWordListLines(footer);
     layoutFurnitureImages(paper);
     const meaningful = (element: HTMLElement) => element.textContent?.trim() || element.querySelector('img,table');
-    const top = Math.max(margins.top * PX, meaningful(header) ? header.offsetTop + header.getBoundingClientRect().height + 2 : 0);
-    const bottom = Math.max(margins.bottom * PX, meaningful(footer) ? parseFloat(footer.style.bottom) + footer.getBoundingClientRect().height + 2 : 0);
+    const story = {
+      top: meaningful(header) ? header.offsetTop + header.getBoundingClientRect().height + 2 : 0,
+      bottom: meaningful(footer) ? parseFloat(footer.style.bottom) + footer.getBoundingClientRect().height + 2 : 0,
+    };
+    const top = Math.max(margins.top * PX, story.top), bottom = Math.max(margins.bottom * PX, story.bottom);
+    paper.dataset.uniformTablePageBody = String(hasUniformTablePageBody(settings, {
+      top: Math.max(story.top, tableStoryExtent(header, 'top')),
+      bottom: Math.max(story.bottom, tableStoryExtent(footer, 'bottom')),
+    }));
     content.style.top = `${top}px`; content.style.height = `${Math.max(1, height * PX - top - bottom)}px`;
     content.dataset.bodyHeight = String(Math.max(1, height * PX - top - bottom));
     paper.dataset.pageHeight = String(height * PX);
@@ -145,7 +181,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // column. Resolve its coordinates against the final column geometry.
     layoutTableAnchors(content);
     layoutTextBoxes(content);
-    applyFloatingLayout(content);
+    applyFloatingLayout(content, wordFloatingSpaces);
     layoutTextBoxes(content);
     const last = content.lastElementChild as HTMLElement | null;
     return !hasDeferredNote(content) && (!last || paragraphFitBottom(last, settings.suppressBottomSpacing !== false) <= content.getBoundingClientRect().bottom + 0.5)
@@ -188,7 +224,84 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   const { splitMergedGroup, splitElement } = tableFragmenter({
     bodyHeight: () => content.getBoundingClientRect().height, hasDeferredNote, deferredNotes: () => deferredNotes,
   });
+  type MeasuredCell = {
+    cell: HTMLTableCellElement;
+    before: NonNullable<ReturnType<typeof measureCenteredCell>>;
+    ordinaryTerminal: boolean;
+  };
+  type ProtectedTablePlan = { fragments: HTMLTableRowElement[][]; measured: MeasuredCell[] };
+
+  function measuredCellsFit(rows: HTMLTableRowElement[], measured: MeasuredCell[]) {
+    return measured.every(({ cell, before, ordinaryTerminal }) => {
+      if (!rows.includes(cell.parentElement as HTMLTableRowElement)) return true;
+      const border = getComputedStyle(cell.closest('table')!).borderCollapse === 'collapse' ? .5 : 1;
+      return centeredCellFits(cell, before, border, ordinaryTerminal);
+    });
+  }
+
+  function planProtectedGroup(
+    table: HTMLTableElement, headers: HTMLTableRowElement[], rows: HTMLTableRowElement[], firstCapacity: number, capacity: number,
+    ordinaryTerminals: HTMLTableCellElement[], multiParagraphOwners: HTMLTableCellElement[],
+  ): ProtectedTablePlan | null {
+    const width = table.getBoundingClientRect().width;
+    if (!(width > 0) || !(firstCapacity > 0) || !(capacity > 0)) return null;
+    const holder = document.createElement('div');
+    holder.className = 'tiptap';
+    holder.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;left:-100000px;top:0;margin:0;padding:0;min-height:0;width:${width}px`;
+    const probe = table.cloneNode(false) as HTMLTableElement;
+    probe.style.margin = '0';
+    probe.style.width = `${width}px`;
+    table.querySelectorAll(':scope > colgroup').forEach(columns => probe.append(columns.cloneNode(true)));
+    const body = probe.createTBody();
+    holder.append(probe);
+    const refresh = () => { layoutWordLines(probe); layoutHwpCellLines(probe); layoutTabs(probe); };
+    const copyRow = (row: HTMLTableRowElement) => row.cloneNode(true) as HTMLTableRowElement;
+    const repeats = headers.map(copyRow);
+    const fragments: HTMLTableRowElement[][] = [];
+    let pending = rows.map(copyRow);
+    const measured: MeasuredCell[] = [];
+    for (const cell of [...ordinaryTerminals, ...multiParagraphOwners]) {
+      const before = measureCenteredCell(cell);
+      const row = pending[rows.indexOf(cell.parentElement as HTMLTableRowElement)];
+      const ordinaryTerminal = ordinaryTerminals.includes(cell);
+      if (!before || ordinaryTerminal && !before[0].terminal || !row?.cells[cell.cellIndex]) return null;
+      measured.push({ cell: row.cells[cell.cellIndex], before, ordinaryTerminal });
+    }
+    content.append(holder);
+    try {
+      // Plan every continuation before changing the visible page. A failure
+      // on any later whole row leaves the source table untouched.
+      for (let pass = 0; pending.length && pass < 512; pass++) {
+        body.replaceChildren(...repeats, ...pending);
+        prepareParagraphEnds(probe);
+        refresh();
+        const height = pass ? capacity : firstCapacity;
+        const fitsHere = () => {
+          refresh();
+          return probe.getBoundingClientRect().height <= height + .5 && measuredCellsFit([...body.rows], measured);
+        };
+        if (fitsHere()) {
+          fragments.push(pending);
+          return fragments.length > 1 ? { fragments, measured } : null;
+        }
+        const tail = splitMergedGroup(pending, probe.getBoundingClientRect().top + height, fitsHere);
+        if (!tail) return null;
+        fragments.push(pending);
+        pending = tail;
+      }
+      return null;
+    } finally { holder.remove(); }
+  }
+
   function appendTable(table: HTMLTableElement) {
+    const frame = table.closest('[data-section-content]');
+    // The editor reserves one envelope for an entire section frame. Keep
+    // nonempty stories out of the measured path when that frame has a break.
+    const hasSectionBoundary = frame ? framesWithSectionBoundaries.has(frame) : flatSectionBoundaries;
+    const uniformTablePageBody = () => content.closest<HTMLElement>('.print-page')?.dataset.uniformTablePageBody === 'true' &&
+      (!hasSectionBoundary || hasUniformTablePageBody(settings));
+    const [width, height] = dimensions(settings), { top, bottom } = pageMargins(settings);
+    const protectedTableFlow = canPlaceProtectedTable(table, { width: width * PX, height: height * PX, top: top * PX, bottom: bottom * PX });
     // Measure the complete source table once. Every printed continuation must
     // retain the same columns, including when its widest cell appears later.
     content.append(table); layoutWordAutoFitTables(content, true); table.remove();
@@ -209,14 +322,59 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     let part = shell();
     if (!rows.length) { if (!fits() && content.children.length > 1) { part.table.remove(); newPage(); part = shell(); } scaleOversized(part.table); return; }
     let bodyRows = 0;
+    const protectedStarts = new WeakSet<HTMLTableRowElement>();
+    const applyProtectedPlan = (group: HTMLTableRowElement[], { fragments, measured }: ProtectedTablePlan) => {
+      const source = { part, content, footnotes, pageNumber, sectionPage, hiddenEmptyLines, deferredNotes };
+      const styleCount = pageStyles.length;
+      const pages: Element[] = [];
+      group.forEach(row => row.remove());
+      part.body.append(...fragments[0]);
+      let complete = fits() && measuredCellsFit(fragments[0], measured);
+      for (const pageRows of fragments.slice(1)) {
+        if (!complete) break;
+        newPage();
+        pages.push(content.closest('.print-page')!);
+        part = shell(true);
+        part.body.append(...pageRows);
+        complete = uniformTablePageBody() && fits() && measuredCellsFit(pageRows, measured);
+      }
+      if (complete) return true;
+
+      // Recheck against the real page shells even after the detached proof.
+      // Roll back paper numbering as well as the source rows on failure.
+      pages.forEach(page => page.remove());
+      part = source.part; content = source.content; footnotes = source.footnotes;
+      pageNumber = source.pageNumber; sectionPage = source.sectionPage;
+      hiddenEmptyLines = source.hiddenEmptyLines; deferredNotes = source.deferredNotes;
+      pageStyles.length = styleCount;
+      fragments[0].forEach(row => row.remove());
+      part.body.append(...group);
+      return false;
+    };
     for (let i = 0; i < rows.length;) {
+      if (protectedStarts.has(rows[i])) { newPage(); part = shell(true); bodyRows = 0; }
       let end = i + 1;
       for (let j = i; j < end; j++) for (const cell of rows[j].cells) end = Math.min(rows.length, Math.max(end, j + cell.rowSpan));
       const group = rows.slice(i, end).map(row => row.cloneNode(true) as HTMLTableRowElement);
       group.forEach(row => part.body.append(row));
       const split = () => {
-        const mergedTail = splitMergedGroup(group, content.getBoundingClientRect().bottom);
-        if (mergedTail) { rows.splice(end, 0, ...mergedTail); return; }
+        const paper = content.getBoundingClientRect();
+        let protectedFit: typeof fits | undefined;
+        if (group.length > 1 && protectedTableFlow && uniformTablePageBody() && !ordinaryHwpTerminalCells(group).length && !multiParagraphHwpOwners(group).length) {
+          const repeated = [...part.body.rows].slice(0, headers.length);
+          if (canSplitProtectedMergedRows([...repeated, ...group])) {
+            const tableBox = part.table.getBoundingClientRect();
+            const headerHeight = (repeated.at(-1)?.getBoundingClientRect().bottom ??
+              part.table.rows[0].getBoundingClientRect().top) - tableBox.top;
+            const groupHeight = tableBox.bottom - group[0].getBoundingClientRect().top;
+            if (headerHeight + groupHeight <= paper.height + .5) protectedFit = fits;
+          }
+        }
+        const mergedTail = splitMergedGroup(group, paper.bottom, protectedFit);
+        if (mergedTail) {
+          if (protectedFit) protectedStarts.add(mergedTail[0]);
+          rows.splice(end, 0, ...mergedTail); return;
+        }
         if (group.length !== 1 || [...group[0].cells].some(c => c.rowSpan !== 1)) return;
         // DOCX enables row splitting to preserve continuing vertical merges.
         // A final one-row fragment is still part of that merge: keep its row
@@ -230,6 +388,23 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       // every normalizer three times made large-table DOCX saves stall. A
       // split or a move changes geometry and always needs a new measurement.
       let groupFits = fits();
+      if (!groupFits && i === 0 && group.length > 1 && protectedTableFlow && uniformTablePageBody() &&
+        group.some(row => [...row.cells].some(cell => cell.rowSpan > 1 && getComputedStyle(cell).verticalAlign === 'middle'))) {
+        const paper = content.getBoundingClientRect(), tableBox = part.table.getBoundingClientRect();
+        const repeats = [...part.body.rows].slice(0, headers.length);
+        const ordinaryTerminals = ordinaryHwpTerminalCells(group);
+        const multiParagraphOwners = multiParagraphHwpOwners(group);
+        const fitsFresh = tableBox.height <= paper.height + .5;
+        const canPlan = ordinaryTerminals.length || multiParagraphOwners.length ? fitsFresh :
+          !fitsFresh && headers.length > 0 && !hasCenteredOrdinaryCell(group) && !hasHwpCellLines([...repeats, ...group]);
+        if (canPlan && canSplitProtectedMergedRows([...repeats, ...group])) {
+          const plan = planProtectedGroup(part.table, repeats, group, paper.bottom - tableBox.top, paper.height, ordinaryTerminals, multiParagraphOwners);
+          if (plan && applyProtectedPlan(group, plan)) {
+            bodyRows = plan.fragments.at(-1)!.length; i = end; continue;
+          }
+          if (plan) groupFits = fits();
+        }
+      }
       // cantSplit also governs oversized rows: move their start to a fresh
       // body before continuing them, rather than shrinking or filling a tail.
       if (!groupFits && group.length === 1 && rowSplitPolicy(group[0].dataset) === 'avoid' &&
@@ -270,6 +445,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
           const number = document.createElement('span'); number.className = 'print-automatic-number'; number.textContent = String(pageNumber); footer.parentElement!.append(number);
         }
         layoutFurnitureImages(paper);
+        paper.dataset.uniformTablePageBody = String(hasUniformTablePageBody(settings));
         return;
       }
       const meaningful = content.textContent?.trim() || content.querySelector('img,table,[data-note-reference]');
@@ -435,7 +611,13 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         element.style.marginTop = '0'; append(element); return;
       }
     }
-    const fitsPage = fits();
+    let fitsPage = fits();
+    if (!fitsPage && element.dataset.wordFloatingSpaces === 'true') {
+      // Once a whole-paragraph fit fails, measure the original line layout
+      // again before finding offsets for fragments with different geometry.
+      delete element.dataset.wordFloatingSpaceSource;
+      fitsPage = fits();
+    }
     if (!fitsPage && settings.hideEmptyLines && content.children.length > 1 && hiddenEmptyLines < 2 &&
       element.getBoundingClientRect().height <= content.getBoundingClientRect().height && canHideEmptyPageLine(element)) {
       hiddenEmptyLines++; element.classList.add(hiddenEmptyLineClass); fits(); return;
@@ -444,8 +626,14 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // Explicit empty lines have flow even when the paragraph has no letters.
     if (element.matches('p,h1,h2,h3,h4,h5,h6,pre') && ((element.textContent?.length ?? 0) > 1 || element.querySelector('br'))) {
       const offsets = paragraphLineOffsets(element);
-      const keepTogether = keepShortWordParagraphTogether(element, offsets.length + 1, content.getBoundingClientRect().height);
-      let low = 0, high = keepTogether ? -1 : offsets.length - 1, best = 0;
+      const bodyHeight = content.getBoundingClientRect().height;
+      const lineCount = offsets.length + 1;
+      const keepTogether = keepShortWordParagraphTogether(element, lineCount, bodyHeight);
+      const bounds = wrappingAnchors ? undefined : wordWidowSplitBounds(element, lineCount, bodyHeight, 1, () => offsets[0]);
+      // Offset zero is the cut following line one.
+      let low = bounds ? bounds.minimumHead - 1 : 0;
+      let high = keepTogether ? -1 : (bounds ? bounds.maximumHead - 1 : offsets.length - 1);
+      let best = 0;
       element.remove();
       while (low <= high) {
         const mid = (low + high) >> 1;
@@ -517,6 +705,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // Named @page rules affect output paper, not screen measurement. Publish
     // them once so every new sheet does not invalidate the live editor's styles.
     style.textContent = [...new Set(pageStyles)].join('\n');
+    await layoutWordCellSpacing(host);
+    signal?.throwIfAborted();
     return { element: host, pages: pageNumber, pageSettings, warnings: [...warnings], dispose: () => host.remove() };
   } catch (error) { host.remove(); throw error; }
 }

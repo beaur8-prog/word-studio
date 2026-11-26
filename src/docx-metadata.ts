@@ -7,6 +7,7 @@ import type JSZip from 'jszip';
 import { pageMargins, paperDimensions, type Comment, type PageSettings } from './types';
 import { W, all, val, child, ancestor, docxFormat, tableCellGridOffset } from './docx-format';
 import { overlapInstruction } from './word-overlap';
+import { readWordReflection, wordReflectionAttribute, wordParagraphReflectionAttribute } from './word-reflection';
 import { symbolFont, symbolElement } from './document-symbols';
 import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
@@ -14,6 +15,9 @@ import { tableAnchor, tableWrapFits, paragraphTableNamespace } from './table-anc
 import { cssPixels, encodeHwpCellLine, hwpCellLineNamespace, parseHwpCellLine } from './hwp-cell-line';
 import { encodeHwpBodyLine, hwpBodyLineNamespace, parseHwpBodyLine } from './hwp-body-line';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
+const wordChild = (parent: Element | undefined, name: string) =>
+  Array.from(parent?.children ?? []).find(element => element.namespaceURI === W && element.localName === name);
+const reflectionBlock = 'p,h1,h2,h3,h4,h5,h6,li';
 // A standard paragraph style identifies the otherwise invisible separator
 // required by Word between adjacent tables and after a table inside a cell.
 export const TABLE_GAP_STYLE = 'WordStudioTableGap';
@@ -25,7 +29,7 @@ export const SECTION_BOUNDARY_STYLE = 'WordStudioSectionBoundary';
 export const TABLE_END_STYLE = 'WordStudioTableEnd';
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
-export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
+export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[], preserveReflection = true) {
   flattenDocxCheckboxes(body);
   const format = await docxFormat(zip);
   // Word requires a final paragraph after a body table. Our small structural
@@ -74,7 +78,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
   let sequence = 900000;
   const numbering = new WeakMap<Element, ReturnType<typeof format.numbering>>();
   for (const p of all(body, 'p')) numbering.set(p, format.numbering(p));
-  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; page?: PageSettings; nextPage?: PageSettings; boundaryCarrier?: boolean; width?: number; height?: number; alt?: string; floating?: string }>();
+  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; page?: PageSettings; nextPage?: PageSettings; boundaryCarrier?: boolean; width?: number; height?: number; alt?: string; floating?: string; reflection?: string; reflectionEnd?: string }>();
   const bookmark = (name: string) => {
     const fragment = body.createDocumentFragment();
     const id = String(++sequence);
@@ -127,9 +131,6 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     markers.set(name, { kind: 'image', alt, ...(floating ? { floating: JSON.stringify(floating) } : {}), ...(width > 0 && height > 0 && width <= 10000 && height <= 10000 ? { width, height } : {}) });
     drawing.before(bookmark(name));
   }
-  for (const tab of all(body, 'tab').filter(el => el.parentElement?.localName === 'r')) {
-    const name = `ws_marker_${sequence}`; markers.set(name, { kind: 'tab' }); tab.replaceWith(bookmark(name));
-  }
   for (const sym of all(body, 'sym')) {
     const name = `ws_marker_${sequence}`;
     markers.set(name, { kind: 'symbol', id: val(sym, 'font'), parts: [String(parseInt(val(sym, 'char'), 16))] });
@@ -137,11 +138,18 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
   }
   for (const run of all(body, 'r')) {
     const style = format.run(run);
-    if (!style) continue;
+    const literal = preserveReflection && run.namespaceURI === W && wordChild(run, 't') &&
+      Array.from(run.children).every(element => element.namespaceURI === W && ['rPr', 't', 'tab'].includes(element.localName));
+    const reflection = literal ? readWordReflection(wordChild(run, 'rPr')) : undefined;
+    if (!style && !reflection) continue;
     const start = `ws_marker_${sequence}`;
     markers.set(start, { kind: 'runStart', style, eastAsianStyle: format.run(run, 'eastAsia') }); run.before(bookmark(start));
     const end = `ws_marker_${sequence}`;
     markers.set(end, { kind: 'runEnd' }); run.after(bookmark(end));
+    if (reflection) Object.assign(markers.get(start)!, { reflection, reflectionEnd: end });
+  }
+  for (const tab of all(body, 'tab').filter(el => el.parentElement?.localName === 'r')) {
+    const name = `ws_marker_${sequence}`; markers.set(name, { kind: 'tab' }); tab.replaceWith(bookmark(name));
   }
   for (const br of all(body, 'br').filter(el => ['page', 'column'].includes(val(el, 'type')))) {
     const name = `ws_marker_${sequence}`;
@@ -292,6 +300,10 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
+        if (preserveReflection && marker.paragraph.namespaceURI === W) {
+          const reflection = readWordReflection(wordChild(wordChild(marker.paragraph, 'pPr'), 'rPr'));
+          if (reflection) p.setAttribute(wordParagraphReflectionAttribute, reflection);
+        }
         p.dataset.wordParagraphStyle = format.paragraphStyle(marker.paragraph);
         p.dataset.wordParagraphStyleName = format.paragraphStyleName(marker.paragraph);
         const outline = format.outlineLevel(marker.paragraph);
@@ -303,6 +315,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         if (textAlignment) p.dataset.wordTextAlignment = textAlignment;
         const contextual = format.contextualSpacing(marker.paragraph);
         if (contextual !== null) p.dataset.wordContextualSpacing = String(contextual);
+        const bottomBorder = format.paragraphBottomBorder(marker.paragraph);
+        if (bottomBorder) p.dataset.wordParagraphBottomBorder = JSON.stringify(bottomBorder);
         if (/^H[1-6]$/.test(p.tagName)) p.dataset.wordHeadingMarks = format.headingMarks(marker.paragraph);
         const autoSpacing = format.autoSpacing(marker.paragraph);
         p.dataset.wordAutoSpaceDe = String(autoSpacing.de);
@@ -363,7 +377,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           } catch { /* Standard Word spacing remains usable without our optional policy. */ }
         }
         const tabs = format.tabs(marker.paragraph);
-        if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
+        if (tabs.ordinary.length) p.dataset.tabStops = JSON.stringify(tabs.ordinary);
+        if (tabs.numbering.length) p.dataset.wordNumberingTabs = JSON.stringify(tabs.numbering);
         if (cell && marker.cell && !all(marker.cell, 't').some(t => t.textContent) && !all(marker.cell, 'tbl').length) {
           for (const property of ['font-family', 'font-size', 'color']) cell.style.setProperty(property, p.style.getPropertyValue(property));
         }
@@ -456,6 +471,18 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       const active = new Set<string>();
       let activeStyle = '';
       let eastAsianStyle = '';
+      let activeReflection: { value: string; block: Element; link: Element | null } | undefined;
+      const reflectionMarkerNames = new Set<string>();
+      for (const [name, marker] of markers) {
+        if (marker.reflectionEnd) { reflectionMarkerNames.add(name); reflectionMarkerNames.add(marker.reflectionEnd); }
+      }
+      const reflectionMarkers = new Map<string, Element | null>();
+      if (reflectionMarkerNames.size) {
+        for (const el of template.content.querySelectorAll('[data-ws-marker]')) {
+          const name = el.getAttribute('data-ws-marker')!;
+          if (reflectionMarkerNames.has(name)) reflectionMarkers.set(name, reflectionMarkers.has(name) ? null : el);
+        }
+      }
       const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
       const items: Node[] = []; while (walker.nextNode()) items.push(walker.currentNode);
       for (const item of items) {
@@ -482,10 +509,24 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           }
           if (marker.kind === 'start') active.add(marker.id!);
           if (marker.kind === 'end') active.delete(marker.id!);
-          if (marker.kind === 'runStart') { activeStyle = marker.style || ''; eastAsianStyle = marker.eastAsianStyle || activeStyle; }
-          if (marker.kind === 'runEnd') { activeStyle = ''; eastAsianStyle = ''; }
+          if (marker.kind === 'runStart') {
+            activeStyle = marker.style || '';
+            eastAsianStyle = marker.eastAsianStyle || activeStyle;
+            activeReflection = undefined;
+            const start = item.getAttribute('data-ws-marker')!;
+            if (marker.reflection && marker.reflectionEnd && reflectionMarkers.get(start) === item) {
+              const end = reflectionMarkers.get(marker.reflectionEnd);
+              const block = item.closest(reflectionBlock), link = item.closest('a[href]');
+              // The converter can split wrappers or discard markers. Require
+              // both ends in the same rendered paragraph and link.
+              if (end && block && end.closest(reflectionBlock) === block && end.closest('a[href]') === link &&
+                (item.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING))
+                activeReflection = { value: marker.reflection, block, link };
+            }
+          }
+          if (marker.kind === 'runEnd') { activeStyle = ''; eastAsianStyle = ''; activeReflection = undefined; }
           item.remove();
-        } else if (item.nodeType === Node.TEXT_NODE && (active.size || activeStyle) && item.textContent) {
+        } else if (item.nodeType === Node.TEXT_NODE && (active.size || activeStyle || activeReflection) && item.textContent) {
           const fragment = document.createDocumentFragment();
           const segments = activeStyle !== eastAsianStyle
             ? item.textContent.match(/[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]+|[^\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]+/gu) ?? [] : [item.textContent];
@@ -494,6 +535,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             if (active.size) span.setAttribute('data-comment-ids', [...active].join(' '));
             span.style.cssText = /^[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/u.test(text) ? eastAsianStyle : activeStyle;
             const font = symbolFont(span.style.cssText);
+            if (!font && activeReflection && item.parentElement?.closest(reflectionBlock) === activeReflection.block &&
+              item.parentElement?.closest('a[href]') === activeReflection.link)
+              span.setAttribute(wordReflectionAttribute, activeReflection.value);
             if (font) for (const character of text) {
               const code = character.codePointAt(0)!;
               if (code <= 255 || (code >= 0xf000 && code <= 0xf0ff)) span.append(symbolElement(font, code));
@@ -515,7 +559,10 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const after = p.cloneNode(false); after.appendChild(range.extractContents()); anchor.remove();
         const pageBreak = document.createElement('div'); pageBreak.setAttribute(kind === 'columnBreak' ? 'data-column-break' : 'data-page-break', 'true');
         p.after(pageBreak);
-        if (after.textContent || (after as Element).querySelector('img,br')) pageBreak.after(after);
+        if (after.textContent || (after as Element).querySelector('img,br')) {
+          p.removeAttribute(wordParagraphReflectionAttribute);
+          pageBreak.after(after);
+        }
         if (!p.textContent && !p.querySelector('img,br')) p.remove();
       }
       // Restore our structural table separators to margins. Leaving them as

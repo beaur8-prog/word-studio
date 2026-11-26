@@ -5,7 +5,7 @@ import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
 import { measuredMergedFragments } from './editor-merged-fragments';
 type Reference = { id: string; page: number };
-type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; references?: { id: string; top: number }[]; reserveAt?: (page: number, own?: Reference[]) => number };
+type Geometry = { origin: number; scale: number; top: number; bottom: number; height: number; extra: number; removed: { top: number; height: number }[]; repeatAt?: (page: number) => number; measureRepeatAt?: (page: number) => number; continuationHeaders?: HTMLTableRowElement[]; longProtectedGroup?: boolean; references?: { id: string; top: number }[]; reserveAt?: (page: number, own?: Reference[]) => number };
 
 /** Insert view-only gaps in each column of a continuing row. The row and its
  * cells remain single editable model nodes, so selection/history/save do not
@@ -194,7 +194,8 @@ export function paginateCellRow(view: EditorView, row: HTMLTableRowElement, rowP
 /** Continue source-observed vertical merges at row boundaries without inserting
  * TRs (which would change how the browser counts rowspan). Reserve the page
  * gutter inside the next row's cell padding instead. */
-export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[], geometry: Geometry): ReturnType<typeof mergedRowFlow> {
+export function paginateMergedRows(view: EditorView, rows: HTMLTableRowElement[], geometry: Geometry, protectedRows = false): ReturnType<typeof mergedRowFlow> {
+  if (protectedRows) return measuredMergedFragments(view, rows, geometry, true);
   return mergedRowFlow(view, rows, geometry, [], 0);
 }
 function mergedRowFlow(view: EditorView, rows: HTMLTableRowElement[], geometry: Geometry, growth: number[], attempt: number): { decorations: Decoration[]; signatures: string[]; extra: number } | null {

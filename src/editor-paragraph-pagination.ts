@@ -1,6 +1,7 @@
 import type { EditorView } from '@tiptap/pm/view';
 import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
+import { wordWidowSplitBounds } from './word-keep-policy';
 import { keepShortWordParagraphTogether, paragraphPrefixHeight, paragraphTextOffset } from './paragraph-fragments';
 
 /** Continue ordinary body text at the same line boundaries used by print.
@@ -8,6 +9,7 @@ import { keepShortWordParagraphTogether, paragraphPrefixHeight, paragraphTextOff
 export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
   origin: number; scale: number; top: number; bottom: number; height: number; extra: number;
   removed: { top: number; height: number }[];
+  wrappingAnchors: boolean;
   references?: { id: string; top: number }[];
   reserveAt?: (page: number, references: { id: string; page: number }[]) => number;
 }) {
@@ -17,8 +19,27 @@ export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
     return y - g.removed.filter(gap => gap.top < y - .5).reduce((sum, gap) => sum + gap.height, 0);
   };
   const lines = measureParagraphLines(view, paragraph, naturalY);
-  if (lines.length < 2 || keepShortWordParagraphTogether(paragraph, lines.length, g.height - g.top - g.bottom, g.scale)) return null;
+  const bodyHeight = g.height - g.top - g.bottom;
+  if (lines.length < 2 || keepShortWordParagraphTogether(paragraph, lines.length, bodyHeight, g.scale)) return null;
   const stride = g.height + 24, decorations: Decoration[] = [], signatures: string[] = [];
+  const bounds = g.wrappingAnchors ? undefined : wordWidowSplitBounds(paragraph, lines.length, bodyHeight, g.scale, () => {
+    const next = view.domAtPos(lines[1].pos());
+    if (paragraph.contains(next.node)) return paragraphTextOffset(paragraph, next.node, next.offset);
+  });
+  let breakBefore: number | undefined;
+  if (bounds) {
+    const firstPage = Math.max(0, Math.floor((lines[0].top + g.extra - g.top + .5) / stride));
+    const boundary = firstPage * stride + g.height - g.bottom - (g.reserveAt?.(firstPage, []) ?? 0);
+    const firstOverflow = lines.findIndex(line => line.bottom + (line.after || 0) + g.extra > boundary + .5);
+    if (firstOverflow >= 0) {
+      const head = Math.min(firstOverflow, bounds.maximumHead);
+      // A tabbed paragraph moving intact uses the caller's block gap, so
+      // its first-line text indent and tab are not split by an inline widget.
+      if (head < bounds.minimumHead && paragraph.querySelector('[data-docx-tab]')) return null;
+      // Leave enough lines for the next page or move the entire paragraph.
+      breakBefore = head < bounds.minimumHead ? 0 : head;
+    }
+  }
   let extra = 0;
   const listParagraph = !!paragraph.closest('li');
   const references: { id: string; page: number }[] = [];
@@ -41,7 +62,7 @@ export function paginateParagraph(view: EditorView, paragraph: HTMLElement, g: {
       const offset = paragraphTextOffset(paragraph, point.node, point.offset);
       bottom = naturalY(paragraph.getBoundingClientRect().top) + paragraphPrefixHeight(paragraph, offset, g.scale) + g.extra + extra;
     }
-    if (bottom <= boundary + .5) {
+    if (bottom <= boundary + .5 && index !== breakBefore) {
       references.push(...here.map(ref => ({ id: ref.id, page }))); continue;
     }
     // A right/decimal tab's box can itself wrap before its trailing text.

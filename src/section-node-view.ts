@@ -1,7 +1,7 @@
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { defaultPage, pageMargins, pageFurniture, paperDimensions, type PageSettings } from './types';
 import { sanitizeImportedHtml } from './document-html';
-import { layoutFurnitureImages } from './furniture-layout';
+import { layoutFurnitureImages, updateUniformTablePageBody } from './furniture-layout';
 
 export function sectionSettings(raw: unknown): PageSettings {
   try {
@@ -74,11 +74,15 @@ export class SectionNodeView {
     }
     const occupied = (selector: string, distance: number) => Math.max(0, ...[...this.backgrounds.querySelectorAll<HTMLElement>(selector)].map(el =>
       el.textContent?.trim() || el.querySelector('img,table') ? distance * px + el.offsetHeight + 2 : 0));
-    const top = Math.max(margins.top * px, occupied('.section-header', page.headerDistance ?? Math.max(0, margins.top / 2 - 3)));
-    const bottom = Math.max(margins.bottom * px, occupied('.section-footer', page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)));
+    const story = {
+      top: occupied('.section-header', page.headerDistance ?? Math.max(0, margins.top / 2 - 3)),
+      bottom: occupied('.section-footer', page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)),
+    };
+    const top = Math.max(margins.top * px, story.top), bottom = Math.max(margins.bottom * px, story.bottom);
     Object.assign(this.contentDOM.style, { padding: `${top}px ${margins.right * px}px ${bottom}px ${margins.left * px}px`, minHeight: `${count * (height + 24) - 24}px` });
     this.dom.dataset.margin = String(top); this.dom.dataset.bottomMargin = String(bottom);
     this.dom.dataset.leftMargin = String(margins.left * px); this.dom.dataset.rightMargin = String(margins.right * px);
+    updateUniformTablePageBody(this.dom, page, this.contentDOM.querySelector('[data-section-page]') ? undefined : story);
   }
   update(node: PMNode) { if (node.type !== this.node.type) return false; this.node = node; this.schedule(); return true; }
   ignoreMutation(mutation: { target: globalThis.Node; type?: string }) { return mutation.target === this.dom || (mutation.type === 'attributes' && mutation.target === this.contentDOM) || !this.contentDOM.contains(mutation.target); }

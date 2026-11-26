@@ -100,24 +100,30 @@ const indentPixels = (value: unknown) => typeof value === 'string' && /^-?\d+(?:
 function movedItems(transactions: readonly Transaction[], old: EditorState, state: EditorState) {
   if (!transactions.some(tr => tr.docChanged)) return null;
   const mapping = new Mapping(); transactions.forEach(tr => mapping.appendMapping(tr.mapping));
-  type Item = { node: PMNode; pos: number; depth: number };
+  type Item = { node: PMNode; pos: number; depth: number; shell?: string };
   const items: Item[] = [], levels = new Map<string, Map<number, PMNode>>();
-  old.doc.descendants((node, pos) => {
+  old.doc.descendants((node, pos, parent) => {
     if (node.type.name !== 'listItem' || !node.attrs.wordListId || !node.firstChild?.isTextblock) return;
-    items.push({ node, pos, depth: listDepth(old.doc, pos) });
+    items.push({ node, pos, depth: listDepth(old.doc, pos), shell: parent?.type.name });
     const id = String(node.attrs.wordListId), group = levels.get(id) || new Map<number, PMNode>();
     if (!group.has(Number(node.attrs.wordListLevel) || 0)) group.set(Number(node.attrs.wordListLevel) || 0, node);
     levels.set(id, group);
   });
   const mapped: { before: Item; node: PMNode; pos: number; delta: number }[] = [];
+  const tr = state.tr, updated = new Set<number>();
   for (const before of items) {
     const anchor = mapping.mapResult(before.pos + 2 + Math.min(1, before.node.firstChild!.content.size), 1);
     if (anchor.deleted) continue;
     const resolved = state.doc.resolve(Math.min(anchor.pos, state.doc.content.size));
     let d = resolved.depth; while (d > 0 && resolved.node(d).type.name !== 'listItem') d--;
-    if (d) { const pos = resolved.before(d); mapped.push({ before, node: resolved.node(d), pos, delta: listDepth(state.doc, pos) - before.depth }); }
+    const owner = d ? resolved.node(d) : null;
+    if (before.node.firstChild?.attrs.wordNumberingTabs && resolved.parent.isTextblock && resolved.parent.attrs.wordNumberingTabs &&
+        (!owner || owner.firstChild !== resolved.parent || owner.attrs.wordListId !== before.node.attrs.wordListId ||
+          resolved.node(d - 1).type.name !== before.shell)) {
+      tr.setNodeMarkup(resolved.before(), undefined, { ...resolved.parent.attrs, wordNumberingTabs: null });
+    }
+    if (owner) { const pos = resolved.before(d); mapped.push({ before, node: owner, pos, delta: listDepth(state.doc, pos) - before.depth }); }
   }
-  const tr = state.tr, updated = new Set<number>();
   for (const { before, node, pos, delta } of mapped) {
     const original = Number(before.node.attrs.wordListLevel) || 0;
     if (!delta || updated.has(pos) || node.attrs.wordListId !== before.node.attrs.wordListId ||
@@ -141,7 +147,11 @@ function movedItems(transactions: readonly Transaction[], old: EditorState, stat
     }
     tr.setNodeMarkup(pos, undefined, { ...node.attrs, wordListLevel: typeof node.attrs.wordListLevel === 'string' ? String(level) : level,
       wordListFormat: format, wordListPattern: pattern, wordListFont: target ? target.attrs.wordListFont : node.attrs.wordListFont, wordListStart: target ? target.attrs.wordListStart : node.attrs.wordListStart, wordListSuffix: target ? target.attrs.wordListSuffix : node.attrs.wordListSuffix });
-    const paragraph = node.firstChild, attrs: Record<string, unknown> = { ...paragraph.attrs, indent: (Number(paragraph.attrs.indent) || 0) + offset };
+    const paragraph = node.firstChild, attrs: Record<string, unknown> = {
+      ...paragraph.attrs,
+      indent: (Number(paragraph.attrs.indent) || 0) + offset,
+      wordNumberingTabs: null,
+    };
     const from = indentPixels(source?.firstChild?.attrs.firstLineIndent), to = indentPixels(target?.firstChild?.attrs.firstLineIndent), current = indentPixels(paragraph.attrs.firstLineIndent);
     if (Number.isFinite(from) && Number.isFinite(to) && Number.isFinite(current) && from !== to) attrs.firstLineIndent = `${current + to - from}px`;
     tr.setNodeMarkup(pos + 1, undefined, attrs); updated.add(pos);
