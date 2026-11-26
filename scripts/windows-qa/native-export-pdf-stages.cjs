@@ -235,6 +235,12 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
         try {
           const metrics = require('./hancom-first-page-source-lines.cjs')(Core,original,native);
           console.log('WINDOWS_HWP_FIRST_PAGE_SOURCE_TRIAL ' + JSON.stringify(metrics));
+        } catch (error) {
+          const reported = new Set(['Need one complete paper-width table','Cannot uniquely map table structure',
+            'Missing table placement','Unexpected title carrier geometry','Missing an unchanged authored tab row',
+            'Changed paragraph payload']);
+          console.log('WINDOWS_HWP_FIRST_PAGE_TRIAL_STAGE ' + (reported.has(error.message) ? error.message : 'engine or measurement error'));
+          throw error;
         } finally { original.free(); }
       }
       if (process.env.WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES === '1') {

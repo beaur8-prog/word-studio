@@ -66,9 +66,12 @@ function paint(doc) {
 
 module.exports = function trial(Core, source, output) {
   const original = read(source), saved = read(output);
+  const titleAlreadyAuthored = saved.placement.includes('treatAsChar="0"') &&
+    Math.abs(saved.table.x-original.table.x)<.16 && Math.abs(saved.table.y-original.table.y)<.16;
   if (original.first.columns.length !== 2 || saved.first.columns.length !== 2 ||
       Math.abs(original.table.w-saved.table.w)>.5 || Math.abs(original.table.h-saved.table.h)>1 ||
-      !original.placement.includes('treatAsChar="0"') || !saved.placement.includes('treatAsChar="1"'))
+      !original.placement.includes('treatAsChar="0"') ||
+      !titleAlreadyAuthored && !saved.placement.includes('treatAsChar="1"'))
     throw Error('Unexpected title carrier geometry');
   const from = indexText(source), to = indexText(output);
   const originalPaint = paint(source);
@@ -102,7 +105,8 @@ module.exports = function trial(Core, source, output) {
   };
   const results = [count(output, 'ordinary output')];
   for (const scope of ['title only','tab rows','all exact first-page rows']) {
-    const edits = [[saved.start,saved.start+saved.placement.length,original.placement]];
+    if (scope==='title only' && titleAlreadyAuthored) continue;
+    const edits = titleAlreadyAuthored ? [] : [[saved.start,saved.start+saved.placement.length,original.placement]];
     const additions = [];
     let nextStyle = 1+Math.max(...[...saved.styles.keys()].map(Number));
     for (const row of proof) {
@@ -122,5 +126,5 @@ module.exports = function trial(Core, source, output) {
     try { results.push({...count(changed,scope), ownerEdits:additions.length}); }
     finally { changed.free(); }
   }
-  return { originalPages:source.pageCount(),fixed:proof.length,results };
+  return { originalPages:source.pageCount(),fixed:proof.length,titleAlreadyAuthored,results };
 };
