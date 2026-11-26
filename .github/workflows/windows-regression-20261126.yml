@@ -1,26 +1,22 @@
 name: Windows regression QA
-run-name: Isolate the second DOCX save from the large Hangul native output
+run-name: Pair responsive DOCX geometry on identical Windows input, with real two saves and reopens
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  large-export:
-    name: Windows 163-page document / ${{ matrix.route }}
+  paired-menu-save:
+    name: Actual Windows large DOCX save pair
     runs-on: windows-latest
     timeout-minutes: 43
-    strategy:
-      fail-fast: false
-      matrix:
-        route: [two-docx, direct-native]
     env:
-      QA_ROUTE: ${{ matrix.route }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
+      WINDOWS_NATIVE_DOCX_SAVE_TRACE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -29,36 +25,65 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-        if: matrix.route == 'two-docx'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Run the selected route in a fresh copy of the Windows app
+      - name: Use the same source HWP and two separated application profiles
         shell: pwsh
         run: |
-          if ((git rev-parse 'HEAD:src') -ne 'f15f4cabb706a1555cae3e5704f0204521a3b624') { throw 'Unexpected product tree' }
-          $caseDir = Join-Path $env:RUNNER_TEMP 'large-docx-stage'
+          $caseDir = Join-Path $env:RUNNER_TEMP 'large-docx-compare'
           python scripts/windows-qa/fetch-public-inputs.py hwp-2 $caseDir --ids 02-work-rules
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = Join-Path $caseDir 'inventory.json'
           $inventory = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json)
           if ($inventory.Count -ne 1 -or -not $inventory[0].verified) { throw 'One byte-pinned input is required' }
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          if ($env:QA_ROUTE -eq 'two-docx') {
-            $env:WINDOWS_NATIVE_DOCX_DIR = Join-Path $caseDir 'docx'
-            $env:WINDOWS_NATIVE_DOCX_SAVE_TRACE = '1'
-          } else {
-            $env:WINDOWS_NATIVE_HWP_SAVES = '1'
-            $env:WINDOWS_NATIVE_PICTURE_PAINT = '1'
-            $env:WINDOWS_PACKAGED_TABLE_FIT = '1'
-            $env:WINDOWS_NATIVE_HWP_TRACE = '1'
-            $env:WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES = '1'
-          }
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ($env:QA_ROUTE -eq 'two-docx') {
-            dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> (Join-Path $caseDir 'sdk.log')
+          $refs = [ordered]@{ control='c52784078cc2ab47e0864c96000a28e3006b0948'; candidate='cf71eb6bdf8b3642d72669037f95a6df2604a5be' }
+          foreach ($entry in $refs.GetEnumerator()) {
+            git restore --source $entry.Value --staged --worktree -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $entry.Value -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run package:win:dir
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $bundle = Join-Path $caseDir $entry.Key
+            Move-Item release/windows $bundle
+            $env:WORD_STUDIO_EXECUTABLE = Join-Path $bundle 'Word Studio/Word Studio.exe'
+            $env:WINDOWS_NATIVE_DOCX_DIR = Join-Path $caseDir "docx-$($entry.Key)"
+            Write-Host "WINDOWS_LARGE_DOCX_BUILD $($entry.Key)"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
             $status = $LASTEXITCODE
-            Write-Host "WINDOWS_FINAL_SDK large HWP count 2 exit $status"
-            exit $status
+            if ($status -ne 0) {
+              Write-Host "WINDOWS_LARGE_DOCX_FAILURE $($entry.Key) exit $status"
+              if ($entry.Key -eq 'candidate') { exit $status }
+              continue
+            }
+            dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> (Join-Path $caseDir "sdk-$($entry.Key).log")
+            $status = $LASTEXITCODE
+            Write-Host "WINDOWS_FINAL_SDK large HWP $($entry.Key) count 2 exit $status"
+            if ($status -ne 0) { exit $status }
           }
+
+  shared:
+    name: DOCX UI and editor coordination / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 26
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+        if: runner.os == 'Windows'
+      - run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+      - name: Check table checkpoints, editor maintenance and native conversion
+        run: npx playwright test tests/export-layout-suspension.spec.ts tests/desktop-print-coordination.spec.ts tests/hwp-editing.spec.ts --workers=1 --reporter=line --trace=off

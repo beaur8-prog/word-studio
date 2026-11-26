@@ -20,6 +20,7 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
     const output = path.join(directory, name + '.docx');
     const started = Date.now();
     const trace = process.env.WINDOWS_NATIVE_DOCX_SAVE_TRACE === '1';
+    const rendererStarted = trace ? await page.evaluate(() => performance.now()) : 0;
     if (trace) await app.evaluate(({ BrowserWindow }) => {
       const view = BrowserWindow.getAllWindows()[0]?.webContents;
       globalThis.qaDocxSave = { dialogCalls:0, rendererExit:'none' };
@@ -69,6 +70,13 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
     } finally {
       clearInterval(monitor);
       if (trace) await readStatus().catch(() => {});
+    }
+    if (trace) {
+      const peak = await page.evaluate(start => ({
+        longest: Math.max(0,...window.qaLongTasks.filter(task => task.at >= start).map(task => Math.round(task.duration))),
+        tasks: window.qaLongTasks.filter(task => task.at >= start).length,
+      }), rendererStarted);
+      console.log('WINDOWS_LARGE_DOCX_RENDERER ' + JSON.stringify({generation,...peak}));
     }
     // Bytes appear before the file operation and renderer save guard end.
     // Windows can ignore a new Open command during that interval.
