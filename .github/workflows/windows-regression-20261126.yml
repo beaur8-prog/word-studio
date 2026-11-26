@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Windows authored inline table margins in both native formats
+run-name: Windows pinned mixed-document table inset retry
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,9 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { group: hwp-1, id: 04-language-plan }
-          - { group: hwp-2, id: 06-mixed-document }
-          - { group: hwp-2, id: 08-math-exam }
+          - { group: hwp-3, id: 06-mixed-document }
     env:
       PLAYWRIGHT_CHANNEL: chromium
       QA_GROUP: ${{ matrix.group }}
@@ -68,36 +66,3 @@ jobs:
           $status = $LASTEXITCODE
           Write-Host "WINDOWS_PUBLIC_SDK total $($outputs.Count) exit $status"
           exit $status
-  focused:
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 14
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - run: npm ci
-      - run: npx playwright install chromium
-      - run: npm run test -- tests/hwp-inline-table-margin.spec.ts tests/hwp-native-merged-grid-width.spec.ts tests/hwp-sections.spec.ts tests/export-layout-suspension.spec.ts tests/hwp-paragraph-table.spec.ts tests/hwp-floating-export.spec.ts --workers=1 --trace=off
-      - name: Validate the two synthetic DOCX packages
-        shell: pwsh
-        run: |
-          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-inline-margin-*.docx')
-          if ($outputs.Count -ne 2) { throw 'Expected two synthetic saves' }
-          $isolated = Join-Path (Resolve-Path test-results).Path 'inline-margin-sdk'
-          New-Item $isolated -ItemType Directory | Out-Null
-          $outputs | Copy-Item -Destination $isolated
-          dotnet run --project scripts/word-openxml-validator -- $isolated 2
-          exit $LASTEXITCODE
