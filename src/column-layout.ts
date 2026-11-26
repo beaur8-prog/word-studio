@@ -79,7 +79,7 @@ function keepTablesOnColumnPage(group: HTMLElement, cap: number, scale: number) 
 /** A column row is a paper's text area. Its gap includes the bottom margin,
  * the paper gap and the following top margin. A view-only spanning prefix
  * reserves text already above a continuous section on the first sheet. */
-export function layoutColumns(root: HTMLElement, bottom?: number) {
+export function layoutColumns(root: HTMLElement, bottom?: number, referenceDensity = false) {
   for (const group of root.querySelectorAll<HTMLElement>('[data-column-count]')) {
     for (const child of [...group.children] as HTMLElement[]) if (keptTables.has(child)) {
       const previous = keptTables.get(child)!;
@@ -131,7 +131,7 @@ export function layoutColumns(root: HTMLElement, bottom?: number) {
       const count = Number(group.dataset.columnCount) || 1, gap = Number(group.dataset.columnSpace) || 0;
       const measure = document.createElement('div'); measure.className = 'tiptap column-measure';
       Object.assign(measure.style, { position: 'absolute', visibility: 'hidden', left: '-100000px', top: '0', width: `${(group.clientWidth - gap * (count - 1)) / count}px`, padding: '0', minHeight: '0' });
-      measure.innerHTML = group.innerHTML; document.body.append(measure); layoutWordLines(measure); layoutHwpBodyLines(measure); layoutTabs(measure);
+      measure.innerHTML = group.innerHTML; document.body.append(measure); layoutWordLines(measure, referenceDensity); layoutHwpBodyLines(measure); layoutTabs(measure);
       const natural = Math.ceil(measure.getBoundingClientRect().height); measure.remove();
       group.style.height = `${Math.min(natural || 1, cap)}px`;
     }
