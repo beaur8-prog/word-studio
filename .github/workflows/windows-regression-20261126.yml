@@ -1,30 +1,30 @@
 name: Windows regression QA
-run-name: Retry only the interrupted Windows binary HWP table-cut readback
+run-name: Replay the two exact HWPX lines against the Windows binary tail
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native:
-    name: Packaged Windows inline pictures / ${{ matrix.format }}
+  layout:
+    name: Windows diagnostic / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        format: [hwp]
+        include:
+          - { group: hwp-1, id: 10-lh-plan, format: both }
     env:
-      WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: ${{ matrix.format }}
-      WINDOWS_NATIVE_HWP_TRACE: '1'
-      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
-      WINDOWS_NATIVE_LARGE_HANGUL: '1'
-      WINDOWS_NATIVE_LARGE_TEXT: '1'
-      WINDOWS_NATIVE_PICTURE_PAINT: '1'
-      WINDOWS_NATIVE_PICTURE_OFFSET: '168.08'
-      WINDOWS_NATIVE_OVERHANG_READBACK: '1'
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      WINDOWS_DIAGNOSTIC_FORMAT: ${{ matrix.format }}
+      PLAYWRIGHT_CHANNEL: chromium
+      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
+      WINDOWS_HANCOM_FIXED_AGREEMENT: '1'
+      WINDOWS_HANCOM_EARLY_BREAKS: '1'
+      WINDOWS_REQUIRE_REOPEN: '1'
+      WINDOWS_NATIVE_SKIP_PRINT: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,22 +35,19 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Prepare the source-pinned large file and start the native export
+      - run: npx playwright install chromium
+      - name: Find when the regression first appears
         shell: pwsh
         run: |
-          $product = '9103a25eac42fd2c3b1501aa728d03e3bc1f6f60'
-          git restore --source $product --staged --worktree -- src
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/original" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code $product -- src electron vendor package.json package-lock.json
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/original/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($verified -ne 1) { throw 'Pinned input missing' }
+          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run build -- --sourcemap
+          $binary = @(Get-ChildItem test-results -Recurse -Filter 'hancom-saved.hwp')
+          $xml = @(Get-ChildItem test-results -Recurse -Filter 'hancom-saved.hwpx')
+          if ($binary.Count -ne 1 -or $xml.Count -ne 1) { throw 'Both format readbacks are required' }
+          node scripts/windows-qa/hancom-binary-tail-witness.cjs $binary[0].FullName $xml[0].FullName
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/package-win.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/large-native" --ids 02-work-rules
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/large-native/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
