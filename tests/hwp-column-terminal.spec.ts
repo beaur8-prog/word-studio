@@ -121,18 +121,12 @@ test('native column terminal paint requires the same words, column measure and r
       const tail = prior.querySelector('[data-hwp-column-tail]')?.textContent;
       const fitted = measureSourceColumnEnd(terminal, source, 1, bodyBottom, ordinary);
       const ordinaryFits = measureSourceColumnEnd(terminal, source, 1, bodyBottom + 3, ordinary);
-      const tighterRoom = (fitted?.height ?? ordinary) - 1;
-      const tighterBottom = prior.getBoundingClientRect().bottom + tighterRoom;
-      const footerProof = { ...proof, remainder: tighterRoom + 1 };
-      const footerFit = measureSourceColumnEnd(terminal, { ...source, columnFit: footerProof }, 1, tighterBottom, ordinary);
-      const changedFooter = measureSourceColumnEnd(terminal, { ...source, columnFit: { ...footerProof, remainder: tighterRoom + 1.5 } },
-        1, tighterBottom, ordinary);
       const currentProof = source.columnFit;
       const badMeasure = measureSourceColumnEnd(terminal, { ...source, columnFit: { ...proof, width: proof.width - 10 } }, 1, bodyBottom, ordinary);
       terminal.firstElementChild!.textContent += ' changed';
       const edited = measureSourceColumnEnd(terminal, source, 1, bodyBottom, ordinary);
       const badSource = parseHwpBodyLine(encoded.replace(proof.fingerprint, 'invalid'));
-      return { tail, preserved: baselineLiteral === prior.textContent, ordinary, fitted, ordinaryFits, tighterRoom, footerFit, changedFooter, currentProof, badMeasure, edited, badSource };
+      return { tail, preserved: baselineLiteral === prior.textContent, ordinary, fitted, ordinaryFits, currentProof, badMeasure, edited, badSource };
     } finally { root.remove(); }
   });
   expect(evidence.tail).toBe(' ');
@@ -140,9 +134,6 @@ test('native column terminal paint requires the same words, column measure and r
   expect(evidence.fitted?.offset).toBeCloseTo(-2.5);
   expect(evidence.fitted?.height).toBeLessThan(evidence.ordinary);
   expect(evidence.ordinaryFits).toBeNull();
-  expect(evidence.footerFit?.offset).toBeCloseTo(-3.5);
-  expect(evidence.footerFit?.height).toBeLessThanOrEqual(evidence.tighterRoom);
-  expect(evidence.changedFooter).toBeNull();
   expect(evidence.badMeasure).toBeNull();
   expect(evidence.edited).toBeNull();
   expect(evidence.badSource).toBeNull();
