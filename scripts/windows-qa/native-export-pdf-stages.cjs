@@ -146,6 +146,26 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
       if (item.id === '02-work-rules' && process.env.WINDOWS_NATIVE_LARGE_HANGUL === '1') {
         const original = new Core(await fs.readFile(item.path));
         try {
+          if (process.env.WINDOWS_NATIVE_OVERHANG_READBACK === '1') {
+            const boundary = doc => {
+              const { controls } = JSON.parse(doc.getPageControlLayout(8));
+              const first = controls.filter(c=>c.type==='table'&&!c.cellPath?.length&&!c.headerFooter);
+              if (first.length!==1) return {tableCount:first.length};
+              const [table]=first;
+              const runs=JSON.parse(doc.getPageTextLayout(8)).runs.filter(r=>r.parentParaIdx===table.paraIdx &&
+                r.secIdx===table.secIdx && !r.headerFooter && r.cellPath?.[0]?.controlIndex===table.controlIdx);
+              const count=entries=>entries.reduce((sum,run)=>sum+run.text.replace(/\s/gu,'').length,0);
+              const row=table.cells.filter(c=>c.row===7);
+              return { shapes:first.length, xy:[table.x,table.y], height:table.h, glyphs:count(runs),
+                heads:row.map(cell=>count(runs.filter(run=>run.cellPath[0].cellIndex===cell.cellIdx))) };
+            };
+            const expected=boundary(original), actual=boundary(native);
+            console.log('WINDOWS_LARGE_NATIVE_TABLE_BOUNDARY ' + JSON.stringify({format,expected,actual}));
+            const agreement=require('./hancom-page-agreement.cjs')(original,native);
+            console.log('WINDOWS_LARGE_NATIVE_TABLE_AGREEMENT ' + JSON.stringify({format,...agreement}));
+            if (actual.glyphs!==expected.glyphs || String(actual.heads)!==String(expected.heads))
+              throw Error('The measured first table fragment did not retain the two authored cell heads');
+          }
           const snapshot = doc => {
             let glyphs = 0, tables = 0, images = 0, outside = 0;
             for (let index = 0; index < doc.pageCount(); index++) {

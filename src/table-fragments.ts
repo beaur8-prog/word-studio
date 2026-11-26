@@ -335,6 +335,7 @@ interface FragmentContext {
   bodyHeight(): number;
   hasDeferredNote(element: HTMLElement): boolean;
   deferredNotes(): ReadonlySet<string>;
+  sourceSplitCellOffset?(paragraph: HTMLElement): number | undefined;
   preserveSplitCellWrap?(paragraph: HTMLElement): (() => void) | undefined;
 }
 
@@ -423,8 +424,9 @@ export function tableFragmenter(context: FragmentContext) {
   function splitElement(element: HTMLElement, boundary: number, depth = 0, keepCenteredLabels = true): HTMLElement | null {
     if (depth > 30) return null;
     if (element.matches('p,h1,h2,h3,h4,h5,h6') && ((element.textContent?.length ?? 0) > 1 || element.querySelector('br'))) {
-      const restoreWrap = context.preserveSplitCellWrap?.(element);
-      let offsets = paragraphLineOffsets(element);
+      const sourcedOffset = context.sourceSplitCellOffset?.(element);
+      const restoreWrap = sourcedOffset === undefined ? context.preserveSplitCellWrap?.(element) : undefined;
+      let offsets = sourcedOffset === undefined ? paragraphLineOffsets(element) : [sourcedOffset];
       if (context.hasDeferredNote(element)) {
         const walker = paragraphTextWalker(element); let offset = 0;
         while (walker.nextNode()) {

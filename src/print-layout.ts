@@ -30,7 +30,7 @@ import { layoutHwpInlineTextBoxLines } from './hwp-inline-textbox-print';
 import { hwpFloatingBoxFontFallback, hwpFloatingBoxProofSelector, layoutHwpFloatingTextBoxLines } from './hwp-floating-textbox-print';
 import { layoutNestedHwpHangingScale } from './hwp-nested-hanging-layout';
 import { layoutHwpSourceAdvances, layoutShortHwpCellWidths, layoutMixedHwpCellRuns, prepareHwpSourceFlow } from './hwp-text-advance-layout';
-import { layoutHwpAuthoredHangingCellScale, layoutHwpCellWidthFallbacks, layoutHwpCompactCellFaces, layoutHwpExpandedCellRows, layoutHwpFittedCellLineEnds, layoutHwpScaledCellLines, layoutHwpSingleCellLines, layoutHwpSourceCellLines, markHwpSourceCellLineGroups, preserveHwpCellLinesBeforeSplit, restoreHwpContinuedTableLines } from './hwp-source-cell-lines';
+import { layoutHwpAuthoredHangingCellScale, layoutHwpCellWidthFallbacks, layoutHwpCompactCellFaces, layoutHwpExpandedCellRows, layoutHwpFittedCellLineEnds, layoutHwpScaledCellLines, layoutHwpSingleCellLines, layoutHwpSourceCellLines, markHwpSourceCellLineGroups, preserveHwpCellLinesBeforeSplit, restoreHwpContinuedTableLines, sourceLineBoundaries } from './hwp-source-cell-lines';
 import { clearSourceBodyEndPaint, layoutHwpAuthoredBodyLines, layoutHwpBodyLines, restoreHwpBodyBeforeKeptTable, restoreHwpBodyBeforePageBreak, sourceAuthoredTailInkBottom, sourceBodyEndBottom, sourceForcedBodyEndBottom } from './hwp-body-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns, columnGroupFits } from './column-layout';
@@ -304,6 +304,13 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   }
   const { splitMergedGroup, splitMergedRow, splitElement } = tableFragmenter({
     bodyHeight: () => content.getBoundingClientRect().height, hasDeferredNote, deferredNotes: () => deferredNotes,
+    sourceSplitCellOffset: paragraph => {
+      const cell = paragraph.parentElement, overhang = sourceTableOverhang;
+      if (!overhang || !(cell instanceof HTMLTableCellElement) || cell.parentElement !== overhang.row ||
+          cell.firstElementChild !== paragraph) return;
+      const source = overhang.heads?.[cell.cellIndex];
+      return source && sourceLineBoundaries(paragraph, [source.end])?.[1].offset;
+    },
     preserveSplitCellWrap: paragraph => hwpSourceFlow?.preserveSplitCellWrap(paragraph,
       overhangContinuations.has(paragraph.closest('table')!)) ??
       (wordLayout.paintHwpCellLines !== false ? preserveHwpCellLinesBeforeSplit(paragraph) : undefined),
@@ -477,9 +484,10 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
     // DOCX spacing is measured from the regular flow. The printed copy can
     // recover HWP line ends without converting them into Word line spacing.
-    const continuationProof = wordLayout.paintHwpCellLines !== false &&
-      !table.parentElement?.closest('td,th,[data-column-count],[data-document-textbox]')
+    const authoredContinuation = !table.parentElement?.closest('td,th,[data-column-count],[data-document-textbox]')
       ? parseHwpTableContinuation(table.dataset.hwpTableContinuation) : undefined;
+    const continuationProof = wordLayout.paintHwpCellLines !== false ||
+      (wordLayout.hwpNativeExport && authoredContinuation?.overhang?.heads) ? authoredContinuation : undefined;
     const firstFragment = continuationProof?.overhang ? undefined : continuationProof;
     const overhangRow = continuationProof?.overhang && continuationProof.rows === table.rows.length
       ? table.rows[continuationProof.row] : undefined;
@@ -575,7 +583,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
           (verifiedPrior || reopenedCellFlow && group[0].querySelector('p[data-hwp-source-wrap*="splitCell"]')))
         restoreHwpContinuedTableLines(group[0], !!verifiedPrior);
       if (overhangRow && originals[0] === overhangRow && group.length === 1)
-        sourceTableOverhang = firstTableOverhang(part.table, group[0], content, continuationProof!, pageNumber);
+        sourceTableOverhang = firstTableOverhang(part.table, group[0], content, continuationProof!, pageNumber, !!wordLayout.hwpNativeExport);
       const split = () => {
         const paper = content.getBoundingClientRect();
         const overhang = activeHwpTableOverhang(sourceTableOverhang, part.table, content);

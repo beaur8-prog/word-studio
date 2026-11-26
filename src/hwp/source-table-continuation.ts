@@ -97,7 +97,7 @@ export function sourceFirstTableOverhang(doc: HwpDocument, section: number, para
     const boundary = cells.filter(cell => cell.row === row).sort((a,b) => a.col - b.col);
     if (boundary.length < 2 || boundary.length > 6 || boundary.length !== overflowCells.size ||
         cells.some(cell => cell.row < row && cell.row + cell.rowSpan > row)) return;
-    const fingerprints: string[] = [];
+    const fingerprints: string[] = [], heads: { end: number; fingerprint: string }[] = [];
     for (const [i, cell] of boundary.entries()) {
       if (cell.isHeader || cell.col !== i || cell.rowSpan !== 1 || cell.colSpan !== 1 || !overflowCells.has(cell.index)) return;
       const parts = boxes.filter(box => box.cellIdx === cell.index).sort((a,b) => a.pageIndex - b.pageIndex);
@@ -118,13 +118,16 @@ export function sourceFirstTableOverhang(doc: HwpDocument, section: number, para
           const prefix = normalizeHwpWrapText(painted.map(run => run.text).join(''));
           const full = normalizeHwpWrapText(literal.split('\n')[0]);
           if (saved.lines.length < 2 || !prefix || prefix.length >= full.length || !full.startsWith(prefix)) return;
+          const first = paint.filter(run => run.cellPath![0].cellIndex === cell.index);
+          if (first.length === painted.length) heads.push({ end: prefix.length, fingerprint: hwpWrapFingerprint(prefix) });
         }
         literals.push(literal);
       }
       fingerprints.push(hwpOverhangCellFingerprint(literals));
     }
     return { row, rows, bodyWidth: width, bodyHeight: bottom - top, tableTop: Math.max(0, tableTop - top),
-      cells: fingerprints, overhang: { page: first + 1, end: tableEnd - top } };
+      cells: fingerprints, overhang: { page: first + 1, end: tableEnd - top,
+        ...(heads.length === fingerprints.length ? { heads } : {}) } };
   } catch { /* Without a complete source witness, let the table paginate normally. */ }
 }
 
