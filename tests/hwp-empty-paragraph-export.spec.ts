@@ -133,3 +133,32 @@ test('a styled blank between cell paragraphs retains its own height through DOCX
     } finally { doc.free(); }
   }
 });
+
+test('preserving explicit tabs in an empty column paragraph adds no character run', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { stageHwpTextNavigation } = await import('/src/hwp/text-navigation.ts');
+    const { default:init, HwpDocument } = await import('/node_modules/.vite/deps/@rhwp_core.js');
+    const { default:wasm } = await import('/node_modules/@rhwp/core/rhwp_bg.wasm?url');
+    await init({ module_or_path:wasm });
+    const before = HwpDocument.createEmpty(), paste = HwpDocument.createEmpty();
+    let restored;
+    const html = '<p>Opening witness</p><p style="line-height:160%"><span style="font-size:11pt"></span></p><p>Following witness</p>';
+    const annotated = html.replace('line-height:160%">', 'line-height:160%" data-tab-stops=\'[{"position":120,"type":"right"}]\'>');
+    try {
+      before.createBlankDocument(); before.pasteHtml(0,0,0,html);
+      paste.createBlankDocument();
+      const navigation = stageHwpTextNavigation(annotated);
+      paste.pasteHtml(0,0,0,navigation.html);
+      restored = navigation.restore(HwpDocument,paste);
+      const blank = Array.from({length:restored.getParagraphCount(0)},(_,i)=>i).find(i=>
+        restored.getTextRange(0,i,0,100)==='' && JSON.parse(restored.getParaPropertiesAt(0,i)).tabStops?.length);
+      if (blank === undefined) throw Error('Missing native blank tab stop');
+      const paint = doc => JSON.parse(doc.getPageTextLayout(0)).runs.filter(run=>run.text.trim()).map(({text,x,y,w,h})=>[text,x,y,w,h]);
+      const props = JSON.parse(restored.getParaPropertiesAt(0,blank));
+      return { pageSame:restored.pageCount()===before.pageCount(), paintSame:JSON.stringify(paint(restored))===JSON.stringify(paint(before)),
+        tab:props.tabStops[0].position, count:props.tabStops.length };
+    } finally { if(restored && restored!==paste) restored.free();paste.free();before.free(); }
+  });
+  expect(result).toEqual({pageSame:true,paintSame:true,tab:120*150,count:1});
+});

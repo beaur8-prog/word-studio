@@ -82,7 +82,7 @@ export function hwpPageReferenceLink(name: string, cachedNumber: string) {
 export function stageHwpTextNavigation(html: string) {
   const prefix = `WORDSTUDIO-NAV-${crypto.randomUUID()}-`;
   const bookmarks = new Map<string, string>();
-  const paragraphMarkers = new Map<string, { stops?: DocumentTabStop[]; keepWord?: boolean }>();
+  const paragraphMarkers = new Map<string, { stops?: DocumentTabStop[]; keepWord?: boolean; empty?: boolean }>();
   const bookmarkNames = new Set<string>();
   let sequence = 0;
   html = html.replace(/<span\b[^>]*\bdata-docx-bookmark=["'][^"']*["'][^>]*>\s*<\/span>/g, tag => {
@@ -94,7 +94,7 @@ export function stageHwpTextNavigation(html: string) {
     bookmarkNames.add(name);
     const token = `${prefix}${sequence++}-END`; bookmarks.set(token, name);
     return `<span>${token}</span>`;
-  }).replace(/<p\b[^>]*>/g, tag => {
+  }).replace(/<p\b[^>]*>/g, (tag: string, at: number, source: string) => {
     const raw = decode(attr(tag, 'data-tab-stops'));
     const keepWord = /(?:^|;)\s*word-break\s*:\s*keep-all\s*(?:;|$)/i.test(decode(attr(tag, 'style')));
     if (!raw && !keepWord) return tag;
@@ -105,7 +105,8 @@ export function stageHwpTextNavigation(html: string) {
     const supported = stops.filter(s => s.position >= 0);
     if (!supported.length && !keepWord) return tag;
     const token = `${prefix}${sequence++}-END`;
-    paragraphMarkers.set(token, { ...(supported.length ? { stops: supported } : {}), ...(keepWord ? { keepWord: true } : {}) });
+    const empty = /^\s*(?:<span\b[^>]*>\s*<\/span>\s*)?<\/p>/i.test(source.slice(at + tag.length, at + tag.length + 4096));
+    paragraphMarkers.set(token, { ...(supported.length ? { stops: supported } : {}), ...(keepWord ? { keepWord: true } : {}), ...(empty ? { empty } : {}) });
     return tag + `<span>${token}</span>`;
   });
   return { html, restore(Core: typeof HwpDocument, doc: HwpDocument) {
@@ -131,7 +132,8 @@ export function stageHwpTextNavigation(html: string) {
           const change = paragraphMarkers.get(token), paragraph = stack.at(-1);
           if (!change || !paragraph) throw Error('한글 문단·책갈피·탭 위치가 올바르지 않습니다.');
           found++;
-          const key = paragraph.ref + ':' + JSON.stringify(change);
+          const { empty, ...format } = change;
+          const key = paragraph.ref + ':' + JSON.stringify(format);
           let id = reused.get(key);
           if (id === undefined) {
             const base = paraShapes.get(paragraph.ref); if (!base) throw Error('한글 문단 서식을 찾지 못했습니다.');
@@ -149,7 +151,9 @@ export function stageHwpTextNavigation(html: string) {
             }
             newParas.push(shape);
           }
-          paragraph.replacement = id; return '';
+          paragraph.replacement = id;
+          return empty && /^<hp:t\b[^>]*>[^<]+<\/hp:t>$/.test(tag) && tag.slice(tag.indexOf('>') + 1, -7) === token
+            ? `</hp:t><!--${prefix}EMPTY-RUN--><hp:t>` : '';
         });
       });
       // Apply each paragraph's new shape after processing its children. The
@@ -161,6 +165,12 @@ export function stageHwpTextNavigation(html: string) {
         else { const from = open.at(-1); if (from === undefined) throw Error('한글 탭 문단 구조가 올바르지 않습니다.'); const end = xml.indexOf('>', from) + 1; edits.push({ from, to: end, value: xml.slice(from, end).replace(/\bparaPrIDRef="[^"]*"/, `paraPrIDRef="${m[1]}"`) }, { from: m.index!, to: m.index! + m[0].length, value: '' }); }
       }
       for (const e of edits.sort((a, b) => b.from - a.from)) xml = xml.slice(0, e.from) + e.value + xml.slice(e.to);
+      // A marker for an otherwise empty paragraph must not become the
+      // paragraph's only character run after restoring the tab properties.
+      // Leave genuine styled carriers and inline controls in their own runs.
+      const emptyRun = `<!--${prefix}EMPTY-RUN-->`;
+      xml = xml.replace(new RegExp(`<hp:run\\b[^>]*>\\s*<hp:t\\b[^>]*><\\/hp:t>${emptyRun}<hp:t><\\/hp:t>\\s*<\\/hp:run>`, 'g'), '')
+        .replaceAll(emptyRun, '');
       files[name] = strToU8(xml.replace(/<hp:linesegarray\b[^>]*>[\s\S]*?<\/hp:linesegarray>/g, ''));
     }
     if (found !== sequence) throw Error('일부 책갈피·탭을 한글로 저장하지 못했습니다.');

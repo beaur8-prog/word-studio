@@ -260,6 +260,27 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
           try {
             const stats = require('../../scripts/windows-qa/hancom-page-agreement.cjs')(original, saved);
             console.log('WINDOWS_HANCOM_FIXED_AGREEMENT ' + JSON.stringify({ id:item.id, format, ...stats }));
+            if (process.env.WINDOWS_VERIFY_EMPTY_TAB_LAYOUT === '1') {
+              const unused = (doc: any) => {
+                let groups = 0, stops = 0;
+                for (let section=0;section<doc.getSectionCount();section++) {
+                  for (let p=0;p<doc.getParagraphCount(section);p++) {
+                    if (doc.getParagraphLength(section,p) || JSON.parse(doc.getParagraphLineMetrics(section,p,'[]')).controlCount) continue;
+                    const tabs = JSON.parse(doc.getParaPropertiesAt(section,p)).tabStops;
+                    if (tabs?.length) { groups++; stops += tabs.length; }
+                  }
+                }
+                return {groups,stops};
+              };
+              const tabs = { source:unused(original), saved:unused(saved) };
+              console.log('WINDOWS_UNUSED_TABS ' + JSON.stringify({format, ...tabs}));
+              expect(tabs.saved.stops).toBeGreaterThan(0);
+              if (format === 'hwpx') {
+                expect(stats.convertedPages).toBe(16);
+                expect(stats.body.sameStartPage).toBeGreaterThanOrEqual(209);
+                expect(stats.cell.sameStartPage).toBeGreaterThanOrEqual(15);
+              }
+            }
           } finally { original.free(); }
         }
         if (item.id === '04-language-plan' && process.env.WINDOWS_LATIN_WITNESS) {
