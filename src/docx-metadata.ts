@@ -24,7 +24,7 @@ import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
 import { encodeHwpCellRasterFill, hwpCellRasterFillAttribute, hwpCellRasterSource } from './hwp-cell-raster-fill';
 import { tableAnchor, tableWrapFits, paragraphTableNamespace } from './table-anchor';
-import { hwpKeptTablePage, hwpTableTopGap } from './table-anchor-data';
+import { hwpInlineTableTop, hwpInlineTableTopAttribute, hwpKeptTablePage, hwpTableTopGap } from './table-anchor-data';
 import { cssPixels, encodeHwpCellLine, hwpCellLineNamespace, parseHwpCellLine } from './hwp-cell-line';
 import { hwpSourceSpacesAttribute, hwpSourceSpacesNamespace, hwpSourceWrapAttribute, parseHwpSourceWrap } from './hwp-text-advances';
 import { encodeHwpBodyLine, hwpBodyLineNamespace, parseHwpBodyLine } from './hwp-body-line';
@@ -377,6 +377,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             const keptPage = hwpKeptTablePage(sourceTable.getAttributeNS(paragraphTableNamespace, 'keptTablePage'));
             if (!floating && keptPage) table.dataset.hwpKeptTablePage = String(keptPage);
             const stored = tableAnchor(sourceTable.getAttributeNS(paragraphTableNamespace, 'anchor'));
+            const inlineTop = hwpInlineTableTop(sourceTable.getAttributeNS(paragraphTableNamespace, 'inlineOuterTop'));
+            if (!stored && !floating && inlineTop !== undefined && !table.closest('td,th'))
+              table.setAttribute(hwpInlineTableTopAttribute, String(inlineTop));
             const topGap = hwpTableTopGap(sourceTable.getAttributeNS(paragraphTableNamespace, 'topGap'));
             const repeat = child(child(child(sourceTable, 'tr'), 'trPr'), 'tblHeader');
             const borders = sourceTable.getAttributeNS(paragraphTableNamespace, 'centeredBorders');

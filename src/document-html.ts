@@ -1,3 +1,4 @@
+import { hwpInlineTableTopAttribute } from './table-anchor-data';
 import { hwpRelatedTableLayoutAttribute } from './hwp-related-table-layout';
 import { hwpNestedTableLayoutAttribute } from './hwp-nested-table-layout';
 import { hwpIntactRowAttribute } from './hwp-intact-row';
@@ -109,7 +110,7 @@ export function sanitizeImportedHtml(source: string): {
       "data-word-table-layout", "data-word-table-width-auto", "data-word-cell-width-auto", "data-word-text-alignment",
       "data-exact-line-height",
       "data-hwp-cell-line", hwpCenteredCellLabelsAttribute, hwpCellRasterFillAttribute, hwpSourceSpacesAttribute, hwpSourceWrapAttribute,
-      "data-hwp-body-line", "data-hwp-inline-table-spaces", "data-hwp-grid-row", "data-hwp-row-continued", "data-hwp-row-reserve", "data-hwp-row-intact", hwpIntactRowAttribute, "data-hwp-kept-table-page", "data-hwp-table-continuation",
+      "data-hwp-body-line", "data-hwp-inline-table-spaces", "data-hwp-grid-row", "data-hwp-row-continued", "data-hwp-row-reserve", "data-hwp-row-intact", hwpIntactRowAttribute, "data-hwp-kept-table-page", "data-hwp-table-continuation", hwpInlineTableTopAttribute,
       "data-word-row-rule", "data-word-row-split",
       "data-row-split", "data-cell-split",
       "data-word-overlap", hwpBoxedDigitAttribute,

@@ -1,6 +1,6 @@
 import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
-import { tableAnchor, type TableAnchor } from '../table-anchor-data';
+import { hwpInlineTableTop, hwpInlineTableTopAttribute, tableAnchor, type TableAnchor } from '../table-anchor-data';
 import { elementRanges, topLevelHwpPasteBlocks } from './markup-ranges';
 import { entities } from './cell-content';
 import documentLimits from '../../electron/document-limits.json';
@@ -58,16 +58,19 @@ function nativeParagraphFlow(table: string, anchor: TableAnchor): 'CELL' | 'TABL
  * no marker paragraph or original text is removed. */
 export function stageHwpTables(html: string) {
   type Placement = { mode: 'label' } | { mode: 'overlay'; anchor: TableAnchor } |
-    { mode: 'flow'; anchor: TableAnchor; breakMode: 'CELL' | 'TABLE' };
+    { mode: 'flow'; anchor: TableAnchor; breakMode: 'CELL' | 'TABLE' } | { mode: 'inline-top'; top: number };
   const prefix = `WORDSTUDIO-TABLE-${crypto.randomUUID()}-`, records = new Map<string, Placement>();
   const flowTables = nativeParagraphFlowTables(html);
+  const topAttribute = new RegExp(`\\b${hwpInlineTableTopAttribute}="([^"]*)"`);
   let staged = html;
   for (const table of elementRanges(html, 'table').reverse()) {
     const anchor = markupAnchor(table.open), mode = flowTables.get(table.start);
     const breakMode = anchor && mode === 'flow' ? nativeParagraphFlow(table.open, anchor) : undefined;
+    const top = anchor ? undefined : hwpInlineTableTop(topAttribute.exec(table.open)?.[1]);
     const placement = mode === 'label' ? { mode } as const
       : anchor && breakMode ? { mode: 'flow', anchor, breakMode } as const
-      : anchor?.overlay ? { mode: 'overlay', anchor } as const : undefined;
+      : anchor?.overlay ? { mode: 'overlay', anchor } as const
+      : top !== undefined && top !== 283 ? { mode: 'inline-top', top } as const : undefined;
     if (!placement) continue;
     let depth = 0, at = -1;
     for (const m of table.inner.matchAll(/<\/?(?:table|p)\b[^>]*>/g)) {
@@ -88,12 +91,23 @@ export function stageHwpTables(html: string) {
       return true;
     } });
     for (const name of Object.keys(files).filter(n => /^Contents\/section\d+\.xml$/.test(n))) {
-      let xml = strFromU8(files[name]);
+      let xml = strFromU8(files[name]), anchorsChanged = false;
       for (const table of elementRanges(xml, 'hp:tbl').reverse()) {
         const tokens = table.inner.match(new RegExp(`${prefix}\\d+-END`, 'g')) || [];
         if (!tokens.length) continue;
         if (tokens.length !== 1) throw Error('한글 표의 배치 위치가 모호합니다.');
         const record = records.get(tokens[0]); if (!record) throw Error('한글 표의 배치 정보를 찾지 못했습니다.');
+        if (record.mode === 'inline-top') {
+          // Native HTML paste gives every newly created table 283 HU. Restore
+          // the authored margin on this exact inline object only.
+          const inner = table.inner.replace(/^<hp:sz\b[^>]*\/><hp:pos\b[^>]*\/><hp:outMargin\b[^>]*\/>/, prefix =>
+            /<hp:pos\b[^>]*\btreatAsChar="1"/.test(prefix) ? prefix.replace(/<hp:outMargin\b[^>]*\/>/, tag =>
+              /\btop="283"/.test(tag) ? set(tag, { top: record.top }) : tag) : prefix).replace(tokens[0], '');
+          xml = xml.slice(0, table.start) + table.open + inner + '</hp:tbl>' + xml.slice(table.end);
+          restored++;
+          continue;
+        }
+        anchorsChanged = true;
         const flow = record.mode === 'flow';
         const open = record.mode === 'label' ? table.open : set(table.open, flow
           ? { textWrap: 'TOP_AND_BOTTOM', pageBreak: record.breakMode }
@@ -112,7 +126,7 @@ export function stageHwpTables(html: string) {
         if (!found) throw Error('한글 표의 위치 속성을 찾지 못했습니다.');
         xml = xml.slice(0, table.start) + open + inner + '</hp:tbl>' + xml.slice(table.end); restored++;
       }
-      files[name] = strToU8(xml.replace(/<hp:linesegarray\b[^>]*>[\s\S]*?<\/hp:linesegarray>/g, ''));
+      files[name] = strToU8(anchorsChanged ? xml.replace(/<hp:linesegarray\b[^>]*>[\s\S]*?<\/hp:linesegarray>/g, '') : xml);
     }
     if (restored !== records.size) throw Error('일부 떠 있는 표를 한글로 저장하지 못했습니다.');
     return new Core(zipSync(files, { level: 1 }));

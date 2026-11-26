@@ -140,18 +140,20 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
     for (const format of ['hwp', 'hwpx'] as const) {
       const saved = new HwpDocument(new Uint8Array(await readFile(info.outputPath('hancom-saved.' + format))));
       try {
-        let tables = 0, outside = 0, maxOutside = 0;
+        let tables = 0, outside = 0, maxOutside = 0, firstSevenCellRow: number | undefined;
         for (let i = 0; i < saved.pageCount(); i++) {
           const paper = JSON.parse(saved.getPageInfo(i));
           const controls = JSON.parse(saved.getPageControlLayout(i)).controls;
           for (const table of controls.filter(c => c.type === 'table')) {
             tables++;
+            if (item.id === '06-mixed-document' && table.rowCount === 1 && table.colCount === 7 &&
+                table.w > 500 && !table.cellPath?.length) firstSevenCellRow ??= i + 1;
             const over = table.x + table.w - paper.width;
             if (over > .2) { outside++; maxOutside = Math.max(maxOutside, over); }
           }
         }
         console.log('WINDOWS_NATIVE_GRID ' + JSON.stringify({ id:item.id, format, pages:saved.pageCount(),
-          tables, outsideRight:outside, maxOutsidePx:Math.round(maxOutside*10)/10 }));
+          tables, outsideRight:outside, maxOutsidePx:Math.round(maxOutside*10)/10, firstSevenCellRow }));
       } finally { saved.free(); }
     }
   }

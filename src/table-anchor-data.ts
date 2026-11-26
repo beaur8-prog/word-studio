@@ -34,3 +34,11 @@ export function hwpKeptTablePage(value: unknown) {
   const page = typeof value === 'number' ? value : typeof value === 'string' && /^\d{1,5}$/.test(value) ? Number(value) : NaN;
   return Number.isSafeInteger(page) && page > 1 && page <= 10000 ? page : undefined;
 }
+
+/** HWP inline object top margin, in native HWPUNIT. Zero is explicit. */
+export const hwpInlineTableTopAttribute = 'data-hwp-inline-table-top';
+export function hwpInlineTableTop(value: unknown): number | undefined {
+  const top = typeof value === 'number' ? value
+    : typeof value === 'string' && /^\d{1,5}$/.test(value) ? Number(value) : NaN;
+  return Number.isSafeInteger(top) && top >= 0 && top <= 32767 ? top : undefined;
+}

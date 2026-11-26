@@ -1,3 +1,4 @@
+import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import type { Node as ModelNode } from '@tiptap/pm/model';
@@ -602,10 +603,10 @@ export const HwpBodyLineMetrics = Extension.create({
       let sourceColumns = new WeakMap<ModelNode, CachedColumn>();
       const schedule = () => {
         // Pagination and resize can dispatch again before this frame runs.
-        if (frame) return;
+        if (frame || editorLayoutSuspended()) return;
         frame = requestAnimationFrame(() => {
           frame = 0;
-          if (!view.dom.isConnected || view.composing) return;
+          if (editorLayoutSuspended() || !view.dom.isConnected || view.composing) return;
           const decorations: Decoration[] = [], values: string[] = [];
           let papers: DOMRect[] | undefined;
           view.state.doc.descendants((node, pos) => {
@@ -614,6 +615,9 @@ export const HwpBodyLineMetrics = Extension.create({
               values.push(`${pos}:table-spaces`);
               return;
             }
+            // Nodes without a body policy can include an entire table or
+            // section. Avoid serializing those descendants just to reject it.
+            if (!node.attrs.hwpBodyLine) return;
             const line = hwpBodyTextLine(node.toJSON()); if (!line) return;
             const dom = view.nodeDOM(pos);
             if (!(dom instanceof HTMLElement)) return;
@@ -697,8 +701,14 @@ export const HwpBodyLineMetrics = Extension.create({
         });
       };
       const fontsChanged = () => { sourceColumns = new WeakMap(); schedule(); };
-      document.fonts.addEventListener('loadingdone', fontsChanged); schedule();
-      return { update: schedule, destroy() { cancelAnimationFrame(frame); document.fonts.removeEventListener('loadingdone', fontsChanged); } };
+      document.fonts.addEventListener('loadingdone', fontsChanged);
+      document.addEventListener(editorLayoutResume, schedule);
+      schedule();
+      return { update: schedule, destroy() {
+        cancelAnimationFrame(frame);
+        document.fonts.removeEventListener('loadingdone', fontsChanged);
+        document.removeEventListener(editorLayoutResume, schedule);
+      } };
     },
   })],
 });

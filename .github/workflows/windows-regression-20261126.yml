@@ -1,18 +1,29 @@
 name: Windows regression QA
-run-name: Compare Windows native pagination with stable document and text runs
+run-name: Windows authored inline table margins in both native formats
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native:
+  original:
+    name: Windows / ${{ matrix.id }}
     runs-on: windows-latest
     timeout-minutes: 32
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { group: hwp-1, id: 04-language-plan }
+          - { group: hwp-2, id: 06-mixed-document }
+          - { group: hwp-2, id: 08-math-exam }
     env:
-      WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: hwpx
-      WINDOWS_NATIVE_HWP_TRACE: '1'
+      PLAYWRIGHT_CHANNEL: chromium
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
+      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
+      WINDOWS_REQUIRE_REOPEN: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,51 +33,48 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Build both source trees in the same environment
+      - run: npx playwright install chromium
+      - name: Verify the same pinned original on both source trees
         shell: pwsh
         run: |
-          npm run package:win:dir
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/table-insets" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item release/windows "$env:RUNNER_TEMP/hangul-candidate"
-          git restore --source fdc4d4ddfb807449c7d2f9a7fbbc0b442b383614 -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code fdc4d4ddfb807449c7d2f9a7fbbc0b442b383614 -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run package:win:dir
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item release/windows "$env:RUNNER_TEMP/hangul-control"
-      - name: Compare HWPX save and reopened page geometry
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/native-hangul" --ids 04-language-plan
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-hangul/inventory.json"
-          $status = @{}
-          foreach ($variant in @('control','candidate')) {
-            Write-Host "WINDOWS_NATIVE_HANGUL_PRODUCT $variant"
-            $env:WORD_STUDIO_EXECUTABLE="$env:RUNNER_TEMP/hangul-$variant/Word Studio/Word Studio.exe"
-            $env:WINDOWS_NATIVE_HWP_COMPARISON="$env:RUNNER_TEMP/hangul-$variant-shapes.txt"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            $status[$variant] = $LASTEXITCODE
-            Write-Host "WINDOWS_NATIVE_HANGUL_EXIT $variant $LASTEXITCODE"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/table-insets/inventory.json"
+          $inputCount = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($inputCount -ne 1) { throw 'Pinned input missing' }
+          if ($env:QA_ID -eq '08-math-exam') {
+            $env:WINDOWS_REQUIRE_REVERSE='1'
+            $env:WINDOWS_EXACT_REVERSE_PAGES='1'
           }
-          if ($status['candidate'] -ne 0) { exit $status['candidate'] }
-          if ($status['control'] -eq 0) {
-            $control = Get-Content "$env:RUNNER_TEMP/hangul-control-shapes.txt" -Raw
-            $candidate = Get-Content "$env:RUNNER_TEMP/hangul-candidate-shapes.txt" -Raw
-            $exact = $control -eq $candidate
-            Write-Host "WINDOWS_NATIVE_HANGUL_READBACK_EXACT $exact"
-            if (-not $exact) { exit 1 }
-          } else { Write-Host 'WINDOWS_NATIVE_HANGUL_READBACK_EXACT unavailable' }
-  affected:
+          foreach ($variant in @('fb6ef74e1ce9824e61198031285372a82577f908', 'HEAD')) {
+            Write-Host "WINDOWS_TABLE_INSETS_PRODUCT $variant"
+            git restore --source $variant -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Validate two actual DOCX packages retaining source margins
+        shell: pwsh
+        run: |
+          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
+          if ($outputs.Count -ne 2) { throw 'Expected two actual saves' }
+          dotnet run --project scripts/word-openxml-validator -- test-results $outputs.Count *> "$env:RUNNER_TEMP/inline-margins-sdk.log"
+          $status = $LASTEXITCODE
+          Write-Host "WINDOWS_PUBLIC_SDK total $($outputs.Count) exit $status"
+          exit $status
+  focused:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 14
     strategy:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-    timeout-minutes: 18
     env:
       PLAYWRIGHT_CHANNEL: chromium
     steps:
@@ -77,6 +85,19 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: npm ci
       - run: npx playwright install chromium
-      - run: npm run test -- tests/hwp-body-terminal-ink.spec.ts tests/hwp-source-text-advances.spec.ts tests/hwp-page-budget.spec.ts tests/hwp-column-terminal.spec.ts tests/hwp-paper-heading.spec.ts tests/export-layout-suspension.spec.ts tests/selection-navigation.spec.ts --workers=1 --trace=off
+      - run: npm run test -- tests/hwp-inline-table-margin.spec.ts tests/hwp-native-merged-grid-width.spec.ts tests/hwp-sections.spec.ts tests/export-layout-suspension.spec.ts tests/hwp-paragraph-table.spec.ts tests/hwp-floating-export.spec.ts --workers=1 --trace=off
+      - name: Validate the two synthetic DOCX packages
+        shell: pwsh
+        run: |
+          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-inline-margin-*.docx')
+          if ($outputs.Count -ne 2) { throw 'Expected two synthetic saves' }
+          $isolated = Join-Path (Resolve-Path test-results).Path 'inline-margin-sdk'
+          New-Item $isolated -ItemType Directory | Out-Null
+          $outputs | Copy-Item -Destination $isolated
+          dotnet run --project scripts/word-openxml-validator -- $isolated 2
+          exit $LASTEXITCODE

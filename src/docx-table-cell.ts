@@ -8,7 +8,7 @@ export class PreservedTable extends Table {
   constructor(options: ITableOptions, private readonly anchor?: TableAnchor,
     private readonly overlayPosition?: { x: number; y: number; width: number },
     private readonly topGap?: number, private readonly centeredBorders: boolean | 'inline' | 'continuation' = false, private readonly keptTablePage?: number,
-    private readonly continuation?: string, private readonly nestedLayout?: string, private readonly relatedLayout?: string) { super(options); }
+    private readonly continuation?: string, private readonly nestedLayout?: string, private readonly relatedLayout?: string, private readonly inlineOuterTop?: number) { super(options); }
   prepForXml(context: Parameters<Table['prepForXml']>[0]) {
     const result = super.prepForXml(context);
     const children = result?.['w:tbl'];
@@ -36,7 +36,7 @@ export class PreservedTable extends Table {
         } }] }] }];
       }
     }
-    if ((this.anchor || this.topGap || this.centeredBorders || this.keptTablePage || this.continuation || this.nestedLayout || this.relatedLayout) && Array.isArray(children)) {
+    if ((this.anchor || this.topGap || this.centeredBorders || this.keptTablePage || this.continuation || this.nestedLayout || this.relatedLayout || this.inlineOuterTop !== undefined) && Array.isArray(children)) {
       let attributes = children.find((entry: any) => entry && '_attr' in entry)?.['_attr'];
       if (!attributes) { attributes = {}; children.unshift({ _attr: attributes }); }
       const layout = { ...(this.anchor ? { 'ws:anchor': JSON.stringify(this.anchor) } : {}),
@@ -46,7 +46,8 @@ export class PreservedTable extends Table {
         ...(this.keptTablePage ? { 'ws:keptTablePage': String(this.keptTablePage) } : {}),
         ...(this.continuation ? { 'ws:continuation': this.continuation } : {}),
         ...(this.nestedLayout ? { 'ws:nestedLayout': this.nestedLayout } : {}),
-        ...(this.relatedLayout ? { 'ws:relatedLayout': this.relatedLayout } : {}) };
+        ...(this.relatedLayout ? { 'ws:relatedLayout': this.relatedLayout } : {}),
+        ...(this.inlineOuterTop !== undefined ? { 'ws:inlineOuterTop': String(this.inlineOuterTop) } : {}) };
       Object.assign(attributes, { 'xmlns:ws': paragraphTableNamespace,
         'xmlns:mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006',
         'mc:Ignorable': 'ws', 'mc:PreserveAttributes': Object.keys(layout).join(' '), ...layout });

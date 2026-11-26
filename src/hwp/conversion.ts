@@ -53,7 +53,7 @@ import { restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
 import { stageHwpTables } from './export-tables';
 import { tableCaptionDefinitions, renderTableCaptions, restoreTableCaptions } from './table-captions';
-import { hwpTableTopGap } from '../table-anchor-data';
+import { hwpInlineTableTop, hwpInlineTableTopAttribute, hwpTableTopGap } from '../table-anchor-data';
 import { hwpMarginCenteredTableAnchor } from './table-position';
 import { elementRanges, topLevelHwpPasteBlocks } from './markup-ranges';
 import { stageHwpCharacterWidths } from './export-character-width';
@@ -2381,6 +2381,13 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             if (!/^<table\b[^>]*\bdata-table-anchor=/.test(controlHtml))
               hostOnPriorPage = sourceHostOnPriorPage(doc, section, para, c.controlIndex, pitches);
             if (hostOnPriorPage || sourceHostBeforeFloatingTable(doc, section, para, c.controlIndex, pitches)) tableFollowingHost = tablePiece;
+          }
+          if (inlineTable && !hasColumns && !inlineProperties.hasCaption &&
+              paragraphControls.every(control => control === c || ['secd','cold','pgnp','head','foot'].includes(control.ctrlId)) &&
+              !doc.getTextRange(section, para, 0, 0xffffffff).trim() && !/^<table\b[^>]*\bdata-table-anchor=/.test(controlHtml)) {
+            const top = hwpInlineTableTop(inlineProperties.outerTop);
+            if (top !== undefined)
+              controlHtml = controlHtml.replace(/^<table\b/, `<table ${hwpInlineTableTopAttribute}="${top}"`);
           }
           append(controlHtml);
           inlineTail = undefined;

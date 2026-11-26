@@ -1,3 +1,4 @@
+import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -87,8 +88,8 @@ export const HwpCellLineMetrics = Extension.create({
       // Other planners dispatch transactions during the same animation frame.
       // Keep the pending callback: cancelling it on every update can postpone
       // cell metrics indefinitely in documents with floating drawings.
-      const schedule = () => { if (frame) return; frame = requestAnimationFrame(() => { frame = 0;
-        if (!view.dom.isConnected || view.composing) return;
+      const schedule = () => { if (frame || editorLayoutSuspended()) return; frame = requestAnimationFrame(() => { frame = 0;
+        if (editorLayoutSuspended() || !view.dom.isConnected || view.composing) return;
         const decorations: Decoration[] = [], values: string[] = [];
         view.state.doc.descendants((node, pos) => {
           const line = activeHwpCellLine(node.attrs);
@@ -114,8 +115,15 @@ export const HwpCellLineMetrics = Extension.create({
         }
       }); };
       const resize = new ResizeObserver(schedule); resize.observe(view.dom);
-      document.fonts.addEventListener('loadingdone', schedule); schedule();
-      return { update: schedule, destroy() { cancelAnimationFrame(frame); resize.disconnect(); document.fonts.removeEventListener('loadingdone', schedule); } };
+      document.fonts.addEventListener('loadingdone', schedule);
+      document.addEventListener(editorLayoutResume, schedule);
+      schedule();
+      return { update: schedule, destroy() {
+        cancelAnimationFrame(frame);
+        resize.disconnect();
+        document.fonts.removeEventListener('loadingdone', schedule);
+        document.removeEventListener(editorLayoutResume, schedule);
+      } };
     },
   })],
 });

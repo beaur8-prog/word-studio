@@ -115,3 +115,35 @@ test('native save progress does not rescan the unchanged live document', async (
   await editor.fill('Four new words now');
   await expect(page.getByText('4개 단어', { exact: true })).toBeVisible();
 });
+
+test('live Hancom body and cell metrics wait for a detached layout and resume on the current document', async ({ page }) => {
+  await page.goto('/');
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  await expect(editor).toBeVisible();
+  const source = await page.evaluate(async () => {
+    const { defaultPage } = await import('/src/types.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const { suspendEditorReflow } = await import('/src/editor-layout-task.ts');
+    Object.assign(window, { resumeHancomLineMetrics: suspendEditorReflow() });
+    const content = parseDocumentHtml('<p data-hwp-body-line="1 150 24 36" style="font-size:24px;line-height:36px">Body sample</p>' +
+      '<table><tbody><tr><td><p data-hwp-cell-line="1 Percent 16 24 16 16" style="font-size:16px;line-height:16px">Cell sample</p></td></tr></tbody></table>');
+    return { id: 'suspended-hancom-metrics', format: 'word-studio', version: 1,
+      title: 'Suspended line metrics', updatedAt: new Date().toISOString(), page: defaultPage, comments: [], content };
+  });
+  await page.locator('input[type=file]').first().setInputFiles({
+    name: 'layout.wordstudio', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(source)),
+  });
+  await expect(editor).toContainText('Cell sample');
+  const lineDecorationCounts = () => editor.evaluate(el => {
+    const { state } = (el as HTMLElement & { editor: import('@tiptap/core').Editor }).editor;
+    return state.plugins.filter(plugin => /^hwp(?:Body|Cell)LineMetrics/.test((plugin as any).key))
+      .map(plugin => plugin.getState(state).find().length);
+  });
+  await page.evaluate(() => new Promise<void>(resolve =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  expect(await lineDecorationCounts()).toEqual([0, 0]);
+  await page.evaluate(() => (window as any).resumeHancomLineMetrics());
+  await expect.poll(async () => (await lineDecorationCounts()).every(count => count > 0)).toBe(true);
+  await expect(editor).toContainText('Body sample');
+  await expect(editor).toContainText('Cell sample');
+});
