@@ -1,31 +1,28 @@
 name: Windows regression QA
-run-name: Isolate the preceding four-row Windows table height by cell
+run-name: Bisect the extra HWPX page in the actual Windows writer
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  layout:
-    name: Windows diagnostic / ${{ matrix.id }}
+  native-hwp:
+    name: Packaged Windows binary tail / ${{ matrix.product }}
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { group: hwp-2, id: 05-return-form, format: hwpx }
+        product: [control, before-style, after-style, candidate]
     env:
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      WINDOWS_DIAGNOSTIC_FORMAT: ${{ matrix.format }}
-      PLAYWRIGHT_CHANNEL: chromium
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_HANCOM_FIXED_AGREEMENT: '1'
-      WINDOWS_HANCOM_EARLY_BREAKS: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
-      WINDOWS_NATIVE_SKIP_PRINT: '1'
-      WINDOWS_DIAGNOSTIC_FORM_FLOW: '1'
+      QA_GROUP: hwp-1
+      QA_ID: 10-lh-plan
+      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
+      WINDOWS_NATIVE_HWP_FORMATS: hwpx
+      WINDOWS_PRODUCT: ${{ matrix.product }}
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
+      WINDOWS_NATIVE_HWP_SAVES: '1'
+      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,16 +32,33 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: npm ci
-      - run: npx playwright install chromium
-      - name: Find when the regression first appears
+      - run: node node_modules/electron/install.js
+      - name: Build only the exact named source tree
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/original" --ids $env:QA_ID
+          $sources = @{ control = '19892d86e3599cbf2e735c40bdb23bd967242a5d'; 'before-style' = '4288c66'; 'after-style' = '6b8fad0'; candidate = '18f295a132ed3aab3af75af47a89fd63031adf25' }
+          $source = $sources[$env:WINDOWS_PRODUCT]
+          git restore --source $source -- src
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/original/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+          git diff --exit-code $source -- src electron vendor package.json package-lock.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          exit 0
+          npm run package:win:dir
+          exit $LASTEXITCODE
+      - name: Run the file-menu export and reopen both native outputs
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/final-native" --ids $env:QA_ID
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> "$env:RUNNER_TEMP/native-sdk.log"
+          $status = $LASTEXITCODE
+          Write-Host "WINDOWS_FINAL_SDK Hangul $($env:QA_ID) count 2 exit $status"
+          exit $status

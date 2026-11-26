@@ -29,11 +29,17 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
       const bytes = await fs.readFile(output).catch(() => null);
       return bytes?.length > 64 && bytes.subarray(0, 2).toString('latin1') === 'PK';
     }, {timeout: 180000}).toBe(true);
+    // Bytes appear before the file operation and renderer save guard end.
+    // Windows can ignore a new Open command during that interval.
+    await page.locator('.busy-indicator').waitFor({state: 'hidden', timeout: 180000});
     selectStage('native-docx-reopen-' + generation);
-    await app.evaluate(({ dialog }, source) => {
+    await app.evaluate(({ dialog, Menu }, source) => {
       dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [source] });
+      const file = Menu.getApplicationMenu().items.find(item => item.label === 'File');
+      const command = file?.submenu?.items.find(item => item.label === 'Open…');
+      if (!command) throw Error('Native Open command unavailable');
+      setTimeout(() => command.click(), 0);
     }, output);
-    await page.keyboard.press('ControlOrMeta+o');
     await expect(title).toHaveValue(name, {timeout: 180000});
     await page.locator('.busy-indicator').waitFor({state: 'hidden', timeout: 180000});
     await page.evaluate(() => document.fonts.ready);
@@ -115,6 +121,23 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
       const expected = process.env.WINDOWS_EXPECT_NATIVE_PAGES?.split(',').map(Number);
       console.log('WINDOWS_NATIVE_HANGUL ' + JSON.stringify({ id:item.id, format, bytes:bytes.length,
         printPages:Number(pages[1]), savedPages:readback, seconds:(Date.now()-started)/1000 }));
+      if (process.env.WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES === '1') {
+        const original = new Core(await fs.readFile(item.path));
+        try {
+          const agreement = require('./hancom-page-agreement.cjs')(original, native);
+          const pages = Array.from({length:readback}, (_, page) => {
+            const runs = JSON.parse(native.getPageTextLayout(page)).runs.filter(r => !r.headerFooter && r.paraIdx!==0xffffffff && r.text.trim());
+            const controls = JSON.parse(native.getPageControlLayout(page)).controls.filter(c => !c.headerFooter);
+            const owner = runs.find(r=>!r.cellPath?.length);
+            return {page:page+1, body:runs.filter(r=>!r.cellPath?.length).reduce((sum,r)=>sum+r.text.replace(/\s/gu,'').length,0),
+              cells:runs.filter(r=>r.cellPath?.length).reduce((sum,r)=>sum+r.text.replace(/\s/gu,'').length,0),
+              first:owner?[owner.secIdx,owner.paraIdx,owner.charStart,owner.y]:null,
+              objects:controls.map(c=>[c.type,c.secIdx,c.paraIdx,c.x,c.y,c.w,c.h])};
+          });
+          console.log('WINDOWS_PACKAGED_PAGE_AGREEMENT ' + JSON.stringify({format,product:process.env.WINDOWS_PRODUCT,
+            fixed: {body:agreement.body,cell:agreement.cell},pages}));
+        } finally { original.free(); }
+      }
       if (process.env.WINDOWS_MEASURE_BINARY_TAIL === '1') {
         const tail = Array.from({length:readback}, (_, i) => {
           const runs = JSON.parse(native.getPageTextLayout(i)).runs;
