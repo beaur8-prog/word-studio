@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Audit blank sheet boundaries in the exact Windows native output
+run-name: Isolate the generated break after an empty Windows native sheet
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
