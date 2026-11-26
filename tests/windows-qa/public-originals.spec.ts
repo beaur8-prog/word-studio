@@ -132,6 +132,8 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
 
     if (verifyFormFlow) {
       const { wordContentLanguage } = await import('/src/types.ts');
+      const { paragraphLineOffsets } = await import('/src/paragraph-fragments.ts');
+      const { parseHwpSourceWrap } = await import('/src/hwp-text-advances.ts');
       const html = generateHTML(doc.content, editorExtensions);
       for (const native of [false,true]) {
         const options = native ? {
@@ -151,7 +153,29 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
                 table ? el.hasAttribute('data-hwp-inline-table-bottom'):null];
             })};
           });
-          await qa.logOriginalForward({stage:'form-print-geometry',native,papers});
+          const prior = [...layout.element.querySelectorAll<HTMLTableElement>('.print-content > table')].find(t=>t.rows.length===4);
+          const table = prior && {
+            type:prior.dataset.hwpCenteredBorders ?? null,
+            width:prior.getBoundingClientRect().width,
+            rows:[...prior.rows].map(row=>({
+              height:row.getBoundingClientRect().height,
+              cells:[...row.cells].map(cell=>({
+                width:cell.getBoundingClientRect().width, height:cell.getBoundingClientRect().height,
+                spans:[cell.colSpan,cell.rowSpan],
+                text:[...cell.querySelectorAll('p')].map(paragraph=>{
+                  const proof=parseHwpSourceWrap(paragraph.dataset.hwpSourceWrap);
+                  return {glyphs:paragraph.textContent?.replace(/\s/gu,'').length ?? 0,
+                    height:paragraph.getBoundingClientRect().height, computed:getComputedStyle(paragraph).lineHeight,
+                    breaks:paragraphLineOffsets(paragraph), authored:proof?.ends,
+                    single:proof?.singleCellLine, header:proof?.singleHeaderLine,
+                    passes:paragraph.querySelectorAll('span[style*="white-space: pre"]').length,
+                    body:!!proof?.singleBodyFallback, nested:paragraph.hasAttribute('data-hwp-nested-cell-face'),
+                    compact:!!proof?.cellWidthFallback};
+                }),
+              })),
+            })),
+          };
+          await qa.logOriginalForward({stage:'form-print-geometry',native,papers,table});
         } finally { layout.dispose(); }
       }
     }
