@@ -46,3 +46,36 @@ for (const placement of ['body', 'cell', 'nested']) for (const format of ['hwp',
   }
   expect(result.literal).toBe('LITERAL END');
 });
+
+test('native HWP and HWPX preserve a no-break space without changing adjacent ordinary spaces', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('textbox', { name: '문서 편집 영역', exact: true }).waitFor();
+  const saved = await page.evaluate(async () => {
+    const { importFile } = await import('/src/document-io.ts');
+    const { exportEditableHwp } = await import('/src/hwp/editing.ts');
+    const { HwpReaderSession } = await import('/src/hwp/reader.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const source = '<p>ordinary space, A&nbsp;B and C D</p><table><tbody><tr><td><p>cell No&nbsp;break</p></td></tr></tbody></table>';
+    const opened = await importFile(new File([source], 'spaces.html'));
+    const model = { ...opened.document, content: parseDocumentHtml(opened.html!) };
+    const outputs = [];
+    for (const extension of ['hwp', 'hwpx'] as const) {
+      const { blob } = await exportEditableHwp(model, extension);
+      const reader = new HwpReaderSession();
+      try {
+        await reader.open(new File([blob], 'spaces.' + extension));
+        const holder = document.createElement('div');
+        holder.innerHTML = (await reader.editable()).html;
+        outputs.push({
+          body: holder.querySelector('p')?.textContent,
+          cell: holder.querySelector('td p')?.textContent?.trim(),
+        });
+      } finally { reader.close(); }
+    }
+    return outputs;
+  });
+  expect(saved).toEqual(Array.from({ length: 2 }, () => ({
+    body: 'ordinary space, A\u00a0B and C D',
+    cell: 'cell No\u00a0break',
+  })));
+});

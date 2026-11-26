@@ -149,6 +149,29 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
     try {
       const readback = native.pageCount();
       if (!pages || readback < 1 || readback !== Number(pages[2])) throw new Error('Native Hangul readback disagreed');
+      if (process.env.WINDOWS_CHECK_NATIVE_NBSPACE === '1') {
+        const source = new Core(await fs.readFile(item.path));
+        try {
+          const literal = source.getTextRange(0, 32, 0, 0xffffffff);
+          const compact = text => text.replace(/\s/gu, '');
+          const matching = document => {
+            const found = [];
+            const count = document.getParagraphCount(0);
+            for (let index = 0; index < count; index++) {
+              const current = document.getTextRange(0, index, 0, 0xffffffff);
+              if (compact(current) === compact(literal)) found.push(current);
+            }
+            return found;
+          };
+          const spaces = text => [...text].filter(value => value === '\u00a0').length;
+          const originals = matching(source), saved = matching(native);
+          const exact = originals.length === saved.length && originals.every((value, index) => value === saved[index]);
+          console.log('WINDOWS_NATIVE_NBSPACE ' + JSON.stringify({ format, exact, sourceNoBreak: spaces(literal),
+            sourceMatches: originals.length, savedMatches: saved.length,
+            savedNoBreak: saved.map(spaces), savedPages: native.pageCount() }));
+          if (spaces(literal) !== 5 || !exact) throw Error('Original nonbreaking spaces changed');
+        } finally { source.free(); }
+      }
       const expected = (process.env.WINDOWS_EXPECT_NATIVE_PAGES || undefined)?.split(',').map(Number);
       console.log('WINDOWS_NATIVE_HANGUL ' + JSON.stringify({ id:item.id, format, bytes:bytes.length,
         printPages:Number(pages[1]), savedPages:readback, seconds:(Date.now()-started)/1000 }));
