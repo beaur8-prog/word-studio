@@ -18,24 +18,33 @@ function readPages(document) {
 }
 
 function paragraphPositions(document) {
-  const rows = [];
+  const rows = [], unmapped = [];
   for (let section = 0; section < document.getSectionCount(); section++) {
     for (let paragraph = 0; paragraph < document.getParagraphCount(section); paragraph++) {
-      const location = JSON.parse(document.getPageOfPosition(section, paragraph));
-      if (!location.ok) continue;
       const { stored, controlCount, lines } = JSON.parse(document.getParagraphLineMetrics(section, paragraph, '[]'));
+      const visibleText = !!document.getTextRange(section, paragraph, 0, 0xffffffff).trim();
+      let location;
+      try {
+        location = JSON.parse(document.getPageOfPosition(section, paragraph));
+      } catch (error) {
+        if (typeof error !== 'string' || !/^렌더링 오류: 문단 .*이 페이지에 없습니다$/.test(error)) throw error;
+      }
+      if (!location?.ok) {
+        unmapped.push({ section, paragraph, visibleText, controlCount });
+        continue;
+      }
       const { pageBreakBefore, keepWithNext, keepLines, spacingBefore, spacingAfter } =
         JSON.parse(document.getParaPropertiesAt(section, paragraph));
       rows.push({
         section, paragraph, page: location.page,
         units: document.getParagraphLength(section, paragraph),
-        visibleText: !!document.getTextRange(section, paragraph, 0, 0xffffffff).trim(),
+        visibleText,
         controlCount, pageBreakBefore, keepWithNext, keepLines, spacingBefore, spacingAfter, stored,
         lines: lines.map(line => [line.verticalPosition, line.height, line.spacing]),
       });
     }
   }
-  return rows;
+  return { rows, unmapped };
 }
 
 function empty(page) {
@@ -58,7 +67,8 @@ function logicalBody(document) {
 module.exports = (Core, original, saved, bytes) => {
   const sourcePages = readPages(original), savedPages = readPages(saved);
   const missingPaint = savedPages.filter(empty);
-  const owned = paragraphPositions(saved);
+  const { rows: owned, unmapped: savedUnmapped } = paragraphPositions(saved);
+  const { rows: sourceOwners, unmapped: sourceUnmapped } = paragraphPositions(original);
   const candidates = new Map();
   const boundaries = missingPaint.map(site => {
     const before = owned.filter(row => row.page === site.index - 1).slice(-2);
@@ -71,7 +81,9 @@ module.exports = (Core, original, saved, bytes) => {
   const base = logicalBody(saved);
   const selected = [...candidates.values()];
   const trials = [];
-  for (const rows of selected.length ? [...selected.map(row => [row]), ...(selected.length > 1 ? [selected] : [])] : []) {
+  const groups = selected.map(row => [row]);
+  if (selected.length > 1) groups.push(selected);
+  for (const rows of groups) {
     const doc = new Core(bytes);
     try {
       doc.beginBatch();
@@ -92,7 +104,8 @@ module.exports = (Core, original, saved, bytes) => {
   return {
     sourcePages: sourcePages.length, savedPages: savedPages.length,
     sourceEmptyPages: sourcePages.filter(empty).map(page => page.index + 1),
-    sourceExplicitBodyBreaks: paragraphPositions(original).filter(row => row.pageBreakBefore).map(row => [row.section, row.paragraph, row.page + 1, row.visibleText]),
+    savedUnmapped, sourceUnmapped,
+    sourceExplicitBodyBreaks: sourceOwners.filter(row => row.pageBreakBefore).map(row => [row.section, row.paragraph, row.page + 1, row.visibleText]),
     totalVisibleRuns: savedPages.reduce((count, page) => count + page.bodyRuns + page.cellRuns, 0),
     boundaries, trials,
   };
