@@ -7,7 +7,36 @@ const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 
 async function saveHangulFile(app, page, item, directory, Core, phase) {
-  const formats = ['hwp', 'hwpx'];
+  const requested = (process.env.WINDOWS_NATIVE_HWP_FORMATS || 'hwp,hwpx').split(',');
+  const formats = ['hwp', 'hwpx'].filter(format => requested.includes(format));
+  if (!formats.length) throw new Error('No native Hangul output requested');
+  if (process.env.WINDOWS_NATIVE_HWP_TRACE === '1') {
+    await page.exposeFunction('qaHangulProgress', values => console.log('WINDOWS_NATIVE_HANGUL_PHASE ' + JSON.stringify(values)));
+    await page.evaluate(() => {
+      const groups = [
+        ['prepare', /저장할 편집본|저장할 본문/],
+        ['layout', /쪽 배치|레이아웃/],
+        ['page-conversion', /쪽 나누기를 준비|문서의 쪽/],
+        ['worker', /본문·표·그림|글자 서식|쪽 나누기를 반영/],
+        ['format', /파일을 만드는/],
+        ['reopen', /다시 읽어 확인/],
+      ];
+      let previous = '';
+      const observer = new MutationObserver(() => {
+        const section = document.querySelector('.hwp-progress-panel strong');
+        const toast = document.querySelector('.toast span')?.textContent ?? '';
+        const review = !!document.querySelector('.hwp-conversion-dialog[open]');
+        const failure = /저장 실패/.test(toast) ? /시간이 초과/.test(toast) ? 'timeout' : 'other' : '';
+        const step = groups.find(([, pattern]) => pattern.test(section?.textContent || ''))?.[0] ?? (section ? 'progress' : 'idle');
+        const key = [step, review, failure].join('|');
+        if (key === previous) return;
+        previous = key;
+        void window.qaHangulProgress({ step, review, failure, time: Math.round(performance.now()) });
+      });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true,
+        attributeFilter: ['open', 'class'] });
+    });
+  }
   for (const format of formats) {
     const output = path.join(directory, item.id + '-actual.' + format);
     phase('native-' + format + '-command');

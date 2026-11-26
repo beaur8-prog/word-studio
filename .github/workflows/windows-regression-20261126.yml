@@ -1,117 +1,18 @@
 name: Windows regression QA
-run-name: Windows preserve original character spacing in native Hancom saves
+run-name: Windows native HWPX save stage witness
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  paired:
-    name: Windows spacing / ${{ matrix.id }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { group: hwp-1, id: 04-language-plan }
-          - { group: hwp-3, id: 06-mixed-document }
-    runs-on: windows-latest
-    timeout-minutes: 32
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-      - name: Compare exact same public input before and after on one Windows runner
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/language-plan" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/language-plan/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified)
-          if ($verified.Count -ne 1) { throw 'Fixed original unavailable' }
-          $statuses = @()
-          foreach ($variant in @('6b8fad0a11d1444386dea7691b1be4fdca2e3700', 'HEAD')) {
-            git restore --source $variant -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Write-Host "WINDOWS_BLANK_PRODUCT $variant"
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-            $statuses += $LASTEXITCODE
-          }
-          if ($statuses -contains 1) { exit 1 }
-  other-originals:
-    name: Windows Hancom / ${{ matrix.id }}
-    runs-on: windows-latest
-    timeout-minutes: 32
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { group: hwp-2, id: 08-math-exam }
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-      - name: Recheck native output and DOCX content on two independent originals
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/blank-control" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/blank-control/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified)
-          if ($verified.Count -ne 1) { throw 'Fixed original unavailable' }
-          if ($env:QA_ID -eq '08-math-exam') {
-            $env:WINDOWS_REQUIRE_REVERSE='1'
-            $env:WINDOWS_EXACT_REVERSE_PAGES='1'
-          }
-          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-          exit $LASTEXITCODE
-  focused:
-    runs-on: windows-latest
-    timeout-minutes: 15
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-      - run: npm run test -- tests/hwp-native-source-spacing.spec.ts tests/hwp-source-text-advances.spec.ts --workers=1 --trace=off
   native:
     runs-on: windows-latest
     timeout-minutes: 22
     env:
       WINDOWS_NATIVE_HWP_SAVES: '1'
+      WINDOWS_NATIVE_HWP_FORMATS: 'hwpx'
+      WINDOWS_NATIVE_HWP_TRACE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -123,7 +24,7 @@ jobs:
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm run package:win:dir
-      - name: Export two Hangul formats from the packaged Windows app
+      - name: Export HWPX with progress trace from the packaged Windows app
         shell: pwsh
         run: |
           python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/native-hangul" --ids 04-language-plan
