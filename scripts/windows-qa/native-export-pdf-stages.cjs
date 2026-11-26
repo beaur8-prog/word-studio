@@ -149,7 +149,7 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
     try {
       const readback = native.pageCount();
       if (!pages || readback < 1 || readback !== Number(pages[2])) throw new Error('Native Hangul readback disagreed');
-      const expected = process.env.WINDOWS_EXPECT_NATIVE_PAGES?.split(',').map(Number);
+      const expected = (process.env.WINDOWS_EXPECT_NATIVE_PAGES || undefined)?.split(',').map(Number);
       console.log('WINDOWS_NATIVE_HANGUL ' + JSON.stringify({ id:item.id, format, bytes:bytes.length,
         printPages:Number(pages[1]), savedPages:readback, seconds:(Date.now()-started)/1000 }));
       if (process.env.WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES === '1') {
