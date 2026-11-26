@@ -1,3 +1,4 @@
+import { hwpNativeGridAttribute, parseHwpNativeGrid } from './hwp-native-grid';
 import { hwpRelatedTableLayoutAttribute, parseHwpRelatedTableLayout } from './hwp-related-table-layout';
 import { hwpNestedTableLayoutAttribute, parseHwpNestedTableLayout } from './hwp-nested-table-layout';
 import { parseHwpTableContinuation } from './hwp-table-continuation';
@@ -173,6 +174,13 @@ export const ImportedFormat = Extension.create({
         hwpKeptTablePage: { default: null,
           parseHTML: (el: HTMLElement) => hwpKeptTablePage(el.dataset.hwpKeptTablePage) ?? null,
           renderHTML: (a: Record<string, unknown>) => hwpKeptTablePage(a.hwpKeptTablePage) ? { 'data-hwp-kept-table-page': a.hwpKeptTablePage } : {} },
+        hwpNativeGrid: { default: null,
+          parseHTML: (el: HTMLElement) => {
+            const value = el.getAttribute(hwpNativeGridAttribute);
+            return parseHwpNativeGrid(value) ? value : null;
+          },
+          renderHTML: (a: Record<string, unknown>) => parseHwpNativeGrid(a.hwpNativeGrid)
+            ? { [hwpNativeGridAttribute]: a.hwpNativeGrid } : {} },
         hwpInlineTableTop: { default: null,
           parseHTML: (el: HTMLElement) => hwpInlineTableTop(el.getAttribute(hwpInlineTableTopAttribute)) ?? null,
           renderHTML: (a: Record<string, unknown>) => {

@@ -1,3 +1,4 @@
+import { hwpNativeGridAttribute, parseHwpNativeGrid } from '../hwp-native-grid';
 import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import documentLimits from '../../electron/document-limits.json';
@@ -16,7 +17,7 @@ const text = (markup: string) => entities(markup.replace(/<[^>]*>/g, '').replace
 const size = (tag: string) => Number(attribute(tag, 'style')?.match(/(?:^|;)\s*height\s*:\s*(\d+(?:\.\d+)?)px\s*(?=;|$)/i)?.[1]);
 const key = (rows: number, cells: readonly Cell[]) => JSON.stringify([rows, cells]);
 
-function explicitMergedGrid(cells: readonly Cell[], declared: readonly number[][]): Grid | undefined {
+function explicitMergedGrid(cells: readonly Cell[], declared: readonly number[][], table: string): Grid | undefined {
   if (!cells.some(cell => cell.rows > 1) || !cells.some(cell => cell.columns > 1)) return;
   const occupied: number[] = [];
   const widths: (number | undefined)[] = [];
@@ -39,10 +40,16 @@ function explicitMergedGrid(cells: readonly Cell[], declared: readonly number[][
   }
   if (!widths.length || widths.includes(undefined)) return;
   const width = widths.reduce<number>((sum, value) => sum + (value ?? 0), 0) * 75;
+  const original = parseHwpNativeGrid(entities(attribute(table, hwpNativeGridAttribute) ?? ''));
+  if (original && original[1].length === widths.length && original[1].every((col, i) => col === widths[i])) {
+    const authored = new Map(original[2].map(([column, span, size]) => [column + ':' + span, size]));
+    const restored = positions.map(({ column }, i) => ({ column, width: authored.get(column + ':' + cells[i].columns) ?? 0 }));
+    if (restored.every(cell => cell.width > 0)) return { columns: widths.length, cells: restored, width: original[0] };
+  }
   return { columns: widths.length, cells: positions, width };
 }
 
-function sourcePlan(body: string) {
+function sourcePlan(table: string, body: string) {
   if (/<(?:table|img|svg)\b|\bdata-(?:note-reference|document-field|page-number)\b/.test(body)) return;
   const hasMergedWidths = body.includes('colwidth=') && body.includes('colspan=') && body.includes('rowspan=');
   if (!hasMergedWidths && !body.includes('data-hwp-grid-row="true"')) return;
@@ -66,7 +73,7 @@ function sourcePlan(body: string) {
         ? Math.round(height * 75) : undefined);
     }
   }
-  if (hasMergedWidths) plan.grid = explicitMergedGrid(plan.cells, declared);
+  if (hasMergedWidths) plan.grid = explicitMergedGrid(plan.cells, declared, table);
   if ((plan.grid || plan.heights.some(height => height !== undefined)) && plan.cells.some(cell => cell.text)) return { plan, rows: rows.length };
 }
 
@@ -146,7 +153,7 @@ export function planHwpGridRows(html: string) {
   const plans = new Map<string, Plan | null>();
   if (html.includes('data-hwp-grid-row="true"') || html.includes('colwidth=') && html.includes('colspan=') && html.includes('rowspan='))
     for (const table of elementRanges(html,'table')) {
-      const proof = sourcePlan(table.inner);
+      const proof = sourcePlan(table.open, table.inner);
       if (!proof) continue;
       const signature = key(proof.rows,proof.plan.cells);
       plans.set(signature, plans.has(signature) ? null : proof.plan);

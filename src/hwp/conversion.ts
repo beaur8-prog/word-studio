@@ -1,3 +1,4 @@
+import { hwpNativeGrid, hwpNativeGridAttribute } from '../hwp-native-grid';
 import { restoreHwpExportTextBoxes, restoreNativeBoxPaint, type NativeBoxPaint, type HwpExportTextBox } from './export-textboxes';
 import { sourceFloatingNestedTextBox, sourceInlineTextBox } from './source-inline-textbox';
 import { hwpRelatedTableLayoutAttribute } from '../hwp-related-table-layout';
@@ -1065,7 +1066,8 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
     } catch { return false; }
   };
   const runRepairs: string[] = [];
-  const result = html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, (tag, offset: number) => {
+  const nativeGrid = tableProperties.treatAsChar && hwpNativeGrid(tableProperties.tableWidth, columns, cells);
+  let result = html.replace(/<\/?(?:table|tr|td|p)\b[^>]*>/g, (tag, offset: number) => {
     if (/^<table\b/.test(tag)) {
       if (++depth !== 1) return tag;
       const firstPlacement = firstTableFragment ?? firstTableOverhang;
@@ -1488,6 +1490,7 @@ function tableGeometry(doc: HwpDocument, section: number, para: number, control:
       : style(tag, 'background-color:transparent;color:#000;font-weight:normal;');
     return style(tag.replace(/^<td/, header ? '<th' : '<td').replace(/>$/, ` colwidth="${width.join(',')}">`), `width:${px(c.width)}px;height:${px(c.height)}px;padding:${px(c.paddingTop)}px ${px(c.paddingRight)}px ${px(c.paddingBottom)}px ${px(c.paddingLeft)}px;vertical-align:${['top', 'middle', 'bottom'][c.verticalAlign] ?? 'top'};${noWrap ? 'white-space:nowrap;' : ''}${borders}`);
   });
+  if (nativeGrid) result = result.replace(/^<table\b/, `<table ${hwpNativeGridAttribute}="${nativeGrid}"`);
   return runRepairs.length ? result.replace(/(<p\b[^>]*?) data-hwp-run-repair="(\d+)"([^>]*>)[\s\S]*?(<\/p>)/g,
     (_match, start, index, tail, end) => start + tail + runRepairs[Number(index)] + end) : result;
 }

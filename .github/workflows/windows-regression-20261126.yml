@@ -1,26 +1,19 @@
 name: Windows regression QA
-run-name: Windows cumulative native PDF and exact Hangul preparation comparison
+run-name: Windows physical Hancom grid and exact cell-width preservation
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native:
-    name: Windows native / ${{ matrix.id }}
+  mixed:
     runs-on: windows-latest
-    timeout-minutes: 44
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { group: hwp-2, id: 02-work-rules, control: 78df75786b1aa6766a6c8362cc2e2eee46de5b79 }
-          - { group: public-2, id: moel-harassment-manual, control: 78df75786b1aa6766a6c8362cc2e2eee46de5b79 }
-          - { group: hwp-1, id: 04-language-plan, control: 2e6f20c635c9f842722617da38167c563bda5dfc }
+    timeout-minutes: 26
     env:
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      CONTROL: ${{ matrix.control }}
+      PLAYWRIGHT_CHANNEL: chromium
+      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
+      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
+      WINDOWS_REQUIRE_REOPEN: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,49 +23,78 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Build both product trees on the same runner
+      - run: npx playwright install chromium
+      - name: Compare the two pinned mixed-document exports
         shell: pwsh
         run: |
-          npm run package:win:dir
+          python scripts/windows-qa/fetch-public-inputs.py hwp-3 "$env:RUNNER_TEMP/merged-grid" --ids 06-mixed-document
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item release/windows "$env:RUNNER_TEMP/paired-candidate"
-          git restore --source $env:CONTROL -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code $env:CONTROL -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run package:win:dir
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item release/windows "$env:RUNNER_TEMP/paired-control"
-      - name: Exercise both native save paths on the byte-pinned input
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/paired-input" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/paired-input/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/merged-grid/inventory.json"
           $inputCount = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($inputCount -ne 1) { throw 'Pinned input missing' }
-          if ($env:QA_ID -eq '04-language-plan') {
-            $env:WINDOWS_NATIVE_HWP_SAVES = '1'
-            $env:WINDOWS_NATIVE_HWP_FORMATS = 'hwpx'
-            $env:WINDOWS_NATIVE_HWP_TRACE = '1'
+          $file = 'tests/windows-qa/public-originals.spec.ts'
+          $before = 'c5fcb686017841ddf3a9f7be29e86c9a42bf120b'
+          foreach ($source in @($before,'HEAD')) {
+            Write-Host "WINDOWS_GRID_PAIRED_PRODUCT $source"
+            git restore --source $source -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $source -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $env:WINDOWS_GRID_COMPARISON = "$env:RUNNER_TEMP/grid-$source.json"
+            npm run test -- $file --workers=1 --trace=off
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          $status = @{}
-          foreach ($variant in @('control','candidate')) {
-            Write-Host "WINDOWS_PAIRED_PRODUCT $variant"
-            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/paired-$variant/Word Studio/Word Studio.exe"
-            $env:WINDOWS_NATIVE_HWP_COMPARISON = "$env:RUNNER_TEMP/paired-$variant-shapes.txt"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            $status[$variant] = $LASTEXITCODE
-            Write-Host "WINDOWS_PAIRED_EXIT $variant $LASTEXITCODE"
+          $old = @(Get-Content "$env:RUNNER_TEMP/grid-$before.json" -Raw | ConvertFrom-Json)
+          $new = @(Get-Content "$env:RUNNER_TEMP/grid-HEAD.json" -Raw | ConvertFrom-Json)
+          if ($old.Count -ne 2 -or $new.Count -ne 2) { throw 'Expected both Hancom formats' }
+          foreach ($index in 0,1) {
+            $left=$old[$index]; $right=$new[$index]
+            $same = $left.format -eq $right.format -and $left.pages -eq $right.pages -and $left.tables -eq $right.tables -and $left.cellText -ceq $right.cellText
+            Write-Host "WINDOWS_GRID_PAIRED $($right.format) pages $($left.pages) to $($right.pages) tables-outside $($left.outside) to $($right.outside) text-boxes-outside $($left.inkOutside) to $($right.inkOutside) exact-cell-text $same"
+            if (-not $same -or $left.outside -ne 2 -or $right.outside -ne 0 -or $right.inkOutside -ne 0) { throw 'Physical grid or literal text changed unexpectedly' }
           }
-          if ($status['candidate'] -ne 0) { exit $status['candidate'] }
-          if ($status['control'] -ne 0) { exit $status['control'] }
-          if ($env:QA_ID -eq '04-language-plan') {
-            $before = Get-Content "$env:RUNNER_TEMP/paired-control-shapes.txt" -Raw
-            $after = Get-Content "$env:RUNNER_TEMP/paired-candidate-shapes.txt" -Raw
-            $exact = $before -eq $after
-            Write-Host "WINDOWS_NATIVE_HANGUL_READBACK_EXACT $exact"
-            if (-not $exact) { exit 1 }
-          }
+      - name: Validate both actual mixed DOCX saves
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
+          if ($files.Count -ne 2) { throw 'Expected two actual DOCX saves' }
+          dotnet run --project scripts/word-openxml-validator -- test-results $files.Count *> "$env:RUNNER_TEMP/merged-grid-sdk.log"
+          $status = $LASTEXITCODE
+          Write-Host "WINDOWS_PUBLIC_SDK total $($files.Count) exit $status"
+          exit $status
+  related:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    timeout-minutes: 18
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run test -- tests/hwp-native-merged-grid-width.spec.ts tests/hwp-thin-merged-row.spec.ts tests/hwp-nested-grid.spec.ts tests/hwp-merged-row-continuation.spec.ts tests/docx-merge-continuation.spec.ts tests/docx-grid-budget.spec.ts tests/protected-merged-row-boundary.spec.ts tests/hwp-table-captions.test.cjs --workers=1 --trace=off
+      - name: Validate both actual synthetic DOCX saves
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-native-grid-*.docx')
+          if ($files.Count -ne 2) { throw 'Expected two actual DOCX saves' }
+          dotnet run --project scripts/word-openxml-validator -- test-results $files.Count *> "$env:RUNNER_TEMP/merged-grid-sdk.log"
+          $status = $LASTEXITCODE
+          Write-Host "WINDOWS_GRID_SDK total $($files.Count) exit $status"
+          exit $status

@@ -1,3 +1,4 @@
+import { parseHwpNativeGrid } from './hwp-native-grid';
 import { parseHwpRelatedTableLayout } from './hwp-related-table-layout';
 import { parseHwpNestedTableLayout } from './hwp-nested-table-layout';
 import { parseHwpCenteredCellLabels } from './hwp-centered-cell-labels';
@@ -380,6 +381,8 @@ export function validateDocument(input: unknown): StudioDocument {
     if (attrs?.cellTablePosition != null && (type !== 'table' || !cellTablePosition(attrs.cellTablePosition))) fail('셀 안의 표 위치가 올바르지 않습니다.');
     if (attrs?.hwpKeptTablePage != null && (type !== 'table' || typeof attrs.hwpKeptTablePage !== 'number' || !hwpKeptTablePage(attrs.hwpKeptTablePage)))
       fail('한글 인라인 표의 쪽 연속 정보가 올바르지 않습니다.');
+    if (attrs?.hwpNativeGrid != null && (type !== 'table' || !parseHwpNativeGrid(attrs.hwpNativeGrid)))
+      fail('한글 표의 원본 열 너비가 올바르지 않습니다.');
     if (attrs?.hwpInlineTableTop != null && (type !== 'table' || typeof attrs.hwpInlineTableTop !== 'number' ||
         hwpInlineTableTop(attrs.hwpInlineTableTop) === undefined)) fail('한글 인라인 표의 위쪽 바깥 여백이 올바르지 않습니다.');
     if (attrs?.hwpNestedTableLayout != null && (type !== 'table' || !parseHwpNestedTableLayout(attrs.hwpNestedTableLayout)))
@@ -1742,7 +1745,8 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
             ? node.attrs?.hwpNestedTableLayout : undefined,
           !anchor && !nestedPosition && parseHwpRelatedTableLayout(node.attrs?.hwpRelatedTableLayout)
             ? node.attrs?.hwpRelatedTableLayout : undefined,
-          !anchor && !nestedPosition ? hwpInlineTableTop(node.attrs?.hwpInlineTableTop) : undefined);
+          !anchor && !nestedPosition ? hwpInlineTableTop(node.attrs?.hwpInlineTableTop) : undefined,
+          !anchor && !nestedPosition && parseHwpNativeGrid(node.attrs?.hwpNativeGrid) ? node.attrs?.hwpNativeGrid : undefined);
         // Missing imported CSS uses the editor's 18px table gap. Furniture
         // and note tables have a zero default, passed through nested blocks.
         tableSpacing.set(table, anchor ? 0 : Math.max(0, cssPoints(node.attrs?.tableSpacing) ?? (context.tableGap ?? 18) * .75) * 4 / 3);

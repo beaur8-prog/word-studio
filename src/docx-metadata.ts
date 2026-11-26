@@ -1,3 +1,4 @@
+import { hwpNativeGridAttribute, parseHwpNativeGrid } from './hwp-native-grid';
 import { hwpRelatedTableLayoutAttribute, parseHwpRelatedTableLayout } from './hwp-related-table-layout';
 import { hwpNestedTableLayoutAttribute, parseHwpNestedTableLayout } from './hwp-nested-table-layout';
 import { hwpCenteredCellLabelsAttribute, hwpCenteredCellLabelsNamespace, parseHwpCenteredCellLabels } from './hwp-centered-cell-labels';
@@ -377,6 +378,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             const keptPage = hwpKeptTablePage(sourceTable.getAttributeNS(paragraphTableNamespace, 'keptTablePage'));
             if (!floating && keptPage) table.dataset.hwpKeptTablePage = String(keptPage);
             const stored = tableAnchor(sourceTable.getAttributeNS(paragraphTableNamespace, 'anchor'));
+            const nativeGrid = sourceTable.getAttributeNS(paragraphTableNamespace, 'nativeGrid');
+            if (!stored && !floating && parseHwpNativeGrid(nativeGrid) && !table.closest('td,th'))
+              table.setAttribute(hwpNativeGridAttribute, nativeGrid!);
             const inlineTop = hwpInlineTableTop(sourceTable.getAttributeNS(paragraphTableNamespace, 'inlineOuterTop'));
             if (!stored && !floating && inlineTop !== undefined && !table.closest('td,th'))
               table.setAttribute(hwpInlineTableTopAttribute, String(inlineTop));

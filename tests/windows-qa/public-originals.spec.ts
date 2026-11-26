@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -137,10 +138,13 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
     const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
     const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
     await init({ module_or_path: await readFile(path.join(core, 'rhwp_bg.wasm')) });
+    const comparison = [];
     for (const format of ['hwp', 'hwpx'] as const) {
       const saved = new HwpDocument(new Uint8Array(await readFile(info.outputPath('hancom-saved.' + format))));
       try {
         let tables = 0, outside = 0, maxOutside = 0, firstSevenCellRow: number | undefined;
+        const signatures = new Map<number,string>();
+        let inkOutside = 0;
         for (let i = 0; i < saved.pageCount(); i++) {
           const paper = JSON.parse(saved.getPageInfo(i));
           const controls = JSON.parse(saved.getPageControlLayout(i)).controls;
@@ -150,12 +154,34 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
                 table.w > 500 && !table.cellPath?.length) firstSevenCellRow ??= i + 1;
             const over = table.x + table.w - paper.width;
             if (over > .2) { outside++; maxOutside = Math.max(maxOutside, over); }
+            if (process.env.WINDOWS_GRID_COMPARISON && item.id === '06-mixed-document' &&
+                table.colCount === 7 && [8, 10].includes(table.rowCount) && !table.cellPath?.length) {
+              const cells = new Map<number,string>();
+              const ink = JSON.parse(saved.getPageTextLayout(i)).runs;
+              for (const run of ink) {
+                if (run.secIdx !== table.secIdx || run.parentParaIdx !== table.paraIdx ||
+                    run.controlIdx !== table.controlIdx || run.cellPath?.length !== 1 || !run.text.trim()) continue;
+                cells.set(run.cellIdx, (cells.get(run.cellIdx) ?? '') + run.text.replace(/\s/gu, ''));
+                if (run.x + run.w > paper.width + .2) inkOutside++;
+              }
+              expect(signatures.has(table.rowCount)).toBe(false);
+              expect(cells.size).toBeGreaterThan(0);
+              const signature = createHash('sha256').update(JSON.stringify([...cells].sort((a, b) => a[0] - b[0]))).digest('hex');
+              signatures.set(table.rowCount, signature);
+            }
           }
         }
         console.log('WINDOWS_NATIVE_GRID ' + JSON.stringify({ id:item.id, format, pages:saved.pageCount(),
           tables, outsideRight:outside, maxOutsidePx:Math.round(maxOutside*10)/10, firstSevenCellRow }));
+        if (process.env.WINDOWS_GRID_COMPARISON) {
+          expect([...signatures.keys()].sort((a, b) => a - b)).toEqual([8, 10]);
+          comparison.push({ format, pages: saved.pageCount(), tables, outside, inkOutside,
+            cellText: [8, 10].map(rows => signatures.get(rows)).join(',') });
+        }
       } finally { saved.free(); }
     }
+    if (process.env.WINDOWS_GRID_COMPARISON)
+      await writeFile(process.env.WINDOWS_GRID_COMPARISON, JSON.stringify(comparison));
   }
   if (process.env.WINDOWS_REQUIRE_REOPEN === '1') {
     expect(result.reverse.map(out => ({ format: out.format, valid: out.valid }))).toEqual([
