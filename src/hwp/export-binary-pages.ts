@@ -16,6 +16,24 @@ export const nativeBodyRuns = (doc: HwpDocument, page: number): NativeBodyRun[] 
   (JSON.parse(doc.getPageTextLayout(page)).runs as NativeBodyRun[]).filter(run => !run.headerFooter && run.paraIdx !== 0xffffffff);
 export const nativePaintedControls = (doc: HwpDocument, page: number): NativePaintedControl[] =>
   (JSON.parse(doc.getPageControlLayout(page)).controls as NativePaintedControl[]).filter(control => !control.headerFooter);
+/* Compare visible text by native owner and retain each painted control's size
+ * across a layout-only readback. */
+export function nativePaintedPayload(doc: HwpDocument) {
+  const paragraphs = new Map<string, string>();
+  const controls: string[] = [];
+  for (let page = 0; page < doc.pageCount(); page++) {
+    for (const run of nativeBodyRuns(doc, page)) {
+      if (!Number.isInteger(run.paraIdx)) continue;
+      const key = JSON.stringify([run.secIdx, run.parentParaIdx, run.paraIdx, run.cellPath]);
+      const value = run.text.replace(/\s/gu, '');
+      if (value) paragraphs.set(key, (paragraphs.get(key) ?? '') + value);
+    }
+    for (const item of nativePaintedControls(doc, page))
+      controls.push(JSON.stringify([item.secIdx,item.paraIdx,item.controlIdx,item.type,item.w,item.h,item.cellPath]));
+  }
+  return JSON.stringify([[...paragraphs].sort(),controls.sort()]);
+}
+
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 const units = (value: number) => Math.round(value * 75);
 const cacheTag = '<hp:linesegarray>';

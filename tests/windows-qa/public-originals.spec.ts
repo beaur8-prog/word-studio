@@ -282,6 +282,11 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
                 ? require('../../scripts/windows-qa/hancom-adjacent-tables-witness.cjs')(original, saved) : undefined };
             preciseMargins.push(value);
             console.log('WINDOWS_HANCOM_MARGIN_WITNESS ' + JSON.stringify(value));
+            if (process.env.WINDOWS_HANCOM_SINGLE_BODY_LINE === '1') {
+              const line = witness(original, saved, 122, null);
+              console.log('WINDOWS_HANCOM_SINGLE_BODY_LINE ' + JSON.stringify({ format, ...line }));
+              expect(line).toMatchObject({ page: 11, lines: 1 });
+            }
             if (process.env.WINDOWS_PAGE_OFFSETS) {
               const measure = require('../../scripts/windows-qa/hancom-source-page-offsets.cjs');
               console.log('WINDOWS_HANCOM_PAGE_OFFSETS ' + JSON.stringify({ format, ...measure(original, saved) }));
