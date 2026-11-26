@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Verify both standalone drawings after native Windows export
+run-name: Measure Windows cooperative Hancom export and review with exact readback
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -7,15 +7,21 @@ permissions:
   contents: read
 jobs:
   native:
-    name: Packaged Windows 163-page Hancom preservation
+    name: Windows HWPX responsiveness / ${{ matrix.order }}
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        order: [control-first, candidate-first]
     env:
+      QA_ORDER: ${{ matrix.order }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: hwp,hwpx
+      WINDOWS_NATIVE_HWP_FORMATS: hwpx
+      WINDOWS_NATIVE_HWP_TRACE: '1'
+      WINDOWS_NATIVE_HWP_PROFILE: '1'
       WINDOWS_NATIVE_LARGE_HANGUL: '1'
-      WINDOWS_NATIVE_LARGE_TEXT: '1'
       WINDOWS_NATIVE_PICTURE_PAINT: '1'
     steps:
       - uses: actions/checkout@v4
@@ -31,43 +37,29 @@ jobs:
       - name: Prepare the source-pinned large file and start the native export
         shell: pwsh
         run: |
-          $product = 'HEAD'
-          git restore --source $product --staged --worktree -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code $product -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run build -- --sourcemap
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/package-win.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/large-native" --ids 02-work-rules
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/large-native/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
-
-  focused:
-    name: Inline native image regression / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - run: npm run test -- tests/hwp-native-large-raster.spec.ts --workers=1 --trace=off
+          $versions = @{ control = 'd76d9df199b1ca2ff7e8bef4849b05fef84f2cce'; candidate = 'HEAD' }
+          $sequence = if ($env:QA_ORDER -eq 'candidate-first') { @('candidate', 'control') } else { @('control', 'candidate') }
+          foreach ($version in $sequence) {
+            $product = $versions[$version]
+            Write-Host "WINDOWS_LARGE_EXPORT_PRODUCT $version"
+            git restore --source $product --staged --worktree -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $product -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run build -- --sourcemap
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            node scripts/package-win.cjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Move-Item release/windows "$env:RUNNER_TEMP/export-$version"
+            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/export-$version/Word Studio/Word Studio.exe"
+            $env:WINDOWS_NATIVE_HWP_COMPARISON = "$env:RUNNER_TEMP/export-$version.sha"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          $control = Get-Content "$env:RUNNER_TEMP/export-control.sha" -Raw
+          $candidate = Get-Content "$env:RUNNER_TEMP/export-candidate.sha" -Raw
+          if ($control -ne $candidate) { throw 'Native page info, text or control geometry changed' }
+          Write-Host "WINDOWS_HWPX_LAYOUT_EXACT $env:QA_ORDER"

@@ -376,7 +376,8 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   const [previewPreparing, setPreviewPreparing] = useState(false);
   const [hwpFile, setHwpFile] = useState<File | null>(null);
   const [hwpOriginal, setHwpOriginal] = useState<File | null>(null);
-  const [hwpExport, setHwpExport] = useState<HwpExportFile | null>(null);
+  const [hwpExport, setHwpExport] = useState<(HwpExportFile & { resumeLayout(): void }) | null>(null);
+  useEffect(() => () => hwpExport?.resumeLayout(), [hwpExport]);
   const [hwpOperation, setHwpOperation] = useState<HwpOperation>();
   const fileActionPending = useRef(false);
   const [fileOperation, setFileOperation] = useState<import('./desktop').NativeFileOperation | null>(null);
@@ -786,7 +787,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   const save = async (
     extension: "wordstudio" | "docx" | "html" | "txt" | "hwp" | "hwpx" = androidSession ? "docx" : "wordstudio",
   ): Promise<boolean> => {
-    if (!editor || fileActionPending.current || nativeFileOperation.current) return false;
+    if (!editor || hwpExport || fileActionPending.current || nativeFileOperation.current) return false;
     fileActionPending.current = true;
     session.current?.onBusy?.(true);
     const startedAt = Date.now();
@@ -799,9 +800,15 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       }
       const doc = structuredClone(currentRef.current);
       if (extension === 'hwp' || extension === 'hwpx') {
-        const result = await withoutEditorReflow(() => exportEditableHwp(doc, extension, report));
-        setHwpExport({ ...result, extension, name: `${doc.title.replace(/[<>:"/\\|?*]/g, '-') || '문서'}.${extension}` });
-        return false; // The conversion review owns the subsequent native save.
+        const resumeLayout = suspendEditorReflow();
+        try {
+          const result = await exportEditableHwp(doc, extension, report);
+          setHwpExport({ ...result, resumeLayout, extension, name: `${doc.title.replace(/[<>:"/\\|?*]/g, '-') || '문서'}.${extension}` });
+          return false; // The review releases the editor after saving or closing.
+        } catch (error) {
+          resumeLayout();
+          throw error;
+        }
       }
       const blob =
         extension === "docx"

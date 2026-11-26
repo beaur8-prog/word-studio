@@ -234,19 +234,28 @@ test('native Hancom save cancellation and failure keep the immutable export and 
         if ((window as any).saveMode === 'fail') throw Error('disk full'); return (window as any).saveMode === 'save'; } };
   });
   await page.goto('/'); await page.locator('.tiptap').fill('NATIVE 한글 SAVE');
+  const layoutSuspended = () => page.evaluate(async () =>
+    (await import('/src/editor-layout-task.ts')).editorLayoutSuspended());
   const dialog = await prepareExport(page, 'hwp');
+  await expect.poll(layoutSuspended).toBe(true);
   await dialog.getByRole('button', { name: 'HWP 파일 저장', exact: true }).click();
   await expect(dialog).toBeVisible();
   await page.evaluate(() => { (window as any).saveMode = 'fail'; });
   await dialog.getByRole('button', { name: 'HWP 파일 저장', exact: true }).click();
   await expect(dialog.getByRole('alert')).toContainText('disk full');
+  await expect.poll(layoutSuspended).toBe(true);
   await page.evaluate(() => { (window as any).saveMode = 'save'; });
   await dialog.getByRole('button', { name: 'HWP 파일 저장', exact: true }).click();
   await expect(dialog).not.toBeVisible();
+  await expect.poll(layoutSuspended).toBe(false);
   await expect(page.locator('.tiptap')).toHaveText('NATIVE 한글 SAVE');
   const writes = await page.evaluate(() => (window as any).writes);
   expect(writes).toHaveLength(3); expect(writes[0]).toEqual(writes[2]);
   expect(writes[0].extension).toBe('hwp'); expect(writes[0].magic).toEqual([208,207,17,224,161,177,26,225]);
+  await prepareExport(page, 'hwpx');
+  await expect.poll(layoutSuspended).toBe(true);
+  await dialog.getByRole('button', { name: '취소', exact: true }).click();
+  await expect.poll(layoutSuspended).toBe(false);
 });
 
 test('DOCX to Hancom bridge preserves heading appearance, image, merged cells, row sizes and explicit page break', async ({ page }) => {
