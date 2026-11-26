@@ -92,8 +92,11 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (paragraph instanceof HTMLParagraphElement && isOrdinaryWordBodyParagraph(paragraph, source))
       paragraph.dataset.wordFloatingSpaceSource = 'true';
   const wrappingAnchors = wordFlowHasWrappingAnchors(source);
+  // The surrounding paragraphs also determine which sheet receives the table.
+  // Keep the existing high-density policy for Word flows without tables.
   const referenceDensity = wordLayout.nativeDesktop === true && window.wordDesktop?.platform === 'win32' &&
-    Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 1 && document.body.currentCSSZoom === 1;
+    Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 1 && document.body.currentCSSZoom === 1 &&
+    !!source.querySelector('table[data-word-table-layout]');
   if (wrappingAnchors && wordLayout.wordBodyStrut) markWordReferenceDensity(source);
   const canPlaceProtectedTable = protectedTablePlacement(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {

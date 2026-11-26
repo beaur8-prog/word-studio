@@ -20,17 +20,17 @@ test('Windows print uses reference-density automatic Word line metrics without c
         const normal = Math.abs(devicePixelRatio * zoom - 1) < .000001 ? 19 : 20;
         return new DOMRect(box.x, box.y, box.width, normal * zoom);
       };
-      const fixture = '<p data-word-line-rule="auto" data-word-line="1.2" style="font:16px monospace">Heading</p>' +
-        '<table><tbody><tr><td><p data-word-line-rule="auto" data-word-line="1.2" style="font:16px monospace">Cell</p></td></tr></tbody></table>' +
-        '<p data-word-line-rule="exact" data-word-line="15pt" style="font:16px/20px monospace">Explicit spacing</p>';
-      async function measure(nativeDesktop: boolean) {
-        const layout = await createPrintLayout(fixture, defaultPage, undefined, undefined, { nativeDesktop });
+      const heading = '<p data-word-line-rule="auto" data-word-line="1.2" style="font:16px monospace">Heading</p>';
+      const table = '<table data-word-table-layout="fixed"><tbody><tr><td><p data-word-line-rule="auto" data-word-line="1.2" style="font:16px monospace">Cell</p></td></tr></tbody></table>';
+      const fixed = '<p data-word-line-rule="exact" data-word-line="15pt" style="font:16px/20px monospace">Explicit spacing</p>';
+      async function measure(nativeDesktop: boolean, withTable = true) {
+        const layout = await createPrintLayout(heading + (withTable ? table : '') + fixed, defaultPage, undefined, undefined, { nativeDesktop });
         try {
           const paragraphs = [...layout.element.querySelectorAll('.print-content p[data-word-line-rule]')];
           return paragraphs.map(paragraph => [paragraph.textContent, parseFloat(getComputedStyle(paragraph).lineHeight)]);
         } finally { layout.dispose(); }
       }
-      return { dpr: devicePixelRatio, browser: await measure(false), windows: await measure(true) };
+      return { dpr: devicePixelRatio, browser: await measure(false), windows: await measure(true), flow: await measure(true, false) };
     } finally {
       Element.prototype.getBoundingClientRect = original;
       if (initialBridge) Object.defineProperty(window, 'wordDesktop', initialBridge);
@@ -41,4 +41,5 @@ test('Windows print uses reference-density automatic Word line metrics without c
   expect(result.dpr).toBe(1.25);
   expect(result.browser).toEqual([['Heading', 24], ['Cell', 24], ['Explicit spacing', 20]]);
   expect(result.windows).toEqual([['Heading', 22.8], ['Cell', 22.8], ['Explicit spacing', 20]]);
+  expect(result.flow).toEqual([['Heading', 24], ['Explicit spacing', 20]]);
 });

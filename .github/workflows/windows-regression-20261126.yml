@@ -1,19 +1,31 @@
 name: Windows regression QA
-run-name: Locate the remaining Windows print density differences in two line boxes
+run-name: Validate table-only Windows print density and isolate full-suite failures
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  line-box:
+  display:
+    name: Windows display scale / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 22
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {group: word, id: 02-tables, pages: 7}
+          - {group: word, id: 04-nested, pages: 1}
+          - {group: word, id: 07-characters, pages: 4}
+          - {group: word, id: 08-small-table, pages: 1}
     env:
-      WINDOWS_DIAGNOSE_WORD_LINE_BOXES: '1'
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      QA_PAGES: ${{ matrix.pages }}
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -21,18 +33,77 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Measure actual source line and tab geometry at two Windows monitor scales
+      - name: Save a real PDF at each verified rendering density
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/word-line-box" --ids '02-tables,06-long-body'
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/display-input" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/word-line-box/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/display-input/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 2) { throw 'A pinned input is unavailable' }
-          $env:WORD_STUDIO_EXECUTABLE = "$((Get-Location).Path)/release/windows/Word Studio/Word Studio.exe"
-          foreach ($scale in @('1','1.25')) {
-            $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
-            node scripts/windows-qa/native-export-pdf-stages.cjs
+          if ($verified -ne 1) { throw 'Pinned input missing' }
+          $versions = [ordered]@{control='63c7a4dbb48cc8fb93d23377b3ad968a17d1d353';candidate='HEAD'}
+          foreach ($version in $versions.GetEnumerator()) {
+            git restore --source $version.Value -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $version.Value -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run package:win:dir
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $packaged = "$env:RUNNER_TEMP/density-app-$($version.Key)"
+            Move-Item release/windows $packaged
+            $env:WORD_STUDIO_EXECUTABLE = "$packaged/Word Studio/Word Studio.exe"
+            foreach ($scale in @('1','1.25','1.5')) {
+              Write-Host "WINDOWS_DENSITY_VERSION $($version.Key) $scale"
+              $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
+              $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/studio-$($version.Key)-$scale.pdf"
+              $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$($version.Key)-$scale.json"
+              node scripts/windows-qa/native-export-pdf-stages.cjs
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
+            foreach ($scale in @('1','1.25','1.5')) {
+              Write-Host "WINDOWS_GEOMETRY_VERSION $($version.Key) $scale"
+              node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-control-1.json" "$env:RUNNER_TEMP/geometry-$($version.Key)-$scale.json" $scale
+              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            }
           }
+      - name: Measure each saved PDF with the fixed Windows PDF renderer scale
+        shell: powershell
+        run: |
+          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-candidate-1.pdf" -ExpectedPages ([UInt32]$env:QA_PAGES) -ReportOnly
+          foreach ($version in @('control','candidate')) {
+            foreach ($scale in @('1.25','1.5')) {
+              Write-Host "WINDOWS_DENSITY_PDF_VERSION $version $scale"
+              scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-$version-$scale.pdf" -ExpectedPages ([UInt32]$env:QA_PAGES) -ReportOnly
+            }
+          }
+  isolate:
+    name: Windows isolated full-suite result / ${{ matrix.version }}
+    runs-on: windows-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [63c7a4dbb48cc8fb93d23377b3ad968a17d1d353, 346d784bf217914e8d06d751a367bcf3ae65bb8c]
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+      QA_VERSION: ${{ matrix.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - name: Run only four failed cases on the exact product source
+        shell: pwsh
+        run: |
+          git restore --source $env:QA_VERSION -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code $env:QA_VERSION -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test -- tests/print-native-column-height.spec.ts tests/print-page-style.spec.ts tests/section-geometry-layout.spec.ts tests/word-short-paragraphs.spec.ts --grep 'sole balanced|many printed pages|framed section headers|Word right 2-line body paragraph with widow protection disabled' --workers=1 --trace=off
+          exit $LASTEXITCODE
