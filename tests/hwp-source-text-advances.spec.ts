@@ -66,6 +66,35 @@ test('HWP source advances keep aligned editor and print measurements through typ
   }
 });
 
+test('HWP source advances finish across multiple batches after a document replacement', async ({ page }) => {
+  await page.goto('/');
+  const installed = await page.evaluate(async () => {
+    try {
+      await new FontFace('HWP batch test native face', 'local("한양중고딕")').load();
+      return true;
+    } catch { return false; }
+  });
+  test.skip(installed, 'An installed source face does not need correction');
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  const title = page.getByRole('textbox', { name: '문서 제목', exact: true });
+  const upload = page.locator('input[type=file]').first();
+  const paragraph = (text: string) =>
+    `<p data-hwp-source-spaces="true" style='font-family:"한양중고딕";font-size:14pt;line-height:28px'>${text}</p>`;
+  await upload.setInputFiles({
+    name: 'hwp-batch-old.html', mimeType: 'text/html',
+    buffer: Buffer.from(paragraph('기존 문단').repeat(72)),
+  });
+  await expect(title).toHaveValue('hwp-batch-old');
+  await upload.setInputFiles({
+    name: 'hwp-batch-new.html', mimeType: 'text/html',
+    buffer: Buffer.from(paragraph(content).repeat(70)),
+  });
+  await expect(title).toHaveValue('hwp-batch-new');
+  const paragraphs = editor.locator('p[data-hwp-source-spaces="true"]');
+  await expect(paragraphs).toHaveText(Array(70).fill(content));
+  await expect(paragraphs.filter({ has: page.locator('[data-hwp-source-advance-run]') })).toHaveCount(70);
+});
+
 test('a cell continuation keeps a verified line above the cut when only its trailing space extends past it', async ({ page }) => {
   await page.goto('/');
   const result = await page.evaluate(async () => {

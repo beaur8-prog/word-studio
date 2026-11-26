@@ -18,17 +18,21 @@ const measuredStyles = ['width','boxSizing','paddingLeft','paddingRight','paddin
 const sourceFlowDecoration = 'data-hwp-source-flow-base-height';
 const sourceWidthDecoration = 'data-hwp-source-width-delta';
 type CachedAdvance = { signature: string; width: number; plan: HwpSourceAdvancePlan };
+type EditorAdvanceProbe = {
+  paragraph: HTMLElement; node: ModelNode; start: number; width: number; height: number;
+  marginRight: number; signature: string; lang: string;
+  styles: readonly (readonly [typeof measuredStyles[number], string])[];
+  mixed: boolean; allowance?: number; widthAdjustment?: HwpCellWidthAdjustment;
+};
+const probesPerBatch = 64;
 
-async function editorAdvances(view: EditorView, cache: WeakMap<ModelNode, CachedAdvance>) {
+async function editorAdvances(view: EditorView, cache: WeakMap<ModelNode, CachedAdvance>, isCurrent: () => boolean) {
   const host = document.createElement('div');
   host.className = 'tiptap';
   host.style.cssText = 'position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none';
   host.setAttribute('aria-hidden', 'true');
-  const addresses = new Map<HTMLElement, { node: ModelNode; start: number; width: number; height: number; marginRight: number; signature: string }>();
+  const probes: EditorAdvanceProbe[] = [];
   const decorations: Decoration[] = [];
-  const allowances = new Map<HTMLElement, number>();
-  const widths = new Map<HTMLElement, HwpCellWidthAdjustment>();
-  const mixedRuns = new Set<HTMLElement>();
   const stack = view.dom.closest<HTMLElement>('.document-stack');
   let papers: DOMRect[] | undefined, scale: number | undefined;
   const append = (node: ModelNode, start: number, plan: HwpSourceAdvancePlan, marginRight: number) => {
@@ -118,23 +122,38 @@ async function editorAdvances(view: EditorView, cache: WeakMap<ModelNode, Cached
       ...measuredStyles.slice(1).map(property => css[property])].join('|');
     const previous = cache.get(node);
     if (previous?.signature === signature) { append(node, pos + 1, previous.plan, marginRight); return; }
-    const probe = actual.cloneNode(true) as HTMLElement;
-    for (const span of probe.querySelectorAll('[' + hwpSourceAdvanceRun + ']')) span.replaceWith(...span.childNodes);
-    probe.normalize();
-    if (node.textContent !== probe.textContent) return;
-    for (const property of measuredStyles) probe.style[property] = css[property];
-    probe.style.width = `${width}px`;
-    probe.style.maxWidth = 'none';
-    probe.style.position = 'absolute';
-    probe.style.top = '0';
-    probe.lang = lang;
-    addresses.set(probe, { node, start: pos + 1, width, height, marginRight, signature });
-    if (mixed) mixedRuns.add(probe);
-    if (allowance) allowances.set(probe, allowance);
-    if (widthAdjustment) widths.set(probe, widthAdjustment);
-    host.append(probe);
+    probes.push({ paragraph: actual, node, start: pos + 1, width, height, marginRight, signature, lang,
+      styles: measuredStyles.map(property => [property, css[property]] as const), mixed, allowance, widthAdjustment });
   });
-  if (addresses.size) {
+  // The editor probes are independent, absolutely positioned paragraphs. They
+  // can be measured in bounded batches without changing their context or the
+  // order in which the finished decorations are applied.
+  for (let offset = 0; offset < probes.length; offset += probesPerBatch) {
+    if (offset > 0) await new Promise<void>(resolve => setTimeout(resolve, 0));
+    if (!isCurrent()) return;
+    const addresses = new Map<HTMLElement, EditorAdvanceProbe>();
+    const allowances = new Map<HTMLElement, number>();
+    const widths = new Map<HTMLElement, HwpCellWidthAdjustment>();
+    const mixedRuns = new Set<HTMLElement>();
+    for (const measurement of probes.slice(offset, offset + probesPerBatch)) {
+      const { paragraph, node, width, styles, lang, mixed, allowance, widthAdjustment } = measurement;
+      const probe = paragraph.cloneNode(true) as HTMLElement;
+      for (const span of probe.querySelectorAll('[' + hwpSourceAdvanceRun + ']')) span.replaceWith(...span.childNodes);
+      probe.normalize();
+      if (node.textContent !== probe.textContent) continue;
+      for (const [property, value] of styles) probe.style[property] = value;
+      probe.style.width = width + 'px';
+      probe.style.maxWidth = 'none';
+      probe.style.position = 'absolute';
+      probe.style.top = '0';
+      probe.lang = lang;
+      addresses.set(probe, measurement);
+      if (mixed) mixedRuns.add(probe);
+      if (allowance) allowances.set(probe, allowance);
+      if (widthAdjustment) widths.set(probe, widthAdjustment);
+      host.append(probe);
+    }
+    if (!addresses.size) continue;
     document.body.append(host);
     try {
       for (const [probe, { node, width, height, signature }] of addresses) {
@@ -150,13 +169,14 @@ async function editorAdvances(view: EditorView, cache: WeakMap<ModelNode, Cached
         }
       }
       const approved = await planHwpSourceAdvanceDecorations(host, allowances, widths, mixedRuns);
+      if (!isCurrent()) return;
       for (const [paragraph, { node, start, width, signature, marginRight }] of addresses) {
         const plan = paragraph.textContent === node.textContent ? approved.get(paragraph) : undefined;
         const value = plan ?? { runs: [] };
         cache.set(node, { signature, width, plan: value });
         append(node, start, value, marginRight);
       }
-    } finally { host.remove(); }
+    } finally { host.remove(); host.replaceChildren(); }
   }
   return decorations.sort((a, b) => a.from - b.from || a.to - b.to);
 }
@@ -219,19 +239,22 @@ export const HwpSourceAdvanceEditor = Extension.create({
       return change.docChanged ? change.setStoredMarks(current.storedMarks) : null;
     },
     view(view) {
-      let frame = 0, pending = false, destroyed = false;
+      let frame = 0, pending = false, requested = false, destroyed = false;
       let cache = new WeakMap<ModelNode, CachedAdvance>();
       const update = () => {
-        if (destroyed || frame || pending) return;
+        if (destroyed || frame) return;
+        if (pending) { requested = true; return; }
         frame = requestAnimationFrame(async () => {
           frame = 0;
           if (destroyed || view.composing || editorLayoutSuspended() || !view.dom.isConnected) return;
           if (!view.dom.querySelector('[data-hwp-source-spaces="true"],[data-hwp-source-wrap]') && key.getState(view.state) === DecorationSet.empty) return;
           const current = view.state.doc, measurements = cache;
+          const isCurrent = () => !destroyed && !view.composing && !editorLayoutSuspended() &&
+            current === view.state.doc && measurements === cache;
           pending = true;
           try {
-            const decorations = await editorAdvances(view, measurements);
-            if (destroyed || view.composing || editorLayoutSuspended() || (current !== view.state.doc || measurements !== cache)) return;
+            const decorations = await editorAdvances(view, measurements, isCurrent);
+            if (!decorations || !isCurrent()) return;
             const existing = key.getState(view.state)?.find() || [];
             const same = existing.length === decorations.length && decorations.every((item, index) => {
               const previous = existing[index];
@@ -241,7 +264,9 @@ export const HwpSourceAdvanceEditor = Extension.create({
               view.dispatch(view.state.tr.setMeta(key, DecorationSet.create(current, decorations)).setMeta('addToHistory', false));
           } finally {
             pending = false;
-            if (!destroyed && (current !== view.state.doc || measurements !== cache)) update();
+            const retry = requested || current !== view.state.doc || measurements !== cache;
+            requested = false;
+            if (retry) update();
           }
         });
       };
