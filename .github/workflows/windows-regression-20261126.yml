@@ -1,25 +1,17 @@
 name: Windows regression QA
-run-name: Test reference-density line metrics on Windows with paired renderer builds
+run-name: Investigate cold Windows Word PDF repeatability at fixed display density
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  display:
-    name: Windows display scale / ${{ matrix.id }}
+  repeat:
     runs-on: windows-latest
-    timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {group: word, id: 02-tables, pages: 7}
-          - {group: word, id: 06-long-body, pages: 9}
+    timeout-minutes: 24
     env:
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      QA_PAGES: ${{ matrix.pages }}
+      WINDOWS_CAPTURE_PRINT_FACES: '1'
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,15 +23,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Save a real PDF at each verified rendering density
+      - name: Write two actual PDFs from each fixed build and font environment
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/display-input" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/word-repeat" --ids 06-long-body
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/display-input/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          $versions = [ordered]@{control='375c8dd6e78d5dadac33b1ed50b9fe8e1717cdae';candidate='HEAD'}
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/word-repeat/inventory.json"
+          $versions = [ordered]@{control='375c8dd6e78d5dadac33b1ed50b9fe8e1717cdae';candidate='dc1db016b1243ba8adc73eb27960770d88f24755'}
           foreach ($version in $versions.GetEnumerator()) {
             git restore --source $version.Value -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -47,30 +37,27 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             npm run package:win:dir
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $packaged = "$env:RUNNER_TEMP/density-app-$($version.Key)"
+            $packaged = "$env:RUNNER_TEMP/repeat-app-$($version.Key)"
             Move-Item release/windows $packaged
             $env:WORD_STUDIO_EXECUTABLE = "$packaged/Word Studio/Word Studio.exe"
-            foreach ($scale in @('1','1.25','1.5')) {
-              Write-Host "WINDOWS_DENSITY_VERSION $($version.Key) $scale"
-              $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
-              $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/studio-$($version.Key)-$scale.pdf"
-              $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$($version.Key)-$scale.json"
+            foreach ($sample in @(1,2)) {
+              Write-Host "WINDOWS_PDF_FIXED_INPUT $($version.Key) $sample"
+              $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/studio-$($version.Key)-$sample.pdf"
+              $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$($version.Key)-$sample.json"
               node scripts/windows-qa/native-export-pdf-stages.cjs
               if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             }
-            foreach ($scale in @('1.25','1.5')) {
-              Write-Host "WINDOWS_GEOMETRY_VERSION $($version.Key) $scale"
-              node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-control-1.json" "$env:RUNNER_TEMP/geometry-$($version.Key)-$scale.json" $scale
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            }
+            node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-$($version.Key)-1.json" "$env:RUNNER_TEMP/geometry-$($version.Key)-2.json" $version.Key
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-      - name: Measure each saved PDF with the fixed Windows PDF renderer scale
+          node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-control-1.json" "$env:RUNNER_TEMP/geometry-candidate-1.json" paired
+          exit $LASTEXITCODE
+      - name: Separate same-build repeatability from the code comparison
         shell: powershell
         run: |
-          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-candidate-1.pdf" -ExpectedPages ([UInt32]$env:QA_PAGES)
           foreach ($version in @('control','candidate')) {
-            foreach ($scale in @('1.25','1.5')) {
-              Write-Host "WINDOWS_DENSITY_PDF_VERSION $version $scale"
-              scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-$version-$scale.pdf" -ExpectedPages ([UInt32]$env:QA_PAGES) -ReportOnly
-            }
+            Write-Host "WINDOWS_PDF_REPEAT $version"
+            scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-$version-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-$version-2.pdf" -ExpectedPages 9 -ReportOnly -MeasureDelta
           }
+          Write-Host "WINDOWS_PDF_REPEAT paired"
+          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/studio-control-1.pdf" -Candidate "$env:RUNNER_TEMP/studio-candidate-1.pdf" -ExpectedPages 9 -ReportOnly -MeasureDelta

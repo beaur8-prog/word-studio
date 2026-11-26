@@ -2,13 +2,40 @@ param(
     [Parameter(Mandatory = $true)][string]$Control,
     [Parameter(Mandatory = $true)][string]$Candidate,
     [Parameter(Mandatory = $true)][uint32]$ExpectedPages,
-    [switch]$ReportOnly
+    [switch]$ReportOnly,
+    [switch]$MeasureDelta
 )
 $ErrorActionPreference = 'Stop'
 
 # The Windows PowerShell host projects WinRT types through .NET Framework.
 Add-Type -AssemblyName System.Runtime.WindowsRuntime
 Add-Type -AssemblyName System.Drawing
+if ($MeasureDelta -and -not ('PixelDelta' -as [type])) {
+    Add-Type -TypeDefinition @'
+public static class PixelDelta {
+    public static int[] Compare(byte[] a, byte[] b, int width) {
+        int x0 = width, y0 = a.Length / (4 * width), x1 = -1, y1 = -1, count = 0, max = 0;
+        long absolute = 0;
+        for (int i = 0; i < a.Length; i += 4) {
+            int difference = System.Math.Max(System.Math.Abs(a[i] - b[i]),
+                System.Math.Max(System.Math.Abs(a[i+1] - b[i+1]), System.Math.Abs(a[i+2] - b[i+2])));
+            if (difference == 0) continue;
+            int x = (i / 4) % width;
+            int y = (i / 4) / width;
+            x0 = System.Math.Min(x0, x);
+            y0 = System.Math.Min(y0, y);
+            x1 = System.Math.Max(x1, x);
+            y1 = System.Math.Max(y1, y);
+            count++;
+            max = System.Math.Max(max, difference);
+            absolute += difference;
+        }
+        int mean = count == 0 ? 0 : (int)(100 * absolute / count);
+        return new int[] { count, x0, y0, x1, y1, max, mean };
+    }
+}
+'@
+}
 $StorageFile = [Windows.Storage.StorageFile, Windows.Storage, ContentType=WindowsRuntime]
 $PdfDocument = [Windows.Data.Pdf.PdfDocument, Windows.Data.Pdf, ContentType=WindowsRuntime]
 $PdfOptions = [Windows.Data.Pdf.PdfPageRenderOptions, Windows.Data.Pdf, ContentType=WindowsRuntime]
@@ -70,7 +97,11 @@ function Get-PagePaint($Document, [uint32]$Index) {
                             $bytes = [byte[]]::new($locked.Stride * $height)
                             [Runtime.InteropServices.Marshal]::Copy($locked.Scan0, $bytes, 0, $bytes.Length)
                             $hash = [Security.Cryptography.SHA256]::Create()
-                            try { return "$width/${height}:" + [BitConverter]::ToString($hash.ComputeHash($bytes)) }
+                            try {
+                                $key = "$width/${height}:" + [BitConverter]::ToString($hash.ComputeHash($bytes))
+                                if ($MeasureDelta) { return @{ Key=$key; Width=$width; Height=$height; Pixels=$bytes } }
+                                return $key
+                            }
                             finally { $hash.Dispose() }
                         } finally { $pixels.UnlockBits($locked) }
                     } finally { $pixels.Dispose() }
@@ -87,7 +118,17 @@ if (-not $ExpectedPages -or $left.PageCount -ne $ExpectedPages -or $right.PageCo
 }
 $mismatches = [Collections.Generic.List[int]]::new()
 for ($i = 0; $i -lt $ExpectedPages; $i++) {
-    if ((Get-PagePaint $left $i) -cne (Get-PagePaint $right $i)) { $mismatches.Add($i + 1) }
+    $a = Get-PagePaint $left $i
+    $b = Get-PagePaint $right $i
+    if ($MeasureDelta) {
+        if ($a.Key -ceq $b.Key) { continue }
+        $mismatches.Add($i + 1)
+        if ($a.Width -ne $b.Width -or $a.Height -ne $b.Height) { throw 'Cannot compare different physical raster sizes' }
+        $delta = [PixelDelta]::Compare($a.Pixels, $b.Pixels, $a.Width)
+        Write-Host "WINDOWS_PDF_DELTA $($i + 1) $($a.Width)x$($a.Height) changed=$($delta[0]) bbox=$($delta[1]),$($delta[2]),$($delta[3]),$($delta[4]) max=$($delta[5]) meanHundredths=$($delta[6])"
+    } elseif ($a -cne $b) {
+        $mismatches.Add($i + 1)
+    }
 }
 Write-Host "WINDOWS_PDF_PIXEL_COMPARE pages $ExpectedPages exact $($ExpectedPages - $mismatches.Count) different $($mismatches.Count) dpi 96"
 if ($mismatches.Count) {

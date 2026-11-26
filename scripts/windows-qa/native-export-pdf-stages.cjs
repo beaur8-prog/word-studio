@@ -240,6 +240,22 @@ async function main() {
       const longest = await page.evaluate(start => Math.max(0, ...window.qaLongTasks
         .filter(task => task.at >= start).map(task => Math.round(task.duration))), rendererStart);
       console.log('WINDOWS_NATIVE_HOLD_LONGEST ' + longest);
+      if (process.env.WINDOWS_CAPTURE_PRINT_FACES === '1') {
+        const cdp = await page.context().newCDPSession(page);
+        try {
+          await cdp.send('DOM.enable');
+          await cdp.send('CSS.enable');
+          const { root } = await cdp.send('DOM.getDocument');
+          const { nodeIds } = await cdp.send('DOM.querySelectorAll', { nodeId:root.nodeId,
+            selector:'.print-layout.preview .print-page:first-of-type .print-content p' });
+          const faces = [];
+          for (const nodeId of nodeIds.slice(0,12)) {
+            const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+            faces.push(fonts.map(font=>[font.familyName,font.postScriptName,font.isCustomFont,font.glyphCount]));
+          }
+          console.log('WINDOWS_PRINT_ACTUAL_FACES ' + JSON.stringify(faces));
+        } finally { await cdp.detach(); }
+      }
       if (process.env.WINDOWS_NATIVE_PRINT_GEOMETRY) {
         stage = 'pdf-geometry';
         const geometry = await require('./print-geometry.cjs')(page);
