@@ -1,4 +1,7 @@
 import {keepShortWordParagraphTogether, paragraphLineOffsets, paragraphPrefixHeight} from './paragraph-fragments';
+import { imageFloating } from './image-floating';
+import { tableAnchor } from './table-anchor-data';
+import { textBoxFrame } from './textbox-frame';
 
 /** Ordinary Word story paragraphs only. Tables, columns, fields, notes and
  * tabbed stories retain their existing layout until they share this budget. */
@@ -7,6 +10,33 @@ export function wordKeepParagraph(element: HTMLElement | null): element is HTMLE
     !element.closest('li,td,th,[data-document-textbox],[data-textbox-content],[data-column-count]:not([data-column-count="1"])') &&
     !element.textContent?.includes('\t') &&
     !element.querySelector('img:not(.ProseMirror-separator),svg,table,[data-note-reference],[data-page-number],[data-flow-widget],[data-docx-tab]');
+}
+
+/** Later wrapping anchors can change the width of an earlier continuation
+ * during pagination. Verify the complete story before enforcing line counts. */
+export function wordFlowHasWrappingAnchors(root: HTMLElement) {
+  const anchors = root.querySelectorAll<HTMLElement>('img[data-image-floating],[data-textbox-position="floating"],table[data-table-anchor]');
+  return Array.from(anchors).some(anchor => {
+    if (anchor.closest('.document-furniture,.section-papers,.paper-backgrounds,.pagination-headers,[data-document-note]')) return false;
+    if (anchor instanceof HTMLImageElement) {
+      const image = imageFloating(anchor.dataset.imageFloating);
+      if (!image) return false;
+      const { drawingGroup } = image;
+      return drawingGroup ? !drawingGroup.behind && drawingGroup.wrap.type !== 0 : !image.behindDocument && !!image.wrap?.type;
+    }
+    if (anchor instanceof HTMLTableElement) return !!tableAnchor(anchor.dataset.tableAnchor)?.wrap;
+    return textBoxFrame(anchor.dataset.documentTextbox)?.wrap === 'square';
+  });
+}
+
+/** Legal lines at either side of a split in a fitting Word body paragraph.
+ * Keep the existing fallback for paragraphs taller than a fresh page. */
+export function wordWidowSplitBounds(paragraph: HTMLElement, lineCount: number, bodyHeight: number, scale = 1) {
+  if (paragraph.tagName !== 'P' || !wordKeepParagraph(paragraph) ||
+      paragraph.getBoundingClientRect().height / scale > bodyHeight) return;
+  const orphans = Math.max(1, Number(paragraph.style.orphans) || 1);
+  const widows = Math.max(1, Number(paragraph.style.widows) || 1);
+  if (orphans > 1 || widows > 1) return { minimumHead: orphans, maximumHead: lineCount - widows };
 }
 
 /** Keep-with-next protects the first legal prefix, not the entire next long
