@@ -74,12 +74,9 @@ module.exports.placement = (Core, original, saved, elementRanges) => {
   if (!target) throw Error('Expected native displaced table');
   const archive = unzipSync(saved.exportHwpx());
   const position = {
-    paper: { vertRelTo: 'PAPER', horzRelTo: 'PAPER', vertOffset: Math.round(target.source.y * 75),
+    paperExact: { vertRelTo: 'PAPER', horzRelTo: 'PAPER',
+      vertOffset: Math.round(target.source.y * 75) - target.source.table.top,
       horzOffset: Math.round(target.source.x * 75), flowWithText: 0 },
-    paragraph: { vertRelTo: 'PARA', horzRelTo: 'PARA', vertOffset: target.source.table.vertOffset,
-      horzOffset: target.source.table.horzOffset, flowWithText: 1 },
-    paragraphNoReserve: { vertRelTo: 'PARA', horzRelTo: 'PARA', vertOffset: target.source.table.vertOffset,
-      horzOffset: target.source.table.horzOffset, flowWithText: 0 },
   };
   const name = 'Contents/section' + target.saved.section + '.xml';
   const section = strFromU8(archive[name]);
@@ -102,14 +99,17 @@ module.exports.placement = (Core, original, saved, elementRanges) => {
     const candidate = new Core(zipSync({ ...archive,
       [name]: strToU8(section.slice(0, offset) + marked + section.slice(offset + before.length)) }, { level: 1 }));
     try {
-      if (mode !== 'paper') {
-        const format = target.source.paragraph;
-        candidate.applyParaFormat(target.saved.section, target.saved.para,
-          JSON.stringify({ marginLeft: format.marginLeft, indent: format.indent, lineSpacing: format.pitch }));
-      }
+
       const group = measure(original, candidate);
       const next = painted(candidate);
-      return { mode, pages: candidate.pageCount(), tableOrdinals: group.map(item => {
+      const observed = group.find(item => item.source.glyphs === 1080)?.saved;
+      const pageIndex = observed?.page - 1;
+      const paper = Number.isInteger(pageIndex) ? JSON.parse(candidate.getPageInfo(pageIndex)) : null;
+      const runs = paper ? JSON.parse(candidate.getPageTextLayout(pageIndex)).runs.filter(run => !run.headerFooter &&
+        run.secIdx === observed.section && run.parentParaIdx === observed.para && run.cellPath?.[0]?.controlIndex === observed.control) : [];
+      const outside = runs.filter(run => run.x < paper.bodyLeft - .15 || run.x + run.w > paper.bodyRight + .15 ||
+        run.y < paper.marginTop + paper.marginHeader - .15 || run.y + run.h > paper.footerArea.y + .15).length;
+      return { mode, pages: candidate.pageCount(), runCount:runs.length, outside, tableOrdinals: group.map(item => {
         const { page, x, y, height, glyphs, bottomRoom } = item.saved;
         return { page, x, y, height, glyphs, bottomRoom };
       }), sameOwnerText: baseline.paragraphs === next.paragraphs, sameShapes: baseline.shapes === next.shapes };
