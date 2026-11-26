@@ -1,0 +1,87 @@
+name: Windows regression QA
+run-name: Verify Windows widow round-trip fix 46defb8
+on:
+  push:
+    branches: [codex/windows-layout-qa-20261126]
+permissions:
+  contents: read
+jobs:
+  validation:
+    name: Windows widow / ${{ matrix.check }}
+    runs-on: windows-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [electron, widows, hwp-docx]
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Verify exact widow-fix source tree
+        shell: pwsh
+        run: |
+          git -c advice.detachedHead=false checkout --detach 'HEAD^'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $tree = git rev-parse 'HEAD^{tree}'
+          if ($tree -ne '572dde8683694d4fc5f598930128768d37c5dfcc') { throw "Unexpected source tree $tree" }
+          Write-Host "Verified source tree $tree"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Install pinned Electron
+        if: matrix.check == 'electron'
+        run: node node_modules/electron/install.js
+      - name: Build and test the actual Windows app
+        if: matrix.check == 'electron'
+        shell: pwsh
+        run: |
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:desktop
+      - name: Install pinned Playwright Chromium
+        if: matrix.check != 'electron'
+        run: npx playwright install chromium
+      - name: Verify browser widow policy and document round trips
+        if: matrix.check != 'electron'
+        shell: pwsh
+        run: |
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type)
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
+          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP 'widow-tests.json'
+          if ('${{ matrix.check }}' -eq 'widows') {
+            $files = @('tests/paragraph-widows.spec.ts', 'tests/word-widow-splits.spec.ts',
+              'tests/word-short-paragraphs.spec.ts', 'tests/word-auto-lefttab-widow.spec.ts',
+              'tests/word-paragraph-keeps.spec.ts', 'tests/word-wrapping-reference-density.spec.ts')
+          } else {
+            $files = @('tests/hwp-script-cells.spec.ts', 'tests/hwp-body-text-top.spec.ts', 'tests/hwp-cell-break-policy.spec.ts',
+              'tests/hwp-empty-lines.spec.ts', 'tests/docx-textboxes.spec.ts', 'tests/word-furniture-empty-lines.spec.ts')
+          }
+          node node_modules/@playwright/test/cli.js test @files --trace=off --reporter=line,json
+          $status = $LASTEXITCODE
+          if (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE) {
+            $stats = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
+            if (($stats.expected + $stats.unexpected) -eq 0) { throw 'No regression cases executed' }
+            $line = "Windows widow ${{ matrix.check }} | expected $($stats.expected) | unexpected $($stats.unexpected) | skipped $($stats.skipped) | flaky $($stats.flaky)"
+            Write-Host $line
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $line
+          } elseif ($status -eq 0) { throw 'Missing browser test result' }
+          exit $status
