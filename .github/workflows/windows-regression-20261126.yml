@@ -1,27 +1,30 @@
 name: Windows regression QA
-run-name: Verify the Windows exam retains blank tab stops without an additional sheet
+run-name: Isolate the injected inline form indent at its actual Windows sheet boundary
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  originals:
-    name: Windows generated boundary / ${{ matrix.id }}
+  layout:
+    name: Windows diagnostic / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { group: hwp-3, id: 09-korean-exam }
+          - { group: hwp-2, id: 05-return-form, format: hwpx }
     env:
-      PLAYWRIGHT_CHANNEL: chromium
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
+      WINDOWS_DIAGNOSTIC_FORMAT: ${{ matrix.format }}
+      PLAYWRIGHT_CHANNEL: chromium
       WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
+      WINDOWS_HANCOM_FIXED_AGREEMENT: '1'
+      WINDOWS_HANCOM_EARLY_BREAKS: '1'
       WINDOWS_REQUIRE_REOPEN: '1'
+      WINDOWS_NATIVE_SKIP_PRINT: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,69 +34,20 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
       - run: npx playwright install chromium
-      - name: Measure actual HWP and HWPX body positions
+      - name: Find when the regression first appears
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/geometry" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/original" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/geometry/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/original/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
-          $env:WINDOWS_HANCOM_FIXED_AGREEMENT = '1'
-          $env:WINDOWS_VERIFY_EMPTY_TAB_LAYOUT = '1'
           npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/return-form-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK HEAD total $($docs.Count) exit $status"
-          exit $status
-  focused:
-    name: Combined layout contracts / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 18
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - name: Run focused layout contracts
-        shell: pwsh
-        run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          npm run test -- tests/hwp-empty-paragraph-export.spec.ts --workers=1 --trace=off
+          $saved = @(Get-ChildItem test-results -Recurse -Filter 'hancom-saved.hwpx')
+          $source = @(Get-ChildItem "$env:RUNNER_TEMP/original" -Filter '*.hwp')
+          if ($saved.Count -ne 1 -or $source.Count -ne 1) { throw 'Expected exact in-memory diagnostic inputs' }
+          node scripts/windows-qa/hancom-return-form-proof.cjs $source[0].FullName $saved[0].FullName
           exit $LASTEXITCODE

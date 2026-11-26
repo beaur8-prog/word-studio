@@ -43,15 +43,20 @@ async function main(){
     const at=para.start+para.open.length+table.start+table.open.length+tag.index;
     const prior=JSON.stringify([...text(saved)].sort());
     const attempts=[];
-    for(const [mode,fields] of [['top',{top:originalStyle.outerTop}],['bottom',{bottom:originalStyle.outerBottom}],
-      ['both',{top:originalStyle.outerTop,bottom:originalStyle.outerBottom}]]){
+    const host=JSON.parse(saved.getParaPropertiesAt(target.secIdx,target.paraIdx));
+    const pads={top:originalStyle.outerTop,bottom:originalStyle.outerBottom,left:originalStyle.outerLeft};
+    for(const [mode,fields,resetHost] of [['outer-left',{left:pads.left},false],['host-indent',{},true],
+      ['inline-position',{left:pads.left},true],['all-authored',pads,true]]){
       const patched=Object.entries(fields).reduce((s,[k,v])=>s.replace(new RegExp('\\b'+k+'="[^"]*"'),k+'="'+v+'"'),tag[0]);
       const out=new HwpDocument(zipSync({...pkg,[file]:strToU8(xml.slice(0,at)+patched+xml.slice(at+tag[0].length))},{level:1}));
-      try{attempts.push({mode,pages:out.pageCount(),sameText:JSON.stringify([...text(out)].sort())===prior,shape:size(out)});}
-      finally{out.free();}
+      try{
+        if(resetHost&&!JSON.parse(out.applyParaFormat(target.secIdx,target.paraIdx,JSON.stringify({marginLeft:0}))).ok)
+          throw Error('Diagnostic wrapper indent change rejected');
+        attempts.push({mode,pages:out.pageCount(),sameText:JSON.stringify([...text(out)].sort())===prior,shape:size(out)});
+      }finally{out.free();}
     }
     console.log('WINDOWS_RETURN_FORM_INSET_TRIAL '+JSON.stringify({original:box(input),target:box(target),bounds:[props.width,props.height,props.footerArea.y],
-      originalInsets:[originalStyle.outerTop,originalStyle.outerBottom],currentInsets:[savedStyle.outerTop,savedStyle.outerBottom],control:size(saved),attempts}));
+      originalInsets:[originalStyle.outerTop,originalStyle.outerBottom,originalStyle.outerLeft],currentInsets:[savedStyle.outerTop,savedStyle.outerBottom,savedStyle.outerLeft],hostLeft:host.marginLeft,control:size(saved),attempts}));
   } finally {original.free();saved.free();}
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});
