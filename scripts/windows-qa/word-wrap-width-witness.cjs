@@ -75,9 +75,49 @@ module.exports = async function wordWrapWidthWitness(page) {
           pitch.push(bandTops.map((top, i) => i ? top - bandTops[i - 1] : 0));
         }
       } finally { p.style.wordSpacing = savedWordSpacing; }
+      const compact = target => {
+        const walker = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+        const breaks = [], bands = [], sheet = target.getBoundingClientRect();
+        let right = -Infinity, index = 0;
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          if (node.parentElement.closest('[data-docx-tab]')) continue;
+          for (const entry of segmenter.segment(node.data)) {
+            if (!entry.segment.trim()) continue;
+            range.setStart(node, entry.index);
+            range.setEnd(node, entry.index + entry.segment.length);
+            const rect = range.getBoundingClientRect();
+            if (!bands.length || Math.abs(bands.at(-1)-rect.y) > .5) { bands.push(rect.y); breaks.push(index); }
+            right = Math.max(right, rect.right-sheet.right);
+            index++;
+          }
+        }
+        return { breaks, glyphs:index, width:sheet.width / target.currentCSSZoom, right, height:sheet.height / target.currentCSSZoom };
+      };
+      const holder = document.createElement('div'), copy = p.cloneNode(true);
+      holder.className = 'tiptap print-content';
+      holder.lang = p.closest('[lang]')?.getAttribute('lang') ?? 'en-US';
+      holder.style.cssText = 'position:fixed;left:-100000px;top:0;width:'+raw.width+'px;visibility:hidden;margin:0;padding:0;height:auto';
+      Object.assign(copy.style, { width:raw.width+'px', margin:'0', fontFamily:style.fontFamily,
+        fontSize:style.fontSize,fontStyle:style.fontStyle,fontWeight:style.fontWeight,
+        lineHeight:style.lineHeight,letterSpacing:style.letterSpacing,zoom:String(1/devicePixelRatio) });
+      holder.append(copy); document.body.append(holder);
+      const clone = compact(copy);
+      holder.remove();
+      const visible = compact(p);
+      const lineStyles = new Set(nodes.map(({node})=>{
+        const run = getComputedStyle(node.parentElement);
+        return [run.fontFamily,run.fontSize,run.fontStyle,run.fontWeight,run.letterSpacing,run.wordSpacing].join('|');
+      }));
+      const css = { align:style.textAlign, dir:style.direction, writingMode:style.writingMode, sizing:style.boxSizing,
+        fit:p.style.width, zoom:p.currentCSSZoom, parent:p.parentElement.tagName, textLength:p.textContent.length,
+        compatibleCharacters:/^[\x20-\x7e\t\u00a0\u2019]+$/u.test(p.textContent),
+        fragment:p.hasAttribute('data-print-paragraph-fragment'), inlineFormats:p.querySelectorAll('br,img,svg,a,sup,sub,[data-note-reference],[data-document-field],[data-page-number],[data-symbol-font],[data-word-overlap]').length,
+        lineStyles:[...lineStyles], paragraphStyles:[style.fontFamily,style.fontSize,style.fontStyle,style.fontWeight,style.letterSpacing,style.wordSpacing],
+      };
       records.push({ width: raw.width, font: style.fontFamily, fontSize: style.fontSize, fontWeight: style.fontWeight,
         indent: style.textIndent, leftMargin: style.marginLeft, tab: tab.getBoundingClientRect().width, printed,
-        spacingWitness: windows, pitch });
+        spacingWitness: windows, pitch, clone, visible, css });
     }
     return records;
   });

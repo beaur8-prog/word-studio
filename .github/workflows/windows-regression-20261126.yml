@@ -1,29 +1,18 @@
 name: Windows regression QA
-run-name: Verify combined Windows Hancom positioning, two saves and picture preservation
+run-name: Check why the Windows paragraph wrap witness declined a known near-edge line
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  originals:
-    name: Windows generated boundary / ${{ matrix.id }}
+  display:
+    name: Windows Word paragraph line boundaries
     runs-on: windows-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { group: hwp-1, id: 04-language-plan }
-          - { group: hwp-3, id: 06-mixed-document }
-          - { group: hwp-2, id: 08-math-exam }
+    timeout-minutes: 20
     env:
-      PLAYWRIGHT_CHANNEL: chromium
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
+      WINDOWS_WORD_WRAP_WIDTH: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,112 +22,26 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
-      - run: npx playwright install chromium
-      - name: Measure actual HWP and HWPX body positions
+      - run: node node_modules/electron/install.js
+      - name: Measure logical line starts and glyph bands in the Windows print flow
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/geometry" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/word-breaks" --ids 06-long-body
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/geometry/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/word-breaks/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
-          $variants = @('HEAD')
-          $env:WINDOWS_NATIVE_SKIP_PRINT = '1'
-          if ($env:QA_ID -eq '04-language-plan') {
-            $env:WINDOWS_AUTHORED_PAGE_HEAD = '1'
-            $env:WINDOWS_PAGE_OFFSETS = '1'
-          } elseif ($env:QA_ID -eq '06-mixed-document') {
-            $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/06-margin.json"
-            $env:WINDOWS_HANCOM_SINGLE_BODY_LINE = '1'
-            $env:WINDOWS_TERMINAL_WITNESS = '1'
-            $env:WINDOWS_ADJACENT_TABLE_WITNESS = '1'
-            $env:WINDOWS_PAGE_TWELVE_TABLE = '1'
-            $env:WINDOWS_PAGE_TWELVE_REQUIRED = '1'
-          } else {
-            $env:WINDOWS_REQUIRE_REVERSE = '1'
-            $env:WINDOWS_EXACT_REVERSE_PAGES = '1'
-          }
-          foreach ($variant in $variants) {
-            Write-Host "WINDOWS_NATIVE_LINE_PRODUCT $variant"
-            git restore --source $variant --staged --worktree -- src
+          $control = 'HEAD'
+          git restore --source $control --staged --worktree -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code $control -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run package:win:dir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          foreach ($scale in @('1.25','1.5')) {
+            $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
+            node scripts/windows-qa/native-export-pdf-stages.cjs
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $env:WINDOWS_LATIN_WITNESS = "$env:RUNNER_TEMP/lines-$variant.json"
-            $output = "test-results-$variant"
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off --output $output
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $docs = @(Get-ChildItem $output -Recurse -Filter 'textbox-save-*.docx')
-            if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-            dotnet run --project scripts/word-openxml-validator -- $output 2 *> "$env:RUNNER_TEMP/geometry-sdk-$variant.log"
-            $status = $LASTEXITCODE
-            Write-Host "WINDOWS_PUBLIC_SDK $variant total $($docs.Count) exit $status"
-            if ($status -ne 0) { exit $status }
           }
-          if ($env:QA_ID -eq '08-math-exam') { exit 0 }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $results = @(Get-Content "$env:RUNNER_TEMP/06-margin.json" -Raw | ConvertFrom-Json)
-            if ($results.Count -ne 2) { throw 'Expected both Hancom formats' }
-            foreach ($result in $results) {
-              $expectedPages = if ($result.format -eq 'hwp') { 39 } else { 42 }
-              if ($result.pages -ne $expectedPages -or -not $result.terminal.matches -or -not $result.adjacent.matches) {
-                throw 'The verified Windows 06 geometry did not survive the combined source'
-              }
-            }
-            exit 0
-          }
-          $results = @(Get-Content "$env:RUNNER_TEMP/lines-HEAD.json" -Raw | ConvertFrom-Json)
-          if ($results.Count -ne 2) { throw 'Expected both Hancom formats' }
-          foreach ($result in $results) {
-            Write-Host "WINDOWS_RESTORED_PAGE_HEAD $($result.format) pages $($result.pages); saved body page $($result.pageHead.output[1].page)"
-            if (-not $result.pageHead.matches -or $result.lines -ne 1) {
-              throw 'The physical page heading, next body, or existing p127 line differed'
-            }
-          }
-  focused:
-    name: Combined layout contracts / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 18
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - name: Run focused layout contracts
-        shell: pwsh
-        run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          npm run test -- tests/hwp-native-page-head.spec.ts tests/hwp-native-terminal-break.spec.ts tests/hwp-authored-page-tail.spec.ts tests/hwp-inline-table-margin.spec.ts tests/hwp-native-large-raster.spec.ts --workers=1 --trace=off
-          exit $LASTEXITCODE
