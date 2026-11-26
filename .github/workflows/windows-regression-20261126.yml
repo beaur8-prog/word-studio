@@ -1,42 +1,62 @@
 name: Windows regression QA
-run-name: Test authored first-page margins and lines on the exact Windows native output
+run-name: Verify the six remaining native HWP originals on the final Windows export code
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native-first-page-diagnostic:
-    name: Windows first-page geometry probe
+  native-hwp:
+    name: Packaged Windows Hangul / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {group: hwp-1, id: 01-employment-contract, pages: '7,7'}
+          - {group: hwp-3, id: 03-health-table, pages: '4,4'}
+          - {group: hwp-1, id: 04-language-plan, pages: '42,43'}
+          - {group: hwp-2, id: 05-return-form, pages: '1,1'}
+          - {group: hwp-3, id: 06-mixed-document, pages: '39,42'}
+          - {group: hwp-3, id: 09-korean-exam, pages: '20,16'}
     env:
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: hwpx
+      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
       WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
-      WINDOWS_HWP_FIRST_PAGE_SOURCE_TRIAL: '1'
-      WINDOWS_CHECK_NATIVE_NBSPACE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm run package:win:dir
-      - name: Measure the actual saved file and in-memory variations
+      - name: Run the file-menu export and reopen both native outputs
         shell: pwsh
         run: |
-          $caseDir = Join-Path $env:RUNNER_TEMP 'native-first-page'
-          python scripts/windows-qa/fetch-public-inputs.py hwp-1 $caseDir --ids 07-english-exam
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/final-native" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = Join-Path $caseDir 'inventory.json'
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
+          if ((git rev-parse 'HEAD:src') -ne '7dce0645084f50855723dd2bfbe44460dddc3570') { throw 'Unexpected product tree' }
           $inventory = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json)
           if ($inventory.Count -ne 1 -or -not $inventory[0].verified) { throw 'One byte-pinned input is required' }
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
           node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> "$env:RUNNER_TEMP/native-sdk.log"
+          $status = $LASTEXITCODE
+          Write-Host "WINDOWS_FINAL_SDK Hangul $($env:QA_ID) count 2 exit $status"
+          exit $status
