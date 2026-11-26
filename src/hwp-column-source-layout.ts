@@ -7,6 +7,8 @@ const forbidden = 'a,br,img,svg,sup,sub,mark,u,s,del,[data-flow-widget],[data-pa
 const unsupportedText = /[\u0000-\u001f\u0590-\u08ff\u202a-\u202e\u2066-\u2069]/u;
 let canvas: CanvasRenderingContext2D | null | undefined;
 const pixelGuard = .5;
+const lineTolerance = .08;
+const reported = new Set<string>();
 
 export type SourceColumnPlacement = { height: number; offset: number; width?: string; indent?: string; scale?: number };
 type Paint = { ascent: number; descent: number };
@@ -82,6 +84,14 @@ function horizontalScale(p: HTMLElement): number | null {
  * column and predecessor. Ordinary reflow handles changed content or fonts. */
 export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom: number, bottom: number, ordinary: number | null): SourceColumnPlacement | null {
   const fit = source.columnFit, previous = p.previousElementSibling;
+  const trace = (stage: string, ...numbers: number[]) => {
+    if (!fit || reported.size >= 100) return;
+    const entry = JSON.stringify({ remainder:fit.remainder, baseline:fit.baseline, width:fit.width, stage, numbers:numbers.map(n=>Math.round(n*10000)/10000) });
+    if (!reported.has(entry)) {
+      reported.add(entry);
+      console.info('WINDOWS_HWP_COLUMN_STAGES ' + entry);
+    }
+  };
   if (!fit || !provenText(p, fit.fingerprint) || !(previous instanceof HTMLElement) ||
       !provenText(previous, fit.preceding) || !p.parentElement?.matches('[data-column-count="2"]') ||
       [...p.childNodes].some(node => !(node instanceof HTMLSpanElement)) || !(zoom > 0)) return null;
@@ -90,6 +100,7 @@ export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom
       before.transform !== 'none' || (parseFloat(css.marginTop) || 0) || (parseFloat(before.marginBottom) || 0)) return null;
   const previousBox = previous.getBoundingClientRect();
   const room = (bottom - previousBox.bottom) / zoom;
+  trace('room', room, ordinary ?? 0, source.base);
   if (!(room > 0 && room < source.base - .1) || ordinary !== null && ordinary <= room) return null;
   const width = p.getBoundingClientRect().width / zoom, indent = parseFloat(css.textIndent) || 0;
   if (Math.abs(width - Math.min(0, indent) - fit.width) > .24) return null;
@@ -118,9 +129,19 @@ export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom
     const ink = projectedInk(line, maximum);
     if (!ink) return null;
     const baseline = marker.getBoundingClientRect().bottom - line.getBoundingClientRect().top;
-    const offset = fit.baseline - baseline;
-    if (!(offset < -.1 && offset >= -4) ||
-        fit.baseline + ink.descent > fit.remainder + .08) return null;
+    if (fit.baseline + ink.descent > fit.remainder + lineTolerance) return null;
+    const heightAtBaseline = (paintBaseline: number) => Math.ceil((paintBaseline + ink.descent + pixelGuard) * 64) / 64;
+    const ordinaryHeight = heightAtBaseline(fit.baseline);
+    const missingRoom = Math.max(0, ordinaryHeight - Math.floor(room * 64) / 64);
+    // The authored baseline is also a measured distance from the footer.
+    // If the previous box consumes slightly more room, keep that distance
+    // within the source measure's precision and recheck the previous ink.
+    trace('fit-room', room, ordinaryHeight, missingRoom, fit.remainder - room, Number(scaled !== null), baseline, ink.ascent, ink.descent);
+    if (missingRoom && (scaled || fit.remainder <= room ||
+        Math.abs(missingRoom - (fit.remainder - room)) > lineTolerance)) return null;
+    const paintBaseline = fit.baseline - missingRoom;
+    const offset = paintBaseline - baseline;
+    if (!(offset < -.1 && offset >= -4)) return null;
 
     preceding.style.width = `${previousBox.width / zoom}px`;
     host.append(preceding);
@@ -131,9 +152,10 @@ export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom
     const priorInk = projectedInk(preceding, maximum);
     if (!priorInk || preceding.getBoundingClientRect().height !== previousRect.height ||
         Math.abs(previousRect.height - previousBox.height / zoom) > .12) return null;
-    const upperInk = fit.baseline - ink.ascent, previousEnd = previousBaseline.getBoundingClientRect().bottom - previousRect.top + priorInk.descent;
+    const upperInk = paintBaseline - ink.ascent, previousEnd = previousBaseline.getBoundingClientRect().bottom - previousRect.top + priorInk.descent;
+    trace('relative-ink', room, previousRect.height + upperInk - previousEnd, fit.baseline - paintBaseline);
     if (previousRect.height + upperInk - previousEnd < pixelGuard) return null;
-    const height = Math.ceil((fit.baseline + ink.descent + pixelGuard) * 64) / 64;
+    const height = heightAtBaseline(paintBaseline);
     return height > 0 && height <= room ? { ...scaled, height, offset } : null;
   } finally { host.remove(); }
 }

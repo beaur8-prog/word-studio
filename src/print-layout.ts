@@ -84,6 +84,13 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       paragraph.dataset.hwpColumnEndSource = 'true';
   }
   markSourceColumnTails(source);
+  if (!wordLayout.hwpNativeExport) {
+    // The native writer uses its own font metrics. Limit its browser
+    // measurements to the terminal pair that has stored source geometry.
+    for (const paragraph of source.querySelectorAll<HTMLElement>(
+      `[data-column-count="2"] > p:has(span[data-hwp-latin-font^='["HY신명조",'])`))
+      paragraph.dataset.hwpColumnSerifPrint = 'true';
+  }
   const flatSectionBoundaries = !!source.querySelector(':scope > [data-section-page]');
   const framesWithSectionBoundaries = new WeakSet(
     [...source.querySelectorAll('[data-section-content]')].filter(frame => frame.querySelector('[data-section-page]')),
@@ -966,7 +973,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   try {
     onProgress?.({ label: '문서의 글꼴을 준비하는 중…' });
     const sample = source.textContent || '한글';
-    const serifFallback = /휴먼명조|한양신명조|함초롬바탕|바탕|Batang/i.test(html);
+    const serifFallback = /휴먼명조|한양신명조|HY신명조|함초롬바탕|바탕|Batang/i.test(html);
     const fontRequests: PrintFontRequest[] = [];
     for (const family of ['Noto Serif KR', 'Noto Sans KR', 'Studio Text', 'Studio Math', 'Studio Symbols', 'Studio Symbols 2', 'Studio Devanagari', 'Studio Emoji']) if (html.includes(family) || (family === 'Noto Serif KR' && serifFallback))
       for (const weight of [400, 700]) fontRequests.push({ font: `${weight} 12px "${family}"`, text: sample });

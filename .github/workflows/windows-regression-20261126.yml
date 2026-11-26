@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Check physical Hangul rasters and identify large display-density image shifts
+run-name: Trace actual Windows 125 percent column displacement on one runner
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -15,9 +15,9 @@ jobs:
       matrix:
         include:
           - {group: hwp-1, id: 07-english-exam}
-          - {group: hwp-2, id: 08-math-exam}
     env:
-      WINDOWS_CAPTURE_PRINT_IMAGE_IDENTITY: '1'
+      WINDOWS_TRACE_COLUMN_END: '1'
+      WINDOWS_ENGLISH_TERMINAL_DETAIL: '1'
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
     steps:
@@ -34,35 +34,16 @@ jobs:
       - name: Print at actual 100, 125 and 150 percent native display scale
         shell: pwsh
         run: |
-          if ((git rev-parse 'HEAD:src') -ne 'e037a5cdd5c175540e0f515031329fd4346dfd30') { throw 'Unexpected baseline product source' }
           python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/hangul-density" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/hangul-density/inventory.json"
           $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          foreach ($density in @('1','1.25','1.5')) {
+          foreach ($density in @('1','1.25')) {
             $env:WINDOWS_FORCE_DEVICE_SCALE = $density
             $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/hwp-geometry-$density.json"
             $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/hwp-paper-$density.pdf"
             node scripts/windows-qa/native-export-pdf-stages.cjs
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-          foreach ($density in @('1.25','1.5')) {
-            node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/hwp-geometry-1.json" "$env:RUNNER_TEMP/hwp-geometry-$density.json" "$env:QA_ID-$density"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-      - name: Compare physical PDF rasters when the page counts match
-        shell: powershell
-        run: |
-          function Count-Pages($path) {
-            $number = node -e "process.stdout.write(String(JSON.parse(require('node:fs').readFileSync(process.argv[1],'utf8')).length))" $path
-            if ($LASTEXITCODE -ne 0) { throw 'Cannot read pinned print-page count' }
-            return [int]$number
-          }
-          $expectedPages = Count-Pages "$env:RUNNER_TEMP/hwp-geometry-1.json"
-          foreach ($density in @('1.25','1.5')) {
-            $outputPages = Count-Pages "$env:RUNNER_TEMP/hwp-geometry-$density.json"
-            Write-Host "WINDOWS_HANGUL_DENSITY PDF $env:QA_ID $density pages $expectedPages $outputPages"
-            if ($expectedPages -eq $outputPages) {
-              scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/hwp-paper-1.pdf" -Candidate "$env:RUNNER_TEMP/hwp-paper-$density.pdf" -ExpectedPages $expectedPages -ReportOnly -MeasureDelta
-            }
-          }
+          node scripts/windows-qa/compare-hwp-density-reflow.cjs "$env:RUNNER_TEMP/hwp-geometry-1.json" "$env:RUNNER_TEMP/hwp-geometry-1.25.json"
+          exit $LASTEXITCODE
