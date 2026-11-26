@@ -76,3 +76,84 @@ for (const format of ['hwp', 'hwpx'] as const) test(`${format} retains the ancho
   expect(result.geometry.horizontalPosition).toEqual({ relative: 'page', offset: 120 * 9525 });
   expect(result.geometry.verticalPosition).toEqual({ relative: 'page', offset: 1500 * 9525 });
 });
+
+test('HWPX picture staging binds grouped controls by paragraph and exact raster bytes', async ({ page }) => {
+  await page.goto('/');
+  const results = await page.evaluate(async () => {
+    const { default: init, HwpDocument } = await import('/node_modules/.vite/deps/@rhwp_core.js');
+    const { default: wasm } = await import('/node_modules/@rhwp/core/rhwp_bg.wasm?url');
+    const { strFromU8, strToU8, unzipSync, zipSync } = await import('/node_modules/.vite/deps/fflate.js');
+    const { stageHwpPictures } = await import('/src/hwp/export-pictures.ts');
+    await init({ module_or_path: fetch(wasm).then(response => response.arrayBuffer()) });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 6;
+    const paint = canvas.getContext('2d')!;
+    const colors = ['red', 'green', 'blue', 'purple'];
+    const payloads = colors.map(color => {
+      paint.fillStyle = color;
+      paint.fillRect(0, 0, 6, 6);
+      return canvas.toDataURL().split(',')[1];
+    });
+    const pictures = colors.map((color, i) =>
+      '<img src="data:image/png;base64,' + payloads[i] + '" width="18" height="18" alt="' + color + '">');
+    const staged = stageHwpPictures('<p>Body' + pictures.slice(0, 2).join('') +
+      '</p><table><tbody><tr><td><p>Cell' + pictures.slice(2).join('') + '</p></td></tr></tbody></table>');
+    const seed = HwpDocument.createEmpty();
+    let parts: Record<string, Uint8Array>;
+    try {
+      seed.createBlankDocument();
+      seed.pasteHtml(0, 0, 0, '<p></p>' + staged.html + '<p></p>');
+      parts = unzipSync(seed.exportHwpx());
+    } finally { seed.free(); }
+    const name = 'Contents/section0.xml', parse = (xml: string) => new DOMParser().parseFromString(xml, 'application/xml');
+    const section = parse(strFromU8(parts[name]));
+    const tags = (root: Document | Element, name: string) => Array.from(root.getElementsByTagName(name));
+    const tokens = /WORDSTUDIO-PICTURE-[\da-f-]+-\d+-END/g;
+    let groups = 0;
+    for (const paragraph of tags(section, 'hp:p')) {
+      const runs = [...paragraph.children].filter(child => child.tagName === 'hp:run');
+      const text = runs.flatMap(run => [...run.children].filter(el => el.tagName === 'hp:t'));
+      const markers = text.flatMap(el => [...(el.textContent ?? '').matchAll(tokens)].map(match => match[0]));
+      if (markers.length !== 2) continue;
+      for (const el of text) el.textContent = el.textContent!.replace(tokens, '');
+      const first = runs.find(run => [...run.children].some(el => el.tagName === 'hp:pic'))!;
+      const before = section.createElementNS(first.namespaceURI, 'hp:run');
+      before.setAttribute('charPrIDRef', first.getAttribute('charPrIDRef')!);
+      const group = section.createElementNS(first.namespaceURI, 'hp:t');
+      group.textContent = markers.join(' ');
+      before.append(group);
+      first.before(before);
+      groups++;
+    }
+    const save = () => {
+      parts[name] = strToU8(new XMLSerializer().serializeToString(section));
+      return staged.restore(HwpDocument, { exportHwpx: () => zipSync(parts) } as InstanceType<typeof HwpDocument>);
+    };
+    const restored = save();
+    let associations;
+    try {
+      const archive = unzipSync(restored.exportHwpx());
+      const manifest = parse(strFromU8(archive['Contents/content.hpf']));
+      const assets = new Map(tags(manifest, 'opf:item').map(item => [item.getAttribute('id'), item.getAttribute('href')]));
+      associations = tags(parse(strFromU8(archive[name])), 'hp:pic').map(pic => {
+        const ref = tags(pic, 'hc:img')[0].getAttribute('binaryItemIDRef');
+        const bytes = archive[assets.get(ref)!];
+        return { source: payloads.indexOf(btoa(String.fromCharCode(...bytes))),
+          description: tags(pic, 'hp:shapeComment')[0]?.textContent };
+      });
+    } finally { restored.free(); }
+    const [first, second] = tags(section, 'hc:img');
+    const id = first.getAttribute('binaryItemIDRef')!;
+    first.setAttribute('binaryItemIDRef', second.getAttribute('binaryItemIDRef')!);
+    second.setAttribute('binaryItemIDRef', id);
+    let rejectedSwap = false;
+    try { save().free(); }
+    catch (error) { rejectedSwap = String(error).includes('그림을 한글로 저장하지 못했습니다'); }
+    return { groups, associations, rejectedSwap };
+  });
+  expect(results).toEqual({ groups: 2, associations: [
+    { source: 0, description: 'red' }, { source: 1, description: 'green' },
+    { source: 2, description: 'blue' }, { source: 3, description: 'purple' },
+  ], rejectedSwap: true });
+});

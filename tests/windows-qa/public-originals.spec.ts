@@ -21,7 +21,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   await page.exposeFunction('writeActualDocx', async (stage: number, encoded: string) => {
     await writeFile(info.outputPath('textbox-save-' + item.id + '-' + stage + '.docx'), Buffer.from(encoded, 'base64'));
   });
-  const result = await page.evaluate(async ({name, data, ext}) => {
+  const result = await page.evaluate(async ({name, data, ext, verifyPictures}) => {
     const qa = window as Window & {
       logOriginalForward(metrics: object): Promise<void>;
       logOriginalStage(stage: string, pages: number): Promise<void>;
@@ -96,7 +96,15 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
         const saved = await exportEditableHwp(doc, format, () => {});
         reader = new HwpReaderSession();
         const pages = (await reader.open(new File([saved.blob], 'roundtrip.' + format))).count;
-        reverse.push({format, pages, valid: pages > 0, warningCount: saved.warnings.length});
+        let pictureReadback: { count: number; exactByteOrder: boolean } | undefined;
+        if (verifyPictures) {
+          const opened = importEditableHwp(await reader.editable(), 'roundtrip.' + format);
+          const reopened = JSON.parse(signature(opened.content)[1]) as string[];
+          const expected = JSON.parse(previous![1]) as string[];
+          pictureReadback = { count: reopened.length, exactByteOrder: reopened.length === expected.length &&
+            reopened.every((image, index) => image.split(',')[1] === expected[index].split(',')[1]) };
+        }
+        reverse.push({format, pages, valid: pages > 0, warningCount: saved.warnings.length, pictureReadback});
       } catch (error) {
         const reason = String(error);
         reverse.push({format, valid: false,
@@ -106,10 +114,16 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       await qa.logOriginalStage('reverse-' + format, reverse.at(-1)?.pages ?? 0);
     }
     return { nativeOriginalPages, printPages, preservation, reverse, saves };
-  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext });
+  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' });
   expect(result.printPages).toHaveLength(3);
   expect(result.printPages.every(pages => pages > 0)).toBe(true);
   expect(result.saves).toBe(2);
   const { saves: _, ...metrics } = result;
   console.log('WINDOWS_PUBLIC_RESULT ' + JSON.stringify({ id: item.id, ext: item.ext, ...metrics }));
+  if (process.env.WINDOWS_REQUIRE_REVERSE === '1') {
+    expect(result.reverse).toHaveLength(2);
+    expect(result.reverse.map(out => ({ format: out.format, valid: out.valid, pictures: out.pictureReadback?.count }))).toEqual([
+      { format: 'hwp', valid: true, pictures: 543 }, { format: 'hwpx', valid: true, pictures: 543 },
+    ]);
+  }
 });

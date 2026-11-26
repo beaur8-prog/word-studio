@@ -1,24 +1,17 @@
 name: Windows regression QA
-run-name: Windows HWP long native PDF command verification
+run-name: Windows grouped HWP pictures and actual reopen
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native:
-    name: Windows HWP ${{ matrix.version }} / ${{ matrix.document }}
+  pictures:
     runs-on: windows-latest
-    timeout-minutes: 36
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {version: candidate, document: 02-work-rules, group: hwp-2}
+    timeout-minutes: 32
     env:
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.document }}
-      QA_VERSION: ${{ matrix.version }}
+      PLAYWRIGHT_CHANNEL: chromium
+      WINDOWS_REQUIRE_REVERSE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,14 +21,26 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Run exact public input through the Windows app
+      - run: npx playwright install chromium
+      - name: Validate staged picture associations and actual reopened controls
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/qa-inputs" --ids "$env:QA_ID"
+          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/qa-inputs" --ids 08-math-exam
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-inputs/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          node scripts/windows-qa/native-export-pdf-stages.cjs
+          $inputData = Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json
+          if (@($inputData | Where-Object verified).Count -ne 1) { throw 'Fixed original unavailable' }
+          npm run test -- tests/hwp-floating-export.spec.ts tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
           exit $LASTEXITCODE
+      - name: Validate both actual DOCX saves with Open XML SDK
+        if: always()
+        shell: pwsh
+        run: |
+          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
+          if ($outputs.Count -ne 2) { throw 'Expected two actual saves' }
+          dotnet run --project scripts/word-openxml-validator -- test-results $outputs.Count *> "$env:RUNNER_TEMP/picture-sdk.log"
+          $status = $LASTEXITCODE
+          $bad = @(Get-Content "$env:RUNNER_TEMP/picture-sdk.log" | Where-Object { $_ -match '^\{' } |
+            ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.PSObject.Properties.Name -contains 'failure' -or $_.errors.Count -gt 0 })
+          Write-Host "WINDOWS_PUBLIC_SDK total $($outputs.Count) withErrors $($bad.Count) exit $status"
+          exit $status
