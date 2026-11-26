@@ -18,8 +18,21 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
     selectStage('native-docx-save-' + generation);
     const name = 'textbox-save-' + item.id + '-native-' + generation;
     const output = path.join(directory, name + '.docx');
+    const started = Date.now();
+    const trace = process.env.WINDOWS_NATIVE_DOCX_SAVE_TRACE === '1';
+    if (trace) await app.evaluate(({ BrowserWindow }) => {
+      const view = BrowserWindow.getAllWindows()[0]?.webContents;
+      globalThis.qaDocxSave = { dialogCalls:0, rendererExit:'none' };
+      view?.once('render-process-gone', (_event, detail) => {
+        globalThis.qaDocxSave.rendererExit = detail.reason;
+      });
+    });
     await app.evaluate(({ dialog, Menu }, destination) => {
       dialog.showSaveDialog = async (_parent, options) => {
+        if (globalThis.qaDocxSave) {
+          globalThis.qaDocxSave.dialogCalls++;
+          globalThis.qaDocxSave.dialogTime = Date.now();
+        }
         if (!options.filters?.some(filter => filter.extensions.includes('docx')))
           throw Error('Missing DOCX filter');
         return { canceled: false, filePath: destination };
@@ -29,10 +42,34 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
       if (!command) throw Error('Native DOCX export missing');
       setTimeout(() => command.click(), 0);
     }, output);
-    await expect.poll(async () => {
-      const bytes = await fs.readFile(output).catch(() => null);
-      return bytes?.length > 64 && bytes.subarray(0, 2).toString('latin1') === 'PK';
-    }, {timeout: 180000}).toBe(true);
+    const timeout = trace ? 300000 : 180000;
+    const readStatus = async () => {
+      const state = await app.evaluate(({ app }) => ({
+        ...globalThis.qaDocxSave,
+        renderer:app.getAppMetrics().filter(p=>p.type==='Tab').map(p=>({
+          cpu:Number(p.cpu.percentCPUUsage.toFixed(1)), workingSetKB:p.memory.workingSetSize,
+        })),
+      }));
+      const stats = await fs.stat(output).catch(() => null);
+      console.log('WINDOWS_LARGE_DOCX_SAVE_TRACE ' + JSON.stringify({
+        generation, duration:Date.now()-started, bytes:stats?.size ?? 0,
+        ...state, dialogTime:state.dialogTime ? state.dialogTime-started : undefined,
+      }));
+    };
+    let monitor;
+    try {
+      if (trace) {
+        monitor = setInterval(() => { void readStatus().catch(() => {}); }, 15000);
+        monitor.unref();
+      }
+      await expect.poll(async () => {
+        const bytes = await fs.readFile(output).catch(() => null);
+        return bytes?.length > 64 && bytes.subarray(0, 2).toString('latin1') === 'PK';
+      }, {timeout}).toBe(true);
+    } finally {
+      clearInterval(monitor);
+      if (trace) await readStatus().catch(() => {});
+    }
     // Bytes appear before the file operation and renderer save guard end.
     // Windows can ignore a new Open command during that interval.
     await page.locator('.busy-indicator').waitFor({state: 'hidden', timeout: 180000});

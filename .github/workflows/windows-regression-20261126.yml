@@ -1,60 +1,64 @@
 name: Windows regression QA
-run-name: Measure English exam line boundaries with a fixed paired denominator on Windows
+run-name: Isolate the second DOCX save from the large Hangul native output
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  print-lines:
-    name: Actual English exam print lines / ${{ matrix.scale }}
+  large-export:
+    name: Windows 163-page document / ${{ matrix.route }}
     runs-on: windows-latest
-    timeout-minutes: 36
+    timeout-minutes: 43
     strategy:
       fail-fast: false
       matrix:
-        scale: ['1','1.25','1.5']
+        route: [two-docx, direct-native]
     env:
-      WINDOWS_FORCE_DEVICE_SCALE: ${{ matrix.scale }}
-      WINDOWS_CAPTURE_HWP_BODY_LINES: '1'
+      QA_ROUTE: ${{ matrix.route }}
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
+      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+        if: matrix.route == 'two-docx'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Compare fixed visible line breaks from the actual printed documents
+      - run: npm run package:win:dir
+      - name: Run the selected route in a fresh copy of the Windows app
         shell: pwsh
         run: |
-          $caseDir = Join-Path $env:RUNNER_TEMP 'english-print-lines'
-          python scripts/windows-qa/fetch-public-inputs.py hwp-1 $caseDir --ids 07-english-exam
+          if ((git rev-parse 'HEAD:src') -ne 'f15f4cabb706a1555cae3e5704f0204521a3b624') { throw 'Unexpected product tree' }
+          $caseDir = Join-Path $env:RUNNER_TEMP 'large-docx-stage'
+          python scripts/windows-qa/fetch-public-inputs.py hwp-2 $caseDir --ids 02-work-rules
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = Join-Path $caseDir 'inventory.json'
           $inventory = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json)
           if ($inventory.Count -ne 1 -or -not $inventory[0].verified) { throw 'One byte-pinned input is required' }
-          $refs = [ordered]@{ control='27a35890240d7bbf47f06fd961682eb94f89fc3d'; final='c52784078cc2ab47e0864c96000a28e3006b0948' }
-          foreach ($entry in $refs.GetEnumerator()) {
-            git restore --source $entry.Value --staged --worktree -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $entry.Value -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            npm run package:win:dir
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $bundle = Join-Path $caseDir $entry.Key
-            Move-Item release/windows $bundle
-            $env:WORD_STUDIO_EXECUTABLE = Join-Path $bundle 'Word Studio/Word Studio.exe'
-            $env:WINDOWS_NATIVE_PRINT_GEOMETRY = Join-Path $caseDir "$($entry.Key)-print-geometry.json"
-            $env:WINDOWS_HWP_LINE_VERDICT = Join-Path $caseDir "$($entry.Key)-lines.json"
-            Write-Host "WINDOWS_PRINT_LINE_BUILD $($entry.Key)"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            node scripts/windows-qa/compare-hwp-print-witness.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          if ($env:QA_ROUTE -eq 'two-docx') {
+            $env:WINDOWS_NATIVE_DOCX_DIR = Join-Path $caseDir 'docx'
+            $env:WINDOWS_NATIVE_DOCX_SAVE_TRACE = '1'
+          } else {
+            $env:WINDOWS_NATIVE_HWP_SAVES = '1'
+            $env:WINDOWS_NATIVE_PICTURE_PAINT = '1'
+            $env:WINDOWS_PACKAGED_TABLE_FIT = '1'
+            $env:WINDOWS_NATIVE_HWP_TRACE = '1'
+            $env:WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES = '1'
           }
-          node scripts/windows-qa/pair-hwp-print-line-counts.cjs (Join-Path $caseDir 'control-lines.json') (Join-Path $caseDir 'final-lines.json')
-          exit $LASTEXITCODE
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:QA_ROUTE -eq 'two-docx') {
+            dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> (Join-Path $caseDir 'sdk.log')
+            $status = $LASTEXITCODE
+            Write-Host "WINDOWS_FINAL_SDK large HWP count 2 exit $status"
+            exit $status
+          }
