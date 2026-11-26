@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Verify nonbreaking spaces without changing repaired Windows native boundaries
+run-name: Locate the first English exam print displacement in the Windows renderer
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,21 +14,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-1, id: 04-language-plan, pages: '42,43'}
-          - {group: hwp-2, id: 05-return-form, pages: '1,1'}
-          - {group: hwp-3, id: 06-mixed-document, pages: '39,42'}
-          - {group: hwp-1, id: 07-english-exam, pages: '', direct: '1'}
-          - {group: hwp-3, id: 09-korean-exam, pages: '20,16'}
-          - {group: hwp-1, id: 10-lh-plan, pages: '8,8'}
+          - {group: hwp-1, id: 07-english-exam, pages: ''}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
-      WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
-      WINDOWS_CHECK_NATIVE_NBSPACE: ${{ matrix.direct }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
-      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
+      WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,112 +35,15 @@ jobs:
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm run package:win:dir
-      - name: Run the file-menu export and reopen both native outputs
+      - name: Compare the real native Windows print preview to the witnessed source
         shell: pwsh
         run: |
           python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/final-native" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
           $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          if ($env:WINDOWS_CHECK_NATIVE_NBSPACE -ne '1') { $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx" }
+          $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/print-geometry.json"
           node scripts/windows-qa/native-export-pdf-stages.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ($env:WINDOWS_CHECK_NATIVE_NBSPACE -eq '1') { exit 0 }
-          dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> "$env:RUNNER_TEMP/native-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_FINAL_SDK Hangul $($env:QA_ID) count 2 exit $status"
-          exit $status
-
-  large:
-    name: Packaged Windows inline pictures / ${{ matrix.format }}
-    runs-on: windows-latest
-    timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        format: [hwp, hwpx]
-    env:
-      WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: ${{ matrix.format }}
-      WINDOWS_NATIVE_HWP_TRACE: '1'
-      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
-      WINDOWS_NATIVE_LARGE_HANGUL: '1'
-      WINDOWS_NATIVE_LARGE_TEXT: '1'
-      WINDOWS_NATIVE_PICTURE_PAINT: '1'
-      WINDOWS_NATIVE_PICTURE_OFFSET: '168.08'
-      WINDOWS_NATIVE_OVERHANG_READBACK: '1'
-      WINDOWS_NATIVE_OVERHANG_ORIGIN: '1'
-      WINDOWS_EXPECT_NATIVE_PAGES: '166,169'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Prepare the source-pinned large file and start the native export
-        shell: pwsh
-        run: |
-          $product = 'HEAD'
-          git restore --source $product --staged --worktree -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code $product -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run build -- --sourcemap
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/package-win.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/large-native" --ids 02-work-rules
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/large-native/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
-
-  story-assets:
-    name: Native tab, fixed space and margin contracts / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - name: Verify native fixed spaces and tabs
-        shell: pwsh
-        run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
-          npm run test -- tests/hwp-fixed-spaces.spec.ts tests/hwp-compound-tabs.spec.ts tests/hwp-native-page-margins.spec.ts tests/hwp-source-terminal-spaces.spec.ts --workers=1 --trace=off
+          node scripts/windows-qa/compare-hwp-print-witness.cjs
           exit $LASTEXITCODE
