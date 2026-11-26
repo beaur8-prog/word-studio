@@ -1,19 +1,16 @@
 name: Windows regression QA
-run-name: Validate combined source in the packaged Windows app
+run-name: Isolate the inline font weight contribution to Windows print density
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native:
-    name: Native Windows DOCX twice and Hancom readback
+  line-box:
     runs-on: windows-latest
-    timeout-minutes: 38
+    timeout-minutes: 22
     env:
-      WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_TERMINAL_WITNESS: '1'
-      WINDOWS_FORCE_DEVICE_SCALE: '1'
+      WINDOWS_DIAGNOSE_WORD_LINE_BOXES: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,52 +19,20 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm run package:win:dir
-      - name: Save and reopen both DOCX and both Hancom formats through the installed menus
+      - name: Measure actual source line and tab geometry at three Windows monitor scales
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py hwp-3 "$env:RUNNER_TEMP/qa-input" --ids 06-mixed-document
+          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/word-line-box" --ids '06-long-body'
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-input/inventory.json"
-          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
-          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
-      - name: Validate the two DOCX packages written by the Windows app
-        shell: pwsh
-        run: |
-          $files = @(Get-ChildItem "$env:RUNNER_TEMP/native-docx" -File -Filter '*.docx')
-          if ($files.Count -ne 2) { throw 'Missing the two native DOCX files' }
-          dotnet run --project scripts/word-openxml-validator -- "$env:RUNNER_TEMP/native-docx" *> "$env:RUNNER_TEMP/native-sdk.txt"
-          $validated = $LASTEXITCODE
-          Write-Host "WINDOWS_NATIVE_DOCX_SDK $($files.Count) exit $validated"
-          exit $validated
-  focused:
-    name: Combined layout contracts / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 18
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - run: npm run test -- tests/word-windows-print-density.spec.ts tests/hwp-native-terminal-break.spec.ts tests/hwp-native-table-lead-ink.spec.ts tests/print-native-column-height.spec.ts tests/print-page-style.spec.ts tests/hwp-source-centered-merged-labels.spec.ts --workers=1 --trace=off
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/word-line-box/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($verified -ne 1) { throw 'A pinned input is unavailable' }
+          $env:WORD_STUDIO_EXECUTABLE = "$((Get-Location).Path)/release/windows/Word Studio/Word Studio.exe"
+          foreach ($scale in @('1','1.25','1.5')) {
+            $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

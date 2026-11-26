@@ -41,12 +41,43 @@ module.exports = async function wordDensityLineBoxes(page, id) {
       holder.append(copy);
       document.body.append(holder);
       try {
-        const heights = [fixed(copy.getBoundingClientRect().height)];
-        for (const tab of copy.querySelectorAll('[data-docx-tab]')) tab.style.overflow = 'hidden';
-        heights.push(fixed(copy.getBoundingClientRect().height));
-        for (const tab of copy.querySelectorAll('[data-docx-tab]')) { tab.style.overflow = ''; tab.textContent = ''; }
-        heights.push(fixed(copy.getBoundingClientRect().height));
-        return {baseline, tabProbeHeights:heights};
+        const metrics = () => {
+          const para = copy.getBoundingClientRect();
+          const scale = copy.currentCSSZoom;
+          const ink = [];
+          const selected = Array.from(copy.querySelectorAll('u,span')).filter(mark =>
+            mark.childElementCount === 0 && mark.textContent.trim() && !mark.closest('[data-docx-tab]'));
+          for (const mark of selected) {
+            range.selectNodeContents(mark);
+            ink.push(...Array.from(range.getClientRects(), rect => [
+              fixed((rect.left - para.left) / scale), fixed((rect.top - para.top) / scale),
+              fixed(rect.width / scale), fixed(rect.height / scale),
+            ]));
+          }
+          return {height:fixed(para.height / scale), ink,
+            font:getComputedStyle(copy).fontWeight, zoom:scale};
+        };
+        const natural = metrics();
+        const weight = baseline.inline.find(mark => !mark.tab)?.weight;
+        let matchParent, matchRuns;
+        if (weight && baseline.inline.filter(mark => !mark.tab).every(mark => mark.weight === weight)) {
+          copy.style.fontWeight = weight;
+          matchParent = metrics();
+          copy.style.fontWeight = style.fontWeight;
+          const previous = [];
+          for (const mark of copy.querySelectorAll('strong,b,u,span')) {
+            if (!mark.textContent?.trim() || mark.closest('[data-docx-tab]')) continue;
+            previous.push([mark, mark.style.fontWeight]);
+            mark.style.fontWeight = style.fontWeight;
+          }
+          matchRuns = metrics();
+          for (const [mark, value] of previous) mark.style.fontWeight = value;
+        }
+        copy.style.zoom = String(1 / devicePixelRatio);
+        const referenceDensity = metrics();
+        if (weight) copy.style.fontWeight = weight;
+        const sameWeightAndDensity = metrics();
+        return {baseline, natural, matchParent, matchRuns, referenceDensity, sameWeightAndDensity};
       } finally { holder.remove(); }
     });
   }, id);
