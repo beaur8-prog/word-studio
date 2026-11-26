@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Check actual wrapped lines after applying the measured original proportion
+run-name: Isolate the Korean serif fallback from the measured Windows column proportion
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -20,6 +20,7 @@ jobs:
       QA_ID: ${{ matrix.id }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_ENGLISH_TERMINAL_DETAIL: '1'
+      WINDOWS_TEST_HWP_SERIF_ALIAS: '1'
       WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
     steps:
       - uses: actions/checkout@v4
@@ -47,47 +48,4 @@ jobs:
           node scripts/windows-qa/native-export-pdf-stages.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/windows-qa/compare-hwp-print-witness.cjs
-          exit $LASTEXITCODE
-
-  story-assets:
-    name: Proof-gated column proportions / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - name: Check exact line and column placement
-        shell: pwsh
-        run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
-          npm run test -- tests/hwp-column-terminal.spec.ts tests/column-page-breaks.spec.ts tests/print-native-column-height.spec.ts --workers=1 --trace=off
           exit $LASTEXITCODE

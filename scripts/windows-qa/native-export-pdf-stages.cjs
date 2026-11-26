@@ -460,6 +460,17 @@ async function main() {
         }
         continue;
       }
+      if (process.env.WINDOWS_TEST_HWP_SERIF_ALIAS === '1') {
+        await page.addStyleTag({ content: `
+          :is(.tiptap,.document-furniture) [data-hwp-latin-font^='["HY신명조",'] {
+            font-family: "HY신명조","Studio Korean Serif","Noto Serif KR",serif !important;
+          }
+        ` });
+        await page.evaluate(async () => {
+          await document.fonts.load('15px "Noto Serif KR"', '한글');
+          await document.fonts.ready;
+        });
+      }
       if (process.env.WINDOWS_COUNT_INK_METRICS === '1') {
         await page.evaluate(() => {
           const original = CanvasRenderingContext2D.prototype.measureText;
