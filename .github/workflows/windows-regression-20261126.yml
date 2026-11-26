@@ -1,29 +1,31 @@
 name: Windows regression QA
-run-name: Verify authored inline image positioning in both packaged Windows Hangul formats
+run-name: Find the first product revision that added a sheet in the Windows HWP outputs
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native:
-    name: Packaged Windows inline pictures / ${{ matrix.format }}
+  layout:
+    name: Windows diagnostic / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        format: [hwp, hwpx]
+        include:
+          - { group: hwp-3, id: 09-korean-exam, format: hwpx }
+          - { group: hwp-1, id: 10-lh-plan, format: hwp }
     env:
-      WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: ${{ matrix.format }}
-      WINDOWS_NATIVE_HWP_TRACE: '1'
-      WINDOWS_NATIVE_HWP_REVIEW_MS: '420000'
-      WINDOWS_NATIVE_LARGE_HANGUL: '1'
-      WINDOWS_NATIVE_LARGE_TEXT: '1'
-      WINDOWS_NATIVE_PICTURE_PAINT: '1'
-      WINDOWS_NATIVE_PICTURE_OFFSET: '168.08'
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      WINDOWS_DIAGNOSTIC_FORMAT: ${{ matrix.format }}
+      PLAYWRIGHT_CHANNEL: chromium
+      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
+      WINDOWS_HANCOM_FIXED_AGREEMENT: '1'
+      WINDOWS_HANCOM_EARLY_BREAKS: '1'
+      WINDOWS_REQUIRE_REOPEN: '1'
+      WINDOWS_NATIVE_SKIP_PRINT: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -34,22 +36,29 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Prepare the source-pinned large file and start the native export
+      - run: npx playwright install chromium
+      - name: Find when the regression first appears
         shell: pwsh
         run: |
-          $product = 'HEAD'
-          git restore --source $product --staged --worktree -- src
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/original" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code $product -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run build -- --sourcemap
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/package-win.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/large-native" --ids 02-work-rules
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/large-native/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/original/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($verified -ne 1) { throw 'Pinned input missing' }
+          $points = @(
+            '6b8fad0a11d1444386dea7691b1be4fdca2e3700'
+            '588a71af79870210f2f84f11340a7da824468f7e'
+            'c5fcb686017841ddf3a9f7be29e86c9a42bf120b'
+            '48046fe2e05e515d466dbbeb3438a4e36ed71aaa'
+            '63c7a4dbb48cc8fb93d23377b3ad968a17d1d353'
+            'aebb99a5342bf59ee439dfc2f5ac5fed8dc6e3c6'
+          )
+          foreach ($variant in $points) {
+            Write-Host "WINDOWS_HANCOM_FIXED_PRODUCT $variant"
+            git restore --source $variant --staged --worktree -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off --output "test-results-$variant"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

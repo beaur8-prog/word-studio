@@ -50,8 +50,25 @@ function tally(reference, saved) {
   return counts;
 }
 
+function earlySheets(doc) {
+  return Array.from({length:Math.min(8,doc.pageCount())}, (_,i) => {
+    const paper = JSON.parse(doc.getPageInfo(i));
+    const { runs } = JSON.parse(doc.getPageTextLayout(i));
+    const { controls } = JSON.parse(doc.getPageControlLayout(i));
+    const body = runs.filter(r=>r.paraIdx!==0xffffffff&&!r.headerFooter&&compact(r.text));
+    const sum = entries => entries.reduce((total,value)=>total+compact(value.text).length,0);
+    return { page:i+1, cols:paper.columns.length,
+      lines:new Set(body.filter(r=>!r.cellPath?.length).map(r=>r.y)).size,
+      body:sum(body.filter(r=>!r.cellPath?.length)), cell:sum(body.filter(r=>r.cellPath?.length)),
+      head:body.slice(0,1).map(({secIdx,paraIdx,charStart,x,y})=>[secIdx,paraIdx,charStart,x,y]),
+      shapes:controls.filter(c=>!c.headerFooter).slice(0,4).map(({type,secIdx,paraIdx,x,y,w,h})=>[type,secIdx,paraIdx,x,y,w,h]),
+    };
+  });
+}
+
 module.exports = function pageAgreement(original, converted) {
   const a = owners(original), b = owners(converted);
   return { originalPages:original.pageCount(), convertedPages:converted.pageCount(),
-    body:tally(a.body,b.body), cell:tally(a.cell,b.cell) };
+    body:tally(a.body,b.body), cell:tally(a.cell,b.cell),
+    ...(process.env.WINDOWS_HANCOM_EARLY_BREAKS === '1' ? { sourceHead:earlySheets(original), targetHead:earlySheets(converted) } : {}) };
 };
