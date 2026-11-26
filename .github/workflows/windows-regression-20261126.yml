@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Windows native HWPX save layout and worker timing A-B
+run-name: Windows consecutive native HWP and HWPX saves with renderer profiling
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -8,15 +8,15 @@ permissions:
 jobs:
   native:
     runs-on: windows-latest
-    timeout-minutes: 38
+    timeout-minutes: 32
     env:
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: 'hwpx'
+      WINDOWS_NATIVE_HWP_FORMATS: 'hwp,hwpx'
       WINDOWS_NATIVE_HWP_TRACE: '1'
+      WINDOWS_NATIVE_HWP_PROFILE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -24,47 +24,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Build exact candidate and its paired control
-        shell: pwsh
-        run: |
-          npm run package:win:dir
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item release/windows "$env:RUNNER_TEMP/hangul-candidate"
-          git restore --source f74a42ae2c18506a783590b7498ff52e7b248819 -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code f74a42ae2c18506a783590b7498ff52e7b248819 -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run package:win:dir
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Move-Item release/windows "$env:RUNNER_TEMP/hangul-control"
-      - name: Trace the real save command without modifying either renderer
+      - run: npm run build -- --sourcemap
+      - run: node scripts/package-win.cjs
+      - name: Record real save and recovery timing for both formats
         shell: pwsh
         run: |
           python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/native-hangul" --ids 04-language-plan
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-hangul/inventory.json"
-          $status = @{}
-          foreach ($variant in @('candidate','control')) {
-            Write-Host "WINDOWS_NATIVE_HANGUL_PRODUCT $variant"
-            $env:WORD_STUDIO_EXECUTABLE="$env:RUNNER_TEMP/hangul-$variant/Word Studio/Word Studio.exe"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            $status[$variant] = $LASTEXITCODE
-            Write-Host "WINDOWS_NATIVE_HANGUL_EXIT $variant $LASTEXITCODE"
-          }
-          exit $status['candidate']
-  affected:
-    runs-on: windows-latest
-    timeout-minutes: 18
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-      - run: npm run test -- tests/desktop-print-coordination.spec.ts tests/export-layout-suspension.spec.ts tests/hwp-reader.spec.ts tests/hwp-empty-paragraph-export.spec.ts tests/hwp-sections.spec.ts --workers=1 --trace=off
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          exit $LASTEXITCODE

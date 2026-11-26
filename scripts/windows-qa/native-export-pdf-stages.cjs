@@ -15,6 +15,8 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
     await page.evaluate(() => {
       const groups = [
         ['prepare', /저장할 편집본|저장할 본문/],
+        ['fonts', /문서의 글꼴/],
+        ['images', /사용할 그림/],
         ['layout', /쪽 배치|레이아웃/],
         ['page-conversion', /쪽 나누기를 준비|문서의 쪽/],
         ['worker', /본문·표·그림|글자 서식|쪽 나누기를 반영/],
@@ -160,8 +162,15 @@ async function main() {
         .map(task => Math.round(task.duration)).sort((a,b) => b-a).slice(0,5), rendererStarted);
       console.log('WINDOWS_HWP_EDITOR_READY ' + JSON.stringify({ id: item.id, editorPages, editorMilliseconds, editorLongTasks }));
       if (Core) {
-        await saveHangulFile(app, page, item, directory, Core, name => { stage = name; });
-        measured++;
+        const finishHangulProfile = process.env.WINDOWS_NATIVE_HWP_PROFILE === '1'
+          ? await require('./print-profile.cjs')(page, 'hangul') : undefined;
+        try {
+          await saveHangulFile(app, page, item, directory, Core, name => { stage = name; });
+          measured++;
+        } finally {
+          // Keep the timing error if profiling could not read a stalled renderer.
+          await finishHangulProfile?.().catch(() => console.log('WINDOWS_NATIVE_PROFILE unavailable'));
+        }
         continue;
       }
       const finishProfile = process.env.WINDOWS_NATIVE_PRINT_PROFILE === '1'

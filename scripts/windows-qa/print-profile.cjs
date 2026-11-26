@@ -4,22 +4,25 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { TraceMap, originalPositionFor } = require('@jridgewell/trace-mapping');
 
-module.exports = async function printProfile(page) {
+module.exports = async function printProfile(page, mode = 'print') {
   const session = await page.context().newCDPSession(page);
   await session.send('Profiler.enable');
   await session.send('Profiler.setSamplingInterval', { interval: 5000 });
   await session.send('Profiler.start');
-  await page.evaluate(() => {
+  await page.evaluate(mode => {
     const started = performance.now(), phases = [];
     window.qaPrintProfile = { started, phases };
     let state = '';
     const timer = setInterval(() => {
       const host = document.querySelector('.print-layout');
-      const next = !host ? 'menu' : host.classList.contains('preview') ? 'preview' : 'measuring';
+      const next = mode === 'hangul'
+        ? document.querySelector('.hwp-conversion-dialog[open]') ? 'review' :
+          document.querySelector('.hwp-progress-panel') ? 'preparing' : 'menu'
+        : !host ? 'menu' : host.classList.contains('preview') ? 'preview' : 'measuring';
       if (next !== state) { phases.push({ name: next, at: Math.round(performance.now() - started) }); state = next; }
-      if (next === 'preview') clearInterval(timer);
+      if (next === 'preview' || next === 'review') clearInterval(timer);
     }, 50);
-  });
+  }, mode);
   return async () => {
     const { profile } = await session.send('Profiler.stop');
     const { phases, tasks } = await page.evaluate(() => ({
@@ -61,6 +64,6 @@ module.exports = async function printProfile(page) {
     }
     const top = measure.map(({stack,...task}) => ({...task, frames:[...stack].sort((a,b)=>b[1]-a[1]).slice(0,12)
       .map(([name,millis]) => [name,Math.round(millis)])}));
-    console.log('WINDOWS_NATIVE_PROFILE ' + JSON.stringify({phases, top}));
+    console.log('WINDOWS_NATIVE_PROFILE ' + JSON.stringify({mode, phases, top}));
   };
 };
