@@ -1,27 +1,26 @@
 name: Windows regression QA
-run-name: Windows pinned mixed-document table inset retry
+run-name: Windows cumulative native PDF and exact Hangul preparation comparison
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  original:
-    name: Windows / ${{ matrix.id }}
+  native:
+    name: Windows native / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 32
+    timeout-minutes: 44
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { group: hwp-3, id: 06-mixed-document }
+          - { group: hwp-2, id: 02-work-rules, control: 78df75786b1aa6766a6c8362cc2e2eee46de5b79 }
+          - { group: public-2, id: moel-harassment-manual, control: 78df75786b1aa6766a6c8362cc2e2eee46de5b79 }
+          - { group: hwp-1, id: 04-language-plan, control: 2e6f20c635c9f842722617da38167c563bda5dfc }
     env:
-      PLAYWRIGHT_CHANNEL: chromium
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
+      CONTROL: ${{ matrix.control }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,38 +30,49 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
-      - run: npx playwright install chromium
-      - name: Verify the same pinned original on both source trees
+      - run: node node_modules/electron/install.js
+      - name: Build both product trees on the same runner
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/table-insets" --ids $env:QA_ID
+          npm run package:win:dir
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/table-insets/inventory.json"
+          Move-Item release/windows "$env:RUNNER_TEMP/paired-candidate"
+          git restore --source $env:CONTROL -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code $env:CONTROL -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run package:win:dir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item release/windows "$env:RUNNER_TEMP/paired-control"
+      - name: Exercise both native save paths on the byte-pinned input
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/paired-input" --ids $env:QA_ID
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/paired-input/inventory.json"
           $inputCount = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($inputCount -ne 1) { throw 'Pinned input missing' }
-          if ($env:QA_ID -eq '08-math-exam') {
-            $env:WINDOWS_REQUIRE_REVERSE='1'
-            $env:WINDOWS_EXACT_REVERSE_PAGES='1'
+          if ($env:QA_ID -eq '04-language-plan') {
+            $env:WINDOWS_NATIVE_HWP_SAVES = '1'
+            $env:WINDOWS_NATIVE_HWP_FORMATS = 'hwpx'
+            $env:WINDOWS_NATIVE_HWP_TRACE = '1'
           }
-          foreach ($variant in @('fb6ef74e1ce9824e61198031285372a82577f908', 'HEAD')) {
-            Write-Host "WINDOWS_TABLE_INSETS_PRODUCT $variant"
-            git restore --source $variant -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $status = @{}
+          foreach ($variant in @('control','candidate')) {
+            Write-Host "WINDOWS_PAIRED_PRODUCT $variant"
+            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/paired-$variant/Word Studio/Word Studio.exe"
+            $env:WINDOWS_NATIVE_HWP_COMPARISON = "$env:RUNNER_TEMP/paired-$variant-shapes.txt"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            $status[$variant] = $LASTEXITCODE
+            Write-Host "WINDOWS_PAIRED_EXIT $variant $LASTEXITCODE"
           }
-      - name: Validate two actual DOCX packages retaining source margins
-        shell: pwsh
-        run: |
-          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($outputs.Count -ne 2) { throw 'Expected two actual saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results $outputs.Count *> "$env:RUNNER_TEMP/inline-margins-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK total $($outputs.Count) exit $status"
-          exit $status
+          if ($status['candidate'] -ne 0) { exit $status['candidate'] }
+          if ($status['control'] -ne 0) { exit $status['control'] }
+          if ($env:QA_ID -eq '04-language-plan') {
+            $before = Get-Content "$env:RUNNER_TEMP/paired-control-shapes.txt" -Raw
+            $after = Get-Content "$env:RUNNER_TEMP/paired-candidate-shapes.txt" -Raw
+            $exact = $before -eq $after
+            Write-Host "WINDOWS_NATIVE_HANGUL_READBACK_EXACT $exact"
+            if (-not $exact) { exit 1 }
+          }

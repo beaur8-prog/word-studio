@@ -38,7 +38,10 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
     const textBoxes = prepareHwpExportTextBoxes(root);
     const emptyText = 'WORDSTUDIO-EMPTY-PARAGRAPH-' + crypto.randomUUID();
     let emptyCount = 0;
-    for (const element of root.querySelectorAll<HTMLElement>('p,h1,h2,h3,h4,h5,h6')) {
+    // Read the same rendered source before changing any of its paragraphs.
+    // Interleaving computed styles with replacements forces Chromium to
+    // recalculate the large attached tree for each paragraph.
+    const replacements = [...root.querySelectorAll<HTMLElement>('p,h1,h2,h3,h4,h5,h6')].map(element => {
       const computed = getComputedStyle(element), paragraph = document.createElement('p'), span = document.createElement('span');
       paragraph.style.cssText = element.style.cssText;
       if (element.dataset.tabStops) paragraph.dataset.tabStops = element.dataset.tabStops;
@@ -64,8 +67,13 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
         // HTML parser drops an empty span, so carry the style through paste.
         span.textContent = emptyText;
         emptyCount++;
-      } else span.append(...element.childNodes);
-      paragraph.append(span); element.replaceWith(paragraph);
+      }
+      return { element, paragraph, span };
+    });
+    for (const { element, paragraph, span } of replacements) {
+      if (!span.hasChildNodes()) span.append(...element.childNodes);
+      paragraph.append(span);
+      element.replaceWith(paragraph);
     }
     // The Hancom parser reads cell dimensions, rather than Tiptap's grid attrs
     // and TR heights. Materialize the same grid in TD CSS before serialization.
