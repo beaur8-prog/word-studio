@@ -51,7 +51,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   await page.exposeFunction('writeActualHangul', async (format: 'hwp' | 'hwpx', encoded: string) => {
     await writeFile(info.outputPath('hancom-saved.' + format), Buffer.from(encoded, 'base64'));
   });
-  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry, watched, flowOnly, skipPrint, formats}) => {
+  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry, watched, flowOnly, skipPrint, formats, stripEmptyTabs}) => {
     const qa = window as Window & {
       logOriginalForward(metrics: object): Promise<void>;
       logOriginalStage(stage: string, pages: number): Promise<void>;
@@ -76,7 +76,16 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       const reader = new HwpReaderSession();
       try {
         nativeOriginalPages = (await reader.open(documentFile)).count;
-        return importEditableHwp(await reader.editable(), name);
+        const editable = await reader.editable();
+        if (stripEmptyTabs) {
+          const model = new DOMParser().parseFromString(editable.html, 'text/html');
+          for (const p of model.querySelectorAll('p[data-tab-stops]')) {
+            if (!p.textContent?.trim() && !p.querySelector('img,br,svg,[data-docx-tab],[data-document-field]'))
+              p.removeAttribute('data-tab-stops');
+          }
+          return importEditableHwp({ ...editable, html:model.body.innerHTML }, name);
+        }
+        return importEditableHwp(editable, name);
       } finally { reader.close(); }
     };
     const signature = (content: any) => {
@@ -192,7 +201,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       await qa.logOriginalStage('reverse-' + format, reverse.at(-1)?.pages ?? 0);
     }
     return { nativeOriginalPages, printPages, preservation, reverse, saves, nativeFlow };
-  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1', watched, flowOnly: process.env.WINDOWS_NATIVE_FLOW_ONLY === '1', skipPrint: process.env.WINDOWS_NATIVE_SKIP_PRINT === '1', formats });
+  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1', watched, flowOnly: process.env.WINDOWS_NATIVE_FLOW_ONLY === '1', skipPrint: process.env.WINDOWS_NATIVE_SKIP_PRINT === '1', formats, stripEmptyTabs:process.env.WINDOWS_DIAGNOSTIC_DROP_EMPTY_TABS === '1' });
   if (process.env.WINDOWS_NATIVE_FLOW_ONLY !== '1' && process.env.WINDOWS_NATIVE_SKIP_PRINT !== '1') {
     expect(result.printPages).toHaveLength(3);
     expect(result.printPages.every(pages => pages > 0)).toBe(true);
