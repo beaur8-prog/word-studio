@@ -12,6 +12,7 @@ const set = (tag: string, values: Record<string, string | number>) => {
   }
   return tag;
 };
+const pasteOuterMargin = 283;
 /** The source table follows a one-row label and an intact blank on the
  * same printed sheet. An isolated continuation needs the ordinary paste
  * placement to avoid creating another sheet for its empty native carrier. */
@@ -54,11 +55,21 @@ function nativeParagraphFlow(table: string, anchor: TableAnchor): 'CELL' | 'TABL
   return border === 'continuation' ? 'CELL' : border === 'true' ? 'TABLE' : undefined;
 }
 
+function projectedInlineInsets(table: string, anchor: TableAnchor) {
+  if (anchor.reference !== 'paragraph' || anchor.horizontal !== 'margin' || anchor.wrap || anchor.overlay ||
+      /\bdata-hwp-(?:centered-borders|table-continuation)=/.test(table)) return;
+  const top = Math.round(anchor.y * 75), bottom = Math.round(anchor.bottom * 75);
+  // A table already converted to ordinary flow can retain its authored
+  // before/after reserve without acquiring a larger pasted footprint.
+  if (top <= pasteOuterMargin && bottom <= pasteOuterMargin && (top !== pasteOuterMargin || bottom !== pasteOuterMargin))
+    return { mode: 'inline-insets', top, bottom } as const;
+}
+
 /** Sentinels in an existing cell identify its real control after HTML import;
  * no marker paragraph or original text is removed. */
 export function stageHwpTables(html: string) {
   type Placement = { mode: 'label' } | { mode: 'overlay'; anchor: TableAnchor } |
-    { mode: 'flow'; anchor: TableAnchor; breakMode: 'CELL' | 'TABLE' } | { mode: 'inline-top'; top: number };
+    { mode: 'flow'; anchor: TableAnchor; breakMode: 'CELL' | 'TABLE' } | { mode: 'inline-insets'; top: number; bottom?: number };
   const prefix = `WORDSTUDIO-TABLE-${crypto.randomUUID()}-`, records = new Map<string, Placement>();
   const flowTables = nativeParagraphFlowTables(html);
   const topAttribute = new RegExp(`\\b${hwpInlineTableTopAttribute}="([^"]*)"`);
@@ -70,7 +81,8 @@ export function stageHwpTables(html: string) {
     const placement = mode === 'label' ? { mode } as const
       : anchor && breakMode ? { mode: 'flow', anchor, breakMode } as const
       : anchor?.overlay ? { mode: 'overlay', anchor } as const
-      : top !== undefined && top !== 283 ? { mode: 'inline-top', top } as const : undefined;
+      : anchor ? projectedInlineInsets(table.open, anchor)
+      : top !== undefined && top !== pasteOuterMargin ? { mode: 'inline-insets', top } as const : undefined;
     if (!placement) continue;
     let depth = 0, at = -1;
     for (const m of table.inner.matchAll(/<\/?(?:table|p)\b[^>]*>/g)) {
@@ -97,12 +109,15 @@ export function stageHwpTables(html: string) {
         if (!tokens.length) continue;
         if (tokens.length !== 1) throw Error('한글 표의 배치 위치가 모호합니다.');
         const record = records.get(tokens[0]); if (!record) throw Error('한글 표의 배치 정보를 찾지 못했습니다.');
-        if (record.mode === 'inline-top') {
-          // Native HTML paste gives every newly created table 283 HU. Restore
-          // the authored margin on this exact inline object only.
+        if (record.mode === 'inline-insets') {
+          // Restore only the newly pasted default on this exact inline object.
           const inner = table.inner.replace(/^<hp:sz\b[^>]*\/><hp:pos\b[^>]*\/><hp:outMargin\b[^>]*\/>/, prefix =>
-            /<hp:pos\b[^>]*\btreatAsChar="1"/.test(prefix) ? prefix.replace(/<hp:outMargin\b[^>]*\/>/, tag =>
-              /\btop="283"/.test(tag) ? set(tag, { top: record.top }) : tag) : prefix).replace(tokens[0], '');
+            /<hp:pos\b[^>]*\btreatAsChar="1"/.test(prefix) ? prefix.replace(/<hp:outMargin\b[^>]*\/>/, tag => {
+              const values: Record<string, number> = {};
+              if (/\btop="283"/.test(tag)) values.top = record.top;
+              if (record.bottom !== undefined && /\bbottom="283"/.test(tag)) values.bottom = record.bottom;
+              return set(tag, values);
+            }) : prefix).replace(tokens[0], '');
           xml = xml.slice(0, table.start) + table.open + inner + '</hp:tbl>' + xml.slice(table.end);
           restored++;
           continue;

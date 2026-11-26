@@ -187,8 +187,10 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
           const witness = require('../../scripts/windows-qa/hancom-line-witness.cjs');
           try {
             const {marginLeft, marginRight} = JSON.parse(saved.getPageDef(0));
+            const table = process.env.WINDOWS_TABLE_INSET_WITNESS
+              ? require('../../scripts/windows-qa/hancom-table-insets.cjs')(original, saved) : undefined;
             const value = { format, pages: saved.pageCount(), outsideRight: outside, tableCount: tables,
-              marginLeft, marginRight, ...witness(original, saved, 39, null) };
+              marginLeft, marginRight, ...witness(original, saved, 39, null), table };
             preciseMargins.push(value);
             console.log('WINDOWS_HANCOM_MARGIN_WITNESS ' + JSON.stringify(value));
           } finally { original.free(); }
