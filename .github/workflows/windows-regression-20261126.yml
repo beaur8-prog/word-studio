@@ -1,139 +1,25 @@
 name: Windows regression QA
-run-name: Windows authored Hancom script face and isolated PDF parity
+run-name: Measure real Windows 100 125 and 150 percent print layout
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  witness:
-    name: Windows source face / ${{ matrix.id }}
+  display:
+    name: Windows display scale / ${{ matrix.id }}
     runs-on: windows-latest
     timeout-minutes: 28
     strategy:
       fail-fast: false
       matrix:
         include:
+          - {group: word, id: 02-tables}
+          - {group: word, id: 06-long-body}
           - {group: hwp-1, id: 04-language-plan}
-          - {group: hwp-3, id: 06-mixed-document}
-          - {group: hwp-2, id: 08-math-exam}
     env:
-      PLAYWRIGHT_CHANNEL: chromium
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - run: npm ci
-      - run: npx playwright install chromium
-      - name: Validate native saves and the first authored paragraph divergence
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/face-witness" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/face-witness/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          $variants = @('HEAD')
-          if ($env:QA_ID -eq '04-language-plan') {
-            $variants = @('03d2faa0aeacce3355052b2fbb59d72d6ebad135','HEAD')
-          }
-          if ($env:QA_ID -eq '08-math-exam') {
-            $env:WINDOWS_REQUIRE_REVERSE = '1'
-            $env:WINDOWS_EXACT_REVERSE_PAGES = '1'
-          }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $env:WINDOWS_GRID_COMPARISON = "$env:RUNNER_TEMP/grid-control.json"
-          }
-          foreach ($variant in $variants) {
-            Write-Host "WINDOWS_AUTHORED_FACE_PRODUCT $variant"
-            git restore --source $variant -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            if ($env:QA_ID -eq '04-language-plan') { $env:WINDOWS_LATIN_WITNESS = "$env:RUNNER_TEMP/face-$variant.json" }
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          if ($env:QA_ID -eq '04-language-plan') {
-            $old = @(Get-Content "$env:RUNNER_TEMP/face-$($variants[0]).json" -Raw | ConvertFrom-Json)
-            $new = @(Get-Content "$env:RUNNER_TEMP/face-HEAD.json" -Raw | ConvertFrom-Json)
-            if ($old.Count -ne 2 -or $new.Count -ne 2) { throw 'Expected both Hancom formats' }
-            foreach ($index in 0,1) {
-              $control=$old[$index]; $candidate=$new[$index]
-              Write-Host "WINDOWS_AUTHORED_FACE_RESULT $($candidate.format) pages $($control.pages) to $($candidate.pages) lines $($control.lines) to $($candidate.lines) trailing-page $($control.nextPage) to $($candidate.nextPage)"
-              if ($candidate.format -ne $control.format -or $candidate.pages -ge $control.pages -or $candidate.lines -ne 1 -or $candidate.nextPage -ne 8) {
-                throw 'The authored line or following page did not recover'
-              }
-            }
-          }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $results = @(Get-Content $env:WINDOWS_GRID_COMPARISON -Raw | ConvertFrom-Json)
-            if ($results.Count -ne 2 -or @($results | Where-Object { $_.outside -ne 0 -or $_.inkOutside -ne 0 }).Count) {
-              throw 'The recovered grid stepped outside the paper'
-            }
-          }
-      - name: Validate both actual round-trip DOCX packages
-        shell: pwsh
-        run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/script-face-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
-          exit $status
-  formats:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    timeout-minutes: 20
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - run: npm ci
-      - run: npx playwright install chromium
-      - run: npm run test -- tests/hwp-script-fonts.spec.ts tests/docx-character-scale.spec.ts tests/docx-cell-character-scale.spec.ts tests/docx-textboxes.spec.ts tests/hwp-native-merged-grid-width.spec.ts tests/hwp-native-source-spacing.spec.ts tests/hwp-script-fallback-layout.spec.ts tests/hwp-source-text-advances.spec.ts --workers=1 --trace=off
-      - name: Validate both exact source-face synthetic DOCX saves
-        shell: pwsh
-        run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-latin-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          $subset = New-Item "$env:RUNNER_TEMP/source-face-sdk-input" -ItemType Directory
-          foreach ($doc in $docs) { Copy-Item -LiteralPath $doc.FullName -Destination $subset.FullName }
-          dotnet run --project scripts/word-openxml-validator -- $subset.FullName 2 *> "$env:RUNNER_TEMP/script-face-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_SOURCE_FACE_SDK total $($docs.Count) exit $status"
-          exit $status
-  native-face:
-    runs-on: windows-latest
-    timeout-minutes: 28
-    env:
-      WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_LINE_WITNESS: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -145,32 +31,49 @@ jobs:
       - run: npm ci
       - run: node node_modules/electron/install.js
       - run: npm run package:win:dir
-      - name: Save and reopen HWP and HWPX through the packaged application
+      - name: Save a real PDF at each verified rendering density
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/native-faces" --ids 04-language-plan
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/display-input" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-faces/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/display-input/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($verified -ne 1) { throw 'Pinned input missing' }
           $env:WORD_STUDIO_EXECUTABLE = "$((Get-Location).Path)/release/windows/Word Studio/Word Studio.exe"
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
-  pixel:
-    name: Windows PDF pixels / ${{ matrix.id }}
+          foreach ($scale in @('1','1.25','1.5')) {
+            $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
+            $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/geometry-$scale.json"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          foreach ($scale in @('1.25','1.5')) {
+            node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/geometry-1.json" "$env:RUNNER_TEMP/geometry-$scale.json" $scale
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+  changing-display:
     runs-on: windows-latest
-    timeout-minutes: 43
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {group: hwp-2, id: 02-work-rules, pages: 163}
+    timeout-minutes: 12
     env:
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      QA_PAGES: ${{ matrix.pages }}
+      PLAYWRIGHT_CHANNEL: chromium
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - run: npm run test -- tests/windows-qa/live-density.spec.ts --workers=1 --trace=off
+  native-profile:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      WINDOWS_NATIVE_PRINT_PROFILE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -178,35 +81,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Build and print the same pinned case from both product trees
+      - run: npm run package:win:dir
+      - name: Attribute the longest renderer work on the large native export
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/pdf-paint" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/profile-input" --ids 02-work-rules
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/pdf-paint/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          $versions = [ordered]@{
-            control = '78df75786b1aa6766a6c8362cc2e2eee46de5b79'
-            candidate = 'c5fcb686017841ddf3a9f7be29e86c9a42bf120b'
-          }
-          foreach ($item in $versions.GetEnumerator()) {
-            Write-Host "WINDOWS_PDF_PIXEL_PRODUCT $($item.Key)"
-            git restore --source $item.Value -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $item.Value -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            npm run package:win:dir
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Move-Item release/windows "$env:RUNNER_TEMP/pdf-app-$($item.Key)"
-            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/pdf-app-$($item.Key)/Word Studio/Word Studio.exe"
-            $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/$($item.Key)-paint.pdf"
-            if ($item.Key -eq 'control') { $env:WINDOWS_NATIVE_PDF_CLOSE_CONTROL = '1' }
-            else { Remove-Item Env:WINDOWS_NATIVE_PDF_CLOSE_CONTROL -ErrorAction SilentlyContinue }
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-      - name: Compare the decoded pixels with the Windows PDF renderer
-        shell: powershell
-        run: |
-          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/control-paint.pdf" -Candidate "$env:RUNNER_TEMP/candidate-paint.pdf" -ExpectedPages $env:QA_PAGES
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/profile-input/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = "$((Get-Location).Path)/release/windows/Word Studio/Word Studio.exe"
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          exit $LASTEXITCODE

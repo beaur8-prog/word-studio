@@ -98,6 +98,10 @@ async function main() {
     await init({ module_or_path: await fs.readFile(path.join(directory, 'rhwp_bg.wasm')) });
     Core = HwpDocument;
   }
+  const requestedScale = process.env.WINDOWS_FORCE_DEVICE_SCALE;
+  const dpiArgument = requestedScale && ['1','1.25','1.5','2'].includes(requestedScale)
+    ? ['--force-device-scale-factor=' + requestedScale] : [];
+  if (requestedScale && !dpiArgument.length) throw Error('Invalid requested scale');
   let failures = 0;
   let measured = 0;
 
@@ -109,12 +113,17 @@ async function main() {
     try {
       app = await electron.launch({
         executablePath: path.resolve(process.env.WORD_STUDIO_EXECUTABLE),
-        args: ['--user-data-dir=' + path.join(directory, item.id)],
+        args: ['--user-data-dir=' + path.join(directory, item.id), ...dpiArgument],
         env,
       });
       close = await require('../native-smoke-lifetime.cjs')(app, 'Public original ' + item.id, 1050000);
       const page = await app.firstWindow();
       await page.setViewportSize({ width: 1440, height: 1000 });
+      if (requestedScale) {
+        const available = await page.evaluate(() => devicePixelRatio);
+        console.log('WINDOWS_DENSITY ' + JSON.stringify({ requested:Number(requestedScale), actual:available }));
+        if (available !== Number(requestedScale)) throw Error('The renderer did not use the requested device density');
+      }
       await page.evaluate(() => {
         const tasks = [];
         window.qaLongTasks = tasks;
@@ -221,6 +230,11 @@ async function main() {
       const longest = await page.evaluate(start => Math.max(0, ...window.qaLongTasks
         .filter(task => task.at >= start).map(task => Math.round(task.duration))), rendererStart);
       console.log('WINDOWS_NATIVE_HOLD_LONGEST ' + longest);
+      if (process.env.WINDOWS_NATIVE_PRINT_GEOMETRY) {
+        stage = 'pdf-geometry';
+        const geometry = await require('./print-geometry.cjs')(page);
+        await fs.writeFile(process.env.WINDOWS_NATIVE_PRINT_GEOMETRY, JSON.stringify(geometry));
+      }
       if (process.env.WINDOWS_NATIVE_PDF_COPY) {
         if (inventory.length !== 1) throw new Error('A fixed single PDF case is required');
         await fs.copyFile(pdf, process.env.WINDOWS_NATIVE_PDF_COPY);
