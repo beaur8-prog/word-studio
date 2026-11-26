@@ -454,6 +454,18 @@ async function main() {
       const editorLongTasks = await page.evaluate(start => window.qaLongTasks.filter(task => task.at >= start)
         .map(task => Math.round(task.duration)).sort((a,b) => b-a).slice(0,5), rendererStarted);
       console.log('WINDOWS_HWP_EDITOR_READY ' + JSON.stringify({ id: item.id, editorPages, editorMilliseconds, editorLongTasks }));
+      if (process.env.WINDOWS_CHECK_STABLE_EDITOR_PAGES === '1') {
+        const traced = await page.evaluate(async () => {
+          const states = [];
+          for (let i=0; i<10; i++) {
+            const stack = document.querySelector('.document-stack');
+            states.push([Number(stack?.dataset.pages), Boolean(document.querySelector('.busy-indicator'))]);
+            if (i < 9) await new Promise(resolve => setTimeout(resolve, 500));
+          }
+          return states;
+        });
+        console.log('WINDOWS_NATIVE_EDITOR_SETTLED ' + JSON.stringify({scale:requestedScale, states:traced}));
+      }
       if (process.env.WINDOWS_NATIVE_DOCX_DIR && process.env.WINDOWS_NATIVE_DOCX_AFTER_PRINT !== '1') {
         await saveTwoDocxAndReopen(app, page, item, process.env.WINDOWS_NATIVE_DOCX_DIR, name => { stage = name; });
         if (!Core) { measured++; continue; }
