@@ -115,7 +115,7 @@ export async function previewEditableHwp(source: EditableHwp, name: string, onPr
   if (onProgress) { onProgress({ label: 'Word 편집 형식과 서식을 준비하는 중…' }); await paintHwpProgress(); signal?.throwIfAborted(); }
   const doc = importEditableHwp(source, name);
   const html = generateHTML(doc.content, editorExtensions);
-  const layout = await createPrintLayout(html, doc.page, onProgress, signal, { paintHwpCellLines: false });
+  const layout = await createPrintLayout(html, doc.page, onProgress, signal, { paintHwpCellLines: false, interactive: !!signal });
   try { return { ...source, html, editorPages: layout.pages, warnings: [...new Set([...source.warnings, ...layout.warnings])] }; }
   finally { layout.dispose(); }
 }

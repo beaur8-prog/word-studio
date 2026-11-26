@@ -2656,15 +2656,20 @@ function pasteHwpBody(doc: HwpDocument, converted: string, breakToken: string, o
   onProgress?.({ label: '본문·표·그림을 한글 문서로 변환하는 중…' });
   pasteStructuredHwpHtml(doc, converted, `<p>${breakToken}</p>`);
   onProgress?.({ label: '한글 문서의 쪽 나누기를 반영하는 중…' });
-  const last = doc.getParagraphCount(0) - 1;
-  if (last > 0 && doc.getParagraphLength(0, last) === 0) doc.deleteParagraph(0, last);
-  if (doc.getParagraphCount(0) > 1) doc.deleteParagraph(0, 0);
-  for (let p = 0; p < doc.getParagraphCount(0); p++) {
-    if (doc.getTextRange(0, p, 0, 100) !== breakToken) continue;
-    if (p + 1 < doc.getParagraphCount(0) && doc.getTextRange(0, p + 1, 0, 100) !== breakToken) doc.deleteParagraph(0, p);
-    else doc.deleteText(0, p, 0, breakToken.length);
-    doc.applyParaFormat(0, p, JSON.stringify({ pageBreakBefore: true }));
-  }
+  // These edits address the parsed paragraph model. Intermediate pages
+  // cannot be shown until the complete set of authored boundaries is in place.
+  doc.beginBatch();
+  try {
+    const last = doc.getParagraphCount(0) - 1;
+    if (last > 0 && doc.getParagraphLength(0, last) === 0) doc.deleteParagraph(0, last);
+    if (doc.getParagraphCount(0) > 1) doc.deleteParagraph(0, 0);
+    for (let p = 0; p < doc.getParagraphCount(0); p++) {
+      if (doc.getTextRange(0, p, 0, 100) !== breakToken) continue;
+      if (p + 1 < doc.getParagraphCount(0) && doc.getTextRange(0, p + 1, 0, 100) !== breakToken) doc.deleteParagraph(0, p);
+      else doc.deleteText(0, p, 0, breakToken.length);
+      doc.applyParaFormat(0, p, JSON.stringify({ pageBreakBefore: true }));
+    }
+  } finally { doc.endBatch(); }
 }
 
 export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageSettings, format: 'hwp' | 'hwpx',

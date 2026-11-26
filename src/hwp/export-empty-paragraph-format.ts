@@ -15,16 +15,19 @@ export function restorePastedEmptyParagraphs(doc: HwpDocument, { text, count }: 
         doc.getTextRange(0, paragraph, 0, text.length) === text) locations.push(paragraph);
   }
   if (locations.length !== count) return false;
-  return locations.every(paragraph => {
-    const { charShapeId } = JSON.parse(doc.getCharPropertiesAt(0, paragraph, 0));
-    if (!Number.isSafeInteger(charShapeId) || charShapeId < 0 ||
-        !JSON.parse(doc.deleteText(0, paragraph, 0, text.length)).ok ||
-        doc.getParagraphLength(0, paragraph) !== 0) return false;
-    // A temporary tab-setting run can leave its preceding default style at
-    // offset zero. Reuse the actual authored shape from the removed text.
-    return JSON.parse(doc.getCharPropertiesAt(0, paragraph, 0)).charShapeId === charShapeId ||
-      JSON.parse(doc.setCharShapeId(0, paragraph, 0, 0, charShapeId)).ok;
-  });
+  doc.beginBatch();
+  try {
+    return locations.every(paragraph => {
+      const { charShapeId } = JSON.parse(doc.getCharPropertiesAt(0, paragraph, 0));
+      if (!Number.isSafeInteger(charShapeId) || charShapeId < 0 ||
+          !JSON.parse(doc.deleteText(0, paragraph, 0, text.length)).ok ||
+          doc.getParagraphLength(0, paragraph) !== 0) return false;
+      // A temporary tab-setting run can leave its preceding default style at
+      // offset zero. Reuse the actual authored shape from the removed text.
+      return JSON.parse(doc.getCharPropertiesAt(0, paragraph, 0)).charShapeId === charShapeId ||
+        JSON.parse(doc.setCharShapeId(0, paragraph, 0, 0, charShapeId)).ok;
+    });
+  } finally { doc.endBatch(); }
 }
 
 export type TerminalEmptyFonts = {

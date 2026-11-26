@@ -70,9 +70,10 @@ test('desktop preview combines repeat requests and cancels a cold measurement', 
   } finally { release(); }
 });
 
-test('a preview can cancel between complete row groups in a single long table', async ({ page }) => {
+for (const mode of ['preview', 'HWP conversion'] as const) test(
+  `${mode} can cancel between complete row groups in a single long table`, async ({ page }) => {
   await page.goto('/');
-  const result = await page.evaluate(async () => {
+  const result = await page.evaluate(async mode => {
     const { createPrintLayout } = await import('/src/print-layout.ts');
     const { defaultPage } = await import('/src/types.ts');
     const rows = 320, controller = new AbortController();
@@ -93,13 +94,18 @@ test('a preview can cancel between complete row groups in a single long table', 
     observer.observe(document.body, { childList: true, subtree: true });
     let aborted = false;
     try {
-      const print = await createPrintLayout('<table><tbody>' + body + '</tbody></table>',
-        { ...defaultPage, pageNumbers: false }, undefined, controller.signal, { interactive: true });
-      print.dispose();
+      const html = '<table><tbody>' + body + '</tbody></table>', paper = { ...defaultPage, pageNumbers: false };
+      if (mode === 'HWP conversion') {
+        const { previewEditableHwp } = await import('/src/hwp/editing.ts');
+        await previewEditableHwp({ html, page: paper, warnings: [] }, 'long-table.hwp', undefined, controller.signal);
+      } else {
+        const print = await createPrintLayout(html, paper, undefined, controller.signal, { interactive: true });
+        print.dispose();
+      }
     } catch (error) { aborted = error instanceof DOMException && error.name === 'AbortError'; }
     finally { observer.disconnect(); performance.now = realTime; }
     return { partial, aborted, remaining: document.querySelectorAll('.print-layout').length };
-  });
+  }, mode);
   expect(result).toMatchObject({ aborted: true, remaining: 0 });
   expect(result.partial).toBeGreaterThan(0);
   expect(result.partial).toBeLessThan(320);
