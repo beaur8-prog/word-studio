@@ -12,7 +12,7 @@ import { hwpCellRasterFillAttribute, parseHwpCellRasterFill } from './hwp-cell-r
 /** Measure export geometry against print's current table/column widths and
  * loaded fonts. A wrapped cell uses its full native advance. A nested table
  * pair uses standard cell-relative anchors only while its rendered fit holds. */
-export async function measureHwpExportLayout(doc: StudioDocument) {
+export async function measureHwpExportLayout(doc: StudioDocument, interactive = false) {
   const nodes: JSONContent[] = [], tables: JSONContent[] = [], pairs: JSONContent[] = [], filledCells: JSONContent[] = [];
   const heights = new WeakMap<JSONContent, number>(), positionedPairs = new WeakSet<JSONContent>();
   const rasterCells = new WeakMap<JSONContent, { width: number; height: number; paragraphOffset: number }>();
@@ -46,7 +46,9 @@ export async function measureHwpExportLayout(doc: StudioDocument) {
     table.dataset.hwpExportCellPair = String(index);
   });
   return withoutEditorReflow(async () => {
-    const layout = await createPrintLayout(root.innerHTML, doc.page, undefined, undefined, { paintHwpCellLines: false });
+    // Menu-driven DOCX saves use the same row-group checkpoints as live
+    // print. The detached tree stays intact when the renderer yields.
+    const layout = await createPrintLayout(root.innerHTML, doc.page, undefined, undefined, { paintHwpCellLines: false, interactive });
     try {
       const fragments = new Map<number, HTMLElement[]>();
       for (const cell of layout.element.querySelectorAll<HTMLElement>('[data-hwp-export-raster-cell]')) {

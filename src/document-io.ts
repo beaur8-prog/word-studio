@@ -1240,9 +1240,9 @@ async function imageRun(
   });
 }
 
-export async function exportDocx(document: StudioDocument): Promise<Blob> {
+export async function exportDocx(document: StudioDocument, { interactive = false }: { interactive?: boolean } = {}): Promise<Blob> {
   validateDocument(document);
-  const { heights: cellLineHeights, positionedPairs, rasterCells } = await measureHwpExportLayout(document);
+  const { heights: cellLineHeights, positionedPairs, rasterCells } = await measureHwpExportLayout(document, interactive);
   const page = document.page;
   const geometries = new Map<string, ImageGeometryRecord>();
   const [portraitWidth, portraitHeight] = paperSize(page);

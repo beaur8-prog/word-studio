@@ -148,3 +148,41 @@ test('live Hancom body and cell metrics wait for a detached layout and resume on
   await expect(editor).toContainText('Body sample');
   await expect(editor).toContainText('Cell sample');
 });
+
+test('interactive DOCX measurement yields between complete table rows', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { exportDocx, importFile } = await import('/src/document-io.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const { defaultPage } = await import('/src/types.ts');
+    const rows = 140;
+    const labels = Array.from({ length: rows }, (_, index) => 'Table row label ' + (index + 1) + '.');
+    const html = '<table><tbody>' + labels.map(label =>
+      '<tr><td><p data-hwp-cell-line="1 Percent 16 24 16 16" style="font-size:16px;line-height:16px">' +
+      label + '</p></td></tr>').join('') + '</tbody></table>';
+    const source = { id:'docx-table-checkpoint', format:'word-studio', version:1,
+      title:'DOCX table checkpoints', updatedAt:new Date().toISOString(), content:parseDocumentHtml(html),
+      comments:[], page:defaultPage } as import('/src/types.ts').StudioDocument;
+    const now = performance.now.bind(performance);
+    let budget = 0;
+    let partial = false;
+    let sawCompleteRows = false;
+    const timer = setInterval(() => {
+      const measured = [...document.querySelectorAll('.print-layout.measuring .print-content tr')];
+      if (measured.length <= 0 || measured.length >= rows) return;
+      partial = true;
+      sawCompleteRows ||= measured.every((row, index) => row.textContent === labels[index]);
+    }, 0);
+    // Exercise the scheduler even on a fast runner.
+    performance.now = () => now() + (budget += 4);
+    let blob;
+    try { blob = await exportDocx(source, { interactive: true }); }
+    finally { clearInterval(timer); performance.now = now; }
+    const saved = await importFile(new File([blob], 'table.docx'));
+    const content = document.createElement('div'); content.innerHTML = saved.html ?? '';
+    return { partial, sawCompleteRows, text: [...content.querySelectorAll('tr')].map(row => row.textContent), labels,
+      measurementTrees: document.querySelectorAll('.print-layout.measuring').length };
+  });
+  expect(result).toMatchObject({ partial: true, sawCompleteRows: true, measurementTrees: 0 });
+  expect(result.text).toEqual(result.labels);
+});

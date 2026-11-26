@@ -814,7 +814,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       }
       const blob =
         extension === "docx"
-          ? await withoutEditorReflow(() => exportDocx(doc))
+          ? await withoutEditorReflow(() => exportDocx(doc, { interactive: true }))
           : extension === "wordstudio"
             ? new Blob([JSON.stringify(doc, null, 2)], {
                 type: "application/json",
