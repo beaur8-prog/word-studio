@@ -10,7 +10,7 @@ import { circledCompositionHtml } from './circled-composition';
 import { characterScaleProperty } from '../character-scale';
 import { hwpScaledCellFace, hwpShortCellLabel, hwpSourceWrapAttribute, hwpWrapFingerprint, normalizeHwpWrapText, parseHwpSourceWrap, type HwpSourceWrap } from '../hwp-text-advances';
 import type { HwpDocument } from '@rhwp/core';
-import type { PageSettings } from '../types';
+import { activeHwpHorizontalMargin, parseHwpHorizontalMargins, type PageSettings } from '../types';
 import documentLimits from '../../electron/document-limits.json';
 import type { HwpProgressReporter } from './progress';
 import type { HwpLayoutMetadata } from './layout-metadata';
@@ -1507,6 +1507,8 @@ function pageSettings(doc: HwpDocument, section: number, warnings: Set<string>):
     ...(column.columnCount > 1 ? { columns: { count: column.columnCount, space: px(column.spacing), balance: column.columnType === 1 } } : {}),
     margin: mm(p.marginLeft), margins: { top: mm(p.marginTop + p.marginHeader), right: mm(p.marginRight), bottom: mm(p.marginBottom + p.marginFooter), left: mm(p.marginLeft) },
     header: '', footer: '', pageNumbers: false, headerDistance: mm(p.marginTop), footerDistance: mm(p.marginBottom), gutter: mm(p.marginGutter) };
+  const originalMargins = parseHwpHorizontalMargins([p.marginLeft, p.marginRight]);
+  if (originalMargins?.some(value => value !== null && hu(mm(value)) !== value)) page.hwpHorizontalMargins = originalMargins;
   for (const isHeader of [true, false]) {
     const hf = JSON.parse(doc.getHeaderFooter(section, isHeader, 0));
     if (hf.exists) {
@@ -2594,7 +2596,8 @@ export function setHwpPage(doc: HwpDocument, page: PageSettings, section = 0) {
   doc.setPageDef(section, JSON.stringify({ width: page.size === 'Custom' ? hu(page.width!) : letter ? 61200 : 59528, height: page.size === 'Custom' ? hu(page.height!) : letter ? 79200 : 84188, landscape: page.orientation === 'landscape',
     // HWP top/bottom margins locate the furniture at the paper edge; the
     // header/footer areas are the additional distance to the body boundary.
-    marginTop: hu(header), marginRight: hu(m.right), marginBottom: hu(footer), marginLeft: hu(m.left),
+    marginTop: hu(header), marginRight: activeHwpHorizontalMargin(page, 'right') ?? hu(m.right),
+    marginBottom: hu(footer), marginLeft: activeHwpHorizontalMargin(page, 'left') ?? hu(m.left),
     marginHeader: hu(m.top - header), marginFooter: hu(m.bottom - footer), marginGutter: hu(page.gutter ?? 0) }));
   if (page.columns) doc.setColumnDef(section, page.columns.count, page.columns.balance ? 1 : 0, 1, Math.round(page.columns.space * 75));
   for (const isHeader of [true, false]) {

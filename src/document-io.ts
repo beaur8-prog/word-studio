@@ -79,7 +79,8 @@ import type {
   ParagraphChild,
   ITableCellBorders,
 } from "docx";
-import { defaultPage, pageMargins, basePageMargins, paperSize, activeDocxPrintPaper, wordLanguageTag } from "./types";
+import { defaultPage, pageMargins, basePageMargins, paperSize, activeDocxPrintPaper, wordLanguageTag,
+  activeHwpHorizontalMargin, parseHwpHorizontalMargins } from "./types";
 import { prepareDocxMetadata, TABLE_GAP_STYLE, TABLE_ANCHOR_STYLE, TABLE_OFFSET_STYLE, SECTION_BOUNDARY_STYLE, TABLE_END_STYLE } from './docx-metadata';
 import { emptyLineDocxProperty, emptyLineCompatibilityWarning } from './page-empty-lines';
 import { normalizeDocxTables } from './docx-table-grid';
@@ -221,7 +222,7 @@ export function validateDocument(input: unknown): StudioDocument {
   if (!object(page)) fail("용지 설정이 없습니다.");
   keysOnly(
     page,
-    ["size", "width", "height", "docxPrintPaper", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
+    ["size", "width", "height", "docxPrintPaper", "hwpHorizontalMargins", "orientation", "margin", "margins", "header", "footer", "pageNumbers",
       'differentFirstPage', 'differentOddEven', 'firstHeader', 'firstFooter', 'evenHeader', 'evenFooter',
       'firstPageNumbers', 'evenPageNumbers', 'headerDistance', 'footerDistance', 'gutter', 'gutterTop', 'breakType', 'columns', 'hideEmptyLines', 'suppressBottomSpacing',
       'headerHtml','footerHtml','firstHeaderHtml','firstFooterHtml','evenHeaderHtml','evenFooterHtml','wordBackground'],
@@ -238,6 +239,8 @@ export function validateDocument(input: unknown): StudioDocument {
     fail("용지 설정이 올바르지 않습니다.");
   if ((page.size === 'Custom' || page.width !== undefined || page.height !== undefined) &&
     (![page.width, page.height].every(n => finite(n, 25, 1320)))) fail('사용자 용지 크기가 올바르지 않습니다.');
+  if (page.hwpHorizontalMargins !== undefined && (!Array.isArray(page.hwpHorizontalMargins) ||
+      !parseHwpHorizontalMargins(page.hwpHorizontalMargins))) fail('한글 원본의 좌우 여백 단위가 올바르지 않습니다.');
   if (page.docxPrintPaper !== undefined && (!Array.isArray(page.docxPrintPaper) || page.docxPrintPaper.length !== 2 ||
       !page.docxPrintPaper.every(mm => finite(mm, 25, 1320)) || page.docxPrintPaper[0] > page.docxPrintPaper[1]))
     fail('DOCX 인쇄 용지 크기가 올바르지 않습니다.');
@@ -672,6 +675,14 @@ async function readDocxPage(
     page.margin = Math.round((margins[0] / (1440 / 25.4)) * 10) / 10;
     if (margins.some((n) => n !== margins[0]))
       page.margins = { top: margins[0] * 25.4 / 1440, right: margins[1] * 25.4 / 1440, bottom: margins[2] * 25.4 / 1440, left: margins[3] * 25.4 / 1440 };
+  }
+  const nativeMargins = parseHwpHorizontalMargins(margin?.getAttributeNS(exactPaperNamespace, 'hwpHorizontal'));
+  if (nativeMargins) {
+    const precise = parseHwpHorizontalMargins(nativeMargins.map((original, index) => {
+      const twips = attr(margin, index === 0 ? 'left' : 'right');
+      return original !== null && twips !== null && Math.round(original / 5) === Number(twips) ? original : null;
+    }));
+    if (precise) page.hwpHorizontalMargins = precise;
   }
   const relFile = zip.file("word/_rels/document.xml.rels");
   if (!relFile) return page;
@@ -1922,8 +1933,13 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
     return [width, height];
   });
   const hasExactPaper = exactPaper.some(Boolean);
+  const exactMargins = groups.map(({ page }) => parseHwpHorizontalMargins([
+    activeHwpHorizontalMargin(page, 'left') ?? null,
+    activeHwpHorizontalMargin(page, 'right') ?? null,
+  ]));
+  const hasExactMargins = exactMargins.some(Boolean);
   if (!bookmarkNames.size && !document.comments.length && !geometries.size && !textBoxes.length &&
-      groups.length === 1 && !page.wordBackground && !explicitNoWrapTrailSpaces && !hasExactPaper && !hwpFootnoteLayouts.size) return blob;
+      groups.length === 1 && !page.wordBackground && !explicitNoWrapTrailSpaces && !hasExactPaper && !hasExactMargins && !hwpFootnoteLayouts.size) return blob;
   // docx 9.12 emits resolution metadata only for replies. Standalone comments
   // need the same standard OOXML part; use its generated paragraph IDs.
   const zip = await JSZip.loadAsync(await blob.arrayBuffer());
@@ -1976,7 +1992,7 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
       if (changed) zip.file(name, new XMLSerializer().serializeToString(part));
     }
   }
-  if (groups.length > 1 || hasExactPaper) {
+  if (groups.length > 1 || hasExactPaper || hasExactMargins) {
     const body = xml(await zip.file('word/document.xml')!.async('string'));
     if (hasExactPaper) {
       const sectionProperties = elements(body, 'sectPr');
@@ -1990,6 +2006,18 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         size.setAttributeNS(markupCompatibility, 'mc:Ignorable', 'wspg');
         size.setAttributeNS(markupCompatibility, 'mc:PreserveAttributes', 'wspg:sizeMm');
         size.setAttributeNS(exactPaperNamespace, 'wspg:sizeMm', dimensions.join(' '));
+      });
+    }
+    if (hasExactMargins) {
+      const sectionProperties = elements(body, 'sectPr');
+      if (sectionProperties.length === exactMargins.length) sectionProperties.forEach((section, index) => {
+        const original = exactMargins[index], margins = elements(section, 'pgMar')[0];
+        if (!original || !margins || !original.every((hu, side) => hu === null || Math.round(hu / 5) === Number(attr(margins, side === 0 ? 'left' : 'right')))) return;
+        margins.setAttributeNS(xmlNamespaces, 'xmlns:wspg', exactPaperNamespace);
+        margins.setAttributeNS(xmlNamespaces, 'xmlns:mc', markupCompatibility);
+        margins.setAttributeNS(markupCompatibility, 'mc:Ignorable', 'wspg');
+        margins.setAttributeNS(markupCompatibility, 'mc:PreserveAttributes', 'wspg:hwpHorizontal');
+        margins.setAttributeNS(exactPaperNamespace, 'wspg:hwpHorizontal', original.map(hu => hu ?? '-').join(' '));
       });
     }
     // docx adds Paragraph({}) when a section ends with a table. Mark only

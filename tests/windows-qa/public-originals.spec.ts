@@ -138,7 +138,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
     const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
     const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
     await init({ module_or_path: await readFile(path.join(core, 'rhwp_bg.wasm')) });
-    const comparison = [], latin = [];
+    const comparison = [], latin = [], preciseMargins = [];
     for (const format of ['hwp', 'hwpx'] as const) {
       const saved = new HwpDocument(new Uint8Array(await readFile(info.outputPath('hancom-saved.' + format))));
       try {
@@ -182,6 +182,17 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
             console.log('WINDOWS_HANCOM_LINE_WITNESS ' + JSON.stringify(value));
           } finally { original.free(); }
         }
+        if (item.id === '06-mixed-document' && process.env.WINDOWS_MARGIN_WITNESS) {
+          const original = new HwpDocument(new Uint8Array(source));
+          const witness = require('../../scripts/windows-qa/hancom-line-witness.cjs');
+          try {
+            const {marginLeft, marginRight} = JSON.parse(saved.getPageDef(0));
+            const value = { format, pages: saved.pageCount(), outsideRight: outside, tableCount: tables,
+              marginLeft, marginRight, ...witness(original, saved, 39, null) };
+            preciseMargins.push(value);
+            console.log('WINDOWS_HANCOM_MARGIN_WITNESS ' + JSON.stringify(value));
+          } finally { original.free(); }
+        }
         if (process.env.WINDOWS_GRID_COMPARISON) {
           expect([...signatures.keys()].sort((a, b) => a - b)).toEqual([8, 10]);
           comparison.push({ format, pages: saved.pageCount(), tables, outside, inkOutside,
@@ -193,6 +204,8 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       await writeFile(process.env.WINDOWS_GRID_COMPARISON, JSON.stringify(comparison));
     if (process.env.WINDOWS_LATIN_WITNESS && latin.length)
       await writeFile(process.env.WINDOWS_LATIN_WITNESS, JSON.stringify(latin));
+    if (process.env.WINDOWS_MARGIN_WITNESS && preciseMargins.length)
+      await writeFile(process.env.WINDOWS_MARGIN_WITNESS, JSON.stringify(preciseMargins));
   }
   if (process.env.WINDOWS_REQUIRE_REOPEN === '1') {
     expect(result.reverse.map(out => ({ format: out.format, valid: out.valid }))).toEqual([

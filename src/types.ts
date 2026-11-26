@@ -9,6 +9,8 @@ export interface PageSettings {
   height?: number;
   /** Precise physical print size preserved beside the editable DOCX twip dimensions. */
   docxPrintPaper?: [number, number];
+  /** Authored Hancom left and right page margins in HWPUNIT. */
+  hwpHorizontalMargins?: [left: number | null, right: number | null];
   orientation: "portrait" | "landscape";
   margin: number;
   margins?: { top: number; right: number; bottom: number; left: number };
@@ -88,6 +90,25 @@ export interface StudioDocument {
 export const basePageMargins = (page: PageSettings) => page.margins ?? {
   top: page.margin, right: page.margin, bottom: page.margin, left: page.margin,
 };
+export function parseHwpHorizontalMargins(value: unknown): PageSettings['hwpHorizontalMargins'] {
+  const stored = typeof value === 'string' && /^(?:\d{1,5}|-) (?:\d{1,5}|-)$/.test(value)
+    ? value.split(' ').map(side => side === '-' ? null : Number(side)) : value;
+  if (Array.isArray(stored) && stored.length === 2 && stored.some(n => n !== null) &&
+      stored.every(n => n === null || Number.isSafeInteger(n) && n >= 0 && n <= 21260))
+    return [stored[0], stored[1]];
+}
+
+/** A margin edit takes precedence over the original sub-twip value. */
+export function activeHwpHorizontalMargin(page: PageSettings, side: 'left' | 'right'): number | undefined {
+  const original = parseHwpHorizontalMargins(page.hwpHorizontalMargins)?.[side === 'left' ? 0 : 1];
+  if (typeof original !== 'number') return;
+  const standard = Math.round(original / 5) * 25.4 / 1440;
+  const imported = Math.round(original * 25.4 / 72) / 100;
+  const current = basePageMargins(page)[side];
+  if (Math.abs(current - standard) < 1e-9 || current === imported ||
+      !page.margins && current === Math.round(standard * 10) / 10 && Math.round(current * 1440 / 25.4) === Math.round(original / 5))
+    return original;
+}
 export function paperSize(page: PageSettings): [number, number] {
   return page.size === 'Custom' && Number.isFinite(page.width) && Number.isFinite(page.height)
     ? [page.width!, page.height!] : page.size === 'Letter' ? [215.9, 279.4] : [210, 297];
