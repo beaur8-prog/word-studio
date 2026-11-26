@@ -11,7 +11,7 @@ import { paragraphLineOffsets } from './paragraph-fragments';
 import { horizontalInkFits, lineOpportunities, sourceLineBoundaries } from './hwp-source-cell-lines';
 import { hwpSingleBodyFace, hwpWrapFingerprint, normalizeHwpWrapText, parseHwpSourceWrap } from './hwp-text-advances';
 import { matchesStoredWrap } from './hwp-text-advance-layout';
-import { measuredHwpLineInk, retainedTextBands } from './hwp-line-ink';
+import { measuredHwpInkLines, measuredHwpLineInk, retainedTextBands } from './hwp-line-ink';
 import { imageFloating } from './image-floating';
 
 // A view-only page spacer carries line-height:0; it is not an authored
@@ -239,6 +239,8 @@ export function restoreHwpAuthoredBodyLines(paragraph: HTMLParagraphElement) {
       Math.abs(bounds.width - authored.width) > .6 || Math.abs(box.left - hanging - paper.left - origin.x) > .6 ||
       box.bottom + pitch > bounds.bottom + .5 ||
       lineCount + 1 !== proof.ends.length) return;
+  const mayRestoreStrut = paragraph.dataset.hwpBodyLayout === 'true' && policy && !policy.align &&
+    !policy.storedSingleLine && !policy.mixedLinePair && policy.base > policy.font;
   const ends = proof.ends.slice(0, -1), boundaries = sourceLineBoundaries(paragraph, ends);
   if (!boundaries || normalizeHwpWrapText(text).length !== proof.ends.at(-1)) return;
   const before = paragraph.innerHTML, range = document.createRange();
@@ -252,10 +254,22 @@ export function restoreHwpAuthoredBodyLines(paragraph: HTMLParagraphElement) {
     if (policy) layoutHwpBodyLines(paragraph, true);
   };
   if (policy) layoutHwpBodyLines(paragraph, true);
+  // The synthetic break disables percentage wrapping. With fixed leading
+  // on both the paragraph and its mixed-size runs, their different baselines
+  // can still expand the new line. Let the paragraph supply the strut and
+  // accept it only when every rendered line keeps its ink inside that pitch.
+  const useSourceStrut = mayRestoreStrut && paragraph.getBoundingClientRect().height - box.height - pitch > .2;
+  if (useSourceStrut) {
+    for (const inline of paragraph.querySelectorAll<HTMLElement>('span,strong,em,b,i,u,s,mark'))
+      inline.style.lineHeight = '1em';
+  }
   const after = paragraph.getBoundingClientRect(), actual = paragraphLineOffsets(paragraph);
+  const ink = useSourceStrut ? measuredHwpInkLines(paragraph, 1, authored.size) : undefined;
+  const fitsSourceStrut = !useSourceStrut || ink?.length === proof.ends.length && ink.every((line, index) =>
+    line.top >= after.top + index * pitch - 1 / 64 && line.bottom <= after.top + (index + 1) * pitch + 1 / 64);
   // Print offsets include each synthetic BR. Source offsets count only
   // the paragraph's literal text.
-  if (paragraph.textContent !== text || Math.abs(after.height - box.height - pitch) > .2 ||
+  if (!fitsSourceStrut || paragraph.textContent !== text || Math.abs(after.height - box.height - pitch) > .2 ||
       actual.length !== ends.length || actual.some((offset, index) => normalizeHwpWrapText(text.slice(0, offset - index - 1)).length !== ends[index]) ||
       !horizontalInkFits(paragraph, range, bounds)) {
     restore();

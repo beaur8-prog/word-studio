@@ -660,17 +660,18 @@ test('verified hanging HWP body lines survive print-only breaks and reject a cha
           authoredBodyLines:{hanging:30,size:16,pitch:24,width:240,
             origin:{page:1,x:box.left-paper.left-30,y:box.top-paper.top-(mode === 'late' ? 2 : 0)}} });
         const restore = restoreHwpAuthoredBodyLines(p);
+        const addedHeight = p.getBoundingClientRect().height - box.height;
         const printed = p.querySelectorAll('br').length, retainedText = p.textContent === literal;
         restore?.();
-        return {mode,printed,retainedText,restored:p.querySelectorAll('br').length};
+        return {mode,printed,addedHeight,retainedText,restored:p.querySelectorAll('br').length, restoredHeight:p.getBoundingClientRect().height};
       });
     } finally { sheet.remove(); }
   });
   expect(results).toEqual([
-    {mode:'plain',printed:1,retainedText:true,restored:0},
-    {mode:'mixed',printed:1,retainedText:true,restored:0},
-    {mode:'width',printed:0,retainedText:true,restored:0},
-    {mode:'late',printed:0,retainedText:true,restored:0},
+    {mode:'plain',printed:1,addedHeight:24,retainedText:true,restored:0,restoredHeight:24},
+    {mode:'mixed',printed:1,addedHeight:24,retainedText:true,restored:0,restoredHeight:24},
+    {mode:'width',printed:0,addedHeight:0,retainedText:true,restored:0,restoredHeight:24},
+    {mode:'late',printed:0,addedHeight:0,retainedText:true,restored:0,restoredHeight:24},
   ]);
 });
 

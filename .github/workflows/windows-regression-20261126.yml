@@ -1,40 +1,48 @@
 name: Windows regression QA
-run-name: Windows measured HWP line and print image witnesses
+run-name: Windows HWP authored pitch and long merge paint
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  witness:
-    name: Windows layout witnesses / ${{ matrix.source }}
-    runs-on: windows-latest
-    timeout-minutes: 16
+  layout:
+    name: HWP layout / ${{ matrix.check }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        source: [before-responsive-preview, current]
+        include:
+          - {os: windows-latest, check: Windows guarded pitch}
+          - {os: windows-latest, check: Windows merged-cell paint}
+          - {os: ubuntu-latest, check: Linux guarded pitch}
     env:
       PLAYWRIGHT_CHANNEL: chromium
-      QA_SOURCE: ${{ matrix.source }}
+      QA_CHECK: ${{ matrix.check }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - name: Select the exact initial or current product files
-        shell: pwsh
-        run: |
-          if ($env:QA_SOURCE -eq 'before-responsive-preview') {
-            git restore --source 19892d86e3599cbf2e735c40bdb23bd967242a5d -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code 19892d86e3599cbf2e735c40bdb23bd967242a5d -- src electron vendor package.json package-lock.json
-            exit $LASTEXITCODE
-          }
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx playwright install chromium
-      - run: npm run test -- tests/windows-qa/render-witnesses.spec.ts --workers=1 --trace=off
+      - if: runner.os == 'Linux'
+        run: npx playwright install --with-deps chromium
+      - if: runner.os == 'Windows'
+        run: npx playwright install chromium
+      - name: Check exact scope
+        shell: pwsh
+        run: |
+          if ($env:QA_CHECK -eq 'Windows merged-cell paint') {
+            npm run test -- tests/windows-qa/long-merge-witness.spec.ts --workers=1 --trace=off
+            exit $LASTEXITCODE
+          }
+          npm run test -- tests/hwp-source-text-advances.spec.ts tests/hwp-body-text-top.spec.ts tests/hwp-mixed-cell-leading.spec.ts --workers=1 --trace=off
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:QA_CHECK -eq 'Windows guarded pitch') {
+            npm run test -- tests/windows-qa/render-witnesses.spec.ts -g 'hanging source' --workers=1 --trace=off
+            exit $LASTEXITCODE
+          }
