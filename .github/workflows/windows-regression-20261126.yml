@@ -1,11 +1,76 @@
 name: Windows regression QA
-run-name: Repeat fixed grid Windows printing with the candidate first
+run-name: Verify the native Hancom page tail and Windows cell-line reuse
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
+  native-flow:
+    name: Windows native flow / ${{ matrix.id }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { group: hwp-3, id: 06-mixed-document, watch: '80,81,83,107', product: 'f355f3795f3dba0c7253a3b3163d051f1e53525a' }
+          - { group: hwp-1, id: 04-language-plan, watch: '132,135,136,138,139,159,160,161', product: '0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2' }
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      WINDOWS_NATIVE_EXPORT_FLOW: ${{ matrix.watch }}
+      QA_PRODUCT: ${{ matrix.product }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - name: Check both actual formats for the page-tail candidate and isolate the earlier 04 gap
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/native-flow" --ids $env:QA_ID
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-flow/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($verified -ne 1) { throw 'Pinned input missing' }
+          $product = $env:QA_PRODUCT
+          git restore --source $product -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code $product -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($env:QA_ID -eq '06-mixed-document') {
+            $env:WINDOWS_AUTHORED_TAIL_PROOF = '1'
+            $env:WINDOWS_PAGE_OFFSETS = '1'
+            $env:WINDOWS_ADJACENT_TABLE_WITNESS = '1'
+            $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/candidate-margin.json"
+            $env:WINDOWS_VERIFY_NATIVE_GEOMETRY = '1'
+            $env:WINDOWS_VERIFY_REVERSE_MEDIA = '1'
+            $env:WINDOWS_REQUIRE_REOPEN = '1'
+          } else { $env:WINDOWS_NATIVE_FLOW_ONLY = '1' }
+          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+          exit $LASTEXITCODE
+      - uses: actions/setup-dotnet@v4
+        if: matrix.id == '06-mixed-document'
+        with:
+          dotnet-version: '8.0.x'
+      - name: Validate the two actual Windows DOCX saves
+        if: matrix.id == '06-mixed-document'
+        shell: pwsh
+        run: |
+          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
+          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
+          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/tail-sdk.log"
+          $status = $LASTEXITCODE
+          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
+          exit $status
   pixel:
     name: Windows PDF pixels / ${{ matrix.id }}
     runs-on: windows-latest
@@ -41,8 +106,8 @@ jobs:
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
           $versions = [ordered]@{
-            candidate = 'a8bd2732e8e818a48b2139776744f80aaae3be23'
-            control = '5d2137ff86c103fd6bd2e3b6f4c2c67d15ce13bd'
+            control = '0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2'
+            candidate = 'HEAD'
           }
           foreach ($item in $versions.GetEnumerator()) {
             Write-Host "WINDOWS_PDF_PIXEL_PRODUCT $($item.Key)"
@@ -64,3 +129,50 @@ jobs:
         shell: powershell
         run: |
           scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/control-paint.pdf" -Candidate "$env:RUNNER_TEMP/candidate-paint.pdf" -ExpectedPages $env:QA_PAGES
+  focused:
+    name: Combined layout contracts / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+      - run: npx playwright install chromium
+        if: runner.os == 'Windows'
+      - name: Run focused layout contracts
+        shell: pwsh
+        run: |
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type)
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
+          npm run test -- tests/hwp-native-fixed-cell-reuse.spec.ts --workers=1 --trace=off
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git restore --source f355f3795f3dba0c7253a3b3163d051f1e53525a -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test -- tests/hwp-authored-page-tail.spec.ts --workers=1 --trace=off
+          exit $LASTEXITCODE

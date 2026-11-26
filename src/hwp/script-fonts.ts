@@ -127,7 +127,7 @@ function textTokens(html: string) {
   return tokens;
 }
 
-type BodyLineWitness = { origin: HwpSourceOrigin; hanging: number; tailRightMargin?: number; painted: readonly { y: number; charStart?: number }[] };
+type BodyLineWitness = { origin: HwpSourceOrigin; hanging: number; painted: readonly { y: number; charStart?: number }[] };
 type ColumnPaintLine = { y: number; h: number; page: number; charStart?: number };
 
 /** Record a complete authored paragraph from one physical text area. The
@@ -170,9 +170,7 @@ function preserveHwpMeasuredLineEnds(html: string, text: string, readLines: () =
       if (previous && (!earlier || earlier.cellWidth || earlier.columnWidth !== undefined ||
           earlier.fingerprint !== fingerprint || earlier.ends.length !== ends.length ||
           earlier.ends.some((end, index) => end !== ends[index]))) return html;
-      const witness = { origin: body.origin, width, hanging: body.hanging, size, pitch };
-      geometry = body.tailRightMargin ? { ...earlier, authoredTailInk: { ...witness, rightMargin: body.tailRightMargin } }
-        : { ...earlier, authoredBodyLines: witness };
+      geometry = { ...earlier, authoredBodyLines: { origin: body.origin, width, hanging: body.hanging, size, pitch } };
     } else {
       geometry = { columnWidth: width };
       const [first, last] = lines;

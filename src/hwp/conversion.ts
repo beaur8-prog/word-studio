@@ -2044,23 +2044,14 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const whole = range(0, 0xffffffff);
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';
       const painted = bodyLines.get(wrapKey), bodyX = wrapX ?? pitches.get(`leading-x:${wrapKey}`);
-      const tailRightMargin = (() => {
-        if (!recordBodyWidth || !properties.marginRight || properties.marginLeft || painted?.length !== 2 ||
-            wrapPage === undefined || pitches.get(`page:${section}:${para + 1}`) !== wrapPage + 1 ||
-            para + 1 >= paragraphCount || positions.length || properties.lineSpacingType !== 'Percent') return;
-        const last = painted[1], paper = JSON.parse(doc.getPageInfo(wrapPage));
-        const clearance = paper.footerArea?.y - last.y - last.h;
-        const leading = properties.lineSpacing * last.h / 100 - last.h;
-        if (Number.isFinite(clearance) && clearance >= 0 && clearance <= leading + .15) return Number(properties.marginRight);
-      })();
       if (recordBodyWidth && positions.length === 0 && properties.indent < 0 && painted && painted.length >= 2 &&
           wrapPage !== undefined && bodyX !== undefined && wrapY !== undefined && bodyX >= 0 && wrapY >= 0 &&
-          painted.every(line => line.page === wrapPage) && !properties.marginLeft && (!properties.marginRight || tailRightMargin) &&
+          painted.every(line => line.page === wrapPage) && !properties.marginLeft && !properties.marginRight &&
           !properties.keepWithNext && !properties.keepLines && !properties.pageBreakBefore &&
           properties.lineSpacingType === 'Percent' && !properties.fontLineHeight) {
         const text = doc.getTextRange(section, para, 0, textLength);
         const witnessed = preserveHwpBodyLineEnds(whole, text, () => doc.getParagraphLineMetrics(section, para, '[]'), {
-          origin: { page: wrapPage + 1, x: bodyX, y: wrapY }, hanging: -properties.indent, painted, tailRightMargin,
+          origin: { page: wrapPage + 1, x: bodyX, y: wrapY }, hanging: -properties.indent, painted,
         });
         // A new print witness must not activate the original fixed-space
         // leading policy below. Keep its input markup separate from the tag.

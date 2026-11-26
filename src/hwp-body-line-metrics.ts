@@ -556,46 +556,6 @@ export function sourceForcedBodyEndBottom(paragraph: HTMLElement, body: HTMLElem
   return bottom;
 }
 
-/** A stored two-line HWP page tail may leave its empty terminal leading
- * outside the content box. Keep the layout and accept only its contained ink. */
-export function sourceAuthoredTailInkBottom(paragraph: HTMLElement, body: HTMLElement) {
-  const wrap = parseHwpSourceWrap(paragraph.dataset.hwpSourceWrap);
-  const proof = wrap?.authoredTailInk, paper = body.closest<HTMLElement>('.print-page');
-  if (!proof || !paper || paragraph.parentElement !== body || proof.origin.page !== Number(paper.dataset.page) ||
-      paragraph.matches('[data-print-paragraph-fragment],[data-paragraph-border-box],[data-word-paragraph-bottom-border]') ||
-      paragraph.querySelector('br,img,svg,mark,s,del,sup,sub,a,[data-note-reference],[data-document-field],[data-docx-tab],[data-word-overlap]') ||
-      hwpWrapFingerprint(paragraph.textContent ?? '') !== wrap.fingerprint ||
-      paragraphLineOffsets(paragraph).length !== 1) return;
-  const page = paper.getBoundingClientRect(), bounds = body.getBoundingClientRect(), box = paragraph.getBoundingClientRect();
-  const css = getComputedStyle(paragraph);
-  const trailing = box.bottom - bounds.bottom;
-  if (css.textAlign !== 'justify' || css.direction !== 'ltr' || css.writingMode !== 'horizontal-tb' ||
-      css.transform !== 'none' || css.textShadow !== 'none' || css.backgroundColor !== 'rgba(0, 0, 0, 0)' ||
-      Math.abs(parseFloat(css.fontSize) - proof.size) > .08 || Math.abs(parseFloat(css.lineHeight) - proof.pitch) > .12 ||
-      Math.abs(parseFloat(css.textIndent) + proof.hanging) > .15 || Math.abs(parseFloat(css.marginRight) - proof.rightMargin) > .15 ||
-      Math.abs(box.width + proof.hanging - proof.width) > .2 || Math.abs(box.height - 2 * proof.pitch) > .15 ||
-      Math.abs(box.top - page.top - proof.origin.y) >= proof.pitch ||
-      !(trailing > 0 && trailing <= proof.pitch - proof.size)) return;
-
-  const range = document.createRange(), walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
-  let bottom = -Infinity;
-  while (walker.nextNode()) {
-    const node = walker.currentNode;
-    if (!node.textContent?.trim() || !node.parentElement) continue;
-    const style = getComputedStyle(node.parentElement);
-    if (style.textShadow !== 'none' || style.backgroundColor !== 'rgba(0, 0, 0, 0)') return;
-    range.selectNodeContents(node);
-    const reserve = node.parentElement.closest('u,[data-word-underline]') ? 1 : 0;
-    for (const rect of range.getClientRects()) {
-      if (!(rect.width > .1 && rect.height > 1)) continue;
-      if (rect.top < bounds.top || rect.left < bounds.left - .15 || rect.right > bounds.right + .15 ||
-          rect.bottom + reserve > bounds.bottom) return;
-      bottom = Math.max(bottom, rect.bottom + reserve);
-    }
-  }
-  if (Number.isFinite(bottom)) return bottom;
-}
-
 export function clearSourceBodyEndPaint(paragraph: HTMLElement) {
   if (paragraph.dataset.hwpProjectedBodyEnd === 'true') {
     paragraph.style.removeProperty('transform');
