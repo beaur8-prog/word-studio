@@ -42,6 +42,10 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
 }
 
 async function saveHangulFile(app, page, item, directory, Core, phase) {
+  const expectedImages = process.env.WINDOWS_NATIVE_PICTURE_PAINT === '1'
+    ? await page.locator('.tiptap img[data-inline-image]').evaluateAll(images => images.map(image => image.src.split(',')[1]))
+    : null;
+  if (expectedImages && expectedImages.length !== 2) throw Error('Expected both source group previews in the editor');
   const requested = (process.env.WINDOWS_NATIVE_HWP_FORMATS || 'hwp,hwpx').split(',');
   const formats = ['hwp', 'hwpx'].filter(format => requested.includes(format));
   if (!formats.length) throw new Error('No native Hangul output requested');
@@ -160,6 +164,25 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
             console.log('WINDOWS_LARGE_NATIVE_LOGICAL ' + JSON.stringify({ format, ...JSON.parse(result) }));
           }
         } finally { original.free(); }
+      }
+      if (expectedImages) {
+        const geometry = [];
+        const savedBytes = [];
+        for (let index = 0; index < readback; index++) {
+          const paper = JSON.parse(native.getPageInfo(index));
+          const pictures = JSON.parse(native.getPageControlLayout(index)).controls.filter(item => item.type === 'image' && !item.headerFooter);
+          for (const picture of pictures) {
+            const { secIdx, paraIdx, controlIdx, cellPath } = picture;
+            if (cellPath?.length) throw Error('Unexpected nested output illustration');
+            const data = native.getControlImageData(secIdx, paraIdx, '[]', controlIdx);
+            savedBytes.push(Buffer.from(data).toString('base64'));
+            geometry.push({page: index + 1, x: picture.x, y: picture.y, w: picture.w, h: picture.h,
+              inside: picture.x >= 0 && picture.y >= 0 && picture.x + picture.w <= paper.width && picture.y + picture.h <= paper.height });
+          }
+        }
+        const exact = JSON.stringify(savedBytes) === JSON.stringify(expectedImages);
+        console.log('WINDOWS_LARGE_NATIVE_PICTURE_PAINT ' + JSON.stringify({format, exact, geometry}));
+        if (!exact || geometry.length !== 2 || geometry.some(item => !item.inside)) throw Error('Missing or modified picture in the native readback');
       }
       const comparison = process.env.WINDOWS_NATIVE_HWP_COMPARISON;
       if (comparison) {

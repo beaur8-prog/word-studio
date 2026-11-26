@@ -24,7 +24,7 @@ import { nativeBoxAnchor, prepareHwpExportTextBoxes } from './export-textbox-pro
 import { measuredTableLead } from './export-table-lead';
 import { measuredContinuationPlacement, measuredPaperHeaderTable, measuredRasterTablePair, nativeContinuedTableAttribute, type PaperHeaderTable,
   type RasterTablePair, type TablePlacement } from './export-table-placement';
-import { measuredStandaloneBitmapSources, nativeStandalonePictureAttribute } from './export-picture-line';
+import { measuredStandalonePictureSources, nativeStandalonePictureAttribute } from './export-picture-line';
 import { measuredTerminalEmptyFonts, type TerminalEmptyFonts } from './export-empty-paragraph-format';
 import { measuredAuthoredSingleLines, type AuthoredSingleLine, measuredAuthoredTerminalWrap, measuredTerminalPageBreak, type AuthoredTerminalWrap, type TerminalPageBreak } from './export-terminal-page-break';
 import { measuredNativePageHead, type NativePageHead } from './export-page-head';
@@ -63,7 +63,8 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
       if (bodyLine) paragraph.style.lineHeight = `${bodyLine.percent}%`;
       else if (line > 0 && font > 0) paragraph.style.lineHeight = `${Math.round(line / font * 100)}%`;
       for (const property of ['font-family', 'font-size', 'font-weight', 'font-style', 'color']) span.style.setProperty(property, computed.getPropertyValue(property));
-      if (element.children.length === 1 && element.firstElementChild?.hasAttribute(nativeStandalonePictureAttribute)) {
+      if (element.children.length === 1 && element.firstElementChild?.hasAttribute(nativeStandalonePictureAttribute) &&
+          element.firstElementChild.getAttribute('src')?.startsWith('data:image/bmp;base64,')) {
         const indent = parseFloat(computed.textIndent), left = parseFloat(computed.marginLeft);
         // CSSOM combines the margins, but native paste reads only the
         // longhand. Keep the measured picture's authored hanging offset.
@@ -192,7 +193,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const authoredSingleLines: AuthoredSingleLine[] = [];
   const pageHeads: NativePageHead[] = [];
   let paperHeaderTable: PaperHeaderTable | undefined;
-  let standaloneBitmaps: string[] = [];
+  const standalonePictures: string[] = [];
   try {
     if (onProgress) { onProgress({ label: '한글 문서의 쪽 나누기를 준비하는 중…' }); await paintHwpProgress(); }
     warnings.push(...layout.warnings);
@@ -225,10 +226,8 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
           verticalPosition: { relative: 'page', offset: Math.round((box.top - paper.top) * 9525) } });
       }
       const content = sheet.querySelector('.print-content');
-      if (!index && content) {
-        paperHeaderTable = measuredPaperHeaderTable(content, sheet);
-        standaloneBitmaps = measuredStandaloneBitmapSources(content, paper);
-      }
+      if (!index && content) paperHeaderTable = measuredPaperHeaderTable(content, sheet);
+      if (content) standalonePictures.push(...measuredStandalonePictureSources(content, paper));
       const lead = content && index + 1 < wordPages ? measuredTableLead(content,index) : undefined;
       if (lead) tableLeads.push(lead);
       const placement = content && measuredContinuationPlacement(content, sheet, index);
@@ -303,9 +302,9 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       const anchor = continuedTables[index];
       if (anchor && table.dataset.tableAnchor === anchor) table.setAttribute(nativeContinuedTableAttribute, '');
     });
-    if (standaloneBitmaps.length) {
+    if (standalonePictures.length) {
       const images = [...root.querySelectorAll('img')];
-      for (const source of new Set(standaloneBitmaps)) {
+      for (const source of new Set(standalonePictures)) {
         const matching = images.filter(image => image.getAttribute('src') === source);
         if (matching.length === 1) matching[0].setAttribute(nativeStandalonePictureAttribute, '');
       }

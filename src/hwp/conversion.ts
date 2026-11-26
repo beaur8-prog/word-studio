@@ -48,7 +48,7 @@ import { metafilePreview } from './metafile-preview';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { restoreNativeContinuationPlacement, restoreNativePaperHeaderTable, restoreNativeRasterTablePair } from './export-table-placement';
-import { restoreStandalonePictureLine } from './export-picture-line';
+import { restoreStandalonePictureLines } from './export-picture-line';
 import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts, withoutPastedEmptyCarriers } from './export-empty-paragraph-format';
 import { restoreAuthoredNativeSingleLine, restoreAuthoredTerminalWrap, restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
@@ -2830,7 +2830,7 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withContinuationPlacement !== doc) { doc.free(); doc = withContinuationPlacement; }
     const withPaperHeaderTable = restoreNativePaperHeaderTable(Core, doc, nativePrint?.paperHeaderTable);
     if (withPaperHeaderTable !== doc) { doc.free(); doc = withPaperHeaderTable; }
-    const withPictureLine = restoreStandalonePictureLine(Core, doc, pictures.standaloneIds);
+    const withPictureLine = restoreStandalonePictureLines(Core, doc, pictures.standaloneIds);
     if (withPictureLine !== doc) { doc.free(); doc = withPictureLine; }
     const withRasterTable = restoreNativeRasterTablePair(Core, doc, nativePrint?.rasterTablePairs, nativePrint?.pages);
     if (withRasterTable !== doc) { doc.free(); doc = withRasterTable; }

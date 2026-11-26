@@ -138,3 +138,65 @@ for (const format of ['hwp', 'hwpx'] as const) {
     expect(result.text).toEqual(['Before picture', 'After picture']);
   });
 }
+
+for (const format of ['hwp', 'hwpx'] as const) {
+  test(`${format} displays standalone PNGs on later sheets after reopening`, async ({ page }) => {
+    await page.goto('/');
+    const painted = await page.evaluate(async format => {
+      const { exportEditableHwp } = await import('/src/hwp/editing.ts');
+      const { parseDocumentHtml } = await import('/src/extensions.ts');
+      const { HwpReaderSession } = await import('/src/hwp/reader.ts');
+      const { defaultPage } = await import('/src/types.ts');
+      const image = (color: string, description: string) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 48;
+        canvas.height = 18;
+        const context = canvas.getContext('2d')!;
+        context.fillStyle = color;
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        const bytes = canvas.toDataURL();
+        return { bytes, html: `<p style="margin:0;line-height:140%;font-size:12pt;text-align:center"><img data-inline-image="true" src="${bytes}" width="96" height="36" alt="${description}"></p>` };
+      };
+      const first = image('#26926a', 'First standalone illustration');
+      const second = image('#ac406c', 'Second standalone illustration');
+      const nextPage = '<div data-page-break="true"></div>';
+      const content = parseDocumentHtml('<p>Text before illustrations</p>' + nextPage + first.html +
+        nextPage + '<p>Text between illustrations</p>' + nextPage + second.html + nextPage + '<p>Text after illustrations</p>');
+      const doc = { format: 'word-studio' as const, version: 1 as const, id: crypto.randomUUID(), title: 'Standalone illustrations',
+        content, page: { ...defaultPage, pageNumbers: false }, comments: [], updatedAt: new Date().toISOString() };
+      const { blob } = await exportEditableHwp(doc, format);
+      const reader = new HwpReaderSession();
+      try {
+        const file = new File([blob], `illustrations.${format}`);
+        const { count } = await reader.open(file);
+        const result = [];
+        for (let index = 0; index < count; index++) {
+          const { svg, text } = await reader.page(index);
+          const root = new DOMParser().parseFromString(svg, 'image/svg+xml');
+          result.push({ text: text.trim(), images: [...root.querySelectorAll('image')].map(image =>
+            [Number(image.getAttribute('width')), Number(image.getAttribute('height'))]) });
+        }
+        return { result, bytes: [...new Uint8Array(await blob.arrayBuffer())],
+          expected: [first.bytes, second.bytes].map(url => url.split(',')[1]) };
+      } finally { reader.close(); }
+    }, format);
+    expect(painted.result).toEqual([
+      { text: 'Text before illustrations', images: [] },
+      { text: '', images: [[96, 36]] },
+      { text: 'Text between illustrations', images: [] },
+      { text: '', images: [[96, 36]] },
+      { text: 'Text after illustrations', images: [] },
+    ]);
+    const { default: init, HwpDocument } = await import('../node_modules/@rhwp/core/rhwp.js');
+    const { readFile } = await import('node:fs/promises');
+    await init({ module_or_path: await readFile('./node_modules/@rhwp/core/rhwp_bg.wasm') });
+    const saved = new HwpDocument(new Uint8Array(painted.bytes));
+    try {
+      const assets = [1, 3].flatMap(index => JSON.parse(saved.getPageControlLayout(index)).controls
+        .filter((item: { type: string }) => item.type === 'image')
+        .map((item: { secIdx: number; paraIdx: number; controlIdx: number }) =>
+          Buffer.from(saved.getControlImageData(item.secIdx, item.paraIdx, '[]', item.controlIdx)).toString('base64')));
+      expect(assets).toEqual(painted.expected);
+    } finally { saved.free(); }
+  });
+}
