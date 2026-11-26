@@ -9,9 +9,7 @@ module.exports = async function createFixture(directory) {
     doc.createBlankDocument();
     doc.pasteHtml(0, 0, 0, '<p>BEFORE</p><table style="width:400px"><tr><td style="width:400px;height:120px;padding:0"><p>TABLE BODY</p></td></tr></table><p>AFTER</p>');
     const zip = unzipSync(doc.exportHwpx());
-    zip['Contents/section0.xml'] = strToU8(strFromU8(zip['Contents/section0.xml'])
-      .replace(/<hp:outMargin\b[^>]*\/>/, tag => tag.replace(/\bbottom="\d+"/, 'bottom="140"'))
-      .replace('</hp:tbl>', '</hp:tbl><hp:t>SUFFIX</hp:t>'));
+    zip['Contents/section0.xml'] = strToU8(strFromU8(zip['Contents/section0.xml']).replace('</hp:tbl>', '</hp:tbl><hp:t>SUFFIX</hp:t>'));
     const loaded = new HwpDocument(zipSync(zip)); doc.free(); doc = loaded;
     const table = JSON.parse(doc.getControls()).find(c => c.ctrlId === 'tbl' && c.list === 0);
     doc.setTableProperties(0, table.para, table.controlIndex, JSON.stringify({ treatAsChar: true }));

@@ -455,9 +455,8 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       layoutHwpAuthoredCellTerminals(table);
       if (hwpSourceFlow?.missingCompactCellFace || hwpSourceFlow?.missingCompactHeaderFace)
         layoutHwpCompactCellFaces(table, hwpSourceFlow.missingCompactCellFace, hwpSourceFlow.missingCompactHeaderFace);
-    } else if (wordLayout.hwpNativeExport) {
-      layoutHwpSingleCellLines(table, true);
-      if (hwpSourceFlow?.missingCompactCellFace) layoutHwpCellWidthFallbacks(table, true);
+    } else if (wordLayout.hwpNativeExport && hwpSourceFlow?.missingCompactCellFace) {
+      layoutHwpCellWidthFallbacks(table, true);
     }
     if ((wordLayout.paintHwpCellLines !== false || wordLayout.hwpNativeExport) && hwpSourceFlow?.missingSingleBodyFace &&
         table.querySelector(`[${hwpNestedCellFaceAttribute}]`))

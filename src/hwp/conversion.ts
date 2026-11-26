@@ -2514,11 +2514,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         const cell = 'padding:0;border:none;vertical-align:bottom;';
         const tailWidth = Math.max(1, available - width);
         const tail = cssStyle(open, 'margin:0;text-indent:0;text-align:left;') + content + '</p>';
-        // The wrapper stands in for this authored inline object's line.
-        // Keep its trailing reserve instead of adding the paste default.
-        const bottom = hwpInlineTableBottom(Math.round(inlineTail.bottom * 75));
-        const trailing = bottom === undefined ? '' : ` ${hwpInlineTableBottomAttribute}="${bottom}"`;
-        const wrapped = `<table${trailing} style="width:${available}px;margin-left:${left}px;margin-bottom:${gap}px;border:none;"><tr><td colwidth="${Math.round(width)}" style="${cell}width:${width}px;">${inner}</td><td colwidth="${Math.round(tailWidth)}" style="${cell}width:${tailWidth}px;">${tail}</td></tr></table>`;
+        const wrapped = `<table style="width:${available}px;margin-left:${left}px;margin-bottom:${gap}px;border:none;"><tr><td colwidth="${Math.round(width)}" style="${cell}width:${width}px;">${inner}</td><td colwidth="${Math.round(tailWidth)}" style="${cell}width:${tailWidth}px;">${tail}</td></tr></table>`;
         size += hwpHtmlBytes(wrapped) - hwpHtmlBytes(table); checkHwpHtmlSize(size);
         pieces[piece] = wrapped; content = ''; contentBytes = 0;
       } else if (inlineTail?.wrapping && inlineTail.line === 0 && !onlyWhitespace(content) &&

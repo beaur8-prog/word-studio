@@ -64,7 +64,7 @@ test('two HWP table DOCX exports complete with the same live editor present and 
   await expect.poll(async () => Number(await page.locator('.document-stack').getAttribute('data-pages'))).toBeGreaterThan(1);
 });
 
-test('desktop Hangul saving holds live layout while preparing the review', async ({ page }) => {
+test('desktop Hangul saving holds live layout until the review closes', async ({ page }) => {
   await page.goto('/');
   const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
   await editor.fill('Keep this editable during the native format review.');
@@ -86,9 +86,10 @@ test('desktop Hangul saving holds live layout while preparing the review', async
   const states = await page.evaluate(() => (window as any).readHwpLayoutLease());
   expect(states.layoutStates.length).toBeGreaterThan(0);
   expect(states.layoutStates.every(Boolean)).toBe(true);
-  expect(states.suspended).toBe(false);
+  expect(states.suspended).toBe(true);
   await review.getByRole('button', { name: '취소', exact: true }).click();
   await expect(review).toBeHidden();
+  await expect.poll(() => page.evaluate(() => (window as any).readHwpLayoutLease().suspended)).toBe(false);
   await expect(editor).toHaveText('Keep this editable during the native format review.');
 });
 

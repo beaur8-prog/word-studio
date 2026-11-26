@@ -34,13 +34,41 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
     await page.locator('.busy-indicator').waitFor({state: 'hidden', timeout: 180000});
     selectStage('native-docx-reopen-' + generation);
     await app.evaluate(({ dialog, Menu }, source) => {
-      dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [source] });
+      globalThis.qaDocxOpenDialogCount = 0;
+      dialog.showOpenDialog = async () => {
+        globalThis.qaDocxOpenDialogCount++;
+        return { canceled: false, filePaths: [source] };
+      };
       const file = Menu.getApplicationMenu().items.find(item => item.label === 'File');
       const command = file?.submenu?.items.find(item => item.label === 'Open…');
       if (!command) throw Error('Native Open command unavailable');
       setTimeout(() => command.click(), 0);
     }, output);
-    await expect(title).toHaveValue(name, {timeout: 180000});
+    if (process.env.WINDOWS_NATIVE_DOCX_DIAGNOSE === '1') {
+      const classify = () => page.evaluate(() => {
+        const toast = document.querySelector('.toast')?.textContent ?? '';
+        const category = toast.startsWith('파일을 열지 못했습니다') ?
+          (/본문 속성/.test(toast) ? 'body-attribute' : /행 높이|셀 구조|표 /.test(toast) ? 'table-structure'
+          : /이미지|그림/.test(toast) ? 'picture' : /형식|DOCX/.test(toast) ? 'docx-import'
+          : /용량|너무|한도|MiB/.test(toast) ? 'size-limit' : /Invalid content|Unknown node/.test(toast) ? 'schema'
+          : 'other-import') : toast.startsWith('자동 저장 실패') ? 'recovery' : null;
+        return { category, busy: !!document.querySelector('.busy-indicator'),
+          recovery: [...document.querySelectorAll('dialog,[role="dialog"]')].some(el => /복구|자동 저장/.test(el.textContent ?? '')),
+          pictures: document.querySelectorAll('.tiptap img').length };
+      });
+      const reopened = await Promise.race([
+        expect(title).toHaveValue(name, {timeout:45000}).then(()=>true).catch(()=>false),
+        expect.poll(async()=>{const stage=await classify();return !!stage.category || stage.recovery;},
+          {timeout:45000}).toBe(true).then(()=>false).catch(()=>false),
+      ]);
+      const state = await classify();
+      const dialogCalls = await app.evaluate(() => globalThis.qaDocxOpenDialogCount);
+      console.log('WINDOWS_NATIVE_DOCX_DIAGNOSIS ' + JSON.stringify({ id:item.id, generation, dialogCalls, reopened,
+        bytes:(await fs.stat(output)).size, ...state }));
+      if (!reopened) throw Error('Native DOCX reopen did not reach the editor');
+    } else {
+      await expect(title).toHaveValue(name, {timeout: 180000});
+    }
     await page.locator('.busy-indicator').waitFor({state: 'hidden', timeout: 180000});
     await page.evaluate(() => document.fonts.ready);
     console.log('WINDOWS_NATIVE_DOCX_SAVED_AND_REOPENED ' + generation);
