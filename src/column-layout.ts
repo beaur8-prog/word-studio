@@ -7,12 +7,14 @@ import { layoutHwpBodyLines } from './hwp-body-line-metrics';
 import { documentScale } from './document-scale';
 import { parseHwpBodyLine } from './hwp-body-line';
 import { measureHwpColumnEnd } from './hwp-column-end';
-import { applySourceColumnEnd, measureSourceColumnEnd, restoreSourceColumnEnd } from './hwp-column-source-layout';
+import { applySourceColumnEnd, layoutSourceColumnPredecessor, measureSourceColumnEnd, restoreSourceColumnEnd } from './hwp-column-source-layout';
 
 const keptTables = new WeakMap<HTMLElement, { breakBefore: string; paddingTop: string }>();
 /** Static print fragments can carry layout styles directly. Live paragraphs
  * use a ProseMirror decoration to keep their HTML and selection intact. */
 function layoutHwpColumnEnds(group: HTMLElement, scale: number, bottom: number) {
+  for (const prior of group.querySelectorAll<HTMLElement>(':scope > p[data-hwp-column-prior-width]'))
+    layoutSourceColumnPredecessor(prior, scale);
   for (const p of group.querySelectorAll<HTMLElement>(':scope > p[data-hwp-column-end-source]')) {
     restoreSourceColumnEnd(p);
     delete p.dataset.hwpColumnEnd;

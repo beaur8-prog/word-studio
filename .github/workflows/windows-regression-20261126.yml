@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Measure the painted runs and actual Windows faces before the first extra sheet
+run-name: Verify authored column proportion on the Windows exam terminal pair
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -19,7 +19,6 @@ jobs:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_TRACE_COLUMN_END: '1'
       WINDOWS_ENGLISH_TERMINAL_DETAIL: '1'
       WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
     steps:
