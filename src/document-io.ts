@@ -772,19 +772,15 @@ export async function importFile(file: File): Promise<ImportResult> {
     fail(
       "DOCX, Word Studio, HTML 또는 TXT 파일을 선택해 주세요. 구형 DOC 파일은 DOCX로 변환해야 합니다.",
     );
-  const mark = (phase: string) => console.log('QA_MATH_NATIVE_STAGE ' + JSON.stringify({ phase, ms: Math.round(performance.now()), n: 0 }));
   const buffer = await file.arrayBuffer();
-  mark('docx-buffer');
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(buffer);
-    mark("docx-zip");
   } catch {
     fail(
       "DOCX 파일을 읽을 수 없습니다. 암호화 또는 손상된 파일인지 확인해 주세요.",
     );
   }
-  mark('docx-size-entry-' + Object.keys(zip.files).length);
   const entries = Object.values(zip.files);
   if (entries.length > 10000) fail("DOCX에 내부 파일이 너무 많습니다.");
   // JSZip exposes central-directory size metadata before inflating file contents.
@@ -800,11 +796,7 @@ export async function importFile(file: File): Promise<ImportResult> {
   const documentXml = zip.file("word/document.xml");
   if (!documentXml || !zip.file("[Content_Types].xml"))
     fail("유효한 DOCX 문서가 아닙니다.");
-  mark('docx-before-body-' + document.visibilityState);
-  const bodyText = await documentXml.async("string");
-  mark('docx-inflated-body-' + bodyText.length);
-  const body = xml(bodyText);
-  mark('docx-xml-body');
+  const body = xml(await documentXml.async("string"));
   const warnings = [
     "DOCX는 편집 가능한 본문으로 변환됩니다. 원본의 세밀한 글꼴·배치·페이지 나눔은 달라질 수 있습니다.",
   ];
@@ -822,19 +814,11 @@ export async function importFile(file: File): Promise<ImportResult> {
     warnings.push(
       "수식, OLE 개체 또는 도형은 완전히 변환되지 않을 수 있습니다.",
     );
-  mark('docx-body-inventory');
   const doc = makeDocument(file.name);
   const repairedTables = normalizeDocxTables(body);
-  mark('docx-tables-' + repairedTables);
   if (repairedTables) warnings.push(`생략된 표 격자 또는 가로 병합 ${repairedTables}개를 편집 가능한 셀로 보완했습니다.`);
   const sections = elements(body, 'sectPr');
-  mark('docx-before-sections-' + sections.length);
-  const pages = await Promise.all(sections.map(async (s, i) => {
-    const page = await readDocxPage(zip, body, warnings, s);
-    mark('docx-section-' + i);
-    return page;
-  }));
-  mark('docx-sections');
+  const pages = await Promise.all(sections.map(s => readDocxPage(zip, body, warnings, s)));
   // DOCX has no equivalent of Hancom's conditional two-line section rule.
   // Keep just that policy in a standard custom property, without replacing
   // real paragraphs or freezing their heights to the current pagination.
@@ -908,7 +892,6 @@ export async function importFile(file: File): Promise<ImportResult> {
   const textboxes = await prepareTextBoxes(zip, body, pages);
   if (textboxes.count) warnings.push(`텍스트상자 ${textboxes.count}개의 내용을 배경·크기와 함께 편집 가능한 별도 영역으로 가져왔습니다.`);
   const metadata = await prepareDocxMetadata(zip, body, pages, { connectedBodyBorders: true });
-  mark('docx-metadata');
   doc.comments = metadata.comments;
   if (metadata.wordDefaultLanguage) doc.wordDefaultLanguage = metadata.wordDefaultLanguage;
   const commentsPart = zip.file('word/comments.xml');
@@ -931,12 +914,8 @@ export async function importFile(file: File): Promise<ImportResult> {
       ],
     },
   );
-  mark('docx-mammoth');
   const notes = await documentNotes(zip, doc.page);
-  const decorated = metadata.decorate(result.value);
-  mark('docx-decorated');
-  const sanitized = sanitizeImportedHtml(structureDocxSections(attachDocumentNotes(textboxes.decorate(decorated), notes), pages));
-  mark('docx-sanitized');
+  const sanitized = sanitizeImportedHtml(structureDocxSections(attachDocumentNotes(textboxes.decorate(metadata.decorate(result.value)), notes), pages));
   return {
     document: doc,
     html: sanitized.html,

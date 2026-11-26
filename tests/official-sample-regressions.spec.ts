@@ -172,44 +172,6 @@ test('header images and tables survive and reserve space above the first body li
   expect(await page.evaluate(()=>document.querySelector('.print-content > p')!.getBoundingClientRect().top-document.querySelector('.print-header')!.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(0);
 });
 
-test('working DOCX header keeps its related image without copying body-only media', async ({ page }) => {
-  const header = `<w:hdr xmlns:w="${W}" xmlns:r="${R}"><w:p><w:r><w:t>Header asset</w:t>${pict}</w:r></w:p></w:hdr>`;
-  const bytes = await fixture(`<w:p><w:r><w:t>Body asset</w:t>${pict}</w:r></w:p>`,
-    '<w:headerReference w:type="default" r:id="header"/>' + margins, {
-      'word/_rels/document.xml.rels': rels(relationship('header','header','header1.xml') +
-        relationship('image','image','media/body-only.png')),
-      'word/header1.xml': header,
-      'word/_rels/header1.xml.rels': rels(relationship('image','image','/word/media/header-only.png')),
-      'word/media/body-only.png': pixel,
-      'word/media/header-only.png': pixel,
-    });
-  const observed = await page.evaluate(async bytes => {
-    // @ts-expect-error Vite modules.
-    const { importFile } = await import('/src/document-io.ts');
-    // @ts-expect-error Vite module.
-    const Zip = (await import('/node_modules/.vite/deps/jszip.js')).default as typeof JSZip;
-    const generate = Zip.prototype.generateAsync;
-    const media: string[][] = [];
-    Zip.prototype.generateAsync = function (...args) {
-      media.push(Object.keys(this.files).filter(path => /^word\/media\/.+\.png$/.test(path)).sort());
-      return generate.apply(this, args);
-    } as typeof generate;
-    try {
-      const opened = await importFile(new File([new Uint8Array(bytes)], 'media.docx'));
-      const pictures = (html: string) => {
-        const template = document.createElement('template'); template.innerHTML = html;
-        return [...template.content.querySelectorAll('img')].map(img => img.getAttribute('src'));
-      };
-      return { media, header: pictures(opened.document.page.headerHtml ?? ''), body: pictures(opened.html) };
-    } finally { Zip.prototype.generateAsync = generate; }
-  }, [...bytes]);
-  const data = 'data:image/png;base64,' + pixel.toString('base64');
-  expect(observed.header).toEqual([data]);
-  expect(observed.body).toEqual([data]);
-  expect(observed.media).toContainEqual(['word/media/header-only.png']);
-  expect(observed.media).toContainEqual(['word/media/body-only.png', 'word/media/header-only.png']);
-});
-
 test('comments retain author, initials and rich formatting through save', async ({ page }) => {
   const result = await convert(page,await fixture('<w:p><w:commentRangeStart w:id="4"/><w:r><w:t>Comment target</w:t></w:r><w:commentRangeEnd w:id="4"/></w:p>',margins,{
     'word/_rels/document.xml.rels':rels(relationship('comments','comments','comments.xml')),

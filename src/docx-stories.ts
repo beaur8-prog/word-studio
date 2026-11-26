@@ -7,92 +7,20 @@ import { W, all, val } from './docx-format';
 import { pageMargins, paperDimensions, type PageSettings } from './types';
 import { hwpFootnoteLayoutAttribute, hwpFootnoteMarkAttribute, hwpFootnoteNamespace, parseHwpFootnoteLayout } from './hwp-footnote-layout';
 
-const bodyRelationships = 'word/_rels/document.xml.rels';
-const storyFiles = new WeakMap<JSZip, Promise<JSZip['files']>>();
-
-function relationshipPartTarget(base: string, target: string) {
-  if (/[:\\?#]/u.test(target)) return;
-  const parts = target.startsWith('/') ? [] : base.split('/').filter(Boolean);
-  for (const part of target.split('/')) {
-    if (!part || part === '.') continue;
-    if (part === '..') {
-      if (!parts.length) return;
-      parts.pop();
-    } else parts.push(part);
-  }
-  return parts.join('/');
-}
-
-function filesForStories(zip: JSZip) {
-  let pending = storyFiles.get(zip);
-  if (!pending) {
-    pending = (async () => {
-      const files = Object.entries(zip.files);
-      if (!files.some(([name, entry]) => name.startsWith('word/media/') && !entry.dir)) return zip.files;
-      const required = new Set<string>();
-      for (const [name, entry] of files) {
-        const boundary = name.lastIndexOf('_rels/');
-        if (name === bodyRelationships || entry.dir || boundary < 0 || !name.endsWith('.rels')) continue;
-        const source = await entry.async('string');
-        if (/<!DOCTYPE|<!ENTITY/i.test(source)) return zip.files;
-        const relationships = new DOMParser().parseFromString(source, 'application/xml');
-        if (relationships.getElementsByTagName('parsererror').length) return zip.files;
-        for (const relation of Array.from(relationships.getElementsByTagNameNS('*', 'Relationship'))) {
-          if (relation.getAttribute('TargetMode') === 'External') continue;
-          const target = relation.getAttribute('Target');
-          if (!target) continue;
-          const base = name.slice(0, boundary);
-          const spellings = [target];
-          if (target.includes('%')) {
-            try { spellings.push(decodeURIComponent(target)); }
-            catch { return zip.files; }
-          }
-          for (const spelling of spellings) {
-            const path = relationshipPartTarget(base, spelling);
-            if (!path) return zip.files;
-            required.add(path);
-            // A story is repackaged as the main Word part. Also retain
-            // anything its relative relationship can resolve there.
-            const mainPath = relationshipPartTarget('word', spelling);
-            if (mainPath) required.add(mainPath);
-          }
-        }
-      }
-      return Object.fromEntries(files.filter(([name, entry]) =>
-        entry.dir || !name.startsWith('word/media/') || required.has(name)));
-    })();
-    storyFiles.set(zip, pending);
-  }
-  return pending;
-}
-
 /** Convert a header, comment or note through the same formatting path as body
  * text, with its own relationships. The original ZIP and story stay unchanged. */
 export async function storyHtml(zip: JSZip, part: string, root: Element, page: PageSettings, depth=0, preserveReflection = false) {
-  const started = performance.now();
-  const report = (stage: string, count: number) => console.info('QA_MATH_NATIVE_STAGE story-' + stage, count, Math.round(performance.now() - started));
-  report('start', root.childElementCount);
-  const copy = new JSZip();
-  // The body relationships are replaced below. Serializing body-only
-  // pictures into every header or footer archive can multiply the same payload
-  // across all sections. Retain assets from all remaining relationship parts.
-  copy.files = { ...(part === 'word/document.xml' ? zip.files : await filesForStories(zip)) };
-  report('parts', Object.keys(copy.files).length);
+  const copy = new JSZip(); copy.files = { ...zip.files };
   const body = new DOMParser().parseFromString(`<w:document xmlns:w="${W}"><w:body/></w:document>`, 'application/xml');
   const target = all(body, 'body')[0];
   for (const element of Array.from(root.children)) target.append(body.importNode(element, true));
   const relationships = zip.file(part.replace(/([^/]+)$/, '_rels/$1.rels'));
-  copy.file(bodyRelationships, relationships ? await relationships.async('string') : '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>');
+  copy.file('word/_rels/document.xml.rels', relationships ? await relationships.async('string') : '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>');
   const textboxes = await prepareTextBoxes(copy, body, [page], depth, preserveReflection);
-  report('boxes', textboxes.count);
   const metadata = await prepareDocxMetadata(copy, body, [page], { preserveReflection, textBoxStory: root.localName === 'txbxContent' });
-  report('packaged', metadata.buffer.byteLength);
   const result = await mammoth.convertToHtml({ arrayBuffer: metadata.buffer }, { externalFileAccess: false,
     includeEmbeddedStyleMap: false, ignoreEmptyParagraphs: false, styleMap: ['u => u', 'strike => s'] });
-  report('mammoth', result.value.length);
-  const html = textboxes.decorate(metadata.decorate(result.value));
-  report('decorated', html.length);
-  return html;
+  return textboxes.decorate(metadata.decorate(result.value));
 }
 
 export async function documentNotes(zip: JSZip, page: PageSettings) {
