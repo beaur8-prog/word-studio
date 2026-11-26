@@ -113,10 +113,18 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
       const readback = native.pageCount();
       if (!pages || readback < 1 || readback !== Number(pages[2])) throw new Error('Native Hangul readback disagreed');
       const expected = process.env.WINDOWS_EXPECT_NATIVE_PAGES?.split(',').map(Number);
-      if (expected && readback !== expected[format === 'hwp' ? 0 : 1])
-        throw new Error('Native Hangul final page count disagreed');
       console.log('WINDOWS_NATIVE_HANGUL ' + JSON.stringify({ id:item.id, format, bytes:bytes.length,
         printPages:Number(pages[1]), savedPages:readback, seconds:(Date.now()-started)/1000 }));
+      if (process.env.WINDOWS_MEASURE_BINARY_TAIL === '1') {
+        const tail = Array.from({length:readback}, (_, i) => {
+          const runs = JSON.parse(native.getPageTextLayout(i)).runs;
+          const owner = runs.filter(r => r.secIdx === 0 && r.paraIdx === 38 && !r.cellPath?.length && !r.headerFooter && r.text.trim());
+          return [i+1, ...owner.map(r=>[r.charStart,r.y,r.h,r.text.replace(/\s/gu,'').length])];
+        }).filter(line => line.length > 1);
+        console.log('WINDOWS_PACKAGED_BINARY_TAIL ' + JSON.stringify({format,pages:readback,tail}));
+      }
+      if (expected && readback !== expected[format === 'hwp' ? 0 : 1])
+        throw new Error('Native Hangul final page count disagreed');
       if (item.id === '04-language-plan' && process.env.WINDOWS_NATIVE_LINE_WITNESS === '1') {
         const original = new Core(await fs.readFile(item.path));
         try {
