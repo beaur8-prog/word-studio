@@ -182,6 +182,10 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
                 ? require('../../scripts/windows-qa/hancom-single-line-witness.cjs')(original, saved) : undefined };
             latin.push(value);
             console.log('WINDOWS_HANCOM_LINE_WITNESS ' + JSON.stringify(value));
+            if (process.env.WINDOWS_PAGE_OFFSETS) {
+              const measure = require('../../scripts/windows-qa/hancom-source-page-offsets.cjs');
+              console.log('WINDOWS_HANCOM_PAGE_OFFSETS ' + JSON.stringify({ format, ...measure(original, saved) }));
+            }
           } finally { original.free(); }
         }
         if (item.id === '06-mixed-document' && process.env.WINDOWS_MARGIN_WITNESS) {

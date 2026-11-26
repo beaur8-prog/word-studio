@@ -9,7 +9,7 @@ export class PreservedTable extends Table {
     private readonly overlayPosition?: { x: number; y: number; width: number },
     private readonly topGap?: number, private readonly centeredBorders: boolean | 'inline' | 'continuation' = false, private readonly keptTablePage?: number,
     private readonly continuation?: string, private readonly nestedLayout?: string, private readonly relatedLayout?: string, private readonly inlineOuterTop?: number,
-    private readonly nativeGrid?: string) { super(options); }
+    private readonly nativeGrid?: string, private readonly inlineOuterBottom?: number) { super(options); }
   prepForXml(context: Parameters<Table['prepForXml']>[0]) {
     const result = super.prepForXml(context);
     const children = result?.['w:tbl'];
@@ -37,7 +37,7 @@ export class PreservedTable extends Table {
         } }] }] }];
       }
     }
-    if ((this.anchor || this.topGap || this.centeredBorders || this.keptTablePage || this.continuation || this.nestedLayout || this.relatedLayout || this.inlineOuterTop !== undefined || this.nativeGrid) && Array.isArray(children)) {
+    if ((this.anchor || this.topGap || this.centeredBorders || this.keptTablePage || this.continuation || this.nestedLayout || this.relatedLayout || this.inlineOuterTop !== undefined || this.inlineOuterBottom !== undefined || this.nativeGrid) && Array.isArray(children)) {
       let attributes = children.find((entry: any) => entry && '_attr' in entry)?.['_attr'];
       if (!attributes) { attributes = {}; children.unshift({ _attr: attributes }); }
       const layout = { ...(this.anchor ? { 'ws:anchor': JSON.stringify(this.anchor) } : {}),
@@ -49,6 +49,7 @@ export class PreservedTable extends Table {
         ...(this.nestedLayout ? { 'ws:nestedLayout': this.nestedLayout } : {}),
         ...(this.relatedLayout ? { 'ws:relatedLayout': this.relatedLayout } : {}),
         ...(this.inlineOuterTop !== undefined ? { 'ws:inlineOuterTop': String(this.inlineOuterTop) } : {}),
+        ...(this.inlineOuterBottom !== undefined ? { 'ws:inlineOuterBottom': String(this.inlineOuterBottom) } : {}),
         ...(this.nativeGrid ? { 'ws:nativeGrid': this.nativeGrid } : {}) };
       Object.assign(attributes, { 'xmlns:ws': paragraphTableNamespace,
         'xmlns:mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006',
