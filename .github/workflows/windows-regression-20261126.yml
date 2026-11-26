@@ -1,18 +1,25 @@
 name: Windows regression QA
-run-name: Pair responsive DOCX geometry on identical Windows input, with real two saves and reopens
+run-name: Audit visible content on the large PDFs whose final exact raster changed
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  paired-menu-save:
-    name: Actual Windows large DOCX save pair
+  content-audit:
+    name: Windows physical content audit / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 43
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {group: public-2, id: moel-harassment-manual}
+          - {group: hwp-2, id: 02-work-rules}
     env:
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_NATIVE_DOCX_SAVE_TRACE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,21 +29,18 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Use the same source HWP and two separated application profiles
+      - name: Capture scalar content comparison from the browser tree that produced the actual PDF
         shell: pwsh
         run: |
-          $caseDir = Join-Path $env:RUNNER_TEMP 'large-docx-compare'
-          python scripts/windows-qa/fetch-public-inputs.py hwp-2 $caseDir --ids 02-work-rules
+          $caseDir = Join-Path $env:RUNNER_TEMP 'large-print-content'
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP $caseDir --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = Join-Path $caseDir 'inventory.json'
           $inventory = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json)
           if ($inventory.Count -ne 1 -or -not $inventory[0].verified) { throw 'One byte-pinned input is required' }
-          $refs = [ordered]@{ control='c52784078cc2ab47e0864c96000a28e3006b0948'; candidate='cf71eb6bdf8b3642d72669037f95a6df2604a5be' }
+          $refs = [ordered]@{ control='19892d86e3599cbf2e735c40bdb23bd967242a5d'; final='c52784078cc2ab47e0864c96000a28e3006b0948' }
           foreach ($entry in $refs.GetEnumerator()) {
             git restore --source $entry.Value --staged --worktree -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -44,46 +48,15 @@ jobs:
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             npm run package:win:dir
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $bundle = Join-Path $caseDir $entry.Key
-            Move-Item release/windows $bundle
-            $env:WORD_STUDIO_EXECUTABLE = Join-Path $bundle 'Word Studio/Word Studio.exe'
-            $env:WINDOWS_NATIVE_DOCX_DIR = Join-Path $caseDir "docx-$($entry.Key)"
-            Write-Host "WINDOWS_LARGE_DOCX_BUILD $($entry.Key)"
+            $package = Join-Path $caseDir $entry.Key
+            Move-Item release/windows $package
+            $env:WORD_STUDIO_EXECUTABLE = Join-Path $package 'Word Studio/Word Studio.exe'
+            $env:WINDOWS_FIXED_PRINT_CONTENT_AUDIT = Join-Path $caseDir "$($entry.Key)-print-content.json"
+            if ($entry.Key -eq 'control') { $env:WINDOWS_NATIVE_PDF_CLOSE_CONTROL = '1' }
+            else { Remove-Item Env:WINDOWS_NATIVE_PDF_CLOSE_CONTROL -ErrorAction SilentlyContinue }
+            Write-Host "WINDOWS_PRINT_CONTENT_BUILD $($entry.Key)"
             node scripts/windows-qa/native-export-pdf-stages.cjs
-            $status = $LASTEXITCODE
-            if ($status -ne 0) {
-              Write-Host "WINDOWS_LARGE_DOCX_FAILURE $($entry.Key) exit $status"
-              if ($entry.Key -eq 'candidate') { exit $status }
-              continue
-            }
-            dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> (Join-Path $caseDir "sdk-$($entry.Key).log")
-            $status = $LASTEXITCODE
-            Write-Host "WINDOWS_FINAL_SDK large HWP $($entry.Key) count 2 exit $status"
-            if ($status -ne 0) { exit $status }
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
-
-  shared:
-    name: DOCX UI and editor coordination / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 26
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - name: Check table checkpoints, editor maintenance and native conversion
-        run: npx playwright test tests/export-layout-suspension.spec.ts tests/desktop-print-coordination.spec.ts tests/hwp-editing.spec.ts --workers=1 --reporter=line --trace=off
+          node scripts/windows-qa/fixed-print-content-audit.cjs (Join-Path $caseDir 'control-print-content.json') (Join-Path $caseDir 'final-print-content.json')
+          exit $LASTEXITCODE
