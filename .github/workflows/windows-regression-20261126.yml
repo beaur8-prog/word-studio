@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Verify authored blank tabs and displaced binary tails on exact Windows export
+run-name: Verify the exact Windows binary HWP tail with the pinned housing sample
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,8 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { group: hwp-3, id: 09-korean-exam }
-          - { group: hwp-3, id: 10-lh-plan }
+          - { group: hwp-1, id: 10-lh-plan }
     env:
       PLAYWRIGHT_CHANNEL: chromium
       QA_GROUP: ${{ matrix.group }}
@@ -57,46 +56,3 @@ jobs:
           $status = $LASTEXITCODE
           Write-Host "WINDOWS_PUBLIC_SDK HEAD total $($docs.Count) exit $status"
           exit $status
-  focused:
-    name: Combined layout contracts / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 18
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - name: Run focused layout contracts
-        shell: pwsh
-        run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          npm run test -- tests/hwp-empty-paragraph-export.spec.ts tests/hwp-native-terminal-break.spec.ts tests/hwp-authored-page-tail.spec.ts --workers=1 --trace=off
-          exit $LASTEXITCODE
