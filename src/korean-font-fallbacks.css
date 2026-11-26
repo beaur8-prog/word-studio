@@ -22,6 +22,17 @@
 :is(.tiptap, .document-furniture) [style$='font-family: "한양신명조"' i] {
   font-family: "한양신명조", "Studio Korean Serif", "Noto Serif KR", serif !important;
 }
+/* Keep an installed HY face first. HWP commonly pairs this separate
+ * Korean run with a Latin face. A changed or combined author family keeps
+ * its own fallback order. */
+:is(.tiptap, .document-furniture) [data-hwp-latin-font^='["HY신명조",']:is(
+  [style*='font-family:HY신명조;'], [style$='font-family:HY신명조'],
+  [style*='font-family: HY신명조;'], [style$='font-family: HY신명조'],
+  [style*='font-family:"HY신명조";'], [style$='font-family:"HY신명조"'],
+  [style*='font-family: "HY신명조";'], [style$='font-family: "HY신명조"']
+) {
+  font-family: "HY신명조", "Studio Korean Serif", "Noto Serif KR", serif !important;
+}
 :is(.tiptap, .document-furniture) [style*='font-family:함초롬바탕;' i],
 :is(.tiptap, .document-furniture) [style$='font-family:함초롬바탕' i],
 :is(.tiptap, .document-furniture) [style*='font-family:"함초롬바탕";' i],

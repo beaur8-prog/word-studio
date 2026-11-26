@@ -15,7 +15,7 @@ export function followsWithHwpColumnBreak(paragraph: HTMLElement): boolean {
  * The detached paragraph leaves the editor's DOM and selection untouched. */
 export function measureHwpColumnEnd(p: HTMLElement, source: HwpBodyLine, scale: number): number | null {
   if (p.hasAttribute('data-print-paragraph-fragment')) return null;
-  const width = (p.getClientRects()[0]?.width ?? 0) / scale;
+  const width = p.getBoundingClientRect().width / scale;
   if (!(width > 0)) return null;
   canvas ??= document.createElement('canvas').getContext('2d');
   if (!canvas) return null;

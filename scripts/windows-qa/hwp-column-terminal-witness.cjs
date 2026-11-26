@@ -9,7 +9,7 @@ module.exports = async function captureTerminalWitness(page, sourcePath) {
   const { default: init, HwpDocument } = await import(pathToFileURL(join(engineRoot, 'rhwp.js')).href);
   await init({ module_or_path: await readFile(join(engineRoot, 'rhwp_bg.wasm')) });
   const source = new HwpDocument(await readFile(sourcePath));
-  const wanted = [119, 120, 121, 122, 123, 124];
+  const wanted = [119, 120, 121, 122, 123, 124, 163, 164, 165, 166, 167, 168];
   let keys;
   try {
     keys = wanted.map(index => [index, source.getTextRange(0, index, 0, 0xffffffff).replace(/\s/gu, '')]);
