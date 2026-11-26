@@ -125,9 +125,11 @@ async function renderedBody(root: HTMLElement, doc: StudioDocument, checkpoint?:
         if (pause) await pause;
       }
     }
-    // The engine's CSS attribute reader does not decode HTML attribute entities.
-    // Single quotes keep family names readable without changing document text.
-    const html = root.innerHTML.replace(/style="([^"]*)"/g, (_, css: string) => `style="${css.replace(/&quot;/g, "'")}"`) || '<p></p>';
+    // The native HTML paste decodes &nbsp; to a breakable space. Pass the
+    // original Unicode character from the DOM serialization instead.
+    // Single quotes also keep font family names readable to its CSS reader.
+    const html = root.innerHTML.replaceAll('&nbsp;', '\u00a0')
+      .replace(/style="([^"]*)"/g, (_, css: string) => `style="${css.replace(/&quot;/g, "'")}"`) || '<p></p>';
     const cells = emptyCells && emptyCellText ? { text: emptyCellText, count: emptyCells } : undefined;
     return { html, ...textBoxes, emptyParagraphs: emptyCount || cells ? { text: emptyText, count: emptyCount, cells } : undefined };
   } finally { root.remove(); }
