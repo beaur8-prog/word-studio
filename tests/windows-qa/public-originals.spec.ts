@@ -136,6 +136,8 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
             inkBottom: ink.length ? Math.max(...ink.map(rect => rect.bottom - origin.top)) : null,
             fragment: p.hasAttribute('data-print-paragraph-fragment'), authored: p.dataset.hwpSourceWrap?.includes('authoredBodyLines') ?? false,
             tailProof: p.dataset.hwpSourceWrap?.includes('authoredTailInk') ?? false,
+            headProof: p.dataset.hwpSourceWrap?.includes('authoredPageHead') ?? false,
+            nextType: p.nextElementSibling?.tagName, nextLength: compact(p.nextElementSibling?.textContent ?? '').length,
             fontSize: getComputedStyle(p).fontSize, lineHeight: getComputedStyle(p).lineHeight } };
         }).filter(row => row.literal);
         for (const {ordinal, literal} of watched) {
@@ -242,6 +244,8 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
           const witness = require('../../scripts/windows-qa/hancom-line-witness.cjs');
           try {
             const value = { format, pages: saved.pageCount(), ...witness(original, saved),
+              pageHead: process.env.WINDOWS_AUTHORED_PAGE_HEAD
+                ? require('../../scripts/windows-qa/hancom-page-head-witness.cjs')(original, saved) : undefined,
               authoredLine: process.env.WINDOWS_AUTHORED_LINE_WITNESS
                 ? require('../../scripts/windows-qa/hancom-single-line-witness.cjs')(original, saved) : undefined };
             latin.push(value);

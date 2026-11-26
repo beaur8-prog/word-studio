@@ -25,12 +25,14 @@ export type HwpScaledCellLine = { scale: number; size: number; rowHeight: number
 export type HwpCellWidthFallback = { scale: number; hanging: number; size: number; pitch: number; hardBreak?: true;
   intactRow?: { height: number; columns: number; textWidth?: number; paragraphs?: 2 } };
 export type HwpAuthoredBodyLines = { origin: HwpSourceOrigin; width: number; hanging: number; size: number; pitch: number };
+export type HwpAuthoredPageHead = { page: number; y: number; nextY: number; spacer: number; next: string };
 export type HwpForcedBodyEnd = { baseline: number; room: number; width: number; spaceBefore: number; pitch: number;
   font: number; hanging: number; preceding: string; precedingLines: number };
 export type HwpSourceWrap = { fingerprint: string; ends: number[]; origin?: HwpSourceOrigin; cellWidth?: HwpSourceCellWidth;
   bodyWidth?: number; columnWidth?: number; columnPitches?: [number, number]; scaleRun?: HwpSourceScaleRun; nestedHanging?: HwpNestedHangingScale; singleCellLine?: true; singleHeaderLine?: true;
   scaledCellLine?: HwpScaledCellLine; splitCell?: true; singleBodyFallback?: true; columnCellHeight?: number;
   columnCellPitch?: number; columnCellStories?: number; expandedRowHeight?: number; expandedRowLine?: { hanging: number; pitch: number; scale: number }; authoredBodyLines?: HwpAuthoredBodyLines;
+  authoredPageHead?: HwpAuthoredPageHead;
   forcedBodyEnd?: HwpForcedBodyEnd;
   noteTerminal?: HwpNoteTerminal;
   cellWidthFallback?: HwpCellWidthFallback;
@@ -65,7 +67,7 @@ export function parseHwpSourceWrap(value: unknown): HwpSourceWrap | undefined {
         source.ends.every((end: unknown, index: number) => Number.isInteger(end) &&
           Number(end) > (index ? source.ends[index - 1] : 0) && Number(end) <= 20000)) {
       const { origin, cellWidth, bodyWidth, columnWidth, columnPitches, scaleRun, nestedHanging, singleCellLine, singleHeaderLine, scaledCellLine, splitCell,
-        columnCellHeight, columnCellPitch, columnCellStories, expandedRowHeight, expandedRowLine, singleBodyFallback, authoredBodyLines, authoredCellFace,
+        columnCellHeight, columnCellPitch, columnCellStories, expandedRowHeight, expandedRowLine, singleBodyFallback, authoredBodyLines, authoredPageHead, authoredCellFace,
         forcedBodyEnd, inlineTextBox, cellWidthFallback } = source;
       const floatingBox = floatingTextBox(source.floatingTextBox, source.ends.length);
       if (value.length > 800 && !floatingBox) return;
@@ -78,7 +80,7 @@ export function parseHwpSourceWrap(value: unknown): HwpSourceWrap | undefined {
           source.ends[1] > 160)) return;
       if (singleBodyFallback !== undefined && (singleBodyFallback !== true || source.ends.length !== 1 ||
           !origin || bodyWidth === undefined || cellWidth || columnWidth !== undefined || source.ends[0] < 12 || source.ends[0] > 160)) return;
-      if (!singleBodyFallback && !forcedBodyEnd && !inlineTextBox && !floatingBox && source.ends.length === 1 && (!cellWidth || origin !== undefined || bodyWidth !== undefined ||
+      if (!singleBodyFallback && !authoredPageHead && !forcedBodyEnd && !inlineTextBox && !floatingBox && source.ends.length === 1 && (!cellWidth || origin !== undefined || bodyWidth !== undefined ||
           source.ends[0] < 2 || source.ends[0] > (scaleRun || authoredCellFace || cellWidthFallback ? 160 : singleCellLine || scaledCellLine ? 40 : 12))) return;
       if (origin !== undefined && !validOrigin(origin)) return;
       if (cellWidth !== undefined && (!cellWidth || !Number.isFinite(cellWidth.outer) || !Number.isFinite(cellWidth.text) ||
@@ -107,6 +109,14 @@ export function parseHwpSourceWrap(value: unknown): HwpSourceWrap | undefined {
           !Number.isFinite(authoredBodyLines.size) || authoredBodyLines.size < 4 || authoredBodyLines.size > 120 ||
           !Number.isFinite(authoredBodyLines.pitch) || authoredBodyLines.pitch < authoredBodyLines.size ||
           authoredBodyLines.pitch > authoredBodyLines.size * 4)) return;
+      if (authoredPageHead !== undefined && (!authoredPageHead || cellWidth || columnWidth !== undefined || authoredBodyLines ||
+          forcedBodyEnd || source.ends.length !== 1 || source.ends[0] < 8 || source.ends[0] > 92 ||
+          !Number.isInteger(authoredPageHead.page) || authoredPageHead.page < 2 || authoredPageHead.page > 10000 ||
+          !Number.isFinite(authoredPageHead.y) || authoredPageHead.y < 0 || authoredPageHead.y > 2000 ||
+          !Number.isFinite(authoredPageHead.nextY) || authoredPageHead.nextY - authoredPageHead.y < 16 ||
+          authoredPageHead.nextY - authoredPageHead.y > 96 || !Number.isInteger(authoredPageHead.spacer) ||
+          authoredPageHead.spacer < 200 || authoredPageHead.spacer > 800 || typeof authoredPageHead.next !== 'string' ||
+          !/^[0-9a-f]{16}$/.test(authoredPageHead.next))) return;
       if (scaleRun !== undefined && (!scaleRun || source.ends.length !== 1 || !cellWidth ||
           !Number.isInteger(scaleRun.start) || scaleRun.start < 1 || scaleRun.start >= 160 ||
           !Number.isInteger(scaleRun.scale) || scaleRun.scale < 50 || scaleRun.scale >= 100 ||
@@ -233,6 +243,9 @@ export function parseHwpSourceWrap(value: unknown): HwpSourceWrap | undefined {
           origin: { page: authoredBodyLines.origin.page, x: authoredBodyLines.origin.x, y: authoredBodyLines.origin.y },
           width: authoredBodyLines.width, hanging: authoredBodyLines.hanging,
           size: authoredBodyLines.size, pitch: authoredBodyLines.pitch } }),
+        ...(authoredPageHead && { authoredPageHead: {
+          page: authoredPageHead.page, y: authoredPageHead.y, nextY: authoredPageHead.nextY,
+          spacer: authoredPageHead.spacer, next: authoredPageHead.next } }),
         ...(cellWidth && { cellWidth: { outer: cellWidth.outer, text: cellWidth.text } }),
         ...(splitCell && { splitCell: true as const }),
         ...(bodyWidth !== undefined && { bodyWidth }),

@@ -52,6 +52,8 @@ import { restoreStandalonePictureLine } from './export-picture-line';
 import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts, withoutPastedEmptyCarriers } from './export-empty-paragraph-format';
 import { restoreAuthoredTerminalWrap, restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
+import { restoreNativePageHead } from './export-page-head';
+import { sourceHwpPageHead } from './source-page-head';
 import { stageHwpTables } from './export-tables';
 import { tableCaptionDefinitions, renderTableCaptions, restoreTableCaptions } from './table-captions';
 import { hwpInlineTableTop, hwpInlineTableTopAttribute, hwpTableTopGap } from '../table-anchor-data';
@@ -2057,6 +2059,17 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         // leading policy below. Keep its input markup separate from the tag.
         open = witnessed.match(/^<p\b[^>]*>/)?.[0] ?? open;
       }
+      const afterSpacer = `${section}:${para + 2}`, nextHeadY = pitches.get(`top:${afterSpacer}`);
+      if (wrapPage !== undefined && wrapPage > 0 && wrapY !== undefined && nextHeadY !== undefined &&
+          para > 0 && para + 2 < paragraphCount && columnCount === 1 && !startsNewFlow && !positions.length &&
+          textLength >= 8 && textLength <= 120 && !properties.indent && !properties.marginLeft && !properties.marginRight &&
+          pitches.get(`lines:${wrapKey}`) === 1 && pitches.get(`page:${section}:${para - 1}`) === wrapPage - 1 &&
+          pitches.get(`page:${afterSpacer}`) === wrapPage && !open.includes(hwpSourceWrapAttribute) &&
+          !metadata?.paragraphs[`${section}:${para + 1}`]?.pageBreak && !metadata?.paragraphs[afterSpacer]?.pageBreak) {
+        const proof = sourceHwpPageHead(doc, section, para, wrapPage, wrapY, nextHeadY,
+          doc.getTextRange(section, para, 0, textLength));
+        if (proof) open = open.replace(/>$/, ` ${hwpSourceWrapAttribute}="${escape(JSON.stringify(proof))}">`);
+      }
       const blank = !textLength && !paragraphControls.length;
       if (whole.includes('\t')) open = open.replace(/>$/, `${hwpTabAttribute(equationMetadata().get(`${section}:${para}`)?.tabStops)}>`);
       else if (blank && properties.tabStops?.length)
@@ -2816,6 +2829,8 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withEmptyTableRows !== doc) { doc.free(); doc = withEmptyTableRows; }
     const withAuthoredTerminal = restoreAuthoredTerminalWrap(Core, doc, nativePrint?.authoredTerminalWraps, nativePrint?.pages);
     if (withAuthoredTerminal !== doc) { doc.free(); doc = withAuthoredTerminal; }
+    const withSourcePageHead = restoreNativePageHead(Core, doc, nativePrint?.pageHeads, nativePrint?.pages);
+    if (withSourcePageHead !== doc) { doc.free(); doc = withSourcePageHead; }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {

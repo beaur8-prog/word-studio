@@ -36,12 +36,11 @@ function viewHeight(p: HTMLElement, line: HwpCellLine, font: number, mixedGrowth
   return simple && !mixedGrowth && !multipleLines(p) ? Math.min(advance, line.end * font / line.font)
     : line.rule === 'Fixed' ? advance : Math.max(advance, font);
 }
-export function layoutHwpCellLines(root: HTMLElement, alreadyMeasured?: (cell: HTMLElement) => boolean) {
+export function layoutHwpCellLines(root: HTMLElement) {
   const paragraphs = [...(root.matches('[data-hwp-cell-line]') ? [root] : []), ...root.querySelectorAll<HTMLElement>('[data-hwp-cell-line]')];
   for (const p of paragraphs) {
     const line = parseHwpCellLine(p.dataset.hwpCellLine);
-    const cell = p.closest<HTMLElement>('td,th');
-    if (!line || !cell || alreadyMeasured?.(cell)) continue;
+    if (!line || !p.closest('td,th')) continue;
     unwrapHwpCellPrefixes(p);
     delete p.dataset.hwpCellTerminal; delete p.dataset.hwpCellAdvance; delete p.dataset.hwpCellEnd;
     const inherited = p.dataset.hwpCellSourceSize || p.style.fontSize;

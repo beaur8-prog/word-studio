@@ -24,7 +24,6 @@ import { layoutWordLines, markWordReferenceDensity, layoutWordListLines, markMea
 import { layoutWordContextualSpacing } from './word-contextual-spacing';
 import { layoutWordListLabels } from './word-list-labels';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
-import { nativeFixedCellMeasurement } from './print-hwp-fixed-cell-measurement';
 import { layoutHwpAuthoredCellTerminals } from './hwp-authored-cell-terminal';
 import { layoutCellCharacterScale } from './cell-character-scale';
 import { layoutHwpInlineTextBoxLines } from './hwp-inline-textbox-print';
@@ -100,8 +99,6 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 1 && document.body.currentCSSZoom === 1;
   const referenceDensity = windowsDensity && !!source.querySelector('table[data-word-table-layout]');
   const tabbedStruts = new WeakSet<HTMLElement>();
-  const fixedCellLines = wordLayout.nativeDesktop && window.wordDesktop?.platform === 'win32'
-    ? nativeFixedCellMeasurement() : undefined;
   if (wrappingAnchors && wordLayout.wordBodyStrut) markWordReferenceDensity(source);
   const canPlaceProtectedTable = protectedTablePlacement(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
@@ -240,8 +237,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutTableAnchors(content);
     layoutWordAutoFitTables(content, true);
     layoutWordLines(content, referenceDensity);
-    if (fixedCellLines) fixedCellLines.measure(content);
-    else layoutHwpCellLines(content);
+    layoutHwpCellLines(content);
     layoutHwpBodyLines(content, wordLayout.paintHwpCellLines !== false);
     layoutTabs(content);
     if (windowsDensity && !referenceDensity) reserveWordTabbedStruts(content, tabbedStruts);
@@ -1061,5 +1057,4 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
     return { element: host, pages: pageNumber, pageSettings, warnings: [...warnings], dispose: () => host.remove() };
   } catch (error) { host.remove(); throw error; }
-  finally { fixedCellLines?.dispose(); }
 }
