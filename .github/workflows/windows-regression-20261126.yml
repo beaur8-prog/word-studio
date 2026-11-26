@@ -1,48 +1,69 @@
 name: Windows regression QA
-run-name: Windows Studio native preview via the command palette
+run-name: Windows Studio isolated government original stages
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native-originals:
-    name: Windows native retry / ${{ matrix.group }}
+  public-originals:
+    name: Windows originals / ${{ matrix.group }}
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - group: public-2
-            ids: moel-harassment-manual
+        group: [public-2]
     env:
+      PLAYWRIGHT_CHANNEL: chromium
       QA_GROUP: ${{ matrix.group }}
-      QA_IDS: ${{ matrix.ids }}
-      QA_PREVIEW_COMMAND: palette
+      WINDOWS_STAGED_ORIGINAL: mois-budget
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Verify unchanged product tree
+      - name: Verify the original product files
         shell: pwsh
         run: |
-          git diff --exit-code 50f3e313ae55efcad876d2ef4350d224a2879e1e HEAD -- . ':!.github/workflows/windows-regression-20261126.yml' ':!scripts/windows-qa' ':!tests/windows-qa' ':!scripts/native-smoke-lifetime.cjs'
-          exit $LASTEXITCODE
+          $changes = @(git diff --name-only 50f3e313ae55efcad876d2ef4350d224a2879e1e HEAD)
+          $allowed = @('.github/workflows/windows-regression-20261126.yml', 'scripts/windows-qa/public-sources.json',
+            'scripts/windows-qa/fetch-public-inputs.py', 'tests/windows-qa/public-originals.spec.ts',
+            'scripts/native-smoke-lifetime.cjs', 'scripts/windows-qa/native-public-originals.cjs')
+          if ($LASTEXITCODE -ne 0 -or @($changes | Where-Object { $_ -notin $allowed }).Count) { throw 'Unexpected source differences' }
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Read and render published inputs in the packaged Windows app
+      - run: npx playwright install chromium
+      - name: Download original inputs from their public sources and verify bytes
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/public-qa-inputs" --ids "$env:QA_IDS"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/public-qa-inputs" --ids "$env:WINDOWS_STAGED_ORIGINAL"
+      - name: Measure original and twice-saved print, then reopen both Hancom formats
+        id: measure
+        shell: pwsh
+        run: |
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/public-qa-inputs/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          node scripts/windows-qa/native-public-originals.cjs
-          exit $LASTEXITCODE
+          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = "$env:RUNNER_TEMP/public-qa-tests.json"
+          node node_modules/@playwright/test/cli.js test tests/windows-qa/public-originals.spec.ts --trace=off --reporter=line,json
+          $status = $LASTEXITCODE
+          if (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE) {
+            $stats = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
+            Write-Host "WINDOWS_PUBLIC_TOTAL expected $($stats.expected) failed $($stats.unexpected) skipped $($stats.skipped)"
+          }
+          exit $status
+      - name: Verify the actually exported DOCX packages with Open XML SDK
+        if: always() && steps.measure.outcome != 'skipped'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'test-results')) { Write-Host 'WINDOWS_PUBLIC_SDK no outputs'; exit 0 }
+          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
+          if (-not $outputs.Count) { Write-Host 'WINDOWS_PUBLIC_SDK no outputs'; exit 0 }
+          dotnet run --project scripts/word-openxml-validator -- test-results $outputs.Count *> "$env:RUNNER_TEMP/public-sdk.log"
+          $status = $LASTEXITCODE
+          $bad = @(Get-Content "$env:RUNNER_TEMP/public-sdk.log" | Where-Object { $_ -match '^\{' } |
+            ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.PSObject.Properties.Name -contains 'failure' -or $_.errors.Count -gt 0 })
+          Write-Host "WINDOWS_PUBLIC_SDK total $($outputs.Count) withErrors $($bad.Count) exit $status"
+          exit $status

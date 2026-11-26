@@ -9,10 +9,24 @@ const cases: Input[] = JSON.parse(readFileSync(inventory, 'utf8'));
 
 for (const item of cases) test('Windows public original ' + item.id, async ({page}, info) => {
   test.skip(!item.verified, 'Public input was unavailable or failed the byte pin');
-  test.setTimeout(900000);
+  test.setTimeout(process.env.WINDOWS_STAGED_ORIGINAL === item.id ? 1800000 : 900000);
   const source = await readFile(item.path!);
   await page.goto('/');
+  await page.exposeFunction('logOriginalStage', (stage: string, pages: number) => {
+    console.log('WINDOWS_STAGED_PROGRESS ' + item.id + ' ' + stage + ' ' + pages);
+  });
+  await page.exposeFunction('logOriginalForward', (metrics: object) => {
+    console.log('WINDOWS_FORWARD_RESULT ' + JSON.stringify({ id: item.id, ext: item.ext, ...metrics }));
+  });
+  await page.exposeFunction('writeActualDocx', async (stage: number, encoded: string) => {
+    await writeFile(info.outputPath('textbox-save-' + item.id + '-' + stage + '.docx'), Buffer.from(encoded, 'base64'));
+  });
   const result = await page.evaluate(async ({name, data, ext}) => {
+    const qa = window as Window & {
+      logOriginalForward(metrics: object): Promise<void>;
+      logOriginalStage(stage: string, pages: number): Promise<void>;
+      writeActualDocx(stage: number, encoded: string): Promise<void>;
+    };
     const { importFile, exportDocx } = await import('/src/document-io.ts');
     const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
     const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js');
@@ -50,7 +64,9 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       return [JSON.stringify(paragraphs), JSON.stringify(media), JSON.stringify(cells)];
     };
     let doc = await loadSource();
-    const printPages = [], saves: string[] = [], preservation = [];
+    await qa.logOriginalStage("reader", nativeOriginalPages ?? 0);
+    const printPages = [], preservation = [];
+    let saves = 0;
     let previous: string[] | undefined;
     for (let stage = 0; stage < 3; stage++) {
       const current = signature(doc.content);
@@ -60,16 +76,20 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       const print = await createPrintLayout(html, doc.page, undefined, undefined, wordLayoutOptions(doc));
       try { printPages.push(print.pages); }
       finally { print.dispose(); }
+      await qa.logOriginalStage("print-" + stage, printPages[stage]);
       if (stage < 2) {
         const blob = await exportDocx(doc);
         const bytes = new Uint8Array(await blob.arrayBuffer()), chunks = [];
         for (let i = 0; i < bytes.length; i += 8192) chunks.push(String.fromCharCode(...bytes.subarray(i, i + 8192)));
-        saves.push(btoa(chunks.join('')));
+        await qa.writeActualDocx(stage + 1, btoa(chunks.join('')));
+        saves++;
+        await qa.logOriginalStage('save-' + (stage + 1), saves);
         doc = await loadDocx(new File([blob], 'again.docx'));
       }
     }
 
     const reverse = [];
+    await qa.logOriginalForward({ nativeOriginalPages, printPages, preservation, saves });
     if (ext !== 'docx') for (const format of ['hwp', 'hwpx'] as const) {
       let reader: InstanceType<typeof HwpReaderSession> | undefined;
       try {
@@ -83,14 +103,13 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
           cause: /일부 떠 있는 그림을 한글로 저장하지 못했습니다/.test(reason) ? 'floating-picture-association' :
             /시간이 초과/.test(reason) ? 'timeout' : 'export-or-reopen-error'});
       } finally { reader?.close(); }
+      await qa.logOriginalStage('reverse-' + format, reverse.at(-1)?.pages ?? 0);
     }
     return { nativeOriginalPages, printPages, preservation, reverse, saves };
   }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext });
   expect(result.printPages).toHaveLength(3);
   expect(result.printPages.every(pages => pages > 0)).toBe(true);
-  expect(result.saves).toHaveLength(2);
-  for (const [i, encoded] of result.saves.entries())
-    await writeFile(info.outputPath('textbox-save-' + item.id + '-' + (i + 1) + '.docx'), Buffer.from(encoded, 'base64'));
+  expect(result.saves).toBe(2);
   const { saves: _, ...metrics } = result;
   console.log('WINDOWS_PUBLIC_RESULT ' + JSON.stringify({ id: item.id, ext: item.ext, ...metrics }));
 });
