@@ -95,14 +95,9 @@ test('two DOCX saves keep imported heading defaults for retyping', async ({ page
     const heading = editor.locator('h2').first();
     const box = await heading.boundingBox();
     await heading.click({ position: { x: 1, y: box!.height / 2 } });
-    // Keep the interaction on the real heading while selecting the whole
-    // single visual line in one keypress after the file import's view settles.
-    await expect.poll(() => heading.evaluate(el => {
-      const selection = getSelection();
-      return selection?.isCollapsed && el.contains(selection.anchorNode);
-    })).toBe(true);
-    await page.keyboard.press(process.platform === 'darwin' ? 'Meta+ArrowLeft' : 'Home');
-    await page.keyboard.press(process.platform === 'darwin' ? 'Shift+Meta+ArrowRight' : 'Shift+End');
+    await page.keyboard.down('Shift');
+    for (let i = 0; i < 'Regular heading'.length; i++) await page.keyboard.press('ArrowRight');
+    await page.keyboard.up('Shift');
     await expect.poll(() => page.evaluate(() => getSelection()?.toString())).toBe('Regular heading');
     await expect.poll(() => editor.evaluate((el: HTMLElement & { editor: any }) => {
       const selection = getSelection()!;

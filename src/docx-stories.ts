@@ -5,53 +5,32 @@ import mammoth from 'mammoth';
 import { prepareDocxMetadata } from './docx-metadata';
 import { W, all, val } from './docx-format';
 import { pageMargins, paperDimensions, type PageSettings } from './types';
-import { hwpFootnoteLayoutAttribute, hwpFootnoteMarkAttribute, hwpFootnoteNamespace, parseHwpFootnoteLayout } from './hwp-footnote-layout';
 
 /** Convert a header, comment or note through the same formatting path as body
  * text, with its own relationships. The original ZIP and story stay unchanged. */
-export async function storyHtml(zip: JSZip, part: string, root: Element, page: PageSettings, depth=0, preserveReflection = false) {
+export async function storyHtml(zip: JSZip, part: string, root: Element, page: PageSettings, depth=0) {
   const copy = new JSZip(); copy.files = { ...zip.files };
   const body = new DOMParser().parseFromString(`<w:document xmlns:w="${W}"><w:body/></w:document>`, 'application/xml');
   const target = all(body, 'body')[0];
   for (const element of Array.from(root.children)) target.append(body.importNode(element, true));
   const relationships = zip.file(part.replace(/([^/]+)$/, '_rels/$1.rels'));
   copy.file('word/_rels/document.xml.rels', relationships ? await relationships.async('string') : '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>');
-  const textboxes = await prepareTextBoxes(copy, body, [page], depth, preserveReflection);
-  const metadata = await prepareDocxMetadata(copy, body, [page], { preserveReflection, textBoxStory: root.localName === 'txbxContent' });
+  const textboxes = await prepareTextBoxes(copy, body, [page], depth);
+  const metadata = await prepareDocxMetadata(copy, body, [page]);
   const result = await mammoth.convertToHtml({ arrayBuffer: metadata.buffer }, { externalFileAccess: false,
     includeEmbeddedStyleMap: false, ignoreEmptyParagraphs: false, styleMap: ['u => u', 'strike => s'] });
   return textboxes.decorate(metadata.decorate(result.value));
 }
 
 export async function documentNotes(zip: JSZip, page: PageSettings) {
-  const notes: { id: string; kind: 'footnote' | 'endnote'; html: string; layout?: string }[] = [];
+  const notes: { id: string; kind: 'footnote' | 'endnote'; html: string }[] = [];
   for (const kind of ['footnote', 'endnote'] as const) {
     const part = `word/${kind}s.xml`, file = zip.file(part); if (!file) continue;
     const parsed = new DOMParser().parseFromString(await file.async('string'), 'application/xml');
-    for (const note of all(parsed, kind)) if (/^\d+$/.test(val(note, 'id')) && !['separator','continuationSeparator','continuationNotice'].includes(val(note, 'type'))) {
-      const layout = kind === 'footnote' ? parseHwpFootnoteLayout(note.getAttributeNS(hwpFootnoteNamespace, 'layout')) : undefined;
-      notes.push({ id: `${kind}-${val(note, 'id')}`, kind, html: await storyHtml(zip, part, note, page),
-        ...(layout && { layout: JSON.stringify(layout) }) });
-    }
+    for (const note of all(parsed, kind)) if (/^\d+$/.test(val(note, 'id')) && !['separator','continuationSeparator','continuationNotice'].includes(val(note, 'type')))
+      notes.push({ id: `${kind}-${val(note, 'id')}`, kind, html: await storyHtml(zip, part, note, page) });
   }
   return notes;
-}
-
-export async function writeHwpFootnoteLayouts(zip: JSZip, layouts: ReadonlyMap<number, string>) {
-  const part = 'word/footnotes.xml', file = zip.file(part);
-  if (!file || !layouts.size) return;
-  const xml = new DOMParser().parseFromString(await file.async('string'), 'application/xml');
-  const mc = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
-  for (const footnote of all(xml, 'footnote')) {
-    const layout = layouts.get(Number(val(footnote, 'id')));
-    if (!layout) continue;
-    footnote.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:wsfn', hwpFootnoteNamespace);
-    footnote.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:mc', mc);
-    footnote.setAttributeNS(mc, 'mc:Ignorable', 'wsfn');
-    footnote.setAttributeNS(mc, 'mc:PreserveAttributes', 'wsfn:layout');
-    footnote.setAttributeNS(hwpFootnoteNamespace, 'wsfn:layout', layout);
-  }
-  zip.file(part, new XMLSerializer().serializeToString(xml));
 }
 
 export function attachDocumentNotes(html: string, notes: Awaited<ReturnType<typeof documentNotes>>) {
@@ -61,29 +40,13 @@ export function attachDocumentNotes(html: string, notes: Awaited<ReturnType<type
     const original = [...template.content.querySelectorAll('li[id]')].find(el => el.id === note.id);
     const list = original?.parentElement; original?.remove(); if (list && !list.children.length) list.remove();
     let label = '';
-    const layout = parseHwpFootnoteLayout(note.layout);
-    let applied = false;
     for (const reference of template.content.querySelectorAll<HTMLAnchorElement>('a[href]')) if (reference.getAttribute('href') === `#${note.id}`) {
       label ||= reference.textContent || '';
       const node = document.createElement('span'); node.dataset.noteReference = note.id; node.dataset.noteKind = note.kind;
-      node.dataset.noteLabel = label; node.textContent = label;
-      if (layout && label === `[${Number.parseInt(layout.mark)}]`) {
-        node.setAttribute(hwpFootnoteMarkAttribute, layout.mark);
-        node.textContent = layout.mark;
-        applied = true;
-      }
-      // Mammoth raises the generated anchor, and the editor note node already
-      // raises its own marker. Remove only Mammoth's bare one-anchor wrapper.
-      const wrapper = reference.parentElement;
-      const generatedId = note.id.replace(`${note.kind}-`, `${note.kind}-ref-`);
-      if (reference.id === generatedId && wrapper?.tagName === 'SUP' &&
-          !wrapper.attributes.length && wrapper.childNodes.length === 1) wrapper.replaceWith(node);
-      else reference.replaceWith(node);
+      node.dataset.noteLabel = label; node.textContent = label; reference.replaceWith(node);
     }
     const node = document.createElement('div'); node.dataset.documentNote = note.id; node.dataset.noteKind = note.kind;
-    node.dataset.noteLabel = label; node.innerHTML = note.html;
-    if (applied && layout) node.setAttribute(hwpFootnoteLayoutAttribute, JSON.stringify(layout));
-    template.content.append(node);
+    node.dataset.noteLabel = label; node.innerHTML = note.html; template.content.append(node);
   }
   return template.innerHTML;
 }

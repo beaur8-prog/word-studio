@@ -68,14 +68,7 @@ export const HwpCellLineMetrics = Extension.create({
   addGlobalAttributes: () => [{ types: ['paragraph', 'heading'], attributes: {
     hwpCellLine: { default: null,
       parseHTML: el => { const line = parseHwpCellLine(el.dataset.hwpCellLine || el.style.getPropertyValue('--hwp-cell-line')); return line ? encodeHwpCellLine(line) : null; },
-      renderHTML: attrs => {
-        const line = activeHwpCellLine(attrs);
-        return line ? {
-          'data-hwp-cell-line': encodeHwpCellLine(line),
-          // The live line decoration changes font-size after an edit.
-          'data-hwp-cell-authored-size': attrs.paragraphSize,
-        } : {};
-      },
+      renderHTML: attrs => { const line = activeHwpCellLine(attrs); return line ? { 'data-hwp-cell-line': encodeHwpCellLine(line) } : {}; },
     },
   } }],
   addProseMirrorPlugins: () => [new Plugin({

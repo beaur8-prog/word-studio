@@ -7,36 +7,21 @@ export interface HwpCellLine {
   advance: number;
   end: number;
   base: number;
-  authoredTerminal?: HwpAuthoredCellTerminal;
 }
-export type HwpAuthoredCellTerminal = { text: string; width: number; row: number; middle?: true };
 export const hwpCellLineNamespace = 'urn:word-studio:hwp-cell-lines:1';
 const rules = ['Percent', 'SpaceOnly', 'Minimum', 'Fixed'];
 export function parseHwpCellLine(value: unknown): HwpCellLine | null {
   if (typeof value !== 'string' || value.length > 200) return null;
   const [version, rule, ...values] = value.trim().split(/\s+/);
-  const numbers = values.slice(0, 4).map(Number);
-  const middle = values[7] === 'middle';
-  const expectedValues = version === '2' ? (middle ? 8 : 7) : 4;
-  if (version !== '1' && version !== '2' || !rules.includes(rule) || values.length !== expectedValues ||
+  const numbers = values.map(Number);
+  if (version !== '1' || !rules.includes(rule) || numbers.length !== 4 ||
     numbers.some(n => !Number.isFinite(n) || n <= 0 || n > 2000)) return null;
   const [font, advance, end, base] = numbers;
   if (end > advance || Math.abs(base - end) > .01 && Math.abs(base - advance) > .01) return null;
-  const result: HwpCellLine = { rule: rule as HwpCellLine['rule'], font, advance, end, base };
-  if (version === '2') {
-    const [text, width, row] = [values[4], Number(values[5]), Number(values[6])] as const;
-    if (!/^[\da-f]{16}$/.test(text) || !(width > 0 && width <= 2000) || !(row >= end && row <= 2000) ||
-        Math.abs(base - end) > .01) return null;
-    result.authoredTerminal = { text, width, row, ...(middle ? { middle: true as const } : {}) };
-  }
-  return result;
+  return { rule: rule as HwpCellLine['rule'], font, advance, end, base };
 }
 export function encodeHwpCellLine(line: HwpCellLine): string {
-  const rounded = (n: number) => Math.round(n * 10000) / 10000;
-  const policy = [line.font, line.advance, line.end, line.base].map(rounded).join(' ');
-  const authored = line.authoredTerminal;
-  return authored ? `2 ${line.rule} ${policy} ${authored.text} ${rounded(authored.width)} ${rounded(authored.row)}` +
-    (authored.middle ? ' middle' : '') : `1 ${line.rule} ${policy}`;
+  return `1 ${line.rule} ${[line.font, line.advance, line.end, line.base].map(n => Math.round(n * 10000) / 10000).join(' ')}`;
 }
 export function cssPixels(value: unknown): number | null {
   if (typeof value !== 'string' || !/^\d+(?:\.\d+)?(?:px|pt)$/.test(value)) return null;

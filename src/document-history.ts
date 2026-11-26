@@ -5,9 +5,7 @@ import { Step, StepResult } from '@tiptap/pm/transform';
 import type { Node, Schema } from '@tiptap/pm/model';
 import type { StudioDocument } from './types';
 
-import type { WordLayoutOptions } from './word-trailing-spaces';
-
-type Metadata = Pick<StudioDocument, 'page' | 'comments'> & WordLayoutOptions;
+type Metadata = Pick<StudioDocument, 'page' | 'comments'>;
 export const documentMetadata = new PluginKey<Metadata | undefined>('wordStudioMetadata');
 
 // Page settings and comment records live outside the body schema. A reversible

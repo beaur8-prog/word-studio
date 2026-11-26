@@ -62,8 +62,3 @@
 :is(.tiptap, .document-furniture) [style$='font-family: "HCR Batang"' i] {
   font-family: "HCR Batang", "Studio Korean Serif", "Noto Serif KR", serif !important;
 }
-
-/* HWP body struts keep both authored script faces ahead of our fallback. */
-.tiptap p[data-hwp-korean-serif-strut="true"][data-exact-line-height]:not(:is(td, th, li, blockquote, [data-document-textbox], [data-column-count], [data-document-note]) p) {
-  font-family: "휴먼명조", "Palatino Linotype", "Studio Korean Serif", "Noto Serif KR", serif !important;
-}

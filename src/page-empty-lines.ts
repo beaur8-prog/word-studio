@@ -16,14 +16,3 @@ export function canHideEmptyPageLine(paragraph: HTMLElement): boolean {
   }
   return true;
 }
-
-/** After the two allowed hidden lines, a short empty paragraph can still
- * fit at the bottom by its em. Leave its full advance in document flow. */
-export function nativeEmptyLineContentHeight(paragraph: HTMLElement, scale: number): number | null {
-  if (paragraph.textContent || !canHideEmptyPageLine(paragraph) || !(scale > 0)) return null;
-  const style = getComputedStyle(paragraph);
-  const font = parseFloat(style.fontSize), advance = parseFloat(style.lineHeight);
-  if (!(font > 0 && advance > font && advance <= font * 2) ||
-    Math.abs(paragraph.getBoundingClientRect().height / scale - advance) > .07) return null;
-  return font;
-}

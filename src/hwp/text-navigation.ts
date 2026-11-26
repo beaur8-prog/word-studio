@@ -62,10 +62,6 @@ export function hwpTabDefinitions(files: Record<string, Uint8Array>) {
 export const hwpTabAttribute = (stops?: DocumentTabStop[]) => stops?.length ? ` data-tab-stops="${escape(JSON.stringify(stops))}"` : '';
 export const hwpBookmark = (name?: string) => name && name.length <= 1000 ? `<span data-docx-bookmark="${escape(name)}"></span>` : undefined;
 
-export function hwpPageReferenceLink(name: string, cachedNumber: string) {
-  return `<a href="#${escape(name)}">${cachedNumber}</a>`;
-}
-
 /** Keep point bookmarks, paragraph tabs and Korean word wrapping through the
  * native HTML bridge, including nested cells. Restore real DocInfo records. */
 export function stageHwpTextNavigation(html: string) {

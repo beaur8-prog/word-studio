@@ -8,8 +8,7 @@ import { version } from '../../package.json';
 import { editorExtensions, parseDocumentHtml } from '../extensions';
 import { TableRowResize } from '../table-row-resize';
 import { selectContextCell } from '../table-format';
-import { DocumentHistory, documentMetadata } from '../document-history';
-import { wordLayoutOptions } from '../word-trailing-spaces';
+import { DocumentHistory } from '../document-history';
 import { importFile, exportDocx, validateDocument, sanitizeImportedHtml, documentFileLimit } from '../document-io';
 import { defaultPage, type StudioDocument } from '../types';
 import { createPrintLayout, type PrintLayoutProgress } from '../print-layout';
@@ -142,13 +141,11 @@ export default function AndroidApp() {
     if (!editor) return;
     const next = validateDocument(candidate), node = editor.schema.nodeFromJSON(next.content); node.check();
     next.id ||= crypto.randomUUID();
-    const prepared = edit ? null : await withoutEditorReflow(() => createPrintLayout(generateHTML(next.content, editorExtensions), next.page, reportLayout(signal), signal, wordLayoutOptions(next)));
+    const prepared = edit ? null : await withoutEditorReflow(() => createPrintLayout(generateHTML(next.content, editorExtensions), next.page, reportLayout(signal), signal));
     if (signal.aborted) { prepared?.dispose(); signal.throwIfAborted(); }
     tabletAPI.current = null; tabletSessionId.current = edit && tablet ? next.id : null; setTabletSource(edit && tablet ? next : null);
     installed.current = false;
     editor.view.updateState(EditorState.create({ schema: editor.schema, doc: node, plugins: editor.state.plugins }));
-    editor.view.dispatch(editor.state.tr
-      .setMeta(documentMetadata, { page: next.page, comments: next.comments, ...wordLayoutOptions(next) }).setMeta('addToHistory', false));
     installed.current = true; ++recoveryEpoch.current;
     layout.current?.layout.dispose(); layout.current = prepared ? paperDocument(prepared) : null;
     setPapers(layout.current); setPresentation(false); setDocumentState(next); setOriginal(file); setHwp(null); setOpened(true); setEditing(edit); setDirty(false);
@@ -180,9 +177,7 @@ export default function AndroidApp() {
     });
   };
   const showReading = (nextPanel: Panel = null, present = false) => run('읽기 화면의 쪽 배치를 준비하는 중…', async signal => {
-    const doc = snapshot();
-    const prepared = await withoutEditorReflow(() => createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page,
-      reportLayout(signal), signal, wordLayoutOptions(doc)));
+    const prepared = await withoutEditorReflow(() => createPrintLayout(generateHTML(snapshot().content, editorExtensions), snapshot().page, reportLayout(signal), signal));
     if (signal.aborted) { prepared.dispose(); return; }
     layout.current?.layout.dispose(); layout.current = paperDocument(prepared); setPapers(layout.current); setEditing(false); setPanel(nextPanel); setPresentation(present);
     setPage(Math.min(page, prepared.pages - 1));

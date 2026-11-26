@@ -1,5 +1,3 @@
-import { hwpWrapFingerprint, parseHwpSourceWrap } from '../hwp-text-advances';
-
 /** The reader exposes HWP fwSpace as U+2007, whose digit-width glyph is
  * wider than the native quarter-em control. Use the matching Unicode space
  * only at serialized fwSpace positions; literal figure spaces stay intact.
@@ -29,7 +27,7 @@ export function restoreHwpFixedSpaces(html: string, source: string, positions: r
   if (tokens.map(token => token.text ?? '').join('') !== source) return html;
   const ordered = [...selected].sort((a, b) => a - b);
   let offset = 0, next = 0;
-  const converted = tokens.map(token => {
+  return tokens.map(token => {
     if (token.text === undefined) return token.raw;
     const start = offset; offset += token.text.length;
     if (next === ordered.length || ordered[next] >= offset) return token.raw;
@@ -39,15 +37,4 @@ export function restoreHwpFixedSpaces(html: string, source: string, positions: r
     for (const char of token.raw) { value += selected.has(at) ? '\u2005' : char; at += char.length; }
     return value;
   }).join('');
-  // Source line starts still index the same characters, but the native
-  // quarter-em control now has its editable Unicode representation. Bind
-  // the source evidence to this exact text before the first DOCX save.
-  return converted.replace(/^(<p\b[^>]*\sdata-hwp-source-wrap=")([^"]+)"/, (raw, opening: string, encoded: string) => {
-    const witness = parseHwpSourceWrap(decode(encoded));
-    if (witness?.fingerprint !== hwpWrapFingerprint(source)) return raw;
-    const literal = source.replace(/\u2007/g, (char, offset: number) => selected.has(offset) ? '\u2005' : char);
-    const updated = JSON.stringify({ ...witness, fingerprint: hwpWrapFingerprint(literal) })
-      .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return opening + updated + '"';
-  });
 }

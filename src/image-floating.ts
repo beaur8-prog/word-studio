@@ -1,62 +1,7 @@
 import {drawingGroup,type DrawingGroup} from './drawing-group';
 import type { IFloating } from "docx";
 import type JSZip from "jszip";
-import { hwpCellRasterFillNamespace, hwpRasterPictureFilter, isHwpCellRasterBrightness } from './hwp-cell-raster-fill';
-export type HwpBodyPictureFlow = { anchorY: number; height: number; followingEm: number };
-type HwpPaperDrawing = { width: number; height: number };
-export type ImageFloating = IFloating & {
-  polygon?: [number, number][];
-  drawingGroup?: DrawingGroup;
-  hwpBodyFlow?: HwpBodyPictureFlow;
-  hwpPaperDrawing?: HwpPaperDrawing;
-  hwpCellRasterFill?: true;
-  hwpCellRasterBrightness?: number;
-  hwpRasterPictureBrightness?: number;
-};
-const hwpBodyFlowNamespace = 'urn:wordstudio:hwp-body-picture-flow:1';
-const compatibilityNamespace = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
-
-const drawingNamespace = 'http://schemas.openxmlformats.org/drawingml/2006/main';
-
-function cellRasterBlip(anchor: Element) {
-  const [image, duplicate] = [...anchor.getElementsByTagNameNS(drawingNamespace, 'blip')];
-  return duplicate ? undefined : image;
-}
-
-function cellRasterBrightness(anchor: Element): number | undefined {
-  const image = cellRasterBlip(anchor);
-  if (!image) return;
-  const [effect, extra] = [...image.children];
-  if (!effect) return 0;
-  if (extra || effect.namespaceURI !== drawingNamespace || effect.localName !== 'lum') return;
-  const raw = effect.getAttribute('bright') ?? '0', contrast = effect.getAttribute('contrast') ?? '0';
-  const brightness = Number(raw) / 1000;
-  if (contrast === '0' && /^-?\d{1,6}$/.test(raw) && isHwpCellRasterBrightness(brightness)) return brightness;
-}
-
-function cellRasterSignature(anchor: Element) {
-  const child = (name: string) => [...anchor.children].find(node => node.localName === name);
-  const extent = child('extent');
-  const offset = (name: string) => [...(child(name)?.children ?? [])].find(el => el.localName === 'posOffset')?.textContent;
-  const dimensions = [extent?.getAttribute('cx'), extent?.getAttribute('cy'), offset('positionH'), offset('positionV')];
-  return dimensions.every(value => /^-?\d{1,10}$/.test(value || '')) ? dimensions.join(':') : undefined;
-}
-function hwpBodyPictureFlow(input: unknown): HwpBodyPictureFlow | undefined {
-  if (!input || typeof input !== 'object') return;
-  const { anchorY, height, followingEm } = input as HwpBodyPictureFlow;
-  if (![anchorY, height, followingEm].every(n => typeof n === 'number' && Number.isFinite(n)) ||
-      anchorY < 0 || anchorY > 3000 || height < 1 || height > 3000 ||
-      followingEm < 4 || followingEm > 120 || followingEm >= height) return;
-  return { anchorY, height, followingEm };
-}
-
-function hwpPaperDrawing(input: unknown): HwpPaperDrawing | undefined {
-  if (!input || typeof input !== 'object') return;
-  const { width, height } = input as HwpPaperDrawing;
-  if (![width, height].every(n => typeof n === 'number' && Number.isFinite(n) && n > 0 && n <= 4000)) return;
-  return { width, height };
-}
-
+export type ImageFloating = IFloating & { polygon?: [number, number][]; drawingGroup?: DrawingGroup };
 export type ImageGeometryRecord = { name: string; geometry: ImageFloating };
 
 /** docx emits a rectangular wrapPolygon. Replace it with the document's
@@ -72,36 +17,12 @@ export async function restoreImageGeometry(zip: JSZip, records: Map<string, Imag
       if (!record) continue;
       properties.setAttribute("name", record.name);
       if(record.geometry.drawingGroup)properties.parentElement!.setAttribute("data-ws-drawing-group",JSON.stringify(record.geometry.drawingGroup));
-      const anchor = properties.parentElement;
-      const brightness = record.geometry.hwpCellRasterFill
-        ? record.geometry.hwpCellRasterBrightness : record.geometry.hwpRasterPictureBrightness;
-      if (brightness && anchor) {
-        const image = cellRasterBlip(anchor);
-        if (image && !image.children.length) {
-          const luminance = xml.createElementNS(drawingNamespace, 'a:lum');
-          luminance.setAttribute('bright', String(brightness * 1000));
-          luminance.setAttribute('contrast', '0');
-          image.append(luminance);
-        }
-      }
-      const sourceGeometry = record.geometry.hwpBodyFlow
-        ? { ns: hwpBodyFlowNamespace, prefix: 'wspf', name: 'clearance', value: record.geometry.hwpBodyFlow }
-        : record.geometry.hwpPaperDrawing
-          ? { ns: hwpBodyFlowNamespace, prefix: 'wspf', name: 'paper', value: record.geometry.hwpPaperDrawing }
-          : record.geometry.hwpCellRasterFill && anchor
-            ? { ns: hwpCellRasterFillNamespace, prefix: 'wscf', name: 'fill', value: cellRasterSignature(anchor) }
-            : record.geometry.hwpRasterPictureBrightness
-              ? { ns: hwpCellRasterFillNamespace, prefix: 'wscf', name: 'picture', value: true } : undefined;
-      if (anchor?.localName === 'anchor' && sourceGeometry?.value !== undefined) {
-        const { ns, prefix, name, value } = sourceGeometry;
-        anchor.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns:' + prefix, ns);
-        anchor.setAttributeNS(ns, prefix + ':' + name, JSON.stringify(value));
-        for (const [attribute, value] of [['Ignorable',prefix], ['PreserveAttributes',prefix + ':' + name]]) {
-          const earlier = (anchor.getAttributeNS(compatibilityNamespace, attribute) || '').trim();
-          anchor.setAttributeNS(compatibilityNamespace, 'mc:' + attribute, earlier ? earlier + ' ' + value : value);
-        }
-      }
-      const wrap = anchor && [...anchor.children].find(el => el.localName === 'wrapTight' || el.localName === 'wrapThrough');
+      const anchor = properties.parentElement,
+        wrap =
+          anchor &&
+          [...anchor.children].find(
+            (el) => el.localName === "wrapTight" || el.localName === "wrapThrough",
+          );
       if (!wrap || !record.geometry.polygon) continue;
       const polygon = xml.createElementNS(ns, "wp:wrapPolygon");
       polygon.setAttribute("edited", "0");
@@ -178,13 +99,6 @@ export function imageFloating(value: unknown): ImageFloating | undefined {
         : undefined;
     if (data.polygon !== undefined && !polygon) return;
     const group=drawingGroup(data.drawingGroup);if(data.drawingGroup!==undefined && !group)return;
-    const hwpBodyFlow = hwpBodyPictureFlow(data.hwpBodyFlow);
-    const paperDrawing = hwpPaperDrawing(data.hwpPaperDrawing);
-    const brightness = data.hwpCellRasterBrightness ?? 0;
-    const cellRasterFill = isHwpCellRasterBrightness(brightness) && data.hwpCellRasterFill === true && data.behindDocument === true && data.layoutInCell === true &&
-      data.wrap.type === 0 && data.horizontalPosition.relative === 'column' && data.verticalPosition.relative === 'paragraph' &&
-      !group && !polygon && !paperDrawing && !hwpBodyFlow;
-    const pictureBrightness = data.hwpRasterPictureBrightness;
     return {
       horizontalPosition: data.horizontalPosition,
       verticalPosition: data.verticalPosition,
@@ -196,11 +110,6 @@ export function imageFloating(value: unknown): ImageFloating | undefined {
       },
       ...(polygon ? { polygon } : {}),
       ...(group ? {drawingGroup:group} : {}),
-      ...(hwpBodyFlow ? { hwpBodyFlow } : {}),
-      ...(paperDrawing ? { hwpPaperDrawing: paperDrawing } : {}),
-      ...(cellRasterFill ? { hwpCellRasterFill: true as const, ...(brightness && { hwpCellRasterBrightness: brightness }) } : {}),
-      ...(!cellRasterFill && !group && !paperDrawing && !hwpBodyFlow && pictureBrightness &&
-        isHwpCellRasterBrightness(pictureBrightness) ? { hwpRasterPictureBrightness: pictureBrightness } : {}),
       ...(data.margins && typeof data.margins === "object"
         ? {
             margins: Object.fromEntries(
@@ -231,10 +140,7 @@ export function floatingCss(value: unknown, width: number) {
       : horizontal.align === "right"
         ? `calc(100% - ${width}px)`
         : `${(horizontal.offset || 0) / 9525}px`;
-  const paperOverlay = data.layoutInCell === false && data.wrap?.type === 0 && !data.behindDocument && !data.drawingGroup &&
-    horizontal.relative === "page" && vertical.relative === "page";
-  const filter = hwpRasterPictureFilter(data.hwpRasterPictureBrightness ?? 0);
-  return `position:absolute;float:none;left:${left};top:${vertical.relative === "paragraph" ? (vertical.offset || 0) / 9525 : 0}px;margin:0;z-index:${data.behindDocument ? -1 : 1}${paperOverlay ? ";--table-cell-image-max-width:none" : ""}${filter ? `;filter:${filter}` : ""}`;
+  return `position:absolute;float:none;left:${left};top:${vertical.relative === "paragraph" ? (vertical.offset || 0) / 9525 : 0}px;margin:0;z-index:${data.behindDocument ? -1 : 1}`;
 }
 
 export function drawingFloating(drawing: Element) {
@@ -255,33 +161,13 @@ export function drawingFloating(drawing: Element) {
   };
   const type = [...anchor.children].find((el) => /^wrap/.test(el.localName))?.localName;
   const wrapping = [...anchor.children].find((el) => el.localName === type);
-  const storedFlow = anchor.getAttributeNS(hwpBodyFlowNamespace, 'clearance');
-  let hwpBodyFlow: HwpBodyPictureFlow | undefined;
-  let paperDrawing: HwpPaperDrawing | undefined;
-  if (storedFlow && storedFlow.length < 120) try {
-    hwpBodyFlow = hwpBodyPictureFlow(JSON.parse(storedFlow));
-  } catch { /* Optional source geometry must not prevent drawing import. */ }
-  const storedPaperDrawing = anchor.getAttributeNS(hwpBodyFlowNamespace, 'paper');
-  if (storedPaperDrawing && storedPaperDrawing.length < 120) try {
-    paperDrawing = hwpPaperDrawing(JSON.parse(storedPaperDrawing));
-  } catch { /* Optional source geometry must not prevent drawing import. */ }
   const points = [...(wrapping?.getElementsByTagNameNS("*", "wrapPolygon")[0]?.children || [])].map(
     (p) => [Number(p.getAttribute("x")) / 21600, Number(p.getAttribute("y")) / 21600],
   );
-  const horizontalPosition = read("positionH"), verticalPosition = read("positionV");
-  const signature = cellRasterSignature(anchor);
-  const previousFill = anchor.getAttributeNS(hwpCellRasterFillNamespace, 'fill');
-  const remainsFill = signature && previousFill === JSON.stringify(signature) && type === 'wrapNone' &&
-    anchor.getAttribute('behindDoc') === '1' && anchor.getAttribute('layoutInCell') === '1' &&
-    horizontalPosition.relative === 'column' && verticalPosition.relative === 'paragraph';
-  // Keep the standard luminance when an external edit turns the cell fill into a normal picture.
-  const scopedPicture = anchor.getAttributeNS(hwpCellRasterFillNamespace, 'picture') === 'true' ||
-    /^"-?\d{1,10}(?::-?\d{1,10}){3}"$/.test(previousFill ?? '');
-  const rasterBrightness = remainsFill || scopedPicture ? cellRasterBrightness(anchor) : undefined;
   return imageFloating(
     JSON.stringify({
-      horizontalPosition,
-      verticalPosition,
+      horizontalPosition: read("positionH"),
+      verticalPosition: read("positionV"),
       wrap: {
         type:
           (
@@ -304,10 +190,6 @@ export function drawingFloating(drawing: Element) {
       ),
       behindDocument: anchor.getAttribute("behindDoc") === "1",
       layoutInCell: !["0", "false", "off"].includes(anchor.getAttribute("layoutInCell") || ""),
-      ...(hwpBodyFlow ? { hwpBodyFlow } : {}),
-      ...(paperDrawing ? { hwpPaperDrawing: paperDrawing } : {}),
-      ...(remainsFill && rasterBrightness !== undefined ? { hwpCellRasterFill: true, hwpCellRasterBrightness: rasterBrightness }
-        : rasterBrightness ? { hwpRasterPictureBrightness: rasterBrightness } : {}),
       ...(drawing.hasAttribute("data-ws-drawing-group")?{drawingGroup:JSON.parse(drawing.getAttribute("data-ws-drawing-group")!)}:{}),
     }),
   );

@@ -56,32 +56,6 @@ export function editableHeaderStories(doc: HwpDocument, definitions: HeaderDefin
   } finally { isolated.free(); }
 }
 
-/** The reader's plain header text joins paragraphs with LF. Seed the first
- * page with the same rich story used at its control when those LFs describe
- * real empty paragraphs and the native first page displays that story. */
-export function initialBlankHeaderStory(doc: HwpDocument, definitions: HeaderDefinition[], stories: Map<HeaderDefinition, string>, text: string,
-  nativeLayer: () => boolean): string | undefined {
-  if (!/^\n+$/.test(text)) return;
-  const both = definitions.filter(definition => definition.section === 0 && definition.kind === 'header' && definition.apply === 0);
-  if (both.length !== 1) return;
-  const html = stories.get(both[0]);
-  if (!html || /<(?:br|img|svg|table)\b|data-(?:page-number|note-reference|docx-tab)/i.test(html) ||
-      entities(html.replace(/<[^>]*>/g, '')).trim()) return;
-  try {
-    const header = JSON.parse(doc.getHeaderFooter(0, true, 0));
-    if (!header.exists || header.text !== text || header.paraIndex !== both[0].para ||
-        header.paraCount !== text.length + 1 || elementRanges(html, 'p').length !== header.paraCount) return;
-    for (let index = 0; index < header.paraCount; index++) {
-      const paragraph = JSON.parse(doc.getHeaderFooterParaInfo(0, true, 0, index));
-      if (!paragraph.ok || paragraph.charCount !== 0) return;
-    }
-    const target = JSON.parse(doc.getHeaderFooterEditTarget(0, true));
-    if (target.ok && target.sectionIndex === 0 && target.applyTo === 0 && nativeLayer()) return html;
-  } catch {
-    // Page preview data is corroboration of the source story, not a requirement for import.
-  }
-}
-
 export function headerDefinitions(files: Record<string, Uint8Array>): HeaderDefinition[] {
   const result: HeaderDefinition[] = [];
   for (const [name, bytes] of Object.entries(files)) {
@@ -118,50 +92,6 @@ export function headerLayer(root: any, kind: string): any | undefined {
   if (root?.groupKind?.kind === kind) return root;
   for (const child of root?.children ?? []) { const match = headerLayer(child, kind); if (match) return match; }
   return root?.child ? headerLayer(root.child, kind) : undefined;
-}
-
-/** A section-start pageNum control paints outside the body, even when the
- * source has no footer story. Match the ordinary decimal source and its
- * first native page before representing it as a live footer field. */
-export function initialPageNumberStory(doc: HwpDocument, controls: readonly { list: number; para: number; ctrlId: string }[],
-    files: Record<string, Uint8Array>, nativeLayer: () => any): string | undefined {
-  const positions = controls.filter(c => c.ctrlId === 'pgnp');
-  if (positions.length !== 1 || positions[0].list !== 0 || positions[0].para !== 0 || doc.getSectionCount() !== 1 ||
-      controls.some(c => ['foot', 'pghd', 'pgct'].includes(c.ctrlId))) return;
-  const section = files['Contents/section0.xml'], header = files['Contents/header.xml'];
-  if (!section || !header) return;
-  const xml = strFromU8(section);
-  const attribute = (tag: string, name: string) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1];
-  const number = [...xml.matchAll(/<hp:pageNum\b[^>]*>/g)].map(match => match[0]);
-  const start = xml.match(/<hp:startNum\b[^>]*>/)?.[0] ?? '';
-  const visibility = xml.match(/<hp:visibility\b[^>]*>/)?.[0] ?? '';
-  const initial = strFromU8(header).match(/<hh:beginNum\b[^>]*>/)?.[0] ?? '';
-  if (number.length !== 1 || attribute(number[0], 'pos') !== 'BOTTOM_CENTER' ||
-      attribute(number[0], 'formatType') !== 'DIGIT' || attribute(number[0], 'sideChar') !== '-' ||
-      attribute(initial, 'page') !== '1' || !['0', '1'].includes(attribute(start, 'page') ?? '') ||
-      attribute(start, 'pageStartsOn') !== 'BOTH' || attribute(visibility, 'hideFirstPageNum') !== '0' ||
-      attribute(visibility, 'hideFirstFooter') !== '0' || /<hp:(?:footer|pageHiding)\b/.test(xml) ||
-      /<hp:(?:newNum|autoNum)\b[^>]*\bnumType="PAGE"/.test(xml)) return;
-  try {
-    const footer = nativeLayer();
-    const operations: any[] = [];
-    const visit = (node: any) => {
-      operations.push(...(node.ops ?? []));
-      node.children?.forEach(visit);
-      if (node.child) visit(node.child);
-    };
-    if (!footer) return;
-    visit(footer);
-    const run = operations[0], style = run?.paintStyle ?? run?.style;
-    if (operations.length !== 1 || run.type !== 'textRun' || (run.displayText ?? run.text) !== '- 1 -' ||
-        style?.fontFamily !== '함초롬돋움' || !Number.isFinite(style.fontSize) || Math.abs(style.fontSize - 40 / 3) > .01 ||
-        style.color !== '#000000' || style.bold || style.italic || !Number.isFinite(run.bbox?.height) ||
-        Math.abs(run.bbox.height - style.fontSize) > .01) return;
-    const font = 'font-family:함초롬돋움;font-size:10pt;color:#000000';
-    return `<p style="${font};text-align:center;line-height:10pt;margin:0"><span style="${font}">- </span><span data-page-number="PAGE" style="${font}">1</span><span style="${font}"> -</span></p>`;
-  } catch {
-    // The native footer is corroboration; the rest of the conversion can proceed without it.
-  }
 }
 
 export function hiddenStories(files: Record<string, Uint8Array>) {

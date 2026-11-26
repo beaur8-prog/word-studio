@@ -1,9 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { strFromU8, unzipSync } from 'fflate';
-import { readFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import path from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 for (const format of ['hwp', 'hwpx'] as const) test(`${format}: edited section paper, margins and plain furniture survive two saves`, async ({ page }) => {
   await page.goto('/');
@@ -42,38 +37,4 @@ for (const format of ['hwp', 'hwpx'] as const) test(`${format}: edited section p
       expect(Math.abs(state.pages[index].left - left)).toBeLessThan(.02);
     }
   }
-});
-
-for (const format of ['hwp', 'hwpx'] as const) test(`${format}: retains the paper definition on a blank leading paragraph`, async ({ page }) => {
-  await page.goto('/');
-  const bytes = await page.evaluate(async format => {
-    const { HwpReaderSession } = await import('/src/hwp/reader.ts');
-    const { defaultPage } = await import('/src/types.ts');
-    const first = { ...defaultPage, margin: 14, header: 'FIRST HEADER', pageNumbers: false };
-    const second = { ...first, size: 'Letter', orientation: 'landscape', margin: 19, header: 'SECOND HEADER' };
-    const boundary = JSON.stringify(second).replaceAll('"', '&quot;');
-    const html = `<p>FIRST BODY</p><div data-section-page="${boundary}"></div><p></p><p>SECOND BODY</p>`;
-    const session = new HwpReaderSession();
-    try {
-      const saved = await session.export(html, first, format);
-      return [...saved.bytes];
-    } finally { session.close(); }
-  }, format);
-  const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
-  const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
-  await init({ module_or_path: await readFile(path.join(core, 'rhwp_bg.wasm')) });
-  const doc = new HwpDocument(Uint8Array.from(bytes));
-  try {
-    expect(doc.getSectionCount()).toBe(2);
-    expect(doc.pageCount()).toBe(2);
-    expect(doc.getParagraphLength(1, 0)).toBe(0);
-    expect(doc.getTextRange(1, 1, 0, 100)).toBe('SECOND BODY');
-    expect(JSON.parse(doc.getPageDef(1))).toMatchObject({
-      width: 61200, height: 79200, landscape: true,
-      marginLeft: Math.round(19 * 7200 / 25.4), marginRight: Math.round(19 * 7200 / 25.4),
-    });
-    const section = strFromU8(unzipSync(doc.exportHwpx())['Contents/section1.xml']);
-    expect(section.match(/<hp:secPr\b/g)).toHaveLength(1);
-    expect(section.match(/<hp:p\b[^>]*>[\s\S]*?<\/hp:p>/)?.[0]).toContain('<hp:secPr');
-  } finally { doc.free(); }
 });

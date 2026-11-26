@@ -24,10 +24,7 @@ if (!raw && process.env.GITHUB_EVENT_PATH) {
 // Checkbox input/two saves and two real UI exports add five files.
 // Eighteen independent empty-heading cases retain two DOCX saves each.
 // Three automatic hyphenation states add two DOCX saves each.
-// The numbering-tab fixture retains two standard DOCX saves.
-// The floating text box carrier fixture retains two standard DOCX saves.
-// The native rectangle in a textbox group retains two standard DOCX saves.
-let count = 296;
+let count = 290;
 if (raw) {
   if (raw.length > 60000) throw Error('Public DOCX validation payload is too large');
   const copies = JSON.parse(raw);

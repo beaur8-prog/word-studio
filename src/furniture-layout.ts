@@ -2,38 +2,6 @@ import {inlineDrawingAnchor,prepareDrawingGroupAnchors} from './drawing-group';
 import {prepareStaticTextBoxes,layoutTextBoxes} from './textbox-frame';
 import { imageFloating } from './image-floating';
 import { documentScale } from './document-scale';
-import { editorLayoutResume } from './editor-layout-task';
-import { hasUniformTablePageBody, type PageSettings } from './types';
-
-export function tableStoryExtent(story: HTMLElement, side: 'top' | 'bottom') {
-  if (!story.textContent?.trim()) return 0;
-  const paper = story.closest<HTMLElement>('.paper,.section-paper,.print-page');
-  if (!paper) return Infinity;
-  const sheet = paper.getBoundingClientRect(), box = story.getBoundingClientRect(), scale = documentScale(story);
-  const range = document.createRange();
-  range.selectNodeContents(story);
-  const ink = range.getBoundingClientRect();
-  const occupied = side === 'top' ? Math.max(box.bottom, ink.bottom) - sheet.top : sheet.bottom - Math.min(box.top, ink.top);
-  return occupied / scale + 2;
-}
-
-/** The eligibility can change after furniture renders even without resizing
- * the editor, so schedule a fresh pagination pass. */
-export function updateUniformTablePageBody(sheet: HTMLElement, page: PageSettings, occupied?: { top: number; bottom: number }) {
-  if (occupied) {
-    let { top, bottom } = occupied;
-    const section = sheet.classList.contains('document-section-content');
-    for (const header of sheet.querySelectorAll<HTMLElement>(section ? '.section-header' : '.paper-header'))
-      top = Math.max(top, tableStoryExtent(header, 'top'));
-    for (const footer of sheet.querySelectorAll<HTMLElement>(section ? '.section-footer' : '.paper-footer'))
-      bottom = Math.max(bottom, tableStoryExtent(footer, 'bottom'));
-    occupied = { top, bottom };
-  }
-  const value = String(hasUniformTablePageBody(page, occupied));
-  if (value === sheet.dataset.uniformTablePageBody) return;
-  sheet.dataset.uniformTablePageBody = value;
-  if (sheet.isConnected) document.dispatchEvent(new Event(editorLayoutResume));
-}
 import { layoutTabs } from './document-tabs';
 
 /** Materialize an unambiguous source grid before table-layout:fixed runs.

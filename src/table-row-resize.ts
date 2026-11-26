@@ -1,6 +1,4 @@
-import { hwpIntactRowAttribute, parseHwpIntactRow } from './hwp-intact-row';
 import { documentScale } from './document-scale';
-import { hwpRowReserve } from './hwp-row-reserve';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
@@ -66,19 +64,6 @@ export const TableRowResize = Extension.create({
         parseHTML: readHeight,
         renderHTML: attrs => rowHeight(attrs.rowHeight) ? { style: `height:${attrs.rowHeight}px` } : {},
       },
-      hwpGridRow: { default: null, parseHTML: el => el.dataset.hwpGridRow === 'true' || null,
-        renderHTML: attrs => attrs.hwpGridRow === true ? { 'data-hwp-grid-row': 'true' } : {} },
-      hwpRowContinued: { default: null, parseHTML: el => el.dataset.hwpRowContinued === 'true' || null,
-        renderHTML: attrs => attrs.hwpRowContinued === true ? { 'data-hwp-row-continued': 'true' } : {} },
-      hwpRowIntact: { default: null, parseHTML: el => el.dataset.hwpRowIntact === 'true' || null,
-        renderHTML: attrs => attrs.hwpRowIntact === true ? { 'data-hwp-row-intact': 'true' } : {} },
-      hwpIntactTopRow: { default: null, parseHTML: el => {
-        const value = el.getAttribute(hwpIntactRowAttribute);
-        return parseHwpIntactRow(value) ? value : null;
-      }, renderHTML: attrs => parseHwpIntactRow(attrs.hwpIntactTopRow)
-        ? { [hwpIntactRowAttribute]: attrs.hwpIntactTopRow } : {} },
-      hwpRowReserve: { default: null, parseHTML: el => hwpRowReserve(el.dataset.hwpRowReserve) ? el.dataset.hwpRowReserve : null,
-        renderHTML: attrs => hwpRowReserve(attrs.hwpRowReserve) ? { 'data-hwp-row-reserve': attrs.hwpRowReserve } : {} },
       wordRowRule: { default: null, parseHTML: el => el.getAttribute('data-word-row-rule'),
         renderHTML: a => a.wordRowRule === 'exact' ? { 'data-word-row-rule': 'exact' } : {} },
       wordRowSplit: { default: null, parseHTML: el => ['allow', 'avoid'].includes(el.getAttribute('data-word-row-split') || '') ? el.getAttribute('data-word-row-split') : null,
@@ -127,7 +112,7 @@ export const TableRowResize = Extension.create({
       let tr = view.state.tr.setMeta(resizeKey, null).setMeta('addToHistory', false);
       const node = view.state.doc.nodeAt(current.pos);
       if (commit && view.editable && view.state.doc === current.doc && node?.type.name === 'tableRow' && Math.abs(current.height - current.startHeight) >= 1) {
-        tr = closeHistory(tr.setNodeMarkup(current.pos, null, { ...node.attrs, rowHeight: current.height, wordRowRule: null, hwpRowReserve: null }).setMeta('addToHistory', true));
+        tr = closeHistory(tr.setNodeMarkup(current.pos, null, { ...node.attrs, rowHeight: current.height, wordRowRule: null }).setMeta('addToHistory', true));
       }
       view.dispatch(tr);
     };
@@ -204,7 +189,7 @@ export const TableRowResize = Extension.create({
             if (!hit) return false;
             event.preventDefault();
             const node = current.state.doc.nodeAt(hit.pos)!;
-            if (node.attrs.rowHeight != null) current.dispatch(closeHistory(current.state.tr.setNodeMarkup(hit.pos, null, { ...node.attrs, rowHeight: null, wordRowRule: null, hwpRowReserve: null })));
+            if (node.attrs.rowHeight != null) current.dispatch(closeHistory(current.state.tr.setNodeMarkup(hit.pos, null, { ...node.attrs, rowHeight: null, wordRowRule: null })));
             hide();
             return true;
           },

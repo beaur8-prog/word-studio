@@ -2,7 +2,6 @@ import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, zipSync, unzipSync } from 'fflate';
 import documentLimits from '../../electron/document-limits.json';
 import { entities } from './cell-content';
-import { hwpFootnoteMark, parseHwpFootnoteLayout } from '../hwp-footnote-layout';
 
 import { elementRanges as ranges } from './markup-ranges';
 
@@ -10,31 +9,6 @@ const attr = (tag: string, name: string) => entities(tag.match(new RegExp(`\\b${
 const plain = (xml: string) => entities(xml.replace(/<[^>]*>/g, ''));
 const paragraph = (text: string) => `<hp:p id="0" paraPrIDRef="0" styleIDRef="0" pageBreak="0" columnBreak="0" merged="0"><hp:run charPrIDRef="0"><hp:t>${text}</hp:t></hp:run></hp:p>`;
 const withoutLines = (xml: string) => xml.replace(/<hp:linesegarray\b[^>]*>[\s\S]*?<\/hp:linesegarray>/g, '');
-
-function sourceFootnoteLayout(properties: string | undefined, note: string, label: string) {
-  const format = properties?.match(/<hp:autoNumFormat\b[^>]*>/)?.[0];
-  const line = properties?.match(/<hp:noteLine\b[^>]*>/)?.[0];
-  const spacing = properties?.match(/<hp:noteSpacing\b[^>]*>/)?.[0];
-  const placement = properties?.match(/<hp:placement\b[^>]*>/)?.[0];
-  const numbering = properties?.match(/<hp:numbering\b[^>]*>/)?.[0];
-  if (!format || !line || !spacing || !placement || !numbering ||
-      attr(format, 'type') !== 'DIGIT' || attr(format, 'prefixChar') || attr(format, 'suffixChar') !== ')' ||
-      attr(note, 'suffixChar') !== '41' || attr(numbering, 'type') !== 'CONTINUOUS' ||
-      attr(placement, 'place') !== 'EACH_COLUMN' || attr(placement, 'beneathText') !== '0' ||
-      attr(line, 'type') !== 'SOLID' || attr(line, 'color').toLowerCase() !== '#000000') return;
-  const mark = hwpFootnoteMark(label + ')');
-  const unit = (tag: string, name: string) => {
-    const value = attr(tag, name);
-    return /^-?\d+$/.test(value) ? Number(value) / 75 : NaN;
-  };
-  const length = attr(line, 'length'), width = /^(\d+(?:\.\d+)?)\s*mm$/.exec(attr(line, 'width'));
-  const data = { mark, above: unit(spacing, 'aboveLine'), below: unit(spacing, 'belowLine'),
-    between: unit(spacing, 'betweenNotes'), separator: length === '-1' ? 50 * 96 / 25.4 : unit(line, 'length'),
-    stroke: width ? Math.round(Number(width[1]) * 96 / 25.4 * 10) / 10 : NaN };
-  const checked = parseHwpFootnoteLayout(JSON.stringify(data));
-  return checked ? JSON.stringify(checked) : undefined;
-}
-
 function archive(doc: HwpDocument) {
   let size = 0;
   return unzipSync(doc.exportHwpx(), { filter: entry => {
@@ -105,19 +79,16 @@ export function stageHwpNotes(html: string) {
  * body content. This isolated document shares styles and binaries with source,
  * while never editing the user's document or treating a screenshot as text. */
 export function importHwpNotes(doc: HwpDocument, files: Record<string, Uint8Array>, render: (doc: HwpDocument) => { html: string; warnings: string[] }) {
-  const notes: { id: string; kind: 'footnote' | 'endnote'; label: string; xml: string; html?: string;
-    layout?: string }[] = [];
+  const notes: { id: string; kind: 'footnote' | 'endnote'; label: string; xml: string; html?: string }[] = [];
   for (const [name, bytes] of Object.entries(files)) {
     const section = name.match(/^Contents\/section(\d+)\.xml$/)?.[1]; if (section === undefined) continue;
     const xml = strFromU8(bytes);
-    const properties = ranges(xml, 'hp:footNotePr')[0]?.inner;
     for (const r of ranges(xml, 'hp:(?:footNote|endNote)')) {
       const kind = r.open.startsWith('<hp:footNote') ? 'footnote' : 'endnote';
       const id = `hwp-note-${section}-${notes.filter(n => n.id.startsWith(`hwp-note-${section}-`)).length}`;
       const inner = r.inner.match(/<hp:subList\b[^>]*>([\s\S]*)<\/hp:subList>/)?.[1];
       if (!inner) throw Error('각주·미주 본문 구조가 올바르지 않습니다.');
-      const label = attr(r.open, 'number') || '1';
-      notes.push({ id, kind, label, layout: kind === 'footnote' ? sourceFootnoteLayout(properties, r.open, label) : undefined, xml: withoutLines(inner)
+      notes.push({ id, kind, label: attr(r.open, 'number') || '1', xml: withoutLines(inner)
         .replace(/<hp:ctrl>\s*<hp:autoNum\b[^>]*numType="(?:FOOTNOTE|ENDNOTE)"[^>]*>[\s\S]*?<\/hp:autoNum>\s*<\/hp:ctrl>/g, '') });
     }
   }
@@ -138,13 +109,7 @@ export function importHwpNotes(doc: HwpDocument, files: Record<string, Uint8Arra
       const text = plain(p.inner).trim();
       const start = notes.findIndex((_, i) => text === `${prefix}${i}-START`);
       if (start >= 0) { active = start; from = p.end; }
-      else if (active >= 0 && text === `${prefix}${active}-END`) {
-        const note = notes[active];
-        note.html = result.html.slice(from, p.start).trim() || '<p></p>';
-        if (!/^<p\b[^>]*>[\s\S]*<\/p>$/.test(note.html) || ranges(note.html, 'p').length !== 1 ||
-            /<(?:br|img|svg|table|sup|sub)\b/i.test(note.html)) delete note.layout;
-        active = -1;
-      }
+      else if (active >= 0 && text === `${prefix}${active}-END`) { notes[active].html = result.html.slice(from, p.start).trim() || '<p></p>'; active = -1; }
     }
     if (notes.some(n => n.html === undefined)) throw Error('일부 각주·미주 본문을 변환하지 못했습니다.');
     return { notes, warnings: result.warnings };

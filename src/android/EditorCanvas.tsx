@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import type { PageSettings } from '../types';
-import { hasUniformTablePageBody, pageMargins, paperDimensions } from '../types';
+import { pageMargins, paperDimensions } from '../types';
 import { visibleEditorPages } from '../editor-visible-pages';
 import { useDocumentZoom } from '../document-zoom-gesture';
 
@@ -36,7 +36,6 @@ export function EditorCanvas({ settings, initialPage, onCompositionStart, onComp
   return <section className="android-editor-pane"><div ref={viewport} className="android-editor-scroll" data-scale={scale} onCompositionStart={onCompositionStart} onCompositionEnd={onCompositionEnd}>
     <div className="android-editor-stage" style={{ width: width * scale, height: Math.max(pageHeight, height) * scale }}>
       <div ref={paper} className="document-stack" data-page-height={pageHeight} data-margin={margins.top * PX_PER_MM} data-bottom-margin={margins.bottom * PX_PER_MM} data-left-margin={margins.left * PX_PER_MM} data-right-margin={margins.right * PX_PER_MM} data-suppress-bottom-spacing={settings.suppressBottomSpacing !== false}
-        data-uniform-table-page-body={hasUniformTablePageBody(settings)}
         style={{ width, minHeight: pages * (pageHeight + 24) - 24, transform: `scale(${scale})`, '--page-width': `${width}px`, '--page-height': `${pageHeight}px`, '--page-margin': `${margins.top * PX_PER_MM}px`,
           '--page-padding': `${margins.top * PX_PER_MM}px ${margins.right * PX_PER_MM}px ${margins.bottom * PX_PER_MM}px ${margins.left * PX_PER_MM}px` } as CSSProperties}>
         <div className="paper-backgrounds" aria-hidden="true">{Array.from({ length: pages }, (_, n) => <div key={n} className="paper" style={{ top: n * (pageHeight + 24), height: pageHeight }} />)}</div>

@@ -1,10 +1,10 @@
 import {inlineDrawingAnchor} from './drawing-group';
 import { normalizeDrawingGroups } from './docx-drawing-groups';
 import type JSZip from 'jszip';
-import { W, all, child, ancestor, val } from './docx-format';
+import { W, all, child, ancestor } from './docx-format';
 import { storyHtml } from './docx-stories';
 import { pageMargins, paperDimensions, type PageSettings } from './types';
-import { textBoxFrame, type TextBoxDecoration, type TextBoxFrame } from './textbox-frame';
+import { textBoxFrame, type TextBoxFrame } from './textbox-frame';
 const A='http://schemas.openxmlformats.org/drawingml/2006/main';
 const WP='http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
 const WPS='http://schemas.microsoft.com/office/word/2010/wordprocessingShape';
@@ -14,64 +14,19 @@ const descendants=(root:Element|Document,name:string)=>Array.from(root.getElemen
 const number=(el:Element|null|undefined,key:string,fallback=0)=>{const n=Number(el?.getAttribute(key)??fallback);return Number.isFinite(n)?n:fallback;};
 const first=(el:Element|null|undefined,name:string)=>el && Array.from(el.children).find(c=>c.localName===name);
 const hex=(v:string|undefined)=>v && /^#?[\da-f]{6}$/i.test(v) ? '#'+v.replace('#','') : undefined;
-export const textBoxAnchorStyle = {
- id: 'WordStudioTextBoxAnchor', name: 'Text box anchor', next: 'Normal', semiHidden: true,
-};
-type PreparedBox={ marker:string; frames:{ frame:TextBoxFrame; html:string }[]; generatedCarrier: boolean };
-
-function isGeneratedTextBoxCarrier(drawing: Element) {
- const run = drawing.parentElement, paragraph = run?.parentElement;
- const position = drawing.firstElementChild?.localName;
- if (drawing.namespaceURI !== W || drawing.localName !== 'drawing' ||
-     drawing.children.length !== 1 || drawing.firstElementChild?.namespaceURI !== WP || position !== 'anchor' && position !== 'inline' ||
-     run?.namespaceURI !== W || run.localName !== 'r' || run.children.length !== 1 ||
-     paragraph?.namespaceURI !== W || paragraph.localName !== 'p' || paragraph.children.length !== 2) return false;
- const properties = paragraph.firstElementChild;
- if (properties?.namespaceURI !== W || properties.localName !== 'pPr' || properties.children.length !== 2) return false;
- const style = child(properties, 'pStyle'), spacing = child(properties, 'spacing');
- // An editor can retain a style while editing the anchor. Only remove the
- // exact generated spacer, leaving authored content and formatting intact.
- return style?.namespaceURI === W && style.attributes.length === 1 && val(style) === textBoxAnchorStyle.id &&
-   spacing?.namespaceURI === W && spacing.attributes.length === 4 && val(spacing, 'before') === '0' &&
-   val(spacing, 'after') === '0' && val(spacing, 'line') === '1' && val(spacing, 'lineRule') === (position === 'inline' ? 'atLeast' : 'exact');
-}
-
-async function hasGeneratedTextBoxAnchorStyle(zip: JSZip) {
- const part = zip.file('word/styles.xml');
- if (!part) return false;
- const styles = new DOMParser().parseFromString(await part.async('string'), 'application/xml');
- const matches = all(styles, 'style').filter(style => val(style, 'styleId') === textBoxAnchorStyle.id);
- if (matches.length !== 1) return false;
- const style = matches[0], name = child(style, 'name'), next = child(style, 'next'), hidden = child(style, 'semiHidden');
- // If another editor changed the style itself, the carrier may now have
- // deliberate paragraph formatting even without direct formatting edits.
- return val(style, 'type') === 'paragraph' && style.attributes.length === 2 && style.children.length === 3 &&
-   name?.namespaceURI === W && name.attributes.length === 1 && val(name) === textBoxAnchorStyle.name &&
-   next?.namespaceURI === W && next.attributes.length === 1 && val(next) === textBoxAnchorStyle.next &&
-   hidden?.namespaceURI === W && hidden.attributes.length === 0;
-}
+type PreparedBox={ marker:string; frames:{ frame:TextBoxFrame; html:string }[] };
 
 async function colors(zip:JSZip) {
  const part=zip.file('word/theme/theme1.xml'),theme=part ? new DOMParser().parseFromString(await part.async('string'),'application/xml') : undefined;
  const scheme=theme && descendants(theme,'clrScheme')[0];const aliases:Record<string,string>={bg1:'lt1',bg2:'lt2',tx1:'dk1',tx2:'dk2'};
- const settingsPart = zip.file('word/settings.xml');
- const settings = settingsPart && new DOMParser().parseFromString(await settingsPart.async('string'), 'application/xml');
- const mapping = settings ? all(settings, 'clrSchemeMapping')[0] : undefined;
- const themeSlots: Record<string,string> = { dark1:'dk1', dark2:'dk2', light1:'lt1', light2:'lt2', hyperlink:'hlink', followedHyperlink:'folHlink' };
- const solidAliases = { ...aliases };
- for (const [drawing, word] of Object.entries({ bg1:'bg1',bg2:'bg2',tx1:'t1',tx2:'t2',accent1:'accent1',accent2:'accent2',
-   accent3:'accent3',accent4:'accent4',accent5:'accent5',accent6:'accent6',hlink:'hyperlink',folHlink:'followedHyperlink' })) {
-  const mapped = val(mapping, word);
-  if (mapped) solidAliases[drawing] = themeSlots[mapped] || mapped;
- }
- function color(el:Element|undefined,placeholder?:string,schemeAliases=aliases):string|undefined {
+ function color(el:Element|undefined,placeholder?:string):string|undefined {
   if(!el)return;let value:string|undefined;
   if(el.localName==='srgbClr')value=hex(el.getAttribute('val')||'');
   else if(el.localName==='sysClr')value=hex(el.getAttribute('lastClr')||'');
   else if(el.localName==='schemeClr') {
    const key=el.getAttribute('val')||'';
    if(key==='phClr')value=placeholder;
-   else {const item=scheme && first(scheme,schemeAliases[key]||key);value=item ? color(item.firstElementChild||undefined) : key==='lt1' ? '#ffffff' : key==='dk1' ? '#000000' : undefined;}
+   else {const item=scheme && first(scheme,aliases[key]||key);value=item ? color(item.firstElementChild||undefined) : key==='lt1' ? '#ffffff' : key==='dk1' ? '#000000' : undefined;}
   }
   if(!value)return;
   let rgb=value.slice(1).match(/../g)!.map(n=>parseInt(n,16)/255);
@@ -99,7 +54,7 @@ async function colors(zip:JSZip) {
   const value=fill?.localName==='solidFill' ? color(fill.firstElementChild||undefined,placeholder) : placeholder;
   return value ? {fill:value} : {};
  }
- return {fill,color,solidColor(el:Element){ return color(el, undefined, solidAliases); }};
+ return {fill,color};
 }
 // Word can put a percentage anchor in Choice and a pixel fallback beside it.
 // Resolve only direct compatibility wrappers; do not pick a child's anchor.
@@ -112,19 +67,15 @@ function anchorPosition(anchor:Element|null,name:string):Element|undefined {
   }
  }
 }
-function modernFrame(shape:Element,page:PageSettings,palette:Awaited<ReturnType<typeof colors>>,
-  normalizeGroupedInsets = false):TextBoxFrame {
- const anchor=ancestor(shape,'anchor')||ancestor(shape,'inline');
+function modernFrame(box:Element,page:PageSettings,palette:Awaited<ReturnType<typeof colors>>):TextBoxFrame {
+ const shape=ancestor(box,'wsp')!,anchor=ancestor(shape,'anchor')||ancestor(shape,'inline');
  const transform=first(first(shape,'spPr'),'xfrm'),offset=first(transform,'off'),size=first(transform,'ext');
  let x=number(offset,'x'),y=number(offset,'y'),width=number(size,'cx',number(anchor ? first(anchor,'extent') : undefined,'cx',3657600)),height=number(size,'cy',number(anchor ? first(anchor,'extent') : undefined,'cy',914400));
  let parent=shape.parentElement,grouped=false;
- let insetScale=1, simpleHorizontalTransform=isUnrotated(transform);
  while(parent && parent!==anchor) {
   if(parent.localName==='wgp') {grouped=true;
    const t=first(first(parent,'grpSpPr'),'xfrm'),off=first(t,'off'),ext=first(t,'ext'),childOff=first(t,'chOff'),childExt=first(t,'chExt');
    const sx=number(ext,'cx',1)/number(childExt,'cx',number(ext,'cx',1)),sy=number(ext,'cy',1)/number(childExt,'cy',number(ext,'cy',1));
-   simpleHorizontalTransform &&= parent.namespaceURI === WPG && isUnrotated(t) && Number.isFinite(sx) && sx > 0;
-   insetScale *= sx;
    x=number(off,'x')+(x-number(childOff,'x'))*sx;y=number(off,'y')+(y-number(childOff,'y'))*sy;width*=sx;height*=sy;
   }
   parent=parent.parentElement;
@@ -139,14 +90,6 @@ function modernFrame(shape:Element,page:PageSettings,palette:Awaited<ReturnType<
   return {offset:pct ? base+available*Number(pct.textContent)/100000 : first(p,'posOffset') ? base+Number(first(p,'posOffset')!.textContent)/EMU : align==='center'?base+(available-own)/2 : ['right','bottom','outside'].includes(align||'')?base+available-own:base,relative};
  };
  const hp=position('positionH',false),vp=position('positionV',true),properties=first(shape,'bodyPr');
- const geometry = first(first(shape, 'spPr'), 'prstGeom');
- const kind = geometry?.getAttribute('prst');
- const guides = first(geometry, 'avLst');
- const guide = guides?.children.length === 1 ? guides.firstElementChild : null;
- const adjustment = kind === 'roundRect' && guide?.namespaceURI === A && guide.localName === 'gd' &&
-   guide.getAttribute('name') === 'adj' ? /^val ([0-9]{1,5})$/.exec(guide.getAttribute('fmla') ?? '') : null;
- const adj = adjustment ? Number(adjustment[1]) : undefined;
- const cornerRadius = adj !== undefined && adj <= 50000 ? Math.min(width, height) / EMU * adj / 100000 : undefined;
  const line=first(first(shape,'spPr'),'ln'),lineColor=first(line,'solidFill'),border=palette.color(lineColor?.firstElementChild||undefined);
  const hAlign=first(anchorPosition(anchor,'positionH'),'align')?.textContent||'';
  const hReference=grouped?'page':['margin','column'].includes(hp.relative)?hp.relative as 'margin'|'column':'page';
@@ -154,54 +97,12 @@ function modernFrame(shape:Element,page:PageSettings,palette:Awaited<ReturnType<
   wrapMargins:[number(anchor,'distT')/EMU,number(anchor,'distR')/EMU,number(anchor,'distB')/EMU,number(anchor,'distL')/EMU],
   padding:[number(properties,'tIns',45720)/EMU,number(properties,'rIns',91440)/EMU,number(properties,'bIns',45720)/EMU,number(properties,'lIns',91440)/EMU],
   align:properties?.getAttribute('anchor')==='ctr'?'center':properties?.getAttribute('anchor')==='b'?'bottom':'top',
-  shape:kind === 'homePlate' || kind === 'roundRect' ? kind : 'rect',
-  ...(cornerRadius !== undefined ? { cornerRadius } : {}),
+  shape:['homePlate','roundRect'].includes(first(first(shape,'spPr'),'prstGeom')?.getAttribute('prst')||'') ? first(first(shape,'spPr'),'prstGeom')!.getAttribute('prst') as 'homePlate'|'roundRect':'rect',
   autoFit:!!first(properties,'spAutoFit'),horizontalReference:hReference,horizontalOffset:hp.offset+x/EMU-(hReference==='page'?0:margins.left*96/25.4),horizontalAlign:!grouped && ['center','right'].includes(hAlign)?hAlign as 'center'|'right':'left',
   wrap:anchor && Array.from(anchor.children).some(c=>['wrapSquare','wrapTight','wrapThrough','wrapTopAndBottom'].includes(c.localName))?'square':'none',noWrap:properties?.getAttribute('wrap')==='none',
   ...palette.fill(shape),...(border ? {border,borderWidth:number(line,'w')/EMU}:{}),behind:anchor?.getAttribute('behindDoc')==='1'};
- // Shape extents are flattened to page coordinates. Normalize explicit
- // horizontal text insets with the same group transform before export.
- if (normalizeGroupedInsets && grouped && simpleHorizontalTransform && frame.position === 'floating' &&
-     frame.shape === 'rect' && !frame.autoFit && !frame.noWrap && frame.align === 'top' &&
-     frame.border && (frame.borderWidth ?? 0) > 0 && properties?.hasAttribute('rIns') && properties.hasAttribute('lIns') &&
-     number(properties,'rot') === 0 && ['','horz'].includes(properties.getAttribute('vert') ?? '')) {
-   // This provenance is rebuilt from the standard group shape upon reopening.
-   frame.groupedHorizontalInsets = true;
-   frame.padding[1] *= insetScale;
-   frame.padding[3] *= insetScale;
- }
  return textBoxFrame(JSON.stringify(frame)) || {...frame,x:0,y:0,width:400,height:100,position:'inline',padding:[5,10,5,10]};
 }
-function isUnrotated(transform: Element | null | undefined) {
- return !!transform && number(transform, 'rot') === 0 &&
-   !['1', 'true'].includes(transform.getAttribute('flipH') || '') &&
-   !['1', 'true'].includes(transform.getAttribute('flipV') || '');
-}
-
-/** A plain shape following a text story paints inside the same floating group. */
-function rectangleDecoration(owner: Element, frame: TextBoxFrame, page: PageSettings, palette: Awaited<ReturnType<typeof colors>>): TextBoxDecoration | undefined {
- const group = owner.parentElement, shape = owner.nextElementSibling;
- if (!group || group.namespaceURI !== WPG || group.localName !== 'wgp' ||
-     !shape || shape.namespaceURI !== WPS || shape.localName !== 'wsp' ||
-     frame.position !== 'floating' || frame.autoFit && frame.noWrap ||
-     first(shape, 'txbx') || first(shape, 'linkedTxbx')) return;
- const props = first(shape, 'spPr'), geometry = first(props, 'prstGeom');
- if (!props || geometry?.getAttribute('prst') !== 'rect' || first(geometry, 'avLst')?.children.length ||
-     !isUnrotated(first(props, 'xfrm')) || !isUnrotated(first(first(group, 'grpSpPr'), 'xfrm')) ||
-     ![...props.children].every(child => child.namespaceURI === A && ['xfrm','prstGeom','solidFill','ln'].includes(child.localName)) ||
-     number(first(first(shape, 'style'), 'effectRef'), 'idx') !== 0) return;
- const line = first(props, 'ln'), solid = first(props, 'solidFill');
- const color = solid?.firstElementChild;
- if (!line || line.children.length !== 1 || !first(line, 'noFill') || solid?.children.length !== 1 ||
-     !color || color.namespaceURI !== A || color.children.length || !['schemeClr','srgbClr'].includes(color.localName)) return;
- const fill = palette.solidColor(color);
- const bounds = modernFrame(shape, page, palette);
- if (!fill || bounds.position !== 'floating') return;
- const x = bounds.x - frame.x, y = bounds.y - frame.y;
- if (Math.abs(x) > 100000 || Math.abs(y) > 100000) return;
- return { x, y, width: bounds.width, height: bounds.height, fill };
-}
-
 function legacyFrame(box:Element,page:PageSettings):TextBoxFrame {
  const shape=ancestor(box,'shape')||ancestor(box,'rect')||ancestor(box,'roundrect')||ancestor(box,'textbox')?.parentElement;
  if(!shape)throw Error('텍스트상자 도형을 찾을 수 없습니다.');
@@ -215,7 +116,7 @@ function legacyFrame(box:Element,page:PageSettings):TextBoxFrame {
 
 /** Isolate each selected textbox story before Mammoth can flatten/drop it.
  * Modern Choice wins once; the equivalent legacy fallback is never imported twice. */
-export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSettings[],depth=0, preserveReflection = true) {
+export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSettings[],depth=0) {
  if(depth>12)throw Error('중첩 텍스트상자 구조가 너무 깊습니다.');
  normalizeDrawingGroups(body,pages);
  const palette=await colors(zip),records:PreparedBox[]=[];
@@ -230,30 +131,21 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
   if(!container || ancestor(box,'txbxContent'))continue;
   const boxes=grouped.get(container)||[];boxes.push(box);grouped.set(container,boxes);
  }
- const possibleCarriers = new Set([...grouped.keys()].filter(isGeneratedTextBoxCarrier));
- const generatedStyle = possibleCarriers.size > 0 && await hasGeneratedTextBoxAnchorStyle(zip);
  let section=0;const pageFor=new Map<Element,PageSettings>();
  for(const paragraph of all(body,'p')) {pageFor.set(paragraph,pages[Math.min(section,pages.length-1)]||pages[0]);if(first(first(paragraph,'pPr'),'sectPr') && !ancestor(paragraph,'txbxContent'))section++;}
  for(const [container,boxes] of grouped) {
   const page=pageFor.get(ancestor(container,'p')!)||pages[0];const frames=[];
   for(const box of boxes) {
-   const shape = ancestor(box, 'wsp');
+   const frame=ancestor(box,'wsp') ? modernFrame(box,page,palette):legacyFrame(box,page);
    const raw=ancestor(box,'drawing')?.getAttribute('data-ws-drawing-group');
-   const frame = shape ? modernFrame(shape, page, palette, !raw && boxes.length > 1) : legacyFrame(box, page);
    if(raw){frame.drawingGroup=JSON.parse(raw);frame.group=frame.drawingGroup!.id;}
-   else if (shape && ancestor(box, 'wgp')) {
-    const decoration = rectangleDecoration(shape, frame, page, palette);
-    if (boxes.length > 1 || decoration) frame.group = 'textbox_group_' + records.length;
-    if (decoration) frame.decoration = decoration;
-   }
-   frames.push({frame,html:await storyHtml(zip,'word/document.xml',box,page,depth+1,preserveReflection)});
+   else if(boxes.length>1 && ancestor(box,'wgp'))frame.group='textbox_group_'+records.length;
+   frames.push({frame,html:await storyHtml(zip,'word/document.xml',box,page,depth+1)});
   }
   const marker='ws_textbox_'+crypto.randomUUID().replaceAll('-','');
   const bookmark=body.createElementNS(W,'w:bookmarkStart');bookmark.setAttributeNS(W,'w:id',String(800000+records.length));bookmark.setAttributeNS(W,'w:name',marker);
   const end=body.createElementNS(W,'w:bookmarkEnd');end.setAttributeNS(W,'w:id',String(800000+records.length));
-  const generatedCarrier = generatedStyle && possibleCarriers.has(container) &&
-    frames.every(item => !item.frame.drawingGroup && (item.frame.position === 'floating' || frames.length === 1));
-  container.before(bookmark,end);container.remove();records.push({marker,frames,generatedCarrier});
+  container.before(bookmark,end);container.remove();records.push({marker,frames});
  }
  return {count:records.reduce((n,r)=>n+r.frames.length,0),decorate(html:string) {
   const template=document.createElement('template');template.innerHTML=html;const last=new Map<Element,Element>();
@@ -265,10 +157,7 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
     if(item.frame.drawingGroup?.position==='inline' && !inlineDrawingAnchor(template.content,item.frame.drawingGroup.id)){const anchor=document.createElement('span');anchor.dataset.drawingGroupAnchor=JSON.stringify(item.frame.drawingGroup);marker.before(anchor);}
     const box=document.createElement('div'),content=document.createElement('div');box.dataset.documentTextbox=JSON.stringify(item.frame);content.dataset.textboxContent='true';content.innerHTML=item.html;box.append(content);after.after(box);after=box;
    }
-   marker.remove();
-   if (record.generatedCarrier && paragraph?.tagName === 'P' && !paragraph.textContent?.trim() &&
-       !paragraph.querySelector('br,img,[data-docx-bookmark]')) paragraph.remove();
-   else if (paragraph) last.set(paragraph,after);
+   if(paragraph)last.set(paragraph,after);marker.remove();
   }
   return template.innerHTML;
  }};
@@ -290,13 +179,8 @@ export async function writeTextBoxes(zip:JSZip,records:TextBoxExport[]) {
    while(next && next!==finish) {const following=next.nextElementSibling;children.push(next);next=following;}
    if(next!==finish)throw Error('텍스트상자 구조가 올바르지 않습니다.');
    const f=record.frame,emu=(v:number)=>String(Math.round(v*EMU));
-   const syntheticStyle = !f.drawingGroup ? `<w:pStyle w:val="${textBoxAnchorStyle.id}"/>` : '';
-   const lineRule = f.position === 'inline' && !f.drawingGroup ? 'atLeast' : 'exact';
    const gradient=f.gradient ? `<a:gradFill><a:gsLst>${f.gradient.map(s=>`<a:gs pos="${Math.round(s.position*100000)}"><a:srgbClr val="${s.color.slice(1)}"/></a:gs>`).join('')}</a:gsLst><a:lin ang="5400000" scaled="1"/></a:gradFill>`:f.fill?`<a:solidFill><a:srgbClr val="${f.fill.slice(1)}"/></a:solidFill>`:'<a:noFill/>';
-   const adj = f.shape === 'roundRect' && f.cornerRadius !== undefined
-     ? Math.round(f.cornerRadius * 100000 / Math.min(f.width, f.height)) : undefined;
-   const adjustments = adj === undefined ? '<a:avLst/>' : `<a:avLst><a:gd name="adj" fmla="val ${adj}"/></a:avLst>`;
-   const xml=`<w:p xmlns:w="${W}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}"><w:pPr>${syntheticStyle}<w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="${lineRule}"/></w:pPr><w:r><w:drawing><wp:anchor distT="${emu(f.wrapMargins?.[0]||0)}" distB="${emu(f.wrapMargins?.[2]||0)}" distL="${emu(f.wrapMargins?.[3]||0)}" distR="${emu(f.wrapMargins?.[1]||0)}" simplePos="0" relativeHeight="${100000+index}" behindDoc="${f.behind?1:0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="${f.horizontalReference||'page'}">${f.horizontalReference && f.horizontalAlign && f.horizontalAlign!=='left'?`<wp:align>${f.horizontalAlign}</wp:align>`:`<wp:posOffset>${emu(f.horizontalOffset??f.x)}</wp:posOffset>`}</wp:positionH><wp:positionV relativeFrom="${f.vertical}"><wp:posOffset>${emu(f.y)}</wp:posOffset></wp:positionV><wp:extent cx="${emu(f.width)}" cy="${emu(f.height)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${f.wrap==='square'?'<wp:wrapSquare wrapText="bothSides"/>':'<wp:wrapNone/>'}<wp:docPr id="${100000+index}" name="Text Box ${index+1}"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri="${WPS}"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(f.width)}" cy="${emu(f.height)}"/></a:xfrm><a:prstGeom prst="${f.shape}">${adjustments}</a:prstGeom>${gradient}<a:ln w="${emu(f.borderWidth||0)}">${f.border?`<a:solidFill><a:srgbClr val="${f.border.slice(1)}"/></a:solidFill>`:'<a:noFill/>'}</a:ln></wps:spPr><wps:txbx><w:txbxContent/></wps:txbx><wps:bodyPr rot="0" vert="horz" wrap="${f.noWrap?'none':'square'}" lIns="${emu(f.padding[3])}" tIns="${emu(f.padding[0])}" rIns="${emu(f.padding[1])}" bIns="${emu(f.padding[2])}" anchor="${f.align==='center'?'ctr':f.align==='bottom'?'b':'t'}">${f.autoFit?'<a:spAutoFit/>':'<a:noAutofit/>'}</wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
+   const xml=`<w:p xmlns:w="${W}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}"><w:pPr><w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/></w:pPr><w:r><w:drawing><wp:anchor distT="${emu(f.wrapMargins?.[0]||0)}" distB="${emu(f.wrapMargins?.[2]||0)}" distL="${emu(f.wrapMargins?.[3]||0)}" distR="${emu(f.wrapMargins?.[1]||0)}" simplePos="0" relativeHeight="${100000+index}" behindDoc="${f.behind?1:0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="${f.horizontalReference||'page'}">${f.horizontalReference && f.horizontalAlign && f.horizontalAlign!=='left'?`<wp:align>${f.horizontalAlign}</wp:align>`:`<wp:posOffset>${emu(f.horizontalOffset??f.x)}</wp:posOffset>`}</wp:positionH><wp:positionV relativeFrom="${f.vertical}"><wp:posOffset>${emu(f.y)}</wp:posOffset></wp:positionV><wp:extent cx="${emu(f.width)}" cy="${emu(f.height)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${f.wrap==='square'?'<wp:wrapSquare wrapText="bothSides"/>':'<wp:wrapNone/>'}<wp:docPr id="${100000+index}" name="Text Box ${index+1}"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri="${WPS}"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(f.width)}" cy="${emu(f.height)}"/></a:xfrm><a:prstGeom prst="${f.shape}"><a:avLst/></a:prstGeom>${gradient}<a:ln w="${emu(f.borderWidth||0)}">${f.border?`<a:solidFill><a:srgbClr val="${f.border.slice(1)}"/></a:solidFill>`:'<a:noFill/>'}</a:ln></wps:spPr><wps:txbx><w:txbxContent/></wps:txbx><wps:bodyPr rot="0" vert="horz" wrap="${f.noWrap?'none':'square'}" lIns="${emu(f.padding[3])}" tIns="${emu(f.padding[0])}" rIns="${emu(f.padding[1])}" bIns="${emu(f.padding[2])}" anchor="${f.align==='center'?'ctr':f.align==='bottom'?'b':'t'}">${f.autoFit?'<a:spAutoFit/>':'<a:noAutofit/>'}</wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
    const parsed=new DOMParser().parseFromString(xml,'application/xml');if(parsed.getElementsByTagName('parsererror').length)throw Error('텍스트상자 XML을 만들 수 없습니다.');
    const p=doc.importNode(parsed.documentElement,true),target=all(p,'txbxContent')[0];target.append(...children);
    if(f.position==='inline'){const anchor=p.getElementsByTagNameNS(WP,'anchor')[0],inline=doc.createElementNS(WP,'wp:inline');for(const c of [...anchor.children])if(['extent','effectExtent','docPr','cNvGraphicFramePr','graphic'].includes(c.localName))inline.append(c);anchor.replaceWith(inline);}
@@ -307,47 +191,17 @@ export async function writeTextBoxes(zip:JSZip,records:TextBoxExport[]) {
   // makes Word's web editor give each large child another page of its own.
   const groups=new Map<string,typeof written>();
   for(const item of written)if(item.record.frame.group && !item.record.frame.drawingGroup){const items=groups.get(item.record.frame.group)||[];items.push(item);groups.set(item.record.frame.group,items);}
-  const groupsToWrite: (typeof written)[] = [];
-  for (const members of groups.values()) {
-   if (members.every((m,i) => m.record.frame.position === 'floating' && m.record.frame.vertical === members[0].record.frame.vertical &&
-      (i === 0 || members[i-1].paragraph.nextElementSibling === m.paragraph))) {
-    if (members.length > 1 || members[0].record.frame.decoration) groupsToWrite.push(members);
-   } else for (const member of members) if (member.record.frame.decoration) groupsToWrite.push([member]);
-  }
-  for (const members of groupsToWrite) {
-    const frames = members.flatMap(({record:{frame}}) => {
-      const decoration = frame.decoration;
-      return decoration ? [frame, { ...decoration, x: frame.x + decoration.x, y: frame.y + decoration.y }] : [frame];
-    });
-    const x=Math.min(...frames.map(f=>f.x)),y=Math.min(...frames.map(f=>f.y));
-    const width=Math.max(...frames.map(f=>f.x+f.width))-x,height=Math.max(...frames.map(f=>f.y+f.height))-y;
+  for(const members of groups.values()) {
+    if(members.length<2 || members.some((m,i)=>m.record.frame.position!=='floating' || m.record.frame.vertical!==members[0].record.frame.vertical || i>0 && members[i-1].paragraph.nextElementSibling!==m.paragraph))continue;
+    const x=Math.min(...members.map(m=>m.record.frame.x)),y=Math.min(...members.map(m=>m.record.frame.y));
+    const width=Math.max(...members.map(m=>m.record.frame.x+m.record.frame.width))-x,height=Math.max(...members.map(m=>m.record.frame.y+m.record.frame.height))-y;
     const firstParagraph=members[0].paragraph,anchor=firstParagraph.getElementsByTagNameNS(WP,'anchor')[0],graphic=anchor.getElementsByTagNameNS(A,'graphicData')[0];
     const element=(ns:string,name:string,attributes:Record<string,string>={})=>{const el=doc.createElementNS(ns,name);for(const[k,v]of Object.entries(attributes))el.setAttribute(k,v);return el;};
     const emu=(v:number)=>String(Math.round(v*EMU));
     const group=element(WPG,'wpg:wgp'),props=element(WPG,'wpg:grpSpPr'),transform=element(A,'a:xfrm');
     transform.append(element(A,'a:off',{x:'0',y:'0'}),element(A,'a:ext',{cx:emu(width),cy:emu(height)}),element(A,'a:chOff',{x:'0',y:'0'}),element(A,'a:chExt',{cx:emu(width),cy:emu(height)}));
     props.append(transform);group.append(element(WPG,'wpg:cNvGrpSpPr'),props);
-    for (const {record,paragraph} of members) {
-      const frame = record.frame, shape = paragraph.getElementsByTagNameNS(WPS, 'wsp')[0];
-      const off = first(first(first(shape, 'spPr'), 'xfrm'), 'off');
-      if (off) { off.setAttribute('x', emu(frame.x - x)); off.setAttribute('y', emu(frame.y - y)); }
-      group.append(shape);
-      const decoration = frame.decoration;
-      if (decoration) {
-       const rect = element(WPS, 'wps:wsp'), properties = element(WPS, 'wps:spPr'), transform = element(A, 'a:xfrm');
-       transform.append(element(A, 'a:off', {x:emu(frame.x+decoration.x-x), y:emu(frame.y+decoration.y-y)}),
-         element(A, 'a:ext', {cx:emu(decoration.width), cy:emu(decoration.height)}));
-       const geometry = element(A, 'a:prstGeom', {prst:'rect'});
-       geometry.append(element(A, 'a:avLst'));
-       const fill = element(A, 'a:solidFill'), line = element(A, 'a:ln');
-       fill.append(element(A, 'a:srgbClr', {val:decoration.fill.slice(1)}));
-       line.append(element(A, 'a:noFill'));
-       properties.append(transform, geometry, fill, line);
-       rect.append(element(WPS, 'wps:cNvSpPr'), properties, element(WPS, 'wps:bodyPr'));
-       group.append(rect);
-      }
-      if (paragraph !== members[0].paragraph) paragraph.remove();
-    }
+    for(const {record,paragraph} of members){const shape=paragraph.getElementsByTagNameNS(WPS,'wsp')[0],off=first(shape,'spPr') && first(first(shape,'spPr'),'xfrm') && first(first(first(shape,'spPr'),'xfrm'),'off');if(off){off.setAttribute('x',emu(record.frame.x-x));off.setAttribute('y',emu(record.frame.y-y));}group.append(shape);if(paragraph!==members[0].paragraph)paragraph.remove();}
     graphic.replaceChildren(group);graphic.setAttribute('uri',WPG);
     const h=first(anchor,'positionH')!,v=first(anchor,'positionV')!;h.setAttribute('relativeFrom','page');h.replaceChildren(element(WP,'wp:posOffset'));h.firstElementChild!.textContent=emu(x);v.replaceChildren(element(WP,'wp:posOffset'));v.firstElementChild!.textContent=emu(y);
     const extent=first(anchor,'extent')!;extent.setAttribute('cx',emu(width));extent.setAttribute('cy',emu(height));

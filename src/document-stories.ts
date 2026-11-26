@@ -2,7 +2,6 @@ import { Node, mergeAttributes } from '@tiptap/core';
 import { SectionNodeView } from './section-node-view';
 import { Plugin } from '@tiptap/pm/state';
 import { documentScale } from './document-scale';
-import { hwpFootnoteLayoutAttribute, hwpFootnoteMark, hwpFootnoteMarkAttribute, parseHwpFootnoteLayout } from './hwp-footnote-layout';
 
 const dataAttribute = (attribute: string, fallback = '') => ({ default: fallback,
   parseHTML: (el: HTMLElement) => el.getAttribute(attribute) || fallback,
@@ -10,16 +9,9 @@ const dataAttribute = (attribute: string, fallback = '') => ({ default: fallback
 });
 export const NoteReference = Node.create({
   name: 'noteReference', group: 'inline', inline: true, atom: true,
-  addAttributes: () => ({
-    id: dataAttribute('data-note-reference'), kind: dataAttribute('data-note-kind', 'footnote'), label: dataAttribute('data-note-label'),
-    hwpFootnoteMark: { default: null,
-      parseHTML: (el: HTMLElement) => hwpFootnoteMark(el.getAttribute(hwpFootnoteMarkAttribute)) ?? null,
-      renderHTML: (attrs: Record<string, unknown>) => hwpFootnoteMark(attrs.hwpFootnoteMark)
-        ? { [hwpFootnoteMarkAttribute]: attrs.hwpFootnoteMark } : {} },
-  }),
+  addAttributes: () => ({ id: dataAttribute('data-note-reference'), kind: dataAttribute('data-note-kind', 'footnote'), label: dataAttribute('data-note-label') }),
   parseHTML: () => [{ tag: 'span[data-note-reference]' }],
-  renderHTML: ({ node, HTMLAttributes }) => ['span', { ...HTMLAttributes, class: 'note-reference', title: `${node.attrs.kind === 'endnote' ? '미주' : '각주'} ${node.attrs.label}` },
-    node.attrs.kind === 'footnote' ? hwpFootnoteMark(node.attrs.hwpFootnoteMark) ?? node.attrs.label : node.attrs.label],
+  renderHTML: ({ node, HTMLAttributes }) => ['span', { ...HTMLAttributes, class: 'note-reference', title: `${node.attrs.kind === 'endnote' ? '미주' : '각주'} ${node.attrs.label}` }, node.attrs.label],
   addProseMirrorPlugins() {
     return [new Plugin({ props: { handleClick(view, _position, event) {
       const ref = (event.target as Element)?.closest<HTMLElement>('[data-note-reference]'); if (!ref) return false;
@@ -30,14 +22,7 @@ export const NoteReference = Node.create({
 });
 export const DocumentNote = Node.create({
   name: 'documentNote', group: 'block', content: 'block+', defining: true,
-  addAttributes: () => ({
-    id: dataAttribute('data-document-note'), kind: dataAttribute('data-note-kind', 'footnote'), label: dataAttribute('data-note-label'),
-    hwpFootnoteLayout: { default: null,
-      parseHTML: (el: HTMLElement) => parseHwpFootnoteLayout(el.getAttribute(hwpFootnoteLayoutAttribute))
-        ? el.getAttribute(hwpFootnoteLayoutAttribute) : null,
-      renderHTML: (attrs: Record<string, unknown>) => parseHwpFootnoteLayout(attrs.hwpFootnoteLayout)
-        ? { [hwpFootnoteLayoutAttribute]: attrs.hwpFootnoteLayout } : {} },
-  }),
+  addAttributes: () => ({ id: dataAttribute('data-document-note'), kind: dataAttribute('data-note-kind', 'footnote'), label: dataAttribute('data-note-label') }),
   parseHTML: () => [{ tag: 'div[data-document-note]' }],
   renderHTML: ({ HTMLAttributes }) => ['div', { ...HTMLAttributes, class: 'document-note' }, 0],
 });

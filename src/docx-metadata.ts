@@ -1,78 +1,19 @@
-import { hwpRelatedTableLayoutAttribute, parseHwpRelatedTableLayout } from './hwp-related-table-layout';
-import { hwpNestedTableLayoutAttribute, parseHwpNestedTableLayout } from './hwp-nested-table-layout';
-import { hwpCenteredCellLabelsAttribute, hwpCenteredCellLabelsNamespace, parseHwpCenteredCellLabels } from './hwp-centered-cell-labels';
-import { parseHwpTableContinuation } from './hwp-table-continuation';
-import { hwpBoxedDigitAttribute, hwpBoxedDigitBorder, hwpBoxedDigitNamespace, parseHwpBoxedDigit } from './hwp-boxed-digit';
-import { paragraphBorderBoxAttribute } from './paragraph-border-box';
 import { flattenDocxCheckboxes, restoreDocxCheckboxInputs } from './docx-checkboxes';
 import { encodeDocxXmlParts } from './docx-package-text';
-import { cellTablePosition } from './cell-table-position';
 import { tablePixelGrid } from './table-grid-widths';
 import { rowSplitPolicy } from './row-split-policy';
-import { hwpGridRowHeightNamespace } from './docx-table-cell';
-import { hwpRowReserve } from './hwp-row-reserve';
-import { hwpIntactRowAttribute, parseHwpIntactRow } from './hwp-intact-row';
-import { rowHeight } from './table-row-resize';
 import {parseDrawingGroup} from './drawing-group';
 import type JSZip from 'jszip';
 import { pageMargins, paperDimensions, type Comment, type PageSettings } from './types';
 import { W, all, val, child, ancestor, docxFormat, tableCellGridOffset } from './docx-format';
 import { overlapInstruction } from './word-overlap';
-import { readWordReflection, wordReflectionAttribute, wordParagraphReflectionAttribute } from './word-reflection';
 import { symbolFont, symbolElement } from './document-symbols';
 import { normalizeVmlImages } from './docx-images';
 import { drawingFloating } from './image-floating';
-import { encodeHwpCellRasterFill, hwpCellRasterFillAttribute, hwpCellRasterSource } from './hwp-cell-raster-fill';
 import { tableAnchor, tableWrapFits, paragraphTableNamespace } from './table-anchor';
-import { hwpKeptTablePage, hwpTableTopGap } from './table-anchor-data';
 import { cssPixels, encodeHwpCellLine, hwpCellLineNamespace, parseHwpCellLine } from './hwp-cell-line';
-import { hwpSourceSpacesAttribute, hwpSourceSpacesNamespace, hwpSourceWrapAttribute, parseHwpSourceWrap } from './hwp-text-advances';
 import { encodeHwpBodyLine, hwpBodyLineNamespace, parseHwpBodyLine } from './hwp-body-line';
 const parse = (text: string) => new DOMParser().parseFromString(text, 'application/xml');
-const wordChild = (parent: Element | undefined, name: string) =>
-  Array.from(parent?.children ?? []).find(element => element.namespaceURI === W && element.localName === name);
-function nestedFloatingPosition(table: Element): string | undefined {
-  const cell = table.parentElement;
-  if (cell?.localName !== 'tc' || ['txbxContent', 'footnote', 'endnote', 'comment', 'hdr', 'ftr'].some(name => ancestor(table, name))) return;
-  const children = Array.from(cell.children);
-  const pair = children.filter(child => child.localName === 'tbl');
-  if (pair.length !== 2 || children.some(child => child.localName !== 'tbl' && child.localName !== 'tcPr' &&
-    (child.localName !== 'p' || child.textContent?.trim() || ['tab', 'br', 'drawing', 'object', 'pict', 'fldChar'].some(name => all(child, name).length)))) return;
-  const positions = pair.map(table => {
-    const floating = child(child(table, 'tblPr'), 'tblpPr');
-    if (!floating || val(floating, 'horzAnchor') !== 'margin' || val(floating, 'vertAnchor') !== 'margin' ||
-      ['tblpXSpec', 'tblpYSpec', 'leftFromText', 'rightFromText', 'topFromText', 'bottomFromText']
-        .some(name => val(floating, name) && val(floating, name) !== '0')) return;
-    const value = `${val(floating, 'tblpX')} ${val(floating, 'tblpY')}`;
-    return cellTablePosition(value) ? value : undefined;
-  });
-  return positions.every(Boolean) ? positions[pair.indexOf(table)] : undefined;
-}
-
-function pairedTableMargins(body: Document, positions: WeakMap<Element, string>) {
-  const affected = new Set<Element>();
-  for (const table of all(body, 'tbl')) {
-    const position = nestedFloatingPosition(table);
-    if (!position) continue;
-    positions.set(table, position);
-    affected.add(table);
-    const host = ancestor(table.parentElement!, 'tbl');
-    if (host) affected.add(host);
-  }
-  // For the cell-relative pair and its host, treat the explicit logical
-  // table margins like their legacy aliases before applying inherited styles.
-  for (const table of affected) {
-    const margins = wordChild(wordChild(table, 'tblPr'), 'tblCellMar');
-    for (const [logical, physical] of [['start', 'left'], ['end', 'right']]) {
-      const edge = wordChild(margins, logical);
-      if (!edge || wordChild(margins, physical)) continue;
-      const alias = body.createElementNS(W, `w:${physical}`);
-      for (const attribute of edge.attributes) alias.setAttributeNS(attribute.namespaceURI, attribute.name, attribute.value);
-      edge.replaceWith(alias);
-    }
-  }
-}
-const reflectionBlock = 'p,h1,h2,h3,h4,h5,h6,li';
 // A standard paragraph style identifies the otherwise invisible separator
 // required by Word between adjacent tables and after a table inside a cell.
 export const TABLE_GAP_STYLE = 'WordStudioTableGap';
@@ -84,8 +25,7 @@ export const SECTION_BOUNDARY_STYLE = 'WordStudioSectionBoundary';
 export const TABLE_END_STYLE = 'WordStudioTableEnd';
 
 /** Temporary bookmarks let Mammoth preserve exact positions, including repeated text. */
-export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[],
-  { preserveReflection = true, connectedBodyBorders = false, textBoxStory = false } = {}) {
+export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: PageSettings[]) {
   flattenDocxCheckboxes(body);
   const format = await docxFormat(zip);
   // Word requires a final paragraph after a body table. Our small structural
@@ -108,9 +48,6 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
   // it as an ordinary paragraph after its table creates a spurious page.
   for (const p of all(body, 'p')) if (child(child(p, 'pPr'), 'framePr') && !ancestor(p, 'tc') &&
     Array.from(p.children).every(c => c.localName === 'pPr')) p.remove();
-  const cellTablePositions = new WeakMap<Element, string>();
-  pairedTableMargins(body, cellTablePositions);
-  const connectedBorders = connectedBodyBorders ? format.connectedBodyBorders(body) : undefined;
   const comments: Comment[] = [];
   const idMap = new Map<string, string>();
   const commentFile = zip.file('word/comments.xml');
@@ -137,7 +74,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
   let sequence = 900000;
   const numbering = new WeakMap<Element, ReturnType<typeof format.numbering>>();
   for (const p of all(body, 'p')) numbering.set(p, format.numbering(p));
-  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; page?: PageSettings; nextPage?: PageSettings; boundaryCarrier?: boolean; width?: number; height?: number; alt?: string; floating?: string; reflection?: string; reflectionEnd?: string }>();
+  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; page?: PageSettings; nextPage?: PageSettings; boundaryCarrier?: boolean; width?: number; height?: number; alt?: string; floating?: string }>();
   const bookmark = (name: string) => {
     const fragment = body.createDocumentFragment();
     const id = String(++sequence);
@@ -190,41 +127,21 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
     markers.set(name, { kind: 'image', alt, ...(floating ? { floating: JSON.stringify(floating) } : {}), ...(width > 0 && height > 0 && width <= 10000 && height <= 10000 ? { width, height } : {}) });
     drawing.before(bookmark(name));
   }
+  for (const tab of all(body, 'tab').filter(el => el.parentElement?.localName === 'r')) {
+    const name = `ws_marker_${sequence}`; markers.set(name, { kind: 'tab' }); tab.replaceWith(bookmark(name));
+  }
   for (const sym of all(body, 'sym')) {
     const name = `ws_marker_${sequence}`;
     markers.set(name, { kind: 'symbol', id: val(sym, 'font'), parts: [String(parseInt(val(sym, 'char'), 16))] });
     sym.replaceWith(bookmark(name));
   }
   for (const run of all(body, 'r')) {
-    const encoded = run.getAttributeNS(hwpBoxedDigitNamespace, 'box');
-    const box = parseHwpBoxedDigit(encoded);
-    if (box && run.namespaceURI === W) {
-      const props = wordChild(run, 'rPr'), border = wordChild(props, 'bdr');
-      const expected = hwpBoxedDigitBorder(box.size);
-      const text = wordChild(run, 't');
-      if (run.children.length === 2 && text?.textContent === box.digit &&
-          Number(val(wordChild(props, 'sz'))) === Math.round(box.size * .7) &&
-          val(border) === expected.style && Number(val(border, 'sz')) === expected.size &&
-          Number(val(border, 'space')) === expected.space) {
-        const name = 'ws_marker_' + sequence;
-        markers.set(name, { kind: 'boxedDigit', id: encoded!, parts: [box.digit], style: format.run(run) });
-        run.replaceWith(bookmark(name));
-        continue;
-      }
-    }
     const style = format.run(run);
-    const literal = preserveReflection && run.namespaceURI === W && wordChild(run, 't') &&
-      Array.from(run.children).every(element => element.namespaceURI === W && ['rPr', 't', 'tab'].includes(element.localName));
-    const reflection = literal ? readWordReflection(wordChild(run, 'rPr')) : undefined;
-    if (!style && !reflection) continue;
+    if (!style) continue;
     const start = `ws_marker_${sequence}`;
     markers.set(start, { kind: 'runStart', style, eastAsianStyle: format.run(run, 'eastAsia') }); run.before(bookmark(start));
     const end = `ws_marker_${sequence}`;
     markers.set(end, { kind: 'runEnd' }); run.after(bookmark(end));
-    if (reflection) Object.assign(markers.get(start)!, { reflection, reflectionEnd: end });
-  }
-  for (const tab of all(body, 'tab').filter(el => el.parentElement?.localName === 'r')) {
-    const name = `ws_marker_${sequence}`; markers.set(name, { kind: 'tab' }); tab.replaceWith(bookmark(name));
   }
   for (const br of all(body, 'br').filter(el => ['page', 'column'].includes(val(el, 'type')))) {
     const name = `ws_marker_${sequence}`;
@@ -263,8 +180,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       const sizedCells = new WeakMap<HTMLElement, Element>();
       const tableGaps = new Map<HTMLElement, number>();
       const tableAnchorParagraphs = new Set<HTMLElement>();
-      const tableOffsetParagraphs = new Map<HTMLElement, Element>();
-      const verifiedLeadingTableOffsets = new WeakMap<Element, HTMLTableElement>();
+      const tableOffsetParagraphs = new Set<HTMLElement>();
       const inlineGroups=new Set<string>();
       for (const el of template.content.querySelectorAll('img')) {
         const name = el.getAttribute('alt') || '', marker = markers.get(name);
@@ -277,17 +193,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           const original = el.parentElement; anchor.after(el);
           if (original && original !== el.parentElement && original.matches('p') && !original.textContent && !original.querySelector('img,[data-ws-marker],[data-docx-bookmark]')) original.remove();
         }
-        const floating = marker.floating ? JSON.parse(marker.floating) : undefined;
-        if (floating?.hwpCellRasterFill && marker.width && marker.height && marker.width < 10000 && marker.height < 10000) {
-          const p = el.closest('p,h1,h2,h3,h4,h5,h6'), cell = p?.parentElement;
-          const source = el.getAttribute('src');
-          if (cell?.matches('td') && !cell.hasAttribute(hwpCellRasterFillAttribute) && hwpCellRasterSource(source)) {
-            cell.setAttribute(hwpCellRasterFillAttribute, encodeHwpCellRasterFill(marker.width, marker.height, source, floating.hwpCellRasterBrightness));
-            el.remove();
-            continue;
-          }
-        }
-        const group=floating ? parseDrawingGroup(JSON.stringify(floating.drawingGroup)) : undefined;
+        const group=marker.floating ? parseDrawingGroup(JSON.stringify(JSON.parse(marker.floating).drawingGroup)) : undefined;
         if(group?.position==='inline' && !inlineGroups.has(group.id)){const extent=document.createElement('span');extent.dataset.drawingGroupAnchor=JSON.stringify(group);el.before(extent);inlineGroups.add(group.id);}
       }
       // Attach paragraph properties before deleting marker anchors.
@@ -313,10 +219,6 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const cell = p.closest<HTMLElement>('td,th');
         if (cell && marker.cell) {
           format.cell(cell, marker.cell);
-          const leadingLabels = marker.cell.getAttributeNS(hwpCenteredCellLabelsNamespace, 'leading');
-          if (cell instanceof HTMLTableCellElement && cell.tagName === 'TD' && cell.style.verticalAlign === 'middle' &&
-              cell.rowSpan === 1 && cell.colSpan === 1 &&
-              parseHwpCenteredCellLabels(leadingLabels)) cell.setAttribute(hwpCenteredCellLabelsAttribute, leadingLabels!);
           const cellWidth = child(child(marker.cell, 'tcPr'), 'tcW');
           if (!cellWidth || val(cellWidth, 'type') === 'auto') cell.dataset.wordCellWidthAuto = 'true';
           sizedCells.set(cell, marker.cell);
@@ -333,8 +235,6 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             }
             table.style.marginBottom = '0px';
             const floating = child(child(sourceTable, 'tblPr'), 'tblpPr');
-            const cellPosition = floating && table.closest('td') && cellTablePositions.get(sourceTable);
-            if (cellPosition) table.dataset.cellTablePosition = cellPosition;
             // Page-relative tables spanning the text area can wrap only above
             // and below. Narrow/sided floats require a separate wrap layout.
             const grid = child(sourceTable, 'tblGrid');
@@ -343,13 +243,6 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             if (floating && val(floating, 'horzAnchor') === 'page' && val(floating, 'vertAnchor') === 'page' &&
               !val(floating, 'tblpXSpec') && !val(floating, 'tblpYSpec') && gridWidth >= bodyWidth * .8)
               table.dataset.tableAnchor = JSON.stringify({ x: Number(val(floating, 'tblpX')) / 15, y: Number(val(floating, 'tblpY')) / 15, bottom: Number(val(floating, 'bottomFromText')) / 15 });
-            if (floating && !table.closest('td,th') && val(floating, 'horzAnchor') === 'margin' &&
-              val(floating, 'vertAnchor') === 'page' && val(floating, 'tblpXSpec') === 'center' &&
-              !val(floating, 'tblpYSpec') && gridWidth >= bodyWidth * .8) {
-              const anchor = tableAnchor({ x: 0, y: Number(val(floating, 'tblpY')) / 15,
-                bottom: Number(val(floating, 'bottomFromText')) / 15, horizontal: 'margin', horizontalAlign: 'center' });
-              if (anchor) table.dataset.tableAnchor = JSON.stringify(anchor);
-            }
             if (floating && val(floating, 'vertAnchor') === 'text' && ['page', 'margin', 'text'].includes(val(floating, 'horzAnchor')) &&
               !val(floating, 'tblpXSpec') && !val(floating, 'tblpYSpec') && gridWidth >= bodyWidth * .8 && (page.columns?.count || 1) === 1) {
               const anchor = tableAnchor({ x: Number(val(floating, 'tblpX')) / 15, y: Number(val(floating, 'tblpY')) / 15,
@@ -368,35 +261,12 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
               if (anchor && Number(val(floating, 'leftFromText')) / 15 >= x - .5 && tableWrapFits(anchor, gridWidth, bodyWidth))
                 table.dataset.tableAnchor = JSON.stringify(anchor);
             }
-            const nestedLayout = sourceTable.getAttributeNS(paragraphTableNamespace, 'nestedLayout');
-            if (!table.closest('td,th') && parseHwpNestedTableLayout(nestedLayout))
-              table.setAttribute(hwpNestedTableLayoutAttribute, nestedLayout!);
-            const relatedLayout = sourceTable.getAttributeNS(paragraphTableNamespace, 'relatedLayout');
-            if (!floating && !table.closest('td,th') && parseHwpRelatedTableLayout(relatedLayout))
-              table.setAttribute(hwpRelatedTableLayoutAttribute, relatedLayout!);
-            const keptPage = hwpKeptTablePage(sourceTable.getAttributeNS(paragraphTableNamespace, 'keptTablePage'));
-            if (!floating && keptPage) table.dataset.hwpKeptTablePage = String(keptPage);
             const stored = tableAnchor(sourceTable.getAttributeNS(paragraphTableNamespace, 'anchor'));
-            const topGap = hwpTableTopGap(sourceTable.getAttributeNS(paragraphTableNamespace, 'topGap'));
-            const repeat = child(child(child(sourceTable, 'tr'), 'trPr'), 'tblHeader');
-            const borders = sourceTable.getAttributeNS(paragraphTableNamespace, 'centeredBorders');
-            if (!floating && !stored && borders === 'inline') table.dataset.hwpCenteredBorders = 'inline';
-            if (!floating && repeat && !['0', 'false', 'off'].includes(val(repeat))) {
-              const continuation = sourceTable.getAttributeNS(paragraphTableNamespace, 'continuation');
-              if (parseHwpTableContinuation(continuation)) table.dataset.hwpTableContinuation = continuation!;
-              if (topGap && !stored) table.dataset.hwpTableTopGap = String(topGap);
-              if ((!stored || stored.reference === 'paragraph' && !stored.wrap) &&
-                  (borders === '1' || borders === 'inline' || borders === 'continuation'))
-                table.dataset.hwpCenteredBorders = borders === '1' ? 'true' : borders;
-            }
             const unchangedOffset = (element: Element | null, pixels: number) => !pixels || !!element && element.localName === 'p' &&
               val(child(child(element, 'pPr'), 'pStyle')) === TABLE_OFFSET_STYLE &&
               Array.from(element.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')) &&
               val(child(child(element, 'pPr'), 'spacing'), 'lineRule') === 'exact' &&
-              Math.abs(Number(val(child(child(element, 'pPr'), 'spacing'), 'line')) / 15 - pixels) <= 1 / 15 + .001 &&
-              // A newly carried gap must remain an ordinary paragraph when
-              // an external editor adds separate formatting to its carrier.
-              (!(Number(val(child(child(element, 'pPr'), 'spacing'), 'before')) > 0) || format.plainTableOffset(element));
+              Math.abs(Number(val(child(child(element, 'pPr'), 'spacing'), 'line')) / 15 - pixels) <= 1 / 15 + .001;
             const indent = child(child(sourceTable, 'tblPr'), 'tblInd');
             // An external editor can change the visible inline geometry while
             // retaining ignorable attributes. Respect those edits, including
@@ -404,13 +274,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             // positioning or removing the edited paragraph.
             if (stored?.reference === 'paragraph' && !stored.wrap && gridWidth >= bodyWidth * .8 && (page.columns?.count || 1) === 1 &&
               val(indent, 'type') === 'dxa' && Math.abs(Number(val(indent, 'w')) / 15 - stored.x + (stored.horizontal === 'margin' ? 0 : margins.left * 96 / 25.4)) <= 1 / 15 + .001 &&
-              unchangedOffset(sourceTable.previousElementSibling, stored.y) && unchangedOffset(sourceTable.nextElementSibling, stored.bottom)) {
+              unchangedOffset(sourceTable.previousElementSibling, stored.y) && unchangedOffset(sourceTable.nextElementSibling, stored.bottom))
               table.dataset.tableAnchor = JSON.stringify(stored);
-              const offset = sourceTable.previousElementSibling, previous = offset?.previousElementSibling;
-              if (stored.y && sourceTable.parentElement?.localName === 'body' && offset && previous?.localName === 'tbl' &&
-                !child(child(previous, 'tblPr'), 'tblpPr') && !previous.getAttributeNS(paragraphTableNamespace, 'anchor'))
-                verifiedLeadingTableOffsets.set(offset, table);
-            }
             const overlayPosition = sourceTable.getAttributeNS(paragraphTableNamespace, 'overlayPosition');
             if (stored?.overlay && floating && overlayPosition && overlayPosition.length < 500 &&
               val(floating, 'horzAnchor') === 'page' && val(floating, 'vertAnchor') === 'page' &&
@@ -427,10 +292,6 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           }
         }
         p.style.cssText = format.paragraph(marker.paragraph);
-        if (preserveReflection && marker.paragraph.namespaceURI === W) {
-          const reflection = readWordReflection(wordChild(wordChild(marker.paragraph, 'pPr'), 'rPr'));
-          if (reflection) p.setAttribute(wordParagraphReflectionAttribute, reflection);
-        }
         p.dataset.wordParagraphStyle = format.paragraphStyle(marker.paragraph);
         p.dataset.wordParagraphStyleName = format.paragraphStyleName(marker.paragraph);
         const outline = format.outlineLevel(marker.paragraph);
@@ -442,10 +303,6 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         if (textAlignment) p.dataset.wordTextAlignment = textAlignment;
         const contextual = format.contextualSpacing(marker.paragraph);
         if (contextual !== null) p.dataset.wordContextualSpacing = String(contextual);
-        const { bottom, box } = format.paragraphBorders(marker.paragraph);
-        if (bottom) p.dataset.wordParagraphBottomBorder = JSON.stringify(bottom);
-        const connectedBox = box ?? connectedBorders?.get(marker.paragraph);
-        if (connectedBox) p.setAttribute(paragraphBorderBoxAttribute, JSON.stringify(connectedBox));
         if (/^H[1-6]$/.test(p.tagName)) p.dataset.wordHeadingMarks = format.headingMarks(marker.paragraph);
         const autoSpacing = format.autoSpacing(marker.paragraph);
         p.dataset.wordAutoSpaceDe = String(autoSpacing.de);
@@ -491,36 +348,14 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           tableAnchorParagraphs.add(p);
         if (val(child(properties, 'pStyle')) === TABLE_OFFSET_STYLE &&
           Array.from(marker.paragraph.children).every(c => c.localName === 'pPr' || c.localName.startsWith('bookmark')))
-          tableOffsetParagraphs.set(p, marker.paragraph);
+          tableOffsetParagraphs.add(p);
         p.setAttribute('data-word-line-rule', format.lineRule(marker.paragraph));
-        const sourceSpaces = marker.paragraph.getAttributeNS(hwpSourceSpacesNamespace, 'fixed') === '1';
-        const sourceWrap = parseHwpSourceWrap(marker.paragraph.getAttributeNS(hwpSourceSpacesNamespace, 'wrap'));
-        if (sourceSpaces) p.setAttribute(hwpSourceSpacesAttribute, 'true');
-        const wordCell = marker.paragraph.parentElement;
-        const nestedWordCell = wordCell?.localName === 'tc' && wordCell.parentElement?.parentElement?.parentElement?.localName === 'tc';
-        if (sourceWrap && ((sourceWrap.inlineTextBox || sourceWrap.floatingTextBox) ? textBoxStory && wordCell?.localName === 'body' :
-            sourceWrap.nestedHanging ? nestedWordCell :
-            sourceWrap.columnWidth !== undefined || sourceWrap.authoredBodyLines || sourceWrap.noteTerminal ? wordCell?.localName === 'body' :
-            sourceWrap.columnCellHeight !== undefined || sourceWrap.expandedRowHeight !== undefined || sourceWrap.authoredCellFace || sourceWrap.cellWidthFallback ? wordCell?.localName === 'tc' && !nestedWordCell :
-            sourceSpaces || sourceWrap.ends.length === 1 && wordCell?.localName === 'tc'))
-          p.setAttribute(hwpSourceWrapAttribute, JSON.stringify(sourceWrap));
         const storedBodyLine = marker.paragraph.getAttributeNS(hwpBodyLineNamespace, 'bodyLine');
-        const sourceInlineTableSpaces = marker.paragraph.getAttributeNS(hwpBodyLineNamespace, 'inlineTableSpaces') === '1';
-        if (sourceInlineTableSpaces && p.tagName === 'P' && /^ +$/.test(p.textContent ?? '') &&
-            !p.querySelector('br,img,svg,table,[data-docx-tab],[data-note-reference],[data-page-number]')) {
-          const spacing = child(properties, 'spacing');
-          if (val(spacing, 'lineRule') === 'exact' && val(spacing, 'line') === '2')
-            p.dataset.hwpInlineTableSpaces = 'true';
-        }
-        if (storedBodyLine && storedBodyLine.length < 500) {
+        if (storedBodyLine && storedBodyLine.length < 500 && !p.closest('td,th')) {
           try {
             const stored = JSON.parse(storedBodyLine), line = parseHwpBodyLine(stored.policy);
             const spacing = child(child(marker.paragraph, 'pPr'), 'spacing');
-            const exactSpacing = val(spacing, 'lineRule') === 'exact' && stored.line === Math.round((line?.base ?? 0) * 15);
-            const validEmpty = !line?.empty || p.tagName === 'P' && !p.textContent && exactSpacing;
-            const validPrecision = !line?.precisePitch || p.tagName === 'P' && exactSpacing;
-            if (line && validEmpty && validPrecision && Boolean(line.cell) === Boolean(p.closest('td,th')) &&
-              val(spacing, 'lineRule') === stored.rule && Number(val(spacing, 'line')) === stored.line) {
+            if (line && val(spacing, 'lineRule') === stored.rule && Number(val(spacing, 'line')) === stored.line) {
               p.dataset.hwpBodyLine = encodeHwpBodyLine(line);
               p.style.lineHeight = `${line.base}px`;
               p.dataset.wordLineRule = 'exact';
@@ -528,8 +363,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           } catch { /* Standard Word spacing remains usable without our optional policy. */ }
         }
         const tabs = format.tabs(marker.paragraph);
-        if (tabs.ordinary.length) p.dataset.tabStops = JSON.stringify(tabs.ordinary);
-        if (tabs.numbering.length) p.dataset.wordNumberingTabs = JSON.stringify(tabs.numbering);
+        if (tabs !== '[]') p.setAttribute('data-tab-stops', tabs);
         if (cell && marker.cell && !all(marker.cell, 't').some(t => t.textContent) && !all(marker.cell, 'tbl').length) {
           for (const property of ['font-family', 'font-size', 'color']) cell.style.setProperty(property, p.style.getPropertyValue(property));
         }
@@ -558,16 +392,11 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           if (split) table.rows[index].dataset.rowSplit = ['0', 'false', 'off'].includes(val(split)) ? 'allow' : 'avoid';
           else if (inheritedSplit) table.rows[index].dataset.wordRowSplit = inheritedSplit;
           const property = child(child(source, 'trPr'), 'trHeight'), height = Number(val(property));
-          if (table.rows[index].dataset.rowSplit === 'allow' && val(property, 'hRule') !== 'exact') {
-            if (source.getAttributeNS(hwpGridRowHeightNamespace, 'continued') === '1') table.rows[index].dataset.hwpRowContinued = 'true';
-            if (source.getAttributeNS(hwpGridRowHeightNamespace, 'intact') === '1') table.rows[index].dataset.hwpRowIntact = 'true';
-          }
           if (height <= 0 || val(property, 'hRule') === 'auto') return;
           const row = table.rows[index], exact = val(property, 'hRule') === 'exact';
           const padding = exact ? 0 : Math.max(0, ...[...row.cells].map(cell =>
             (parseFloat(cell.style.paddingTop) || 0) + (parseFloat(cell.style.paddingBottom) || 0)));
-          const cells = Array.from(source.children).filter(c => c.localName === 'tc');
-          const border = exact ? 0 : Math.max(0, ...cells.map(c => {
+          const border = exact ? 0 : Math.max(0, ...Array.from(source.children).filter(c => c.localName === 'tc').map(c => {
             const probe = document.createElement('td'); format.cell(probe, c);
             const merge = child(child(c, 'tcPr'), 'vMerge');
             const sides = merge && val(merge) !== 'restart' ? ['Top', 'Bottom'] : merge ? [] : ['Bottom'];
@@ -576,33 +405,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
               return (parseFloat(width) || 0) * (width.endsWith('pt') ? 4 / 3 : 1);
             }));
           }));
-          let minimum = height / 15 + padding + border;
-          const gridHeight = rowHeight(Number(source.getAttributeNS(hwpGridRowHeightNamespace, 'height')));
-          // An external change to the standard height or merge topology
-          // takes precedence over the original local grid minimum.
-          if (height === 1 && val(property, 'hRule') === 'atLeast' && gridHeight !== null && gridHeight < padding + border) {
-            const merges = cells.map(c => child(child(c, 'tcPr'), 'vMerge'));
-            const insideMerge = merges.every(Boolean) && merges.some(merge => merge && val(merge) !== 'restart');
-            const besideMergeStart = merges.some(Boolean) && merges.some(merge => !merge) &&
-              merges.every(merge => !merge || val(merge) === 'restart') && cells.length === row.cells.length &&
-              [...row.cells].every((cell, i) => merges[i] || (cell.children.length === 1 &&
-                cell.firstElementChild?.matches('p') && cell.textContent === '' &&
-                !cell.firstElementChild.querySelector(':not(span)')));
-            if (insideMerge || besideMergeStart) {
-              minimum = gridHeight;
-              row.dataset.hwpGridRow = 'true';
-            }
-          }
-          const storedReserve = source.getAttributeNS(hwpGridRowHeightNamespace, 'reserve');
-          const reserve = hwpRowReserve(storedReserve);
-          if (!exact && reserve && Math.abs(reserve.authoredHeight - minimum) <= .1 &&
-              (reserve.kind === 1 || reserve.kind === 4 ? row.dataset.hwpRowContinued === 'true' : row.dataset.rowSplit === (reserve.kind === 3 ? 'avoid' : 'allow')))
-            row.dataset.hwpRowReserve = storedReserve!;
-          const storedIntactTop = source.getAttributeNS(hwpGridRowHeightNamespace, 'intactTop');
-          const intactTop = parseHwpIntactRow(storedIntactTop);
-          if (!exact && row.dataset.rowSplit === 'allow' && intactTop && Math.abs(intactTop.height - minimum) <= .16)
-            row.setAttribute(hwpIntactRowAttribute, storedIntactTop!);
-          row.style.height = `${minimum}px`;
+          row.style.height = `${height / 15 + padding + border}px`;
           row.dataset.wordRowRule = exact ? 'exact' : 'atLeast';
         });
       }
@@ -653,32 +456,12 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       const active = new Set<string>();
       let activeStyle = '';
       let eastAsianStyle = '';
-      let activeReflection: { value: string; block: Element; link: Element | null } | undefined;
-      const reflectionMarkerNames = new Set<string>();
-      for (const [name, marker] of markers) {
-        if (marker.reflectionEnd) { reflectionMarkerNames.add(name); reflectionMarkerNames.add(marker.reflectionEnd); }
-      }
-      const reflectionMarkers = new Map<string, Element | null>();
-      if (reflectionMarkerNames.size) {
-        for (const el of template.content.querySelectorAll('[data-ws-marker]')) {
-          const name = el.getAttribute('data-ws-marker')!;
-          if (reflectionMarkerNames.has(name)) reflectionMarkers.set(name, reflectionMarkers.has(name) ? null : el);
-        }
-      }
       const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT);
       const items: Node[] = []; while (walker.nextNode()) items.push(walker.currentNode);
       for (const item of items) {
         if (item instanceof HTMLElement && markers.has(item.getAttribute('data-ws-marker')!)) {
           const marker = markers.get(item.getAttribute('data-ws-marker')!)!;
           if (marker.kind === 'pageBreak' || marker.kind === 'columnBreak') continue;
-          if (marker.kind === 'boxedDigit') {
-            const span = document.createElement('span');
-            span.setAttribute(hwpBoxedDigitAttribute, marker.id!);
-            span.textContent = marker.parts![0];
-            span.style.cssText = marker.style || '';
-            item.replaceWith(span);
-            continue;
-          }
           if (marker.kind === 'overlap') {
             const span = document.createElement('span'); span.dataset.wordOverlap = JSON.stringify(marker.parts);
             span.style.cssText = marker.style || ''; span.textContent = marker.parts!.join('');
@@ -699,24 +482,10 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           }
           if (marker.kind === 'start') active.add(marker.id!);
           if (marker.kind === 'end') active.delete(marker.id!);
-          if (marker.kind === 'runStart') {
-            activeStyle = marker.style || '';
-            eastAsianStyle = marker.eastAsianStyle || activeStyle;
-            activeReflection = undefined;
-            const start = item.getAttribute('data-ws-marker')!;
-            if (marker.reflection && marker.reflectionEnd && reflectionMarkers.get(start) === item) {
-              const end = reflectionMarkers.get(marker.reflectionEnd);
-              const block = item.closest(reflectionBlock), link = item.closest('a[href]');
-              // The converter can split wrappers or discard markers. Require
-              // both ends in the same rendered paragraph and link.
-              if (end && block && end.closest(reflectionBlock) === block && end.closest('a[href]') === link &&
-                (item.compareDocumentPosition(end) & Node.DOCUMENT_POSITION_FOLLOWING))
-                activeReflection = { value: marker.reflection, block, link };
-            }
-          }
-          if (marker.kind === 'runEnd') { activeStyle = ''; eastAsianStyle = ''; activeReflection = undefined; }
+          if (marker.kind === 'runStart') { activeStyle = marker.style || ''; eastAsianStyle = marker.eastAsianStyle || activeStyle; }
+          if (marker.kind === 'runEnd') { activeStyle = ''; eastAsianStyle = ''; }
           item.remove();
-        } else if (item.nodeType === Node.TEXT_NODE && (active.size || activeStyle || activeReflection) && item.textContent) {
+        } else if (item.nodeType === Node.TEXT_NODE && (active.size || activeStyle) && item.textContent) {
           const fragment = document.createDocumentFragment();
           const segments = activeStyle !== eastAsianStyle
             ? item.textContent.match(/[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]+|[^\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]+/gu) ?? [] : [item.textContent];
@@ -725,9 +494,6 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             if (active.size) span.setAttribute('data-comment-ids', [...active].join(' '));
             span.style.cssText = /^[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/u.test(text) ? eastAsianStyle : activeStyle;
             const font = symbolFont(span.style.cssText);
-            if (!font && activeReflection && item.parentElement?.closest(reflectionBlock) === activeReflection.block &&
-              item.parentElement?.closest('a[href]') === activeReflection.link)
-              span.setAttribute(wordReflectionAttribute, activeReflection.value);
             if (font) for (const character of text) {
               const code = character.codePointAt(0)!;
               if (code <= 255 || (code >= 0xf000 && code <= 0xf0ff)) span.append(symbolElement(font, code));
@@ -749,10 +515,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         const after = p.cloneNode(false); after.appendChild(range.extractContents()); anchor.remove();
         const pageBreak = document.createElement('div'); pageBreak.setAttribute(kind === 'columnBreak' ? 'data-column-break' : 'data-page-break', 'true');
         p.after(pageBreak);
-        if (after.textContent || (after as Element).querySelector('img,br')) {
-          p.removeAttribute(wordParagraphReflectionAttribute);
-          pageBreak.after(after);
-        }
+        if (after.textContent || (after as Element).querySelector('img,br')) pageBreak.after(after);
         if (!p.textContent && !p.querySelector('img,br')) p.remove();
       }
       // Restore our structural table separators to margins. Leaving them as
@@ -771,16 +534,10 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
         if (table?.tagName === 'TABLE' && tableAnchor(table.dataset.tableAnchor)?.reference === 'paragraph' && !p.textContent && !p.children.length)
           p.remove();
       }
-      for (const [p, source] of tableOffsetParagraphs) {
-        const previous = p.previousElementSibling as HTMLElement | null, next = p.nextElementSibling as HTMLElement | null;
-        if (p.textContent || p.children.length || ![previous, next].some(table => table?.tagName === 'TABLE' && tableAnchor(table.dataset.tableAnchor)?.reference === 'paragraph')) continue;
-        if (p.parentNode === template.content && previous?.tagName === 'TABLE' && !previous.dataset.tableAnchor && next === verifiedLeadingTableOffsets.get(source)) {
-          const spacing = child(child(source, 'pPr'), 'spacing');
-          const before = Number(val(spacing, 'before')), line = Number(val(spacing, 'line'));
-          const gap = `${(before + line) / 15}px`;
-          if (before > 0 && cssPixels(gap)) previous.style.marginBottom = gap;
-        }
-        p.remove();
+      for (const p of tableOffsetParagraphs) {
+        const adjacent = [p.previousElementSibling, p.nextElementSibling] as (HTMLElement | null)[];
+        if (!p.textContent && !p.children.length && adjacent.some(table => table?.tagName === 'TABLE' && tableAnchor(table.dataset.tableAnchor)?.reference === 'paragraph'))
+          p.remove();
       }
       // An inline table's following-paragraph spacing represents the gap
       // after the table. Keep it with that table when the next paragraph

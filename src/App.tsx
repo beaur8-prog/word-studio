@@ -1,7 +1,7 @@
 import { version as APP_VERSION } from "../package.json";
 import { documentScale } from './document-scale';
 import { visibleEditorPages } from './editor-visible-pages';
-import { layoutFurnitureImages, updateUniformTablePageBody } from './furniture-layout';
+import { layoutFurnitureImages } from './furniture-layout';
 import { useEffect, useRef, useState } from "react";
 import { useDocumentZoom } from "./document-zoom-gesture";
 import { usePrintPreviewZoom } from "./print-preview-zoom";
@@ -11,7 +11,6 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { generateJSON } from "@tiptap/core";
 import { EditorState } from '@tiptap/pm/state';
 import { DocumentHistory, documentMetadata, changeDocumentMetadata, dispatchHistoryEvent } from './document-history';
-import { wordLayoutOptions } from './word-trailing-spaces';
 import {
   Save,
   Undo2,
@@ -83,7 +82,7 @@ import { HwpProgressPanel } from './hwp/ProgressPanel';
 import { paintHwpProgress, type HwpOperation, type HwpProgressReporter } from './hwp/progress';
 import type { EditableHwp } from './hwp/conversion';
 import { clipboardHtml, pasteClipboard, tableClipboardText } from './clipboard';
-import { defaultPage, hasUniformTablePageBody, pageMargins, pageFurniture, paperSize } from "./types";
+import { defaultPage, pageMargins, pageFurniture, paperSize } from "./types";
 import { readHistory, readPreviousVersions, saveRecovery, recoveryNotice } from './recovery';
 import { createPrintLayout, type PrintLayout } from './print-layout';
 import { withoutEditorReflow } from './editor-layout-task';
@@ -331,8 +330,6 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     [title, setTitle] = useState(initial.title),
     [page, setPage] = useState<PageSettings>(initial.page),
     [wordAutoHyphenation, setWordAutoHyphenation] = useState(initial.wordAutoHyphenation),
-    [wordWrapTrailSpaces, setWordWrapTrailSpaces] = useState(initial.wordWrapTrailSpaces),
-    [wordDefaultHangingSpaces, setWordDefaultHangingSpaces] = useState(initial.wordDefaultHangingSpaces),
     [comments, setComments] = useState<Comment[]>(initial.comments),
     [tab, setTab] = useState("홈"),
     [revision, setRevision] = useState(0),
@@ -404,11 +401,6 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     immediatelyRender: androidSession ? false : undefined,
     extensions: [...editorExtensions, DocumentHistory],
     content: initial.content,
-    onCreate({ editor }) {
-      editor.view.dispatch(editor.state.tr
-        .setMeta(documentMetadata, { page: initial.page, comments: initial.comments, ...wordLayoutOptions(initial) })
-        .setMeta('addToHistory', false));
-    },
     onUpdate({ editor }) {
       // Editor initialization can emit an update without changing the blank
       // body. Only a real edit makes the startup document recoverable.
@@ -462,19 +454,17 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     content: editor?.getJSON() ?? initial.content,
     page,
     wordAutoHyphenation,
-    wordWrapTrailSpaces,
-    wordDefaultHangingSpaces,
     comments,
     updatedAt: new Date().toISOString(),
   };
   const lastSessionDocument = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!editor || !session.current) return;
-    const doc = currentRef.current, signature = JSON.stringify([doc.id, doc.title, doc.page, doc.wordAutoHyphenation, doc.wordWrapTrailSpaces, doc.wordDefaultHangingSpaces, doc.comments, doc.content]);
+    const doc = currentRef.current, signature = JSON.stringify([doc.id, doc.title, doc.page, doc.wordAutoHyphenation, doc.comments, doc.content]);
     if (lastSessionDocument.current === signature) return;
     const changed = lastSessionDocument.current !== undefined;
     lastSessionDocument.current = signature; session.current.onDocument(structuredClone(doc), changed);
-  }, [editor, documentId, title, page, wordAutoHyphenation, wordWrapTrailSpaces, wordDefaultHangingSpaces, comments, revision]);
+  }, [editor, documentId, title, page, wordAutoHyphenation, comments, revision]);
   const overlays = useRef({ modal, command, fileMenu }); overlays.current = { modal, command, fileMenu };
   useEffect(() => {
     if (!editor || !session.current) return;
@@ -498,9 +488,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     return () => cancelAnimationFrame(frame);
   }, [editor, androidSession?.active]);
   const unusedStartupDocument = (doc: StudioDocument) => !startupTouched.current && doc.id === initial.id &&
-    doc.title === initial.title && doc.wordAutoHyphenation === initial.wordAutoHyphenation &&
-    doc.wordWrapTrailSpaces === initial.wordWrapTrailSpaces && doc.wordDefaultHangingSpaces === initial.wordDefaultHangingSpaces &&
-    JSON.stringify(doc.page) === JSON.stringify(initial.page) &&
+    doc.title === initial.title && doc.wordAutoHyphenation === initial.wordAutoHyphenation && JSON.stringify(doc.page) === JSON.stringify(initial.page) &&
     JSON.stringify(doc.comments) === JSON.stringify(initial.comments) &&
     !!editor?.schema.nodeFromJSON(doc.content).eq(editor.schema.nodeFromJSON(initial.content));
   useEffect(() => {
@@ -528,7 +516,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       });
     }, 600);
     return () => clearTimeout(id);
-  }, [editor, documentId, title, page, wordAutoHyphenation, wordWrapTrailSpaces, wordDefaultHangingSpaces, comments, revision]);
+  }, [editor, documentId, title, page, wordAutoHyphenation, comments, revision]);
   useEffect(() => {
     const persist = (event: BeforeUnloadEvent) => {
       if (pendingRecovery.current) {
@@ -602,20 +590,15 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     let frame = 0;
     const update = () => {
       cancelAnimationFrame(frame); frame = requestAnimationFrame(() => {
-        const root = editor.view.dom;
         stack.querySelectorAll<HTMLElement>('.paper').forEach(layoutFurnitureImages);
         const margins = pageMargins(page), px = 96 / 25.4;
         const scale = documentScale(stack);
         const occupied = (selector: string, distance: number) => Math.max(0, ...[...stack.querySelectorAll<HTMLElement>(selector)].map(el =>
           el.textContent?.trim() || el.querySelector('img,table') ? distance * px + el.getBoundingClientRect().height / scale + 2 : 0));
-        const story = {
-          top: occupied('.paper-header', page.headerDistance ?? Math.max(0, margins.top / 2 - 3)),
-          bottom: occupied('.paper-footer', page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)),
-        };
-        const top = Math.max(margins.top * px, story.top), bottom = Math.max(margins.bottom * px, story.bottom);
+        const top = Math.max(margins.top * px, occupied('.paper-header', page.headerDistance ?? Math.max(0, margins.top / 2 - 3)));
+        const bottom = Math.max(margins.bottom * px, occupied('.paper-footer', page.footerDistance ?? Math.max(0, margins.bottom / 2 - 3)));
         stack.style.setProperty('--page-padding', `${top}px ${margins.right * px}px ${bottom}px ${margins.left * px}px`);
         stack.dataset.margin = String(top); stack.dataset.bottomMargin = String(bottom);
-        updateUniformTablePageBody(stack, page, root.querySelector(':scope > [data-section-page]') ? undefined : story);
         for (const field of stack.querySelectorAll<HTMLElement>('.paper [data-page-number]')) {
           const index = [...stack.querySelectorAll('.paper')].indexOf(field.closest('.paper')!);
           field.textContent = String(field.dataset.pageNumber === 'NUMPAGES' ? pages : index + 1);
@@ -642,8 +625,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     editor.view.updateState(EditorState.create({
       schema: editor.schema, doc: editor.schema.nodeFromJSON(doc.content), plugins: editor.state.plugins,
     }));
-    editor.view.dispatch(editor.state.tr.setMeta(documentMetadata, { page: doc.page, comments: doc.comments,
-      ...wordLayoutOptions(doc) }).setMeta('addToHistory', false));
+    editor.view.dispatch(editor.state.tr.setMeta(documentMetadata, { page: doc.page, comments: doc.comments }).setMeta('addToHistory', false));
     ++recoveryEpoch.current;
     startupTouched.current = true;
     pendingRecovery.current = true;
@@ -655,8 +637,6 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     setTitle(doc.title);
     setPage(doc.page);
     setWordAutoHyphenation(doc.wordAutoHyphenation);
-    setWordWrapTrailSpaces(doc.wordWrapTrailSpaces);
-    setWordDefaultHangingSpaces(doc.wordDefaultHangingSpaces);
     setComments(doc.comments);
     setRevision(value => value + 1);
     setModal(null);
@@ -795,7 +775,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       }
       const blob =
         extension === "docx"
-          ? await withoutEditorReflow(() => exportDocx(doc))
+          ? await exportDocx(doc)
           : extension === "wordstudio"
             ? new Blob([JSON.stringify(doc, null, 2)], {
                 type: "application/json",
@@ -852,10 +832,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
   const preview = async () => {
     if (session.current) { setFileMenu(false); session.current.onViewer(); return; }
     outputLayout.current?.dispose();
-    const doc = currentRef.current;
-    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), doc.page, undefined, undefined, {
-      ...wordLayoutOptions(doc), nativeDesktop: !!window.wordDesktop,
-    }));
+    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), currentRef.current.page));
     outputLayout.current = layout;
     layout.element.classList.replace('measuring', 'preview');
     document.body.classList.add('studio-printing');
@@ -2283,7 +2260,6 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
                 data-right-margin={margins.right * 96 / 25.4}
                 data-hide-empty-lines={page.hideEmptyLines === true}
                 data-suppress-bottom-spacing={page.suppressBottomSpacing !== false}
-                data-uniform-table-page-body={hasUniformTablePageBody(page)}
                 ref={stackRef}
                 style={
                   {

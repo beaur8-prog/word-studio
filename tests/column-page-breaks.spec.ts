@@ -186,35 +186,3 @@ for (const ending of ['automatic', 'page', 'column', 'rule']) test(`${ending} en
   const saved = JSON.parse(await fs.readFile((await (await download).path())!, 'utf8'));
   expect(saved.content).toEqual(state.doc.content);
 });
-
-test('a fresh page aligns columns without reserving the preceding offset', async ({ page }) => {
-  await page.goto('/');
-  const positions = await page.evaluate(async () => {
-    const { layoutColumns } = await import('/src/column-layout.ts');
-    const observe = (afterBreak: boolean) => {
-      const fixture = document.createElement('div');
-      fixture.className = 'tiptap';
-      fixture.style.cssText = 'position:absolute;left:0;top:0;padding:0;width:500px;min-height:0';
-      fixture.dataset.pageHeight = '400';
-      fixture.dataset.margin = '30';
-      fixture.dataset.bottomMargin = '30';
-      fixture.innerHTML = `<div class="${afterBreak ? 'page-break' : ''}" style="height:474px"></div>
-        <div class="document-columns" data-column-count="2" data-column-balance="false"><p>BODY</p></div>`;
-      document.body.append(fixture);
-      try {
-        const group = fixture.querySelector<HTMLElement>('.document-columns')!;
-        const origin = fixture.getBoundingClientRect().top;
-        return [0, 1, 2].map(() => {
-          layoutColumns(fixture);
-          return [parseFloat(group.style.getPropertyValue('--column-prefix')), group.getBoundingClientRect().top - origin];
-        });
-      } finally { fixture.remove(); }
-    };
-    return { afterBreak: observe(true), continuous: observe(false) };
-  });
-  for (const [prefix, top] of positions.afterBreak) {
-    expect(prefix).toBe(0);
-    expect(top).toBeCloseTo(454, 1);
-  }
-  for (const [prefix] of positions.continuous) expect(prefix).toBeGreaterThan(.5);
-});

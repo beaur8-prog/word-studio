@@ -54,11 +54,6 @@ export function reserveCellPicture(frame: NonNullable<ReturnType<typeof cellRela
   return first.getBoundingClientRect().top + offset;
 }
 
-export function reservePictureMinimum(block: HTMLElement, height: number) {
-  if (!block.hasAttribute(originalMinimum)) block.setAttribute(originalMinimum, block.style.minHeight);
-  block.style.minHeight = `${Math.max(parseFloat(block.getAttribute(originalMinimum) || '') || 0, height)}px`;
-}
-
 export function cellPictureReservation(block: HTMLElement) {
   return block.hasAttribute(originalMinimum) ? {
     minimumHeight: parseFloat(block.style.minHeight) || undefined,

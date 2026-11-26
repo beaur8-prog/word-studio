@@ -1,7 +1,6 @@
 import { paperInset } from './paper-inset';
 import { Extension } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
-import { layoutCellTablePairs } from './cell-table-position';
 import { documentScale } from './document-scale';
 import { tableAnchor, tableWrapFits } from './table-anchor-data';
 export { tableAnchor, tableWrapFits, paragraphTableNamespace, type TableAnchor } from './table-anchor-data';
@@ -14,7 +13,6 @@ export function tableFollowingParagraph(target: HTMLElement): HTMLElement | unde
 }
 
 export function layoutTableAnchors(root: HTMLElement) {
-  layoutCellTablePairs(root);
   // Restore natural geometry before resolving again; classes and variables
   // also survive print fragments cloned while searching for a page break.
   for (const frame of root.querySelectorAll<HTMLElement>('.table-overlay-frame')) {
@@ -73,14 +71,9 @@ export function layoutTableAnchors(root: HTMLElement) {
     const page = sheet.classList.contains('print-page') ? 0 : Math.max(0, Math.floor((naturalTop + .5) / stride));
     target.style.marginTop = `${anchor.reference === 'paragraph' ? anchor.y : page * stride + anchor.y - naturalTop}px`;
     const parent = target.parentElement!, parentStyle = getComputedStyle(parent);
-    let horizontal = anchor.x;
-    if (anchor.horizontalAlign === 'center') {
-      const left = paperInset(sheet.dataset.leftMargin, 0), right = paperInset(sheet.dataset.rightMargin, 0);
-      horizontal += left + Math.max(0, (paper.width / scale - left - right - table.getBoundingClientRect().width / scale) / 2);
-    } else if (anchor.horizontal === 'margin') {
-      horizontal += (parent.getBoundingClientRect().left - paper.left) / scale + (parseFloat(parentStyle.paddingLeft) || 0) + (parseFloat(parentStyle.borderLeftWidth) || 0);
-    }
-    target.style.marginLeft = `${horizontal - (rect.left - paper.left) / scale + oldLeft}px`;
+    const horizontalOrigin = anchor.horizontal === 'margin'
+      ? (parent.getBoundingClientRect().left - paper.left) / scale + (parseFloat(parentStyle.paddingLeft) || 0) + (parseFloat(parentStyle.borderLeftWidth) || 0) : 0;
+    target.style.marginLeft = `${horizontalOrigin + anchor.x - (rect.left - paper.left) / scale + oldLeft}px`;
     const bodyTop = sheet.classList.contains('print-page') ? (root.getBoundingClientRect().top - paper.top) / scale : Number(sheet.dataset.margin) || 0;
     target.style.marginBottom = `${anchor.reference === 'paragraph' ? anchor.bottom : Math.max(anchor.bottom, bodyTop - anchor.y - table.getBoundingClientRect().height / scale)}px`;
   }

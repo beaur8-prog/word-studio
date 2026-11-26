@@ -5,31 +5,8 @@ import { layoutTabs } from './document-tabs';
 import { layoutWordLines } from './word-line-metrics';
 import { layoutHwpBodyLines } from './hwp-body-line-metrics';
 import { documentScale } from './document-scale';
-import { parseHwpBodyLine } from './hwp-body-line';
-import { measureHwpColumnEnd } from './hwp-column-end';
-import { applySourceColumnEnd, measureSourceColumnEnd, restoreSourceColumnEnd } from './hwp-column-source-layout';
 
 const keptTables = new WeakMap<HTMLElement, { breakBefore: string; paddingTop: string }>();
-/** Static print fragments can carry layout styles directly. Live paragraphs
- * use a ProseMirror decoration to keep their HTML and selection intact. */
-function layoutHwpColumnEnds(group: HTMLElement, scale: number, bottom: number) {
-  for (const p of group.querySelectorAll<HTMLElement>(':scope > p[data-hwp-column-end-source]')) {
-    restoreSourceColumnEnd(p);
-    delete p.dataset.hwpColumnEnd;
-    p.style.removeProperty('--hwp-column-em');
-    p.style.removeProperty('--hwp-column-height');
-    const line = parseHwpBodyLine(p.dataset.hwpBodyLine);
-    if (line?.align !== 'column-end') continue;
-    const ordinary = measureHwpColumnEnd(p, line, scale);
-    const source = measureSourceColumnEnd(p, line, scale, bottom, ordinary);
-    const height = source?.height ?? ordinary;
-    if (height === null) continue;
-    p.dataset.hwpColumnEnd = 'true';
-    p.style.setProperty('--hwp-column-em', `${line.font}px`);
-    p.style.setProperty('--hwp-column-height', `${height}px`);
-    if (source) applySourceColumnEnd(p, source);
-  }
-}
 
 /** A rounded collapsed border is not overflowing column content. */
 export function columnGroupFits(group: HTMLElement): boolean {
@@ -99,12 +76,9 @@ export function layoutColumns(root: HTMLElement, bottom?: number) {
     const height = Number(sheet?.dataset.pageHeight) || 1122.52;
     const top = paperInset(sheet?.dataset.margin, 96), marginBottom = paperInset(sheet?.dataset.bottomMargin, top);
     const usable = Math.max(1, height - top - marginBottom), stride = height + 24;
-    const oldOffset = -(parseFloat(group.style.marginTop) || 0);
-    const previous = group.previousElementSibling;
-    const newPage = previous?.matches('.page-break,.section-break') &&
-      previous.getBoundingClientRect().height / scale > .5;
+    const oldPrefix = parseFloat(group.style.getPropertyValue('--column-prefix')) || 0;
     const origin = sheet?.getBoundingClientRect().top || 0;
-    const naturalTop = (group.getBoundingClientRect().top - origin) / scale + oldOffset;
+    const naturalTop = (group.getBoundingClientRect().top - origin) / scale + oldPrefix;
     let prefix = bottom === undefined ? Math.max(0, ((naturalTop - top) % stride + stride) % stride) : 0;
     // Browser subpixel rounding at the page start must not turn -0.01px
     // into an entire page's spanning prefix.
@@ -114,13 +88,9 @@ export function layoutColumns(root: HTMLElement, bottom?: number) {
       group.style.setProperty('column-height', `${cap}px`);
       group.style.setProperty('column-wrap', bottom === undefined ? 'wrap' : 'nowrap');
       group.style.rowGap = `${top + marginBottom + 24}px`;
-      // An explicit page break can leave a small physical offset from
-      // the preceding flow. Correct the origin without reserving it as
-      // text on the new sheet.
-      group.style.setProperty('--column-prefix', `${newPage ? 0 : prefix}px`);
+      group.style.setProperty('--column-prefix', `${prefix}px`);
       group.style.marginTop = prefix ? `${-prefix}px` : '0px';
       group.style.removeProperty('height');
-      if (bottom !== undefined) layoutHwpColumnEnds(group, scale, bottom);
       if (bottom === undefined) keepTablesOnColumnPage(group, cap, scale);
       // column-height preserves fragment geometry even when the outside box is
       // trimmed to the final row's actual content (balanced or unbalanced).
