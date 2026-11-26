@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Find the first product revision that added a sheet in the Windows HWP outputs
+run-name: Narrow the two Windows Hancom sheet regressions to an early code change
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -46,12 +46,9 @@ jobs:
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
           $points = @(
-            '6b8fad0a11d1444386dea7691b1be4fdca2e3700'
-            '588a71af79870210f2f84f11340a7da824468f7e'
-            'c5fcb686017841ddf3a9f7be29e86c9a42bf120b'
-            '48046fe2e05e515d466dbbeb3438a4e36ed71aaa'
-            '63c7a4dbb48cc8fb93d23377b3ad968a17d1d353'
-            'aebb99a5342bf59ee439dfc2f5ac5fed8dc6e3c6'
+            'b149de40a55f7f166bf249ba7287c21fe5d47bd2'
+            '34ac621d4de8867280acd08984df49879a5f3331'
+            '4288c66580e7090426c74c890f6b1fc8cc31ecac'
           )
           foreach ($variant in $points) {
             Write-Host "WINDOWS_HANCOM_FIXED_PRODUCT $variant"
