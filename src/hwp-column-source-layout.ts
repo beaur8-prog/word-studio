@@ -7,7 +7,6 @@ const forbidden = 'a,br,img,svg,sup,sub,mark,u,s,del,[data-flow-widget],[data-pa
 const unsupportedText = /[\u0000-\u001f\u0590-\u08ff\u202a-\u202e\u2066-\u2069]/u;
 let canvas: CanvasRenderingContext2D | null | undefined;
 const pixelGuard = .5;
-const measuredColumnEvents = new Set<string>();
 
 export type SourceColumnPlacement = { height: number; offset: number; width?: string; indent?: string; scale?: number };
 type Paint = { ascent: number; descent: number };
@@ -83,26 +82,17 @@ function horizontalScale(p: HTMLElement): number | null {
  * column and predecessor. Ordinary reflow handles changed content or fonts. */
 export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom: number, bottom: number, ordinary: number | null): SourceColumnPlacement | null {
   const fit = source.columnFit, previous = p.previousElementSibling;
-  const record = (stage: string, ...numbers: (number | null)[]) => {
-    if (!fit) return null;
-    const key = fit.fingerprint + ':' + stage + ':' + numbers.map(n => n === null ? '' : Math.round(n * 4)).join('/');
-    if (measuredColumnEvents.size < 120 && !measuredColumnEvents.has(key)) {
-      measuredColumnEvents.add(key);
-      console.info('WINDOWS_HWP_COLUMN_STAGES ' + JSON.stringify({ width:fit.width, baseline:fit.baseline, remainder:fit.remainder, stage, numbers }));
-    }
-    return null;
-  };
   if (!fit || !provenText(p, fit.fingerprint) || !(previous instanceof HTMLElement) ||
       !provenText(previous, fit.preceding) || !p.parentElement?.matches('[data-column-count="2"]') ||
-      [...p.childNodes].some(node => !(node instanceof HTMLSpanElement)) || !(zoom > 0)) return record('structure');
+      [...p.childNodes].some(node => !(node instanceof HTMLSpanElement)) || !(zoom > 0)) return null;
   const css = getComputedStyle(p), before = getComputedStyle(previous);
   if (css.direction !== 'ltr' || css.writingMode !== 'horizontal-tb' || css.transform !== 'none' ||
-      before.transform !== 'none' || (parseFloat(css.marginTop) || 0) || (parseFloat(before.marginBottom) || 0)) return record('paragraph-style');
+      before.transform !== 'none' || (parseFloat(css.marginTop) || 0) || (parseFloat(before.marginBottom) || 0)) return null;
   const previousBox = previous.getBoundingClientRect();
   const room = (bottom - previousBox.bottom) / zoom;
-  if (!(room > 0 && room < source.base - .1) || ordinary !== null && ordinary <= room) return record('ordinary-or-no-room', room, ordinary, source.base);
+  if (!(room > 0 && room < source.base - .1) || ordinary !== null && ordinary <= room) return null;
   const width = p.getBoundingClientRect().width / zoom, indent = parseFloat(css.textIndent) || 0;
-  if (Math.abs(width - Math.min(0, indent) - fit.width) > .24) return record('column-width', width, indent, fit.width);
+  if (Math.abs(width - Math.min(0, indent) - fit.width) > .24) return null;
   const host = document.createElement('div');
   host.className = 'tiptap'; host.setAttribute('aria-hidden', 'true');
   host.style.cssText = `position:fixed;visibility:hidden;pointer-events:none;left:-100000px;top:0;min-height:0;padding:0;width:${width}px`;
@@ -114,24 +104,23 @@ export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom
     let scaled: SourceColumnPlacement | null = null;
     if (line.getBoundingClientRect().height > source.base + .08) {
       const factor = horizontalScale(p), left = parseFloat(css.marginLeft) || 0, right = parseFloat(css.marginRight) || 0;
-      if (factor === null || left < 0 || right < 0 || indent + left < -.05)
-        return record('wrapped', line.getBoundingClientRect().height, source.base, factor, width, indent, left, right);
+      if (factor === null || left < 0 || right < 0 || indent + left < -.05) return null;
       line.style.width = `${width / factor}px`;
       line.style.textIndent = `${indent / factor}px`;
       scaled = { height: 0, offset: 0, scale: factor, width: `calc(${100 / factor}% - ${(left + right) / factor}px)`,
         indent: `${indent / factor}px` };
     }
-    if (Math.abs(line.getBoundingClientRect().height - source.base) > .08) return record('linebox-height', line.getBoundingClientRect().height, source.base, width, horizontalScale(p));
+    if (Math.abs(line.getBoundingClientRect().height - source.base) > .08) return null;
     line.dataset.hwpColumnEnd = 'true';
     line.style.setProperty('--hwp-column-em', `${source.font}px`);
     line.append(marker);
     const maximum = source.maxFont ?? source.font;
     const ink = projectedInk(line, maximum);
-    if (!ink) return record('unmeasurable-inline-ink');
+    if (!ink) return null;
     const baseline = marker.getBoundingClientRect().bottom - line.getBoundingClientRect().top;
     const offset = fit.baseline - baseline;
     if (!(offset < -.1 && offset >= -4) ||
-        fit.baseline + ink.descent > fit.remainder + .08) return record('baseline-or-descent', offset, baseline, fit.baseline, ink.descent, fit.remainder);
+        fit.baseline + ink.descent > fit.remainder + .08) return null;
 
     preceding.style.width = `${previousBox.width / zoom}px`;
     host.append(preceding);
@@ -141,11 +130,10 @@ export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom
     else preceding.append(previousBaseline);
     const priorInk = projectedInk(preceding, maximum);
     if (!priorInk || preceding.getBoundingClientRect().height !== previousRect.height ||
-        Math.abs(previousRect.height - previousBox.height / zoom) > .12) return record('predecessor-height', previousRect.height, previousBox.height / zoom);
+        Math.abs(previousRect.height - previousBox.height / zoom) > .12) return null;
     const upperInk = fit.baseline - ink.ascent, previousEnd = previousBaseline.getBoundingClientRect().bottom - previousRect.top + priorInk.descent;
-    if (previousRect.height + upperInk - previousEnd < pixelGuard) return record('prior-ink-overlap', previousRect.height, upperInk, previousEnd);
+    if (previousRect.height + upperInk - previousEnd < pixelGuard) return null;
     const height = Math.ceil((fit.baseline + ink.descent + pixelGuard) * 64) / 64;
-    record('measured-height', height, room, offset, upperInk, previousEnd, previousRect.height, ink.ascent, ink.descent);
     return height > 0 && height <= room ? { ...scaled, height, offset } : null;
   } finally { host.remove(); }
 }
