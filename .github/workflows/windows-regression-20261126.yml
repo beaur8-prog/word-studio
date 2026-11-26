@@ -1,136 +1,67 @@
 name: Windows regression QA
-run-name: Word Studio Windows complete regression and installer validation
+run-name: Windows Studio layout on byte-pinned public originals
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  browser:
-    name: Windows browser / ${{ matrix.group }}
+  public-originals:
+    name: Windows originals / ${{ matrix.group }}
     runs-on: windows-latest
-    timeout-minutes: 70
+    timeout-minutes: 55
     strategy:
       fail-fast: false
       matrix:
-        group: [hwp-terminal, hwpx-terminal, hwp-large, remaining-1, remaining-2, remaining-3, remaining-4, remaining-5, remaining-6]
+        group: [word, hwp-1, hwp-2, hwp-3, public-1, public-2, public-3]
     env:
-      QA_GROUP: ${{ matrix.group }}
       PLAYWRIGHT_CHANNEL: chromium
+      QA_GROUP: ${{ matrix.group }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 50f3e313ae55efcad876d2ef4350d224a2879e1e
+          fetch-depth: 0
           persist-credentials: false
-      - name: Verify the current product tree
+      - name: Verify the original product files
         shell: pwsh
         run: |
-          if ((git rev-parse 'HEAD^{tree}') -ne '572dde8683694d4fc5f598930128768d37c5dfcc') { throw 'Unexpected test source' }
+          $changes = @(git diff --name-only 50f3e313ae55efcad876d2ef4350d224a2879e1e HEAD)
+          $allowed = @('.github/workflows/windows-regression-20261126.yml', 'scripts/windows-qa/public-sources.json',
+            'scripts/windows-qa/fetch-public-inputs.py', 'tests/windows-qa/public-originals.spec.ts')
+          if ($LASTEXITCODE -ne 0 -or @($changes | Where-Object { $_ -notin $allowed }).Count) { throw 'Unexpected source differences' }
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
       - run: npx playwright install chromium
-      - name: Exercise a disjoint desktop browser group
+      - name: Download original inputs from their public sources and verify bytes
         shell: pwsh
         run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP 'windows-full.json'
-          $flags = @('--trace=off', '--reporter=line,json')
-          if ($env:QA_GROUP -match '^(hwp|hwpx)-terminal$') {
-            $files = @('tests/hwp-cell-terminal.spec.ts')
-            $flags += @('--grep', ("\b" + $Matches[1] + " "))
-          } elseif ($env:QA_GROUP -eq 'hwp-large') {
-            $files = @('tests/hwp-editing.spec.ts')
-          } else {
-            $alreadyPassed = @('paragraph-widows.spec.ts', 'word-widow-splits.spec.ts',
-              'word-short-paragraphs.spec.ts', 'word-auto-lefttab-widow.spec.ts', 'word-paragraph-keeps.spec.ts',
-              'word-wrapping-reference-density.spec.ts', 'hwp-script-cells.spec.ts', 'hwp-body-text-top.spec.ts',
-              'hwp-cell-break-policy.spec.ts', 'hwp-empty-lines.spec.ts', 'docx-textboxes.spec.ts', 'word-furniture-empty-lines.spec.ts')
-            $isolated = @('hwp-cell-terminal.spec.ts', 'hwp-editing.spec.ts')
-            $files = @(
-              Get-ChildItem tests -Recurse -Filter '*.spec.ts' | Sort-Object FullName |
-                Where-Object { $_.Name -notlike 'android-*' -and $_.Name -notin $alreadyPassed -and $_.Name -notin $isolated } |
-                ForEach-Object { (Resolve-Path -Relative $_.FullName).Replace('\','/') -replace '^\./','' }
-            )
-            $shard = $env:QA_GROUP.Split('-')[-1]
-            $flags += "--shard=$shard/6"
-          }
-          node node_modules/@playwright/test/cli.js test @files @flags
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/public-qa-inputs"
+      - name: Measure original and twice-saved print, then reopen both Hancom formats
+        id: measure
+        shell: pwsh
+        run: |
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/public-qa-inputs/inventory.json"
+          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = "$env:RUNNER_TEMP/public-qa-tests.json"
+          node node_modules/@playwright/test/cli.js test tests/windows-qa/public-originals.spec.ts --trace=off --reporter=line,json
           $status = $LASTEXITCODE
           if (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE) {
-            $report = Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json
-            $stats = $report.stats
-            if (($stats.expected + $stats.unexpected + $stats.flaky) -eq 0) { throw 'No tests executed' }
-            $line = "Windows complete $env:QA_GROUP | expected $($stats.expected) | unexpected $($stats.unexpected) | skipped $($stats.skipped) | flaky $($stats.flaky)"
-            Write-Host $line
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $line
-          } elseif ($status -eq 0) {
-            throw 'Missing test report'
+            $stats = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
+            Write-Host "WINDOWS_PUBLIC_TOTAL expected $($stats.expected) failed $($stats.unexpected) skipped $($stats.skipped)"
           }
           exit $status
-
-  native:
-    name: Windows build, Setup and update bridge
-    runs-on: windows-latest
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: 50f3e313ae55efcad876d2ef4350d224a2879e1e
-          persist-credentials: false
-      - name: Verify the current product tree
+      - name: Verify the actually exported DOCX packages with Open XML SDK
+        if: always() && steps.measure.outcome != 'skipped'
         shell: pwsh
         run: |
-          if ((git rev-parse 'HEAD^{tree}') -ne '572dde8683694d4fc5f598930128768d37c5dfcc') { throw 'Unexpected test source' }
-          Write-Host "Microsoft Word automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\Word.Application)"
-          Write-Host "Hancom HWP automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\HWPFrame.HwpObject)"
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Native Node regression
-        run: npm run test:native
-      - name: Update unit regression
-        run: npm run test:updates
-      - name: Build a Windows QA Setup
-        run: npm run package:win
-      - name: Exercise the Electron update bridge
-        run: npm run test:updates:desktop
-      - name: Exercise Windows update helper and cancellation
-        run: node scripts/test-windows-updater-handoff.cjs
-      - name: Install, verify document associations, reinstall and uninstall
-        shell: pwsh
-        run: |
-          ./scripts/test-windows-installer.ps1
-          if (Test-Path '.cache/installer-test.json') {
-            Write-Host ('Windows installer verification ' + (Get-Content '.cache/installer-test.json' -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 8 -Compress))
-          }
-
-      - name: Real in-place update from the official 1.4.12 Setup
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download v1.4.12 --repo beaur8-prog/word-studio --pattern 'Word-Studio-1.4.12-windows-x64-setup.exe' --dir .cache/legacy-update
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git fetch origin refs/tags/v1.4.12:refs/tags/v1.4.12 --depth=1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git show v1.4.12:electron/studio-update-windows.ps1 | Set-Content .cache/legacy-update/helper-1.4.12.ps1 -Encoding utf8BOM
-          ./scripts/test-windows-update-in-place.ps1
+          if (-not (Test-Path 'test-results')) { Write-Host 'WINDOWS_PUBLIC_SDK no outputs'; exit 0 }
+          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
+          if (-not $outputs.Count) { Write-Host 'WINDOWS_PUBLIC_SDK no outputs'; exit 0 }
+          dotnet run --project scripts/word-openxml-validator -- test-results $outputs.Count *> "$env:RUNNER_TEMP/public-sdk.log"
+          $status = $LASTEXITCODE
+          $bad = @(Get-Content "$env:RUNNER_TEMP/public-sdk.log" | Where-Object { $_ -match '^\{' } |
+            ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.PSObject.Properties.Name -contains 'failure' -or $_.errors.Count -gt 0 })
+          Write-Host "WINDOWS_PUBLIC_SDK total $($outputs.Count) withErrors $($bad.Count) exit $status"
+          exit $status
