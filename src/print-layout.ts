@@ -31,7 +31,7 @@ import { hwpFloatingBoxFontFallback, hwpFloatingBoxProofSelector, layoutHwpFloat
 import { layoutNestedHwpHangingScale } from './hwp-nested-hanging-layout';
 import { layoutHwpSourceAdvances, layoutShortHwpCellWidths, layoutMixedHwpCellRuns, prepareHwpSourceFlow } from './hwp-text-advance-layout';
 import { layoutHwpAuthoredHangingCellScale, layoutHwpCellWidthFallbacks, layoutHwpCompactCellFaces, layoutHwpExpandedCellRows, layoutHwpFittedCellLineEnds, layoutHwpScaledCellLines, layoutHwpSingleCellLines, layoutHwpSourceCellLines, markHwpSourceCellLineGroups, preserveHwpCellLinesBeforeSplit, restoreHwpContinuedTableLines } from './hwp-source-cell-lines';
-import { clearSourceBodyEndPaint, layoutHwpAuthoredBodyLines, layoutHwpBodyLines, restoreHwpBodyBeforeKeptTable, restoreHwpBodyBeforePageBreak, sourceAuthoredTailInkBottom, sourceBodyEndBottom, sourceForcedBodyEndBottom } from './hwp-body-line-metrics';
+import { clearSourceBodyEndPaint, layoutHwpAuthoredBodyLines, layoutHwpBodyLines, restoreHwpBodyBeforeKeptTable, restoreHwpBodyBeforePageBreak, sourceBodyEndBottom, sourceForcedBodyEndBottom } from './hwp-body-line-metrics';
 import { sanitizeImportedHtml } from './document-html';
 import { layoutColumns, columnGroupFits } from './column-layout';
 import { followsWithHwpColumnBreak } from './hwp-column-end';
@@ -259,7 +259,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     if (last && ordinaryBottom > bodyBottom && !preserveBottomLeading) {
       // The verified single terminal line fits the source page. Native
       // export needs that placement while leaving its paragraph untouched.
-      if (wordLayout.hwpNativeExport) paintedBottom = sourceAuthoredTailInkBottom(last, content) ?? sourceForcedBodyEndBottom(last, content, false);
+      if (wordLayout.hwpNativeExport) paintedBottom = sourceForcedBodyEndBottom(last, content, false);
       else if (wordLayout.paintHwpCellLines !== false)
         paintedBottom = sourceBodyEndBottom(last, content) ?? sourceForcedBodyEndBottom(last, content) ??
           sourceFootnoteEndBottom(last, content, footnotes);

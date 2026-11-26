@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Measure the first actual Windows Hancom save of the 163-page case
+run-name: Isolate the first rejected check in the Windows page-heading repair
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -7,42 +7,31 @@ permissions:
   contents: read
 jobs:
   native:
-    name: Packaged Windows 163-page HWPX export
+    name: Windows page-head diagnosis
     runs-on: windows-latest
-    timeout-minutes: 35
+    timeout-minutes: 15
     env:
-      WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: hwpx
-      WINDOWS_NATIVE_HWP_TRACE: '1'
-      WINDOWS_NATIVE_HWP_PROFILE: '1'
-      WINDOWS_NATIVE_LARGE_HANGUL: '1'
+      PLAYWRIGHT_CHANNEL: chromium
+      WINDOWS_QA_PAGE_HEAD_TRACE: '1'
+      WINDOWS_NATIVE_SKIP_PRINT: '1'
+      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
+      WINDOWS_AUTHORED_PAGE_HEAD: '1'
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Prepare the source-pinned large file and start the native export
+      - run: npx playwright install chromium
+      - name: Read the native conditions for a single HWPX diagnostic output
         shell: pwsh
         run: |
-          $product = 'f355f3795f3dba0c7253a3b3163d051f1e53525a'
-          git restore --source $product --staged --worktree -- src
+          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/head-diagnosis" --ids 04-language-plan
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code $product -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run build -- --sourcemap
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/package-win.cjs
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/large-native" --ids 02-work-rules
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/large-native/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
-          node scripts/windows-qa/native-export-pdf-stages.cjs
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/head-diagnosis/inventory.json"
+          $env:WINDOWS_LATIN_WITNESS = "$env:RUNNER_TEMP/head-witness.json"
+          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
           exit $LASTEXITCODE

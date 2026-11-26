@@ -2,14 +2,12 @@ import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, zipSync } from 'fflate';
 import { parseHwpBodyLine } from '../hwp-body-line';
 import { retainedTextBands } from '../hwp-line-ink';
-import { hwpSourceWrapAttribute, hwpWrapFingerprint, normalizeHwpWrapText, parseHwpSourceWrap, type HwpAuthoredNativeLine } from '../hwp-text-advances';
+import { hwpSourceWrapAttribute, hwpWrapFingerprint, normalizeHwpWrapText, parseHwpSourceWrap } from '../hwp-text-advances';
 import { paragraphLineOffsets } from '../paragraph-fragments';
 import { hiddenEmptyLineClass } from '../page-empty-lines';
 import { authoredEmptySize } from './export-empty-paragraph-format';
-import { boundedNativeParts, nativeBodyRuns, nativeGlyphBaselines, nativePaintedControls, nativePaintedPayload, type NativeBodyRun } from './export-binary-pages';
+import { boundedNativeParts, nativeBodyRuns, nativeGlyphBaselines, nativePaintedControls, type NativeBodyRun } from './export-binary-pages';
 import { directHwpPageBreak, elementRanges } from './markup-ranges';
-
-import { nativeLineTypography } from './script-fonts';
 
 type EmptyPosition = { font: number; height: number; origin: number };
 export type TerminalPageBreak = {
@@ -298,82 +296,6 @@ export function restoreAuthoredTerminalWrap(Core: typeof HwpDocument, doc: HwpDo
       const restored = applyAuthoredTerminalWrap(Core, doc, proof);
       if (restored) return restored;
     } catch { /* Keep the ordinary native composition without a complete proof. */ }
-  }
-  return doc;
-}
-
-export type AuthoredSingleLine = HwpAuthoredNativeLine & { literal: string };
-
-export function measuredAuthoredSingleLines(body: Element, page: number): AuthoredSingleLine[] {
-  const result: AuthoredSingleLine[] = [];
-  for (const p of body.querySelectorAll<HTMLParagraphElement>(':scope > p[data-hwp-source-wrap*="authoredNativeLine"]')) {
-    const wrap = parseHwpSourceWrap(p.dataset.hwpSourceWrap), proof = wrap?.authoredNativeLine;
-    const literal = p.textContent ?? '';
-    if (!proof || proof.origin.page !== page + 1 || literal.length > 512 ||
-        wrap.fingerprint !== hwpWrapFingerprint(literal) || p.hasAttribute('data-print-paragraph-fragment') ||
-        p.querySelector('img,svg,br,[data-note-reference],[data-document-field],[data-docx-tab],[data-symbol-font]')) continue;
-    const font = getComputedStyle(p);
-    if (font.textAlign === 'justify' && Math.abs(parseFloat(font.fontSize) - proof.size) <= .08 &&
-        Math.abs(parseFloat(font.textIndent) + proof.hanging) <= .15 &&
-        Math.abs(body.getBoundingClientRect().width - proof.width) <= .15) result.push({ ...proof, literal });
-  }
-  return result;
-}
-
-function oneLineCandidate(Core: typeof HwpDocument, doc: HwpDocument, proof: AuthoredSingleLine) {
-  const page = proof.origin.page - 1;
-  if (page < 0 || page + 2 >= doc.pageCount() || nativePaintedControls(doc,page + 1).length) return;
-  const prior = nativeBodyRuns(doc,page), leaf = ink(doc,page + 1), spill = leaf[0], terminal = ink(doc,page).at(-1);
-  if (!spill || !terminal || terminal.cellPath?.length || terminal.secIdx !== spill.secIdx || terminal.paraIdx !== spill.paraIdx ||
-      leaf.some(run => run.cellPath?.length || run.secIdx !== spill.secIdx || run.paraIdx !== spill.paraIdx)) return;
-
-  const owners = prior.filter(run => !run.cellPath?.length && run.charStart === 0 &&
-    run.secIdx === spill.secIdx && run.paraIdx < spill.paraIdx && Math.abs(run.x - proof.origin.x) <= .15 &&
-    Math.abs(run.y - proof.origin.y) <= proof.pitch && doc.getTextRange(run.secIdx,run.paraIdx,0,0xffffffff) === proof.literal);
-  if (owners.length !== 1) return;
-  const {secIdx:section,paraIdx:paragraph} = owners[0], firstY = owners[0].y;
-  const owns = (run: NativeBodyRun) => run.secIdx === section && run.paraIdx === paragraph && !run.cellPath?.length;
-  const lines = prior.filter(owns);
-  if (new Set(lines.map(run => run.y)).size !== 2 || lines.map(run => run.text).join('') !== proof.literal) return;
-  const props = JSON.parse(doc.getParaPropertiesAt(section,paragraph)), paper = JSON.parse(doc.getPageInfo(page));
-  const cached = JSON.parse(doc.getParagraphLineMetrics(section,paragraph,'[]'));
-  const marginTop = paper.marginTop + paper.marginHeader;
-  const pageDef = JSON.parse(doc.getPageDef(section));
-  const width = (pageDef.landscape ? pageDef.height : pageDef.width) - pageDef.marginLeft - pageDef.marginRight - pageDef.marginGutter;
-  const { size,pitch,top,ascent } = proof;
-  if (paper.columns.length !== 1 || cached.stored || cached.controlCount || !Number.isFinite(paper.footerArea?.y) ||
-      !(width > 0 && Math.abs(width / 75 - proof.width) <= .15) || Math.abs(firstY - marginTop - top) > pitch ||
-      props.alignment !== 'justify' || props.lineSpacingType !== 'Percent' || props.marginLeft || props.marginRight ||
-      Math.abs(props.indent + proof.hanging) > .15 || Math.abs(props.lineSpacing * size / 100 - pitch) > .08 ||
-      JSON.parse(doc.getCharPropertiesAt(section, paragraph, 0)).fontSize !== units(size) ||
-      nativeLineTypography(doc, section, paragraph, proof.literal.length) !== proof.typography) return;
-
-  const file = `Contents/section${section}.xml`, parts = boundedNativeParts(doc.exportHwpx());
-  const xml = strFromU8(parts[file]), paragraphs = elementRanges(xml,'hp:p'), owner = paragraphs[paragraph];
-  if (!owner || paragraphs.length !== doc.getParagraphCount(section) || /<hp:(?:linesegarray|ctrl|tbl|pic)\b/.test(owner.inner)) return;
-  const at = owner.end - '</hp:p>'.length;
-  parts[file] = strToU8(xml.slice(0,at) + lineCache([0],units(firstY - marginTop),units(size),units(pitch),units(ascent),width) + xml.slice(at));
-  const candidate = new Core(zipSync(parts,{level:1}));
-  let accepted = false;
-  try {
-    if (candidate.pageCount() + 1 !== doc.pageCount() || nativePaintedPayload(candidate) !== nativePaintedPayload(doc)) return;
-    const restored = nativeBodyRuns(candidate,page).filter(owns);
-    if (!restored.length || restored.map(run => run.text).join('') !== proof.literal ||
-        restored.some(run => Math.abs(run.y - firstY) > .15 || run.x < paper.bodyLeft - .15 ||
-          run.x + run.w > paper.bodyRight + .15 || run.y + run.h > paper.footerArea.y + .15)) return;
-    accepted = true;
-    return candidate;
-  } finally { if (!accepted) candidate.free(); }
-}
-
-export function restoreAuthoredNativeSingleLine(Core: typeof HwpDocument, doc: HwpDocument,
-  proofs: readonly AuthoredSingleLine[] = [], printPages = 0): HwpDocument {
-  if (!proofs.length || doc.pageCount() <= printPages) return doc;
-  for (const proof of proofs) {
-    try {
-      const restored = oneLineCandidate(Core,doc,proof);
-      if (restored) return restored;
-    } catch { /* The output can always use the native wrapped line without a complete fit. */ }
   }
   return doc;
 }

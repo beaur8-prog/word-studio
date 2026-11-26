@@ -15,6 +15,11 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   test.skip(!item.verified, 'Public input was unavailable or failed the byte pin');
   test.setTimeout(process.env.WINDOWS_STAGED_ORIGINAL === item.id ? 1800000 : 900000);
   const source = await readFile(item.path!);
+  const diagnostic = process.env.WINDOWS_QA_PAGE_HEAD_TRACE === '1';
+  const formats: ('hwp' | 'hwpx')[] = diagnostic ? ['hwpx'] : ['hwp', 'hwpx'];
+  if (diagnostic) page.on('console', message => {
+    if (message.text().startsWith('QA_PAGE_HEAD_')) console.log(message.text());
+  });
   await page.goto('/');
   if (process.env.WINDOWS_NATIVE_EXPORT_FLOW) await page.locator('#root .tiptap[role="textbox"]').first().waitFor();
   await page.exposeFunction('logOriginalStage', (stage: string, pages: number) => {
@@ -44,7 +49,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   await page.exposeFunction('writeActualHangul', async (format: 'hwp' | 'hwpx', encoded: string) => {
     await writeFile(info.outputPath('hancom-saved.' + format), Buffer.from(encoded, 'base64'));
   });
-  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry, watched, flowOnly, skipPrint}) => {
+  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry, watched, flowOnly, skipPrint, formats}) => {
     const qa = window as Window & {
       logOriginalForward(metrics: object): Promise<void>;
       logOriginalStage(stage: string, pages: number): Promise<void>;
@@ -156,7 +161,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
 
     const reverse = [];
     await qa.logOriginalForward({ nativeOriginalPages, printPages, preservation, saves });
-    if (!flowOnly && ext !== 'docx') for (const format of ['hwp', 'hwpx'] as const) {
+    if (!flowOnly && ext !== 'docx') for (const format of formats) {
       let reader: InstanceType<typeof HwpReaderSession> | undefined;
       try {
         const saved = await exportEditableHwp(doc, format, () => {});
@@ -185,7 +190,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       await qa.logOriginalStage('reverse-' + format, reverse.at(-1)?.pages ?? 0);
     }
     return { nativeOriginalPages, printPages, preservation, reverse, saves, nativeFlow };
-  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1', watched, flowOnly: process.env.WINDOWS_NATIVE_FLOW_ONLY === '1', skipPrint: process.env.WINDOWS_NATIVE_SKIP_PRINT === '1' });
+  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1', watched, flowOnly: process.env.WINDOWS_NATIVE_FLOW_ONLY === '1', skipPrint: process.env.WINDOWS_NATIVE_SKIP_PRINT === '1', formats });
   if (process.env.WINDOWS_NATIVE_FLOW_ONLY !== '1' && process.env.WINDOWS_NATIVE_SKIP_PRINT !== '1') {
     expect(result.printPages).toHaveLength(3);
     expect(result.printPages.every(pages => pages > 0)).toBe(true);
@@ -205,7 +210,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
     const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
     await init({ module_or_path: await readFile(path.join(core, 'rhwp_bg.wasm')) });
     const comparison = [], latin = [], preciseMargins = [];
-    for (const format of ['hwp', 'hwpx'] as const) {
+    for (const format of formats) {
       const saved = new HwpDocument(new Uint8Array(await readFile(info.outputPath('hancom-saved.' + format))));
       try {
         let tables = 0, outside = 0, maxOutside = 0, firstSevenCellRow: number | undefined;
