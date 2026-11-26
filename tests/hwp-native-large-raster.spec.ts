@@ -147,7 +147,7 @@ for (const format of ['hwp', 'hwpx'] as const) {
       const { parseDocumentHtml } = await import('/src/extensions.ts');
       const { HwpReaderSession } = await import('/src/hwp/reader.ts');
       const { defaultPage } = await import('/src/types.ts');
-      const image = (color: string, description: string) => {
+      const image = (color: string, description: string, before = 0) => {
         const canvas = document.createElement('canvas');
         canvas.width = 48;
         canvas.height = 18;
@@ -155,10 +155,10 @@ for (const format of ['hwp', 'hwpx'] as const) {
         context.fillStyle = color;
         context.fillRect(0, 0, canvas.width, canvas.height);
         const bytes = canvas.toDataURL();
-        return { bytes, html: `<p style="margin:0;line-height:140%;font-size:12pt;text-align:center"><img data-inline-image="true" src="${bytes}" width="96" height="36" alt="${description}"></p>` };
+        return { bytes, html: `<p style="margin-top:${before}px;margin-bottom:0;line-height:140%;font-size:12pt;text-align:center"><img data-inline-image="true" src="${bytes}" width="96" height="36" alt="${description}"></p>` };
       };
       const first = image('#26926a', 'First standalone illustration');
-      const second = image('#ac406c', 'Second standalone illustration');
+      const second = image('#ac406c', 'Second standalone illustration', 108);
       const nextPage = '<div data-page-break="true"></div>';
       const content = parseDocumentHtml('<p>Text before illustrations</p>' + nextPage + first.html +
         nextPage + '<p>Text between illustrations</p>' + nextPage + second.html + nextPage + '<p>Text after illustrations</p>');
@@ -192,11 +192,18 @@ for (const format of ['hwp', 'hwpx'] as const) {
     await init({ module_or_path: await readFile('./node_modules/@rhwp/core/rhwp_bg.wasm') });
     const saved = new HwpDocument(new Uint8Array(painted.bytes));
     try {
-      const assets = [1, 3].flatMap(index => JSON.parse(saved.getPageControlLayout(index)).controls
-        .filter((item: { type: string }) => item.type === 'image')
-        .map((item: { secIdx: number; paraIdx: number; controlIdx: number }) =>
-          Buffer.from(saved.getControlImageData(item.secIdx, item.paraIdx, '[]', item.controlIdx)).toString('base64')));
-      expect(assets).toEqual(painted.expected);
+      const pictures = [1, 3].flatMap(index => {
+        const paper = JSON.parse(saved.getPageInfo(index));
+        return JSON.parse(saved.getPageControlLayout(index)).controls
+          .filter((item: { type: string }) => item.type === 'image')
+          .map((item: { secIdx: number; paraIdx: number; controlIdx: number; y: number }) => ({
+            bytes: Buffer.from(saved.getControlImageData(item.secIdx, item.paraIdx, '[]', item.controlIdx)).toString('base64'),
+            offset: item.y - paper.marginTop - paper.marginHeader,
+          }));
+      });
+      expect(pictures.map(picture => picture.bytes)).toEqual(painted.expected);
+      expect(pictures[0].offset).toBeCloseTo(0, 1);
+      expect(pictures[1].offset).toBeCloseTo(108, 1);
     } finally { saved.free(); }
   });
 }

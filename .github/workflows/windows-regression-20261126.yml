@@ -1,17 +1,29 @@
 name: Windows regression QA
-run-name: Verify the measured Windows visible Word line starts at three display scales
+run-name: Verify authored inline image positioning in both packaged Windows Hangul formats
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  display:
-    name: Windows Word paragraph line boundaries
+  native:
+    name: Packaged Windows inline pictures / ${{ matrix.format }}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        format: [hwp, hwpx]
     env:
       WINDOWS_FORCE_DEVICE_SCALE: '1'
+      WINDOWS_NATIVE_HWP_SAVES: '1'
+      WINDOWS_NATIVE_HWP_FORMATS: ${{ matrix.format }}
+      WINDOWS_NATIVE_HWP_TRACE: '1'
+      WINDOWS_NATIVE_HWP_REVIEW_MS: '420000'
+      WINDOWS_NATIVE_LARGE_HANGUL: '1'
+      WINDOWS_NATIVE_LARGE_TEXT: '1'
+      WINDOWS_NATIVE_PICTURE_PAINT: '1'
+      WINDOWS_NATIVE_PICTURE_OFFSET: '168.08'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,36 +35,21 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Measure logical line starts and glyph bands in the Windows print flow
+      - name: Prepare the source-pinned large file and start the native export
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/word-breaks" --ids 06-long-body
+          $product = 'HEAD'
+          git restore --source $product --staged --worktree -- src
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/word-breaks/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          foreach ($variant in @('905487bd268118eef0401922e4e25cdbbd574132','HEAD')) {
-            Write-Host "WINDOWS_WORD_BREAK_VARIANT $variant"
-            git restore --source $variant --staged --worktree -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            npm run package:win:dir
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-            foreach ($scale in @('1','1.25','1.5')) {
-              $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
-              $env:WINDOWS_WORD_LINE_BREAKS = "$env:RUNNER_TEMP/breaks-$variant-$scale.json"
-              node scripts/windows-qa/native-export-pdf-stages.cjs
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            }
-            foreach ($scale in @('1.25','1.5')) {
-              node scripts/windows-qa/compare-word-line-breaks.cjs "$env:RUNNER_TEMP/breaks-$variant-1.json" "$env:RUNNER_TEMP/breaks-$variant-$scale.json" $scale
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            }
-          }
-          $control = '905487bd268118eef0401922e4e25cdbbd574132'
-          foreach ($scale in @('1','1.25','1.5')) {
-            node scripts/windows-qa/compare-word-line-breaks.cjs "$env:RUNNER_TEMP/breaks-$control-$scale.json" "$env:RUNNER_TEMP/breaks-HEAD-$scale.json" "same-scale-$scale"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          git diff --exit-code $product -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build -- --sourcemap
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/package-win.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/large-native" --ids 02-work-rules
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/large-native/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = "$pwd/release/windows/Word Studio/Word Studio.exe"
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          exit $LASTEXITCODE

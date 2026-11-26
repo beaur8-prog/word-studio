@@ -4,7 +4,7 @@ import documentLimits from '../../electron/document-limits.json';
 import { imageFloating, type ImageFloating } from '../image-floating';
 import { entities } from './cell-content';
 import { restoreLargeRaster, stageLargeRaster, type StagedRaster } from './native-bitmap-paste';
-import { nativeStandalonePictureAttribute } from './export-picture-line';
+import { nativeStandalonePictureAttribute, type StandalonePictureAsset } from './export-picture-line';
 
 const escape = (value: string) => value.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]!));
 const units = (emu = 0) => Math.round(emu / 127);
@@ -29,7 +29,7 @@ type PictureRecord = {
   description: string;
   raster?: StagedRaster;
   source?: string;
-  standalone: boolean;
+  standalone?: number;
 };
 type PictureEvent = { at: number; markup: string; marker: boolean };
 const pictureMarkup = '<hp:pic\\b[^>]*>[\\s\\S]*?<\\/hp:pic>';
@@ -116,13 +116,14 @@ function groupedBindings(xml: string, marker: string, records: ReadonlyMap<strin
 export function stageHwpPictures(html: string, pasteLimit = 0) {
   const prefix = `WORDSTUDIO-PICTURE-${crypto.randomUUID()}-`;
   const records = new Map<string, PictureRecord>();
-  const standaloneIds: string[] = [];
+  const standaloneIds: StandalonePictureAsset[] = [];
   const staged = html.replace(/<img\b[^>]*>/gi, tag => {
     const source = tag.match(/\bdata-image-floating=("[^"]*"|'[^']*')/i)?.[1];
     const alt = tag.match(/\balt=("[^"]*"|'[^']*')/i)?.[1];
     const large = stageLargeRaster(tag, pasteLimit, records.size + 1);
-    const standalone = !source && tag.includes(` ${nativeStandalonePictureAttribute}=""`);
-    if (!source && !alt && !large && !standalone) return tag;
+    const margin = !source && new RegExp(` ${nativeStandalonePictureAttribute}="(\\d{1,6})"`).exec(tag)?.[1];
+    const standalone = typeof margin === 'string' ? Number(margin) : undefined;
+    if (!source && !alt && !large && standalone === undefined) return tag;
     const geometry = source ? imageFloating(entities(source.slice(1, -1))) : undefined;
     if (source && !geometry) throw Error('저장할 그림의 위치 정보가 올바르지 않습니다.');
     const token = `${prefix}${records.size}-END`;
@@ -155,9 +156,9 @@ export function stageHwpPictures(html: string, pasteLimit = 0) {
         if (raster && (size += raster.bytes - raster.marker.length) > documentLimits.documentInflatedBytes)
           throw Error('한글 그림 변환 데이터가 너무 큽니다.');
         let pic = raster ? restoreLargeRaster(match, files, raster) : match;
-        if (standalone) {
+        if (standalone !== undefined) {
           const id = /<hc:img\b[^>]*\bbinaryItemIDRef="(image\d+)"/.exec(pic)?.[1];
-          if (id) standaloneIds.push(id);
+          if (id) standaloneIds.push({ asset: id, before: standalone });
         }
         if (g) {
           const wrapping = g.wrap!.type === 0 ? g.behindDocument ? 'BEHIND_TEXT' : 'IN_FRONT_OF_TEXT' : g.wrap!.type === 3 ? 'TOP_AND_BOTTOM' : 'SQUARE';

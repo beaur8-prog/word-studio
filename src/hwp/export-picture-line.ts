@@ -5,8 +5,12 @@ import { elementRanges } from './markup-ranges';
 
 export const nativeStandalonePictureAttribute = 'data-native-standalone-picture-line';
 
+export type StandalonePictureMeasurement = { source: string; before: number };
+export type StandalonePictureAsset = { asset: string; before: number };
+
 export function measuredStandalonePictureSources(body: Element, paper: DOMRect) {
-  const sources: string[] = [];
+  const sources: StandalonePictureMeasurement[] = [];
+  const bodyTop = body.getBoundingClientRect().top;
   for (const image of body.querySelectorAll<HTMLImageElement>('img:not([data-image-floating])')) {
     const paragraph = image.parentElement;
     if (paragraph?.tagName !== 'P' || paragraph.children.length !== 1 || paragraph.textContent?.trim()) continue;
@@ -15,16 +19,21 @@ export function measuredStandalonePictureSources(body: Element, paper: DOMRect) 
     const source = image.getAttribute('src');
     if (!source || !/^data:image\/(?:bmp|png|jpeg);base64,/i.test(source) || !image.naturalWidth || !image.naturalHeight) continue;
     const box = image.getBoundingClientRect();
-    if (box.width > 0 && box.height > 0 && box.top >= paper.top && box.bottom <= paper.bottom &&
-        box.left >= paper.left && box.right <= paper.right) sources.push(source);
+    if (!(box.width > 0 && box.height > 0 && box.top >= paper.top && box.bottom <= paper.bottom &&
+        box.left >= paper.left && box.right <= paper.right)) continue;
+    const margin = parseFloat(paragraph.style.marginTop);
+    const offset = box.top - bodyTop;
+    const before = column === body && paragraph === body.firstElementChild && margin > 0 &&
+      Math.abs(offset - margin) <= .1 ? Math.round(offset * 75) : 0;
+    sources.push({ source, before });
   }
   return sources;
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
-type PictureLine = { section: number; paragraph: number; page: number; width: number; height: number };
+type PictureLine = { section: number; paragraph: number; page: number; width: number; height: number; before: number };
 
-function missingPictureLine(doc: HwpDocument, section: number, paragraph: number) {
+function missingPictureLine(doc: HwpDocument, section: number, paragraph: number, before: number) {
   const metrics = JSON.parse(doc.getParagraphLineMetrics(section, paragraph, '[]'));
   if (metrics.stored || metrics.lines?.length || metrics.controlCount !== 1 || doc.getParagraphLength(section, paragraph)) return;
   const picture = JSON.parse(doc.getPictureProperties(section, paragraph, 0));
@@ -39,19 +48,19 @@ function missingPictureLine(doc: HwpDocument, section: number, paragraph: number
       nativePaintedControls(doc, page).some(control => control.secIdx === section && control.paraIdx === paragraph)) return;
   // A single line has both first and last segment flags. Its height comes only
   // from the stored picture and the original paragraph spacing.
-  const line = `<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="${height}" textheight="${height}" baseline="${Math.round(height / 2)}" spacing="${gap}" horzpos="0" horzsize="${width}" flags="393216"/></hp:linesegarray>`;
-  return { proof: { section, paragraph, page, width, height } as PictureLine, line };
+  const lineHeight = height + before;
+  const line = `<hp:linesegarray><hp:lineseg textpos="0" vertpos="0" vertsize="${lineHeight}" textheight="${lineHeight}" baseline="${Math.round(lineHeight / 2)}" spacing="${gap}" horzpos="0" horzsize="${width}" flags="393216"/></hp:linesegarray>`;
+  return { proof: { section, paragraph, page, width, height, before } as PictureLine, line };
 }
 
-/** Restore empty inline image lines only when the rendered picture was
- * measured and the native round trip retains every other object and text box. */
-export function restoreStandalonePictureLines(Core: typeof HwpDocument, document: HwpDocument, assetIds: readonly string[]) {
+function tryRestoreStandalonePictureLines(Core: typeof HwpDocument, document: HwpDocument, assetIds: readonly StandalonePictureAsset[]) {
   if (!assetIds.length) return document;
   let source: HwpDocument | undefined, result: HwpDocument | undefined;
   try {
     const bytes = document.exportHwpx(), archive = boundedNativeParts(bytes);
-    const assets = new Set(assetIds.filter(asset => /^image\d+$/.test(asset) &&
-      ['bmp', 'png', 'jpeg', 'jpg'].some(extension => !!archive[`BinData/${asset}.${extension}`])));
+    const assets = new Map(assetIds.filter(({ asset }) => /^image\d+$/.test(asset) &&
+      ['bmp', 'png', 'jpeg', 'jpg'].some(extension => !!archive[`BinData/${asset}.${extension}`]))
+      .map(({ asset, before }) => [asset, before]));
     if (!assets.size) return document;
     const previous = source = new Core(bytes), pages = previous.pageCount();
     if (pages !== document.pageCount()) return document;
@@ -69,13 +78,23 @@ export function restoreStandalonePictureLines(Core: typeof HwpDocument, document
         const pictures = elementRanges(range.inner, 'hp:pic');
         if (pictures.length !== 1) continue;
         const asset = /<hc:img\b[^>]*\bbinaryItemIDRef="([^"]+)"/.exec(pictures[0].inner)?.[1];
-        if (!asset || !assets.has(asset)) continue;
-        const repair = missingPictureLine(previous, section, paragraph);
+        if (!asset) continue;
+        const before = assets.get(asset);
+        if (before === undefined) continue;
+        const repair = missingPictureLine(previous, section, paragraph, before);
         if (!repair) continue;
         if (seen.has(asset)) return document;
         seen.add(asset); proofs.push(repair.proof);
-        const at = range.end - '</hp:p>'.length;
-        xml = xml.slice(0, at) + repair.line + xml.slice(at);
+        let content = range.inner;
+        if (before) {
+          const picture = pictures[0];
+          const sized = picture.inner.replace(/<hp:outMargin\b[^>]*\/>/, tag => tag.replace(/\btop="0"/, `top="${before}"`));
+          if (sized === picture.inner) return document;
+          const at = picture.start + picture.open.length;
+          content = content.slice(0, at) + sized + content.slice(at + picture.inner.length);
+        }
+        const at = range.start + range.open.length;
+        xml = xml.slice(0, at) + content + repair.line + xml.slice(range.end - '</hp:p>'.length);
       }
       archive[name] = strToU8(xml);
     }
@@ -97,6 +116,9 @@ export function restoreStandalonePictureLines(Core: typeof HwpDocument, document
             control.paraIdx === proof.paragraph && control.controlIdx === 0 && !control.cellPath?.length);
           if (index < 0) return document;
           const [image] = controls.splice(index, 1);
+          const bodyTop = paper.marginTop + paper.marginHeader;
+          if (proof.before && (Math.abs(image.y - bodyTop - proof.before / 75) > .12 ||
+              image.y + image.h > paper.footerArea.y)) return document;
           if (Math.abs(image.w - proof.width / 75) > .1 || Math.abs(image.h - proof.height / 75) > .1 ||
               image.x < 0 || image.y < 0 || image.x + image.w > paper.width || image.y + image.h > paper.height) return document;
         }
@@ -112,4 +134,13 @@ export function restoreStandalonePictureLines(Core: typeof HwpDocument, document
     source?.free();
     result?.free();
   }
+}
+
+
+/** Restore measured inline pictures. Keep the ordinary picture line if the
+ * optional space above an image would change the rest of the native document. */
+export function restoreStandalonePictureLines(Core: typeof HwpDocument, document: HwpDocument, assetIds: readonly StandalonePictureAsset[]) {
+  const positioned = tryRestoreStandalonePictureLines(Core, document, assetIds);
+  return positioned === document && assetIds.some(({ before }) => before > 0)
+    ? tryRestoreStandalonePictureLines(Core, document, assetIds.map(({ asset }) => ({ asset, before: 0 }))) : positioned;
 }

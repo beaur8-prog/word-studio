@@ -41,7 +41,7 @@ import { sourceFootnoteTerminal } from './source-footnote-terminal';
 import { sourceCellTerminal, sourceTableTerminalBoxes } from './source-cell-terminal';
 import { nestedTableGeometry } from './nested-tables';
 import { hwpCellBorders } from './cell-borders';
-import { physicalLineHeight, paragraphCss, sourceLinePitches, sourcePreciseColumnPitch, cellParagraphCss, paragraphAutoSpace, hwpBodyTextAtLineTop, sourceStoredMixedLine, sourceMixedBodyLinePair, sourceUniformMixedLinePair, sourceTerminalTextAtLineTop, sourceTextAfterInlineTableFits, sourceInitialTableLead, sourceHostBeforeFloatingTable, sourceHostOnPriorPage, sourceTerminalEmptyLine, sourceTerminalEmptyLineAfterTable, sourceInlineStrokeHeight, sourceKeptInlineTable, sourceKeptInlineTableAfterBody, sourceMixedCellLeading, sourceBlankAutoCellFits, sourceIntactCellBefore, sourceSplitCellBefore, sourcePaintedCellBefore, sourceWholeParagraphPeerRow, sourceInlinePeerInMiddleFragment, sourceColumnCellWrap, sourceBeforeNestedCellTail, sourceCellBoundsTolerance, sourceScaledCellRun, sourceBodyPictureFlow, sourcePaperHeadingLine, sourceTightInlinePicture, sourceInlineColumnTableIndent, type HwpPaintedLine, connectedHwpBorderGroup } from './paragraph-layout';
+import { physicalLineHeight, paragraphCss, sourceLinePitches, sourcePreciseColumnPitch, cellParagraphCss, paragraphAutoSpace, hwpBodyTextAtLineTop, sourceStoredMixedLine, sourceMixedBodyLinePair, sourceUniformMixedLinePair, sourceTerminalTextAtLineTop, sourceTextAfterInlineTableFits, sourceInitialTableLead, sourceHostBeforeFloatingTable, sourceHostOnPriorPage, sourceTerminalEmptyLine, sourceTerminalEmptyLineAfterTable, sourceInlineStrokeHeight, sourceKeptInlineTable, sourceKeptInlineTableAfterBody, sourceMixedCellLeading, sourceBlankAutoCellFits, sourceIntactCellBefore, sourceSplitCellBefore, sourcePaintedCellBefore, sourceWholeParagraphPeerRow, sourceInlinePeerInMiddleFragment, sourceColumnCellWrap, sourceBeforeNestedCellTail, sourceCellBoundsTolerance, sourceScaledCellRun, sourceBodyPictureFlow, sourceInlineGroupReserve, sourcePaperHeadingLine, sourceTightInlinePicture, sourceInlineColumnTableIndent, type HwpPaintedLine, connectedHwpBorderGroup } from './paragraph-layout';
 import { nativeLineTypography, preserveHwpBodyLineEnds, preserveHwpColumnLineEnds, preserveHwpSourceSpaces, restoreUniformLatinMetrics, restoreScriptFonts, sourceFontRuns, type HwpScriptTypography } from './script-fonts';
 import { restoreHwpFixedSpaces } from './fixed-spaces';
 import { metafilePreview } from './metafile-preview';
@@ -2233,6 +2233,15 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             (!content.trim() || onlyFloating(content)) && !doc.getTextRange(section, para, 0, 0xffffffff);
           const shapeMode = editableBox ? paragraphControls.length === 1 && !content.trim() ? 'both' : 'nested' : undefined;
           controlHtml = pictureHtml(section, para, c) ?? shapeHtml(section, para, c, shapeMode) ?? controlHtml;
+          if (editableBox && paragraphControls.length === 1 && controlHtml.startsWith('<img ') &&
+              controlHtml.includes(' data-hwp-object=') && !controlHtml.includes(' data-image-floating=')) {
+            const position = controlPosition(section, para, c.controlIndex);
+            if (position?.type === 'group') {
+              const height = Number(/\sheight="([\d.]+)"/.exec(controlHtml)?.[1]);
+              const reserve = sourceInlineGroupReserve(doc, section, para, c.controlIndex, position, height);
+              if (reserve !== undefined) open = cssStyle(open, `margin-top:${reserve}px;`);
+            }
+          }
           if (controlHtml.startsWith('<div data-document-textbox=')) {
             append(controlHtml);
             replacedTextBox = true;

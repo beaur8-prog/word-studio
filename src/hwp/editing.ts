@@ -25,7 +25,7 @@ import { nativeBoxAnchor, prepareHwpExportTextBoxes } from './export-textbox-pro
 import { measuredTableLead } from './export-table-lead';
 import { measuredContinuationPlacement, measuredPaperHeaderTable, measuredRasterTablePair, nativeContinuedTableAttribute, type PaperHeaderTable,
   type RasterTablePair, type TablePlacement } from './export-table-placement';
-import { measuredStandalonePictureSources, nativeStandalonePictureAttribute } from './export-picture-line';
+import { measuredStandalonePictureSources, nativeStandalonePictureAttribute, type StandalonePictureMeasurement } from './export-picture-line';
 import { measuredTerminalEmptyFonts, type TerminalEmptyFonts } from './export-empty-paragraph-format';
 import { measuredAuthoredSingleLines, type AuthoredSingleLine, measuredAuthoredTerminalWrap, measuredTerminalPageBreak, type AuthoredTerminalWrap, type TerminalPageBreak } from './export-terminal-page-break';
 import { measuredNativePageHead, type NativePageHead } from './export-page-head';
@@ -207,7 +207,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const pageHeads: NativePageHead[] = [];
   const authoredTableFragments: AuthoredNativeTableFragment[] = [];
   let paperHeaderTable: PaperHeaderTable | undefined;
-  const standalonePictures: string[] = [];
+  const standalonePictures: StandalonePictureMeasurement[] = [];
   try {
     if (onProgress) { onProgress({ label: '한글 문서의 쪽 나누기를 준비하는 중…' }); await paintHwpProgress(); }
     warnings.push(...layout.warnings);
@@ -324,9 +324,10 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     });
     if (standalonePictures.length) {
       const images = [...root.querySelectorAll('img')];
-      for (const source of new Set(standalonePictures)) {
+      const pictureMargins = new Map(standalonePictures.map(({ source, before }) => [source, before]));
+      for (const [source, before] of pictureMargins) {
         const matching = images.filter(image => image.getAttribute('src') === source);
-        if (matching.length === 1) matching[0].setAttribute(nativeStandalonePictureAttribute, '');
+        if (matching.length === 1) matching[0].setAttribute(nativeStandalonePictureAttribute, String(before));
       }
     }
     const savedBoxes = root.querySelectorAll<HTMLElement>('[data-document-textbox]');

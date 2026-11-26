@@ -674,6 +674,28 @@ export function sourceBodyPictureFlow(doc: HwpDocument, section: number, paragra
     followingEm: Math.round(followingEm * 1000) / 1000 };
 }
 
+/** Preserve the source outer margin of a page-leading inline group when
+ * the stored line and painted position confirm the same amount of space. */
+export function sourceInlineGroupReserve(doc: HwpDocument, section: number, paragraph: number, control: number,
+  group: { page: number; y: number; h: number }, previewHeight: number) {
+  try {
+    const shape = JSON.parse(doc.getShapeProperties(section, paragraph, control));
+    if (!shape.treatAsChar || shape.outerMarginBottom || !(shape.outerMarginTop > 0)) return;
+    const paper = JSON.parse(doc.getPageInfo(group.page));
+    if (paper.columns?.length !== 1 || !paper.footerArea) return;
+    const metrics = JSON.parse(doc.getParagraphLineMetrics(section, paragraph, '[]'));
+    if (!metrics.stored || metrics.controlCount !== 1 || metrics.lines?.length !== 1) return;
+    const { verticalPosition, height } = metrics.lines[0];
+    const bodyTop = paper.marginTop + paper.marginHeader, shapeHeight = shape.height / 75;
+    const padding = (previewHeight - shapeHeight) / 2, reserve = shape.outerMarginTop / 75;
+    const close = (a: number, b: number) => Math.abs(a - b) <= sourceCellBoundsTolerance;
+    if (!close(verticalPosition, 0) || !close(group.h, shapeHeight) || !close(height, shapeHeight + reserve) ||
+        !(padding >= 0 && padding < reserve) || !close(bodyTop + reserve, group.y) ||
+        !(group.y + group.h + padding <= paper.footerArea.y)) return;
+    return reserve - padding;
+  } catch { /* Preserve ordinary inline flow without the complete source layout. */ }
+}
+
 /** Native paper artwork shares the opening paragraph with live text. The
  * stored text lines show which font determined each percentage advance. */
 export function sourcePaperHeadingLine(doc: HwpDocument, section: number, paragraph: number, pageIndex: number,

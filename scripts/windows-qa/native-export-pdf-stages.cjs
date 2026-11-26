@@ -188,12 +188,16 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
             const data = native.getControlImageData(secIdx, paraIdx, '[]', controlIdx);
             savedBytes.push(Buffer.from(data).toString('base64'));
             geometry.push({page: index + 1, x: picture.x, y: picture.y, w: picture.w, h: picture.h,
+              offset: picture.y - paper.marginTop - paper.marginHeader,
               inside: picture.x >= 0 && picture.y >= 0 && picture.x + picture.w <= paper.width && picture.y + picture.h <= paper.height });
           }
         }
         const exact = JSON.stringify(savedBytes) === JSON.stringify(expectedImages);
         console.log('WINDOWS_LARGE_NATIVE_PICTURE_PAINT ' + JSON.stringify({format, exact, geometry}));
         if (!exact || geometry.length !== 2 || geometry.some(item => !item.inside)) throw Error('Missing or modified picture in the native readback');
+        const expectedOffset = Number(process.env.WINDOWS_NATIVE_PICTURE_OFFSET);
+        if (Number.isFinite(expectedOffset) && geometry.some(item => Math.abs(item.offset - expectedOffset) > .12))
+          throw Error('The inline illustration did not recover its authored outer margin');
       }
       const comparison = process.env.WINDOWS_NATIVE_HWP_COMPARISON;
       if (comparison) {
