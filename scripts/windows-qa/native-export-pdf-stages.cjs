@@ -125,6 +125,10 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
         const original = new Core(await fs.readFile(item.path));
         try {
           const agreement = require('./hancom-page-agreement.cjs')(original, native);
+          if (process.env.WINDOWS_PACKAGED_TABLE_FIT === '1') {
+            const result = require('./hancom-packaged-table-fit.cjs')(Core, original, native);
+            console.log('WINDOWS_PACKAGED_TABLE_FIT ' + JSON.stringify(result));
+          }
           const pages = Array.from({length:readback}, (_, page) => {
             const runs = JSON.parse(native.getPageTextLayout(page)).runs.filter(r => !r.headerFooter && r.paraIdx!==0xffffffff && r.text.trim());
             const controls = JSON.parse(native.getPageControlLayout(page)).controls.filter(c => !c.headerFooter);
