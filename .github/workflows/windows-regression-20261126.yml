@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Word Studio Windows regression for c117be6 and 2ea9a74
+run-name: Word Studio Windows regression setup retry for 2ea9a74
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [docx, desktop, hwp-terminal, hwpx-terminal, hwp-large, hwp-other-1, hwp-other-2, hwp-other-3]
+        group: [desktop, hwp-other-1, hwp-other-2, hwp-other-3]
     env:
       QA_GROUP: ${{ matrix.group }}
       PLAYWRIGHT_CHANNEL: chromium
@@ -25,16 +25,10 @@ jobs:
       - name: Check out the verified source tree
         shell: pwsh
         run: |
-          if ($env:QA_GROUP -eq 'docx') {
-            git -c advice.detachedHead=false checkout --detach 'HEAD~2'
-            $expected = '1e2beb37cb6b8ed45da839b3b1c512654c5913d9'
-          } else {
-            git -c advice.detachedHead=false checkout --detach 'HEAD~1'
-            $expected = 'd151b00242f7930e4c14af5b9988aa5e7515fac3'
-          }
+          git -c advice.detachedHead=false checkout --detach 943519557f28debbe44a9455769f8361b19afaa0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $actual = git rev-parse 'HEAD^{tree}'
-          if ($actual -ne $expected) { throw "Unexpected source tree $actual" }
+          if ($actual -ne 'd151b00242f7930e4c14af5b9988aa5e7515fac3') { throw "Unexpected source tree $actual" }
           Write-Host "Verified source tree $actual"
       - uses: actions/setup-node@v4
         with:
@@ -42,12 +36,12 @@ jobs:
           cache: npm
       - name: Install pinned project dependencies
         run: npm ci
-      - name: Run Windows Node regression
+      - name: Build resources for the Windows Electron smoke test
         if: matrix.group == 'desktop'
-        run: npm run test:native
-      - name: Build on Windows
+        run: node node_modules/vite/bin/vite.js build
+      - name: Install the pinned Electron runtime
         if: matrix.group == 'desktop'
-        run: npm run build
+        run: node node_modules/electron/install.js
       - name: Exercise the Windows Electron app
         if: matrix.group == 'desktop'
         shell: pwsh
@@ -62,39 +56,33 @@ jobs:
         shell: pwsh
         run: |
           $flags = @('--trace=off', '--reporter=line,json')
-          switch -Regex ($env:QA_GROUP) {
-            '^docx$' {
-              $selected = @(
-                'tests/docx-textboxes.spec.ts', 'tests/docx-grouped-pictures.spec.ts',
-                'tests/docx-auto-hyphenation.spec.ts', 'tests/docx-outline-level.spec.ts',
-                'tests/docx-checkboxes.spec.ts', 'tests/empty-heading-flow.spec.ts',
-                'tests/word-furniture-empty-lines.spec.ts', 'tests/word-line-metrics.spec.ts',
-                'tests/word-line-metrics-capacity.spec.ts', 'tests/word-wrapping-reference-density.spec.ts',
-                'tests/word-normal-spacing-save.spec.ts', 'tests/word-page-bottom-spacing.spec.ts',
-                'tests/word-row-split-defaults.spec.ts', 'tests/word-table-autofit.spec.ts',
-                'tests/word-widow-splits.spec.ts', 'tests/paragraph-contextual-spacing.spec.ts',
-                'tests/word-list-lines.spec.ts'
-              )
-            }
-            '^(hwp|hwpx)-terminal$' {
-              $selected = @('tests/hwp-cell-terminal.spec.ts')
-              $flags += @('--grep', ("\b" + $Matches[1] + " "))
-            }
-            '^hwp-large$' {
-              $selected = @('tests/hwp-editing.spec.ts')
-            }
-            '^hwp-other-([123])$' {
-              $shard = $Matches[1]
-              $selected = @(
-                Get-ChildItem tests -Filter 'hwp*.spec.ts' | Sort-Object Name |
-                  Where-Object { $_.Name -notin @('hwp-cell-terminal.spec.ts', 'hwp-editing.spec.ts') } |
-                  ForEach-Object { "tests/$($_.Name)" }
-              )
-              $selected += @('tests/paragraph-contextual-spacing.spec.ts', 'tests/word-list-lines.spec.ts', 'tests/word-table-autofit.spec.ts')
-              $flags += "--shard=$shard/3"
-            }
-            default { throw "Unexpected test group $env:QA_GROUP" }
-          }
+          if ($env:QA_GROUP -notmatch '^hwp-other-([123])$') { throw "Unexpected test group $env:QA_GROUP" }
+          $shard = $env:QA_GROUP.Split("-")[-1]
+          $selected = @(
+            Get-ChildItem tests -Filter 'hwp*.spec.ts' | Sort-Object Name |
+              Where-Object { $_.Name -notin @('hwp-cell-terminal.spec.ts', 'hwp-editing.spec.ts') } |
+              ForEach-Object { "tests/$($_.Name)" }
+          )
+          $selected += @('tests/paragraph-contextual-spacing.spec.ts', 'tests/word-list-lines.spec.ts', 'tests/word-table-autofit.spec.ts')
+          $flags += "--shard=$shard/3"
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type) {
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              }
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
+          node --input-type=module -e "import limits from './electron/document-limits.json'; import {createRequire} from 'node:module'; if (limits !== createRequire(import.meta.url)('./electron/document-limits.json')) process.exit(1);"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP "$env:QA_GROUP.json"
           & node node_modules/@playwright/test/cli.js test @selected @flags
           $status = $LASTEXITCODE
