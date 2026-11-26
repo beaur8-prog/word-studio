@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$Control,
     [Parameter(Mandatory = $true)][string]$Candidate,
-    [Parameter(Mandatory = $true)][uint32]$ExpectedPages
+    [Parameter(Mandatory = $true)][uint32]$ExpectedPages,
+    [switch]$ReportOnly
 )
 $ErrorActionPreference = 'Stop'
 
@@ -91,5 +92,5 @@ for ($i = 0; $i -lt $ExpectedPages; $i++) {
 Write-Host "WINDOWS_PDF_PIXEL_COMPARE pages $ExpectedPages exact $($ExpectedPages - $mismatches.Count) different $($mismatches.Count) dpi 96"
 if ($mismatches.Count) {
     Write-Host "WINDOWS_PDF_PIXEL_PAGES $($mismatches -join ',')"
-    exit 1
+    if (-not $ReportOnly) { exit 1 }
 }

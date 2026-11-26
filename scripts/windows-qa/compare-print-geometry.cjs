@@ -36,3 +36,19 @@ for (const [i, original] of before.entries()) {
 }
 result.maxDelta=Math.round(result.maxDelta*1000)/1000;
 console.log('WINDOWS_DENSITY_GEOMETRY ' + JSON.stringify({ scale:process.argv[4], tolerance, ...result }));
+
+const unique = sheets => {
+  const paragraphs = new Map();
+  for (const {index, paragraphs: entries} of sheets) for (const paragraph of entries ?? []) {
+    paragraphs.set(paragraph.key, paragraphs.has(paragraph.key) ? null : {page:index, ...paragraph});
+  }
+  return paragraphs;
+};
+const beforeParagraphs = unique(before), afterParagraphs = unique(after);
+const paired = [...beforeParagraphs.values()].filter(p=>p&&afterParagraphs.get(p.key)).map(p=>[p, afterParagraphs.get(p.key)]);
+const sameStartPage = paired.filter(([a,b])=>a.page===b.page);
+const changes = sameStartPage.filter(([a,b])=>a.lines!==b.lines||Math.max(...a.p.map((n,i)=>Math.abs(n-b.p[i])))>tolerance);
+const compact = p => ({page:p.page,p:p.p.map(n=>Math.round(n*1000)/1000),y:p.y,lines:p.lines,font:p.font,size:p.size,lineHeight:p.lineHeight});
+console.log('WINDOWS_DENSITY_PARAGRAPHS ' + JSON.stringify({scale:process.argv[4], paired:paired.length,
+  sameStartPage:sameStartPage.length, sameLineLevel:sameStartPage.filter(([a,b])=>a.lines===b.lines).length,
+  changed:changes.length, first:changes.slice(0,4).map(([a,b])=>({length:a.length,before:compact(a),after:compact(b)}))}));
