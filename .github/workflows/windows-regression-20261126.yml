@@ -1,98 +1,63 @@
 name: Windows regression QA
-run-name: Word Studio Windows regression setup retry for 2ea9a74
+run-name: Windows Electron long-document page-count comparison
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  validation:
-    name: Windows / ${{ matrix.group }}
+  desktop-comparison:
+    name: Windows Electron / ${{ matrix.target.name }}
     runs-on: windows-latest
-    timeout-minutes: 55
+    timeout-minutes: 18
     strategy:
       fail-fast: false
       matrix:
-        group: [desktop, hwp-other-1, hwp-other-2, hwp-other-3]
-    env:
-      QA_GROUP: ${{ matrix.group }}
-      PLAYWRIGHT_CHANNEL: chromium
+        target:
+          - name: baseline-17d8ef8
+            commit: 17d8ef8456973dfe5cf5b0240bf34cc7a60e4c01
+            tree: 1868a4add5d9dbf761b4a82ad1ba331d7ded3a97
+          - name: docx-c117be6
+            commit: f570efb37b761b491ccc3ea8054761800467eb0f
+            tree: 1e2beb37cb6b8ed45da839b3b1c512654c5913d9
+          - name: hwp-2ea9a74
+            commit: 943519557f28debbe44a9455769f8361b19afaa0
+            tree: d151b00242f7930e4c14af5b9988aa5e7515fac3
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 3
+          ref: ${{ matrix.target.commit }}
           persist-credentials: false
-      - name: Check out the verified source tree
+      - name: Verify source tree
         shell: pwsh
         run: |
-          git -c advice.detachedHead=false checkout --detach 943519557f28debbe44a9455769f8361b19afaa0
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $actual = git rev-parse 'HEAD^{tree}'
-          if ($actual -ne 'd151b00242f7930e4c14af5b9988aa5e7515fac3') { throw "Unexpected source tree $actual" }
+          if ($actual -ne '${{ matrix.target.tree }}') { throw "Unexpected source tree $actual" }
           Write-Host "Verified source tree $actual"
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - name: Install pinned project dependencies
-        run: npm ci
-      - name: Build resources for the Windows Electron smoke test
-        if: matrix.group == 'desktop'
-        run: node node_modules/vite/bin/vite.js build
-      - name: Install the pinned Electron runtime
-        if: matrix.group == 'desktop'
-        run: node node_modules/electron/install.js
-      - name: Exercise the Windows Electron app
-        if: matrix.group == 'desktop'
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: node node_modules/vite/bin/vite.js build
+      - name: Exercise the Windows Electron app and capture the synthetic metrics
         shell: pwsh
         run: |
-          New-Item .cache -ItemType Directory -Force | Out-Null
           npm run test:desktop
-      - name: Install pinned Playwright Chromium
-        if: matrix.group != 'desktop'
-        run: npx playwright install chromium
-      - name: Run document regression tests
-        if: matrix.group != 'desktop'
-        shell: pwsh
-        run: |
-          $flags = @('--trace=off', '--reporter=line,json')
-          if ($env:QA_GROUP -notmatch '^hwp-other-([123])$') { throw "Unexpected test group $env:QA_GROUP" }
-          $shard = $env:QA_GROUP.Split("-")[-1]
-          $selected = @(
-            Get-ChildItem tests -Filter 'hwp*.spec.ts' | Sort-Object Name |
-              Where-Object { $_.Name -notin @('hwp-cell-terminal.spec.ts', 'hwp-editing.spec.ts') } |
-              ForEach-Object { "tests/$($_.Name)" }
-          )
-          $selected += @('tests/paragraph-contextual-spacing.spec.ts', 'tests/word-list-lines.spec.ts', 'tests/word-table-autofit.spec.ts')
-          $flags += "--shard=$shard/3"
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type) {
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              }
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          node --input-type=module -e "import limits from './electron/document-limits.json'; import {createRequire} from 'node:module'; if (limits !== createRequire(import.meta.url)('./electron/document-limits.json')) process.exit(1);"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP "$env:QA_GROUP.json"
-          & node node_modules/@playwright/test/cli.js test @selected @flags
           $status = $LASTEXITCODE
-          if (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE) {
-            $stats = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
-            if ($null -eq $stats -or ($stats.expected + $stats.unexpected + $stats.flaky) -eq 0) { throw 'No tests executed' }
-            $line = "Windows QA $env:QA_GROUP | expected $($stats.expected) | unexpected $($stats.unexpected) | skipped $($stats.skipped) | flaky $($stats.flaky)"
-            Write-Host $line
-            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $line
-          } elseif ($status -eq 0) {
-            throw 'Missing Playwright result'
+          $profiles = @(Get-ChildItem .cache -Directory -Filter 'desktop-smoke-*')
+          foreach ($profile in $profiles) {
+            $metricsPath = Join-Path $profile.FullName 'long-document-metrics.json'
+            if (Test-Path $metricsPath) {
+              $measure = Get-Content $metricsPath -Raw | ConvertFrom-Json
+              $result = [ordered]@{
+                initialPages = $measure.initialPages
+                reopenedPages = $measure.reopenedPages
+                originalMetrics = $measure.originalMetrics
+                reopenedMetrics = $measure.reopenedMetrics
+              }
+              Write-Host ('Windows Electron synthetic metrics ' + ($result | ConvertTo-Json -Depth 9 -Compress))
+            }
           }
           exit $status
