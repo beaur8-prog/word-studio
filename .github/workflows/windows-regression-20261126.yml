@@ -1,25 +1,15 @@
 name: Windows regression QA
-run-name: Locate the first English exam print displacement in the Windows renderer
+run-name: Compare a warm Windows DOCX transition on the exact same input bytes
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native-hwp:
-    name: Packaged Windows Hangul / ${{ matrix.id }}
+  cold-docx:
+    name: 08 math transition / identical file and outgoing document
     runs-on: windows-latest
-    timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {group: hwp-1, id: 07-english-exam, pages: ''}
-    env:
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
+    timeout-minutes: 24
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,21 +19,35 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Compare the real native Windows print preview to the witnessed source
+      - name: Build both Windows apps and open the same file with the original already in the editor
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/final-native" --ids $env:QA_ID
+          $candidate = git rev-parse HEAD
+          $versions = [ordered]@{ candidate = $candidate; control = 'e350f7171eb65c6e6af11cd5166214b20a711ddc' }
+          foreach ($version in $versions.GetEnumerator()) {
+            git restore --source $version.Value -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $version.Value -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            npm run package:win:dir
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Move-Item release/windows "$env:RUNNER_TEMP/reopen-$($version.Key)"
+          }
+          $candidateExe = "$env:RUNNER_TEMP/reopen-candidate/Word Studio/Word Studio.exe"
+          $controlExe = "$env:RUNNER_TEMP/reopen-control/Word Studio/Word Studio.exe"
+          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/reopen-original" --ids 08-math-exam
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/print-geometry.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/reopen-original/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = $candidateExe
+          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/reopen-docx"
+          $env:WINDOWS_NATIVE_DOCX_DIAGNOSE = '1'
+          $env:WINDOWS_FORCE_DEVICE_SCALE = '1'
           node scripts/windows-qa/native-export-pdf-stages.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/windows-qa/compare-hwp-print-witness.cjs
+          $inventory = Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json
+          $original = @($inventory | Where-Object verified)
+          if ($original.Count -ne 1) { throw 'Expected one pinned native input' }
+          node scripts/windows-qa/native-docx-warm-reopen.cjs $controlExe $candidateExe "$env:WINDOWS_NATIVE_DOCX_DIR/textbox-save-08-math-exam-native-1.docx" ($original[0].path)
           exit $LASTEXITCODE
