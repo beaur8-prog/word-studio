@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Windows HWP editing responsiveness baseline and candidate
+run-name: Windows HWP print event-stage baseline
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,9 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {version: baseline, document: 02-work-rules, group: hwp-2}
           - {version: candidate, document: 02-work-rules, group: hwp-2}
-          - {version: baseline, document: moel-harassment-manual, group: public-2}
           - {version: candidate, document: moel-harassment-manual, group: public-2}
     env:
       QA_GROUP: ${{ matrix.group }}
@@ -26,78 +24,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-      - uses: actions/checkout@v4
-        if: matrix.version == 'baseline'
-        with:
-          ref: 50f3e313ae55efcad876d2ef4350d224a2879e1e
-          path: qa-baseline
-          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npm ci
-        if: matrix.version == 'baseline'
-        working-directory: qa-baseline
       - run: node node_modules/electron/install.js
-        if: matrix.version == 'baseline'
-        working-directory: qa-baseline
       - run: npm run package:win:dir
-        if: matrix.version == 'baseline'
-        working-directory: qa-baseline
-      - run: node node_modules/electron/install.js
-        if: matrix.version == 'candidate'
-      - run: npm run package:win:dir
-        if: matrix.version == 'candidate'
       - name: Run exact public input through the Windows app
         shell: pwsh
         run: |
           python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/qa-inputs" --ids "$env:QA_ID"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-inputs/inventory.json"
-          $folder = if ($env:QA_VERSION -eq 'baseline') { 'qa-baseline/' } else { '' }
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path ($folder + 'release/windows/Word Studio/Word Studio.exe')).Path
-          node scripts/windows-qa/native-public-originals.cjs
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          node scripts/windows-qa/native-preview-stages.cjs
           exit $LASTEXITCODE
-  browser:
-    name: Windows HWP focused browser regression
-    runs-on: windows-latest
-    timeout-minutes: 30
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install chromium
-      - name: Exercise HWP source lines, editing, and widow round trip
-        shell: pwsh
-        run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP 'hwp-performance-tests.json'
-          npx playwright test tests/hwp-source-text-advances.spec.ts tests/hwp-editing.spec.ts tests/paragraph-widows.spec.ts --reporter=line,json --trace=off
-          $status = $LASTEXITCODE
-          if (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE) {
-            $s = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
-            Write-Host "WINDOWS_HWP_FOCUSED expected $($s.expected) failed $($s.unexpected) skipped $($s.skipped)"
-          }
-          exit $status
