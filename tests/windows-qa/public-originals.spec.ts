@@ -255,26 +255,49 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
         }
         console.log('WINDOWS_NATIVE_GRID ' + JSON.stringify({ id:item.id, format, pages:saved.pageCount(),
           tables, outsideRight:outside, maxOutsidePx:Math.round(maxOutside*10)/10, firstSevenCellRow }));
+        if (process.env.WINDOWS_VERIFY_BINARY_TAIL_LAYOUT === '1') {
+          const positions = [];
+          for (let page = 0; page < saved.pageCount(); page++) {
+            const tail = JSON.parse(saved.getPageTextLayout(page)).runs.filter(run => !run.headerFooter &&
+              !run.cellPath?.length && run.secIdx === 0 && run.paraIdx === 38 && run.charStart >= 120 && run.text.trim());
+            if (tail.length) positions.push({ page: page + 1, glyphs: tail.reduce((sum, run) => sum + run.text.replace(/\s/gu, '').length, 0) });
+          }
+          console.log('WINDOWS_DISPLACED_TAIL ' + JSON.stringify({ format, pages:saved.pageCount(), positions }));
+          expect(saved.pageCount()).toBe(10);
+          expect(positions).toEqual([{page:5,glyphs:7}]);
+        }
         if (process.env.WINDOWS_HANCOM_FIXED_AGREEMENT === '1') {
           const original = new HwpDocument(new Uint8Array(source));
           try {
             const stats = require('../../scripts/windows-qa/hancom-page-agreement.cjs')(original, saved);
             console.log('WINDOWS_HANCOM_FIXED_AGREEMENT ' + JSON.stringify({ id:item.id, format, ...stats }));
             if (process.env.WINDOWS_VERIFY_EMPTY_TAB_LAYOUT === '1') {
-              const unused = (doc: any) => {
-                let groups = 0, stops = 0;
-                for (let section=0;section<doc.getSectionCount();section++) {
-                  for (let p=0;p<doc.getParagraphCount(section);p++) {
+              const unused = (doc: InstanceType<typeof HwpDocument>, projectToTwips: boolean) => {
+                const groups: string[] = [];
+                let stops = 0, distinct = 0;
+                for (let section = 0; section < doc.getSectionCount(); section++) {
+                  for (let p = 0; p < doc.getParagraphCount(section); p++) {
                     if (doc.getParagraphLength(section,p) || JSON.parse(doc.getParagraphLineMetrics(section,p,'[]')).controlCount) continue;
-                    const tabs = JSON.parse(doc.getParaPropertiesAt(section,p)).tabStops;
-                    if (tabs?.length) { groups++; stops += tabs.length; }
+                    const tabs: {position: number; type: number; fill: number}[] = JSON.parse(doc.getParaPropertiesAt(section,p)).tabStops;
+                    if (!tabs?.length) continue;
+                    const tuples = new Set(tabs.map(({position,type,fill}) => {
+                      // Native positions use doubled units. Two DOCX saves use 15 twips per CSS pixel.
+                      const pos = projectToTwips ? Math.round(Math.round(position / 1.5) * .15) * 10 : position;
+                      return JSON.stringify([pos,type,fill]);
+                    }));
+                    stops += tabs.length;
+                    distinct += tuples.size;
+                    groups.push(JSON.stringify([...tuples].sort()));
                   }
                 }
-                return {groups,stops};
+                return {groups: groups.length, stops, distinct, identity: JSON.stringify(groups.sort())};
               };
-              const tabs = { source:unused(original), saved:unused(saved) };
-              console.log('WINDOWS_UNUSED_TABS ' + JSON.stringify({format, ...tabs}));
-              expect(tabs.saved.stops).toBeGreaterThan(0);
+              const {identity: sourceIdentity, ...sourceTabs} = unused(original, true);
+              const {identity: savedIdentity, ...savedTabs} = unused(saved, false);
+              const sameSettings = sourceIdentity === savedIdentity;
+              console.log('WINDOWS_UNUSED_TABS ' + JSON.stringify({format, source:sourceTabs, saved:savedTabs, sameSettings}));
+              expect(savedTabs).toEqual({...sourceTabs, stops:sourceTabs.distinct});
+              expect(sameSettings).toBe(true);
               if (format === 'hwpx') {
                 expect(stats.convertedPages).toBe(16);
                 expect(stats.body.sameStartPage).toBeGreaterThanOrEqual(209);

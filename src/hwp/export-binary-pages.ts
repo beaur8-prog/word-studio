@@ -72,31 +72,43 @@ export function nativeGlyphBaselines(svg: string) {
   };
 }
 
-function measuredCache(source: HwpDocument, page: number, section: number, paragraph: number, printed: NativeBodyRun[]) {
+function owns(run: NativeBodyRun, section: number, paragraph: number) {
+  return run.secIdx === section && run.paraIdx === paragraph && !run.cellPath?.length;
+}
+function ownerRuns(doc: HwpDocument, page: number, section: number, paragraph: number) {
+  return nativeBodyRuns(doc, page).filter(run => owns(run, section, paragraph));
+}
+type MeasuredSheet = { page: number; runs: NativeBodyRun[] };
+
+function measuredCache(source: HwpDocument, section: number, paragraph: number, sheets: readonly MeasuredSheet[]) {
   const details = JSON.parse(source.getParagraphLineMetrics(section, paragraph, '[]'));
   const format = JSON.parse(source.getParaPropertiesAt(section, paragraph));
-  const paper = JSON.parse(source.getPageInfo(page));
+  const paper = JSON.parse(source.getPageInfo(sheets[0].page));
   if (details.stored || details.controlCount || format.lineSpacingType !== 'Percent' ||
       JSON.parse(source.getColumnDef(section)).columnCount !== 1) return;
-  const runs = nativeBodyRuns(source, page).filter(run => run.secIdx === section && run.paraIdx === paragraph && !run.cellPath?.length);
-  if (!same(runs.map(({text,x,y,w,h,charStart}) => [text,x,y,w,h,charStart]),
-            printed.map(({text,x,y,w,h,charStart}) => [text,x,y,w,h,charStart]))) return;
-  const lines = new Map<number, NativeBodyRun>();
-  for (const run of runs) if (!lines.has(run.y)) lines.set(run.y,run);
-  if (lines.size < 2) return;
   const font = JSON.parse(source.getCharPropertiesAt(section, paragraph, 0)).fontSize;
-  if (!Number.isInteger(font) || font <= 0 || runs.some(run => Math.abs(run.h - font / 75) > .065)) return;
-  const baselineAt = nativeGlyphBaselines(source.renderPageSvg(page));
+  if (!Number.isInteger(font) || font <= 0) return;
+  const pitch = font + Math.round(font * (format.lineSpacing / 100 - 1));
   const measured: { start: number; top: number; baseline: number }[] = [];
   let last = -1;
-  for (const [top, run] of lines) {
-    if (run.charStart <= last || (last < 0 && run.charStart !== 0) || run.w <= 0) return;
-    const baseline = baselineAt(run);
-    if (baseline === undefined) return;
-    measured.push({ start: run.charStart, top, baseline });
-    last = run.charStart;
+  for (const { page, runs } of sheets) {
+    const sheetStart = measured.length;
+    if (runs.some(run => Math.abs(run.h - font / 75) > .065)) return;
+    const lines = new Map<number, NativeBodyRun>();
+    for (const run of runs) if (!lines.has(run.y)) lines.set(run.y, run);
+    const baselineAt = nativeGlyphBaselines(source.renderPageSvg(page));
+    for (const [top, run] of lines) {
+      if (run.charStart <= last || (last < 0 && run.charStart !== 0) || run.w <= 0) return;
+      const baseline = baselineAt(run);
+      if (baseline === undefined) return;
+      const sheetLine = measured.length - sheetStart;
+      if (sheetLine && Math.abs(units(baseline - measured[sheetStart].baseline) - sheetLine * pitch) > 1) return;
+      measured.push({ start: run.charStart, top, baseline });
+      last = run.charStart;
+    }
   }
-  const gap = Math.round(font * (format.lineSpacing / 100 - 1));
+  if (measured.length < 2) return;
+  const gap = pitch - font;
   const width = units(paper.width - paper.marginLeft - paper.marginRight);
   const first = measured[0].baseline;
   // The native JSON rounds glyph tops. Preserve exact pitch from the
@@ -104,12 +116,11 @@ function measuredCache(source: HwpDocument, page: number, section: number, parag
   const offsets = measured.map(line => units(line.baseline - line.top)).sort((a,b) => a-b);
   const ascent = offsets[Math.floor(offsets.length / 2)];
   const origin = units(first - paper.marginTop - paper.marginHeader) - ascent;
-  if (![gap,width,ascent,origin].every(Number.isSafeInteger) || gap < 0 || origin < 0 || width <= 0 ||
-      measured.some((line,i) => Math.abs(units(line.baseline - first) - i * (font + gap)) > 1)) return;
+  if (![gap, width, ascent, origin].every(Number.isSafeInteger) || gap < 0 || ascent <= 0 || origin < 0 || width <= 0) return;
   const cache = measured.map(({ start },i) => {
     // HWP continuation lines use the hanging indent, unlike the first line.
     const flags = i ? 0x160000 : 0x60000;
-    return `<hp:lineseg textpos="${start}" vertpos="${origin + i * (font + gap)}" vertsize="${font}" textheight="${font}" baseline="${ascent}" spacing="${gap}" horzpos="0" horzsize="${width}" flags="${flags}"/>`;
+    return `<hp:lineseg textpos="${start}" vertpos="${origin + i * pitch}" vertsize="${font}" textheight="${font}" baseline="${ascent}" spacing="${gap}" horzpos="0" horzsize="${width}" flags="${flags}"/>`;
   });
   return cacheTag + cache.join('') + '</hp:linesegarray>';
 }
@@ -132,7 +143,7 @@ export function sameNativeLineContent(a: HwpDocument, b: HwpDocument, file: stri
       if (x.length !== y.length || x.some((byte,i) => byte !== y[i])) return false;
       continue;
     }
-    const xml = strFromU8(y), owner = elementRanges(xml,'hp:p')[paragraph];
+    const xml = strFromU8(y), owner = elementRanges(xml, 'hp:p')[paragraph];
     if (!owner) return false;
     const cleaned = owner.inner.replace(/<hp:linesegarray\b[^>]*>[\s\S]*?<\/hp:linesegarray>/, '');
     if (cleaned === owner.inner || strFromU8(x) !== xml.slice(0,owner.start) + owner.open + cleaned + '</hp:p>' + xml.slice(owner.end))
@@ -141,42 +152,91 @@ export function sameNativeLineContent(a: HwpDocument, b: HwpDocument, file: stri
   return true;
 }
 
-/** The binary writer can emit a one-line tail twice even when the logical
- * text and page structure are intact. Replay the already measured native
- * lines and accept the retry only if the old body paint survives exactly
- * after omitting the duplicated sheet. Odd/even furniture then follows the
- * original page definitions at their corrected physical page numbers. */
-export function repairBinaryDuplicatePage(Core: typeof HwpDocument, source: HwpDocument, binary: HwpDocument,
+type Replay = { section: number; paragraph: number; page: number; cache: string; relocated?: NativeBodyRun[] };
+const visible = (runs: NativeBodyRun[]) => runs.filter(run => text(run.text));
+const ink = ({ text, charStart, x, w, h, fontSize }: NativeBodyRun) => [text, charStart, x, w, h, fontSize];
+
+function displacedTerminal(source: HwpDocument, binary: HwpDocument, pageCount: number): Replay | undefined {
+  let result: Replay | undefined;
+  for (let page = 1; page + 1 < pageCount; page++) {
+    const tail = visible(nativeBodyRuns(binary, page)), first = tail[0];
+    if (!first || nativePaintedControls(binary, page).length) continue;
+    const { secIdx: section, paraIdx: paragraph } = first;
+    if (tail.some(run => !owns(run, section, paragraph) || run.y !== first.y) ||
+        paragraph + 1 >= binary.getParagraphCount(section) ||
+        !JSON.parse(binary.getParaPropertiesAt(section, paragraph + 1)).pageBreakBefore) continue;
+    const before = visible(nativeBodyRuns(binary, page - 1));
+    const last = before.at(-1);
+    if (!last || before.some(run => !owns(run, section, paragraph)) ||
+        first.charStart <= last.charStart ||
+        binary.getTextRange(section, paragraph, 0, 0xffffffff) !== source.getTextRange(section, paragraph, 0, 0xffffffff)) continue;
+    const relocated = visible(ownerRuns(source, page - 1, section, paragraph));
+    if (!same(relocated.map(ink),[...before, ...tail].map(ink)) ||
+        !same(relocated.slice(0,before.length),before)) continue;
+    const paper = JSON.parse(source.getPageInfo(page - 1));
+    if (relocated.slice(before.length).some(run => run.y <= last.y ||
+        run.y + run.h > paper.footerArea.y || run.x < paper.bodyLeft - .15 || run.x + run.w > paper.bodyRight + .15)) continue;
+    const earlier = page > 1 ? ownerRuns(source, page - 2, section, paragraph) : [];
+    const sourceSheets: MeasuredSheet[] = [{ page: page - 1, runs: relocated }];
+    if (earlier.length) sourceSheets.unshift({ page: page - 2, runs: earlier });
+    const cache = measuredCache(source, section, paragraph, sourceSheets);
+    if (!cache) continue;
+    if (result) return;
+    result = { section, paragraph, page, cache, relocated };
+  }
+  return result;
+}
+
+/** Replay the proven source line layout if binary HWP adds a one-line sheet.
+ * The retry must retain the document bytes other than that line cache and
+ * reproduce the same ink and controls everywhere outside the repaired page. */
+export function repairBinaryExtraPage(Core: typeof HwpDocument, source: HwpDocument, binary: HwpDocument,
   pageCount: number, loss: string): { bytes: Uint8Array; pages: number } | undefined {
-  let withCache: HwpDocument | undefined, check: HwpDocument | undefined;
   try {
     const expected = source.pageCount();
     if (pageCount !== expected + 1) return;
-    const duplicate = duplicateTerminal(binary,pageCount);
-    if (!duplicate) return;
-    const { section, paragraph, page, prior } = duplicate;
-    const cache = measuredCache(source,page - 1,section,paragraph,prior);
-    if (!cache) return;
-    const file = `Contents/section${section}.xml`, files = boundedNativeParts(source.exportHwpx());
-    const xml = strFromU8(files[file]), owners = elementRanges(xml,'hp:p'), owner = owners[paragraph];
-    if (!owner || owners.length !== source.getParagraphCount(section) || owner.inner.includes('hp:linesegarray')) return;
-    files[file] = strToU8(xml.slice(0,owner.end - '</hp:p>'.length) + cache + xml.slice(owner.end - '</hp:p>'.length));
-    withCache = new Core(zipSync(files,{level:1}));
-    const output = withCache.exportHwpWithReport();
-    let bytes: Uint8Array;
-    try {
-      if (output.contentLoss() !== loss) return;
-      bytes = output.takeBytes();
-    } finally { output.free(); }
-    if (bytes.byteLength > documentLimits.documentFileBytes) return;
-    check = new Core(bytes);
-    if (check.pageCount() !== expected || !sameNativeLineContent(binary,check,file,paragraph)) return;
-    for (let i = 0; i < expected; i++) {
-      const previous = i >= page ? i + 1 : i;
-      if (!same(nativeBodyRuns(binary,previous),nativeBodyRuns(check,i)) || !same(nativePaintedControls(binary,previous),nativePaintedControls(check,i))) return;
+    const duplicate = duplicateTerminal(binary, pageCount);
+    const replays: Replay[] = [];
+    if (duplicate) {
+      const { section, paragraph, page, prior } = duplicate;
+      const runs = ownerRuns(source, page - 1, section, paragraph);
+      if (same(runs.map(run => [...ink(run),run.y]),prior.map(run => [...ink(run),run.y]))) {
+        const cache = measuredCache(source, section, paragraph, [{ page: page - 1, runs }]);
+        if (cache) replays.push({ section, paragraph, page, cache });
+      }
     }
-    return { bytes, pages: expected };
-  } catch {
-    // The original valid HWP remains available if exact reproduction can't be proved.
-  } finally { check?.free(); withCache?.free(); }
+    const displaced = displacedTerminal(source, binary, pageCount);
+    if (displaced) replays.push(displaced);
+    for (const { section, paragraph, page, cache, relocated } of replays) {
+      const file = `Contents/section${section}.xml`, files = boundedNativeParts(source.exportHwpx());
+      const xml = strFromU8(files[file]), owners = elementRanges(xml, 'hp:p'), owner = owners[paragraph];
+      if (!owner || owners.length !== source.getParagraphCount(section) || owner.inner.includes('hp:linesegarray')) continue;
+      files[file] = strToU8(xml.slice(0,owner.end - '</hp:p>'.length) + cache + xml.slice(owner.end - '</hp:p>'.length));
+      const withCache = new Core(zipSync(files, { level: 1 }));
+      let check: HwpDocument | undefined;
+      try {
+        const output = withCache.exportHwpWithReport();
+        let bytes: Uint8Array;
+        try {
+          if (output.contentLoss() !== loss) continue;
+          bytes = output.takeBytes();
+        } finally { output.free(); }
+        if (bytes.byteLength > documentLimits.documentFileBytes) continue;
+        check = new Core(bytes);
+        if (check.pageCount() !== expected || !sameNativeLineContent(binary, check, file, paragraph)) continue;
+        let agrees = true;
+        for (let i = 0; i < expected; i++) {
+          const previous = i >= page ? i + 1 : i;
+          const actual = nativeBodyRuns(check, i);
+          const textMatches = relocated && i === page - 1 ? same(visible(actual), relocated) :
+            same(nativeBodyRuns(binary, previous), actual);
+          if (!textMatches || !same(nativePaintedControls(binary, previous), nativePaintedControls(check, i))) {
+            agrees = false;
+            break;
+          }
+        }
+        if (agrees) return { bytes, pages: expected };
+      } finally { check?.free(); withCache.free(); }
+    }
+  } catch { /* Existing HWP remains available if exact reproduction cannot be proved. */ }
 }
