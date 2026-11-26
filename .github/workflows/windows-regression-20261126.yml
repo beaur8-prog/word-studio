@@ -1,27 +1,21 @@
 name: Windows regression QA
-run-name: Verify the native Hancom page tail and Windows cell-line reuse
+run-name: Check the physical tables changed by the Hancom page-tail correction
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native-flow:
-    name: Windows native flow / ${{ matrix.id }}
+  table-owners:
+    name: Windows Hancom table and glyph readback
     runs-on: windows-latest
     timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { group: hwp-3, id: 06-mixed-document, watch: '80,81,83,107', product: 'f355f3795f3dba0c7253a3b3163d051f1e53525a' }
-          - { group: hwp-1, id: 04-language-plan, watch: '132,135,136,138,139,159,160,161', product: '0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2' }
     env:
       PLAYWRIGHT_CHANNEL: chromium
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      WINDOWS_NATIVE_EXPORT_FLOW: ${{ matrix.watch }}
-      QA_PRODUCT: ${{ matrix.product }}
+      WINDOWS_NATIVE_SKIP_PRINT: '1'
+      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
+      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
+      WINDOWS_REQUIRE_REOPEN: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,146 +27,27 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install chromium
-      - name: Check both actual formats for the page-tail candidate and isolate the earlier 04 gap
+      - name: Compare body and cell payload after two actual DOCX saves
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/native-flow" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py hwp-3 "$env:RUNNER_TEMP/native-table-audit" --ids 06-mixed-document
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-flow/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-table-audit/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
-          $product = $env:QA_PRODUCT
-          git restore --source $product -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git diff --exit-code $product -- src electron vendor package.json package-lock.json
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $env:WINDOWS_AUTHORED_TAIL_PROOF = '1'
-            $env:WINDOWS_PAGE_OFFSETS = '1'
-            $env:WINDOWS_ADJACENT_TABLE_WITNESS = '1'
-            $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/candidate-margin.json"
-            $env:WINDOWS_VERIFY_NATIVE_GEOMETRY = '1'
-            $env:WINDOWS_VERIFY_REVERSE_MEDIA = '1'
-            $env:WINDOWS_REQUIRE_REOPEN = '1'
-          } else { $env:WINDOWS_NATIVE_FLOW_ONLY = '1' }
-          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-          exit $LASTEXITCODE
-      - uses: actions/setup-dotnet@v4
-        if: matrix.id == '06-mixed-document'
-        with:
-          dotnet-version: '8.0.x'
-      - name: Validate the two actual Windows DOCX saves
-        if: matrix.id == '06-mixed-document'
-        shell: pwsh
-        run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/tail-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
-          exit $status
-  pixel:
-    name: Windows PDF pixels / ${{ matrix.id }}
-    runs-on: windows-latest
-    timeout-minutes: 43
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {group: hwp-2, id: 02-work-rules, pages: 163}
-          - {group: public-2, id: moel-harassment-manual, pages: 97}
-    env:
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      QA_PAGES: ${{ matrix.pages }}
-      WINDOWS_NATIVE_PRINT_PROFILE: '1'
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Build and print the same pinned case from both product trees
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/pdf-paint" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/pdf-paint/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          $versions = [ordered]@{
-            control = '0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2'
-            candidate = 'HEAD'
+          $versions = [ordered]@{control='0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2';candidate='f355f3795f3dba0c7253a3b3163d051f1e53525a'}
+          $nativeFolders = @{}
+          foreach ($version in $versions.GetEnumerator()) {
+            git restore --source $version.Value -- src
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            git diff --exit-code $version.Value -- src electron vendor package.json package-lock.json
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $output = "$env:RUNNER_TEMP/table-owners-$($version.Key)"
+            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off --output $output
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $saved = @(Get-ChildItem $output -Recurse -Filter 'hancom-saved.hwp')
+            if ($saved.Count -ne 1) { throw 'Expected exactly one saved HWP' }
+            $nativeFolders[$version.Key] = $saved[0].DirectoryName
           }
-          foreach ($item in $versions.GetEnumerator()) {
-            Write-Host "WINDOWS_PDF_PIXEL_PRODUCT $($item.Key)"
-            git restore --source $item.Value -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $item.Value -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            npm run build -- --sourcemap
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            node scripts/package-win.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            Move-Item release/windows "$env:RUNNER_TEMP/pdf-app-$($item.Key)"
-            $env:WORD_STUDIO_EXECUTABLE = "$env:RUNNER_TEMP/pdf-app-$($item.Key)/Word Studio/Word Studio.exe"
-            $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/$($item.Key)-paint.pdf"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-      - name: Compare the decoded pixels with the Windows PDF renderer
-        shell: powershell
-        run: |
-          scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/control-paint.pdf" -Candidate "$env:RUNNER_TEMP/candidate-paint.pdf" -ExpectedPages $env:QA_PAGES
-  focused:
-    name: Combined layout contracts / ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 18
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-        if: runner.os == 'Linux'
-      - run: npx playwright install chromium
-        if: runner.os == 'Windows'
-      - name: Run focused layout contracts
-        shell: pwsh
-        run: |
-          @'
-          import { registerHooks } from 'node:module';
-          import { pathToFileURL } from 'node:url';
-          import { resolve } from 'node:path';
-          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
-          registerHooks({
-            load(url, context, next) {
-              if (url === limits && !context.importAttributes?.type)
-                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
-              return next(url, context);
-            },
-          });
-          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
-          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          npm run test -- tests/hwp-native-fixed-cell-reuse.spec.ts --workers=1 --trace=off
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          git restore --source f355f3795f3dba0c7253a3b3163d051f1e53525a -- src
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run test -- tests/hwp-authored-page-tail.spec.ts --workers=1 --trace=off
+          node scripts/windows-qa/compare-hancom-table-owners.cjs $nativeFolders.control $nativeFolders.candidate
           exit $LASTEXITCODE

@@ -44,7 +44,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   await page.exposeFunction('writeActualHangul', async (format: 'hwp' | 'hwpx', encoded: string) => {
     await writeFile(info.outputPath('hancom-saved.' + format), Buffer.from(encoded, 'base64'));
   });
-  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry, watched, flowOnly}) => {
+  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry, watched, flowOnly, skipPrint}) => {
     const qa = window as Window & {
       logOriginalForward(metrics: object): Promise<void>;
       logOriginalStage(stage: string, pages: number): Promise<void>;
@@ -97,7 +97,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       if (previous) preservation.push({ textTabAndBreakOrder: previous[0] === current[0], mediaOrderAndBytes: previous[1] === current[1], tableSpans: previous[2] === current[2] });
       previous = current;
       const html = generateHTML(doc.content, editorExtensions);
-      if (!flowOnly) {
+      if (!flowOnly && !skipPrint) {
         const print = await createPrintLayout(html, doc.page, undefined, undefined, wordLayoutOptions(doc));
         try { printPages.push(print.pages); }
         finally { print.dispose(); }
@@ -183,8 +183,8 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       await qa.logOriginalStage('reverse-' + format, reverse.at(-1)?.pages ?? 0);
     }
     return { nativeOriginalPages, printPages, preservation, reverse, saves, nativeFlow };
-  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1', watched, flowOnly: process.env.WINDOWS_NATIVE_FLOW_ONLY === '1' });
-  if (process.env.WINDOWS_NATIVE_FLOW_ONLY !== '1') {
+  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1', watched, flowOnly: process.env.WINDOWS_NATIVE_FLOW_ONLY === '1', skipPrint: process.env.WINDOWS_NATIVE_SKIP_PRINT === '1' });
+  if (process.env.WINDOWS_NATIVE_FLOW_ONLY !== '1' && process.env.WINDOWS_NATIVE_SKIP_PRINT !== '1') {
     expect(result.printPages).toHaveLength(3);
     expect(result.printPages.every(pages => pages > 0)).toBe(true);
   }
