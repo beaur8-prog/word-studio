@@ -1,26 +1,178 @@
 name: Windows regression QA
-run-name: Verify saved Windows Hangul at 150 and 200 percent display scaling
+run-name: Validate the Windows desktop, setup, and fixed document round trips
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
+    paths-ignore: ['.github/workflows/windows-regression-20261126.yml']
 permissions:
   contents: read
 jobs:
-  native-hwp:
-    name: Scaled native round trips / ${{ matrix.id }} / ${{ matrix.scale }}
+  desktop:
+    name: Windows desktop / ${{ matrix.group }}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    env:
+      QA_GROUP: ${{ matrix.group }}
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Check the integrated renderer snapshot
+        shell: pwsh
+        run: |
+          if ((git rev-parse 'HEAD:src') -ne '7dce0645084f50855723dd2bfbe44460dddc3570') { throw 'Unexpected integrated renderer tree' }
+      - run: npm ci
+      - run: npx playwright install chromium
+      - name: Run one disjoint shard of the complete desktop suite
+        shell: pwsh
+        run: |
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type)
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
+          $env:PLAYWRIGHT_JSON_OUTPUT_FILE=Join-Path $env:RUNNER_TEMP 'windows-full.json'
+          $qaOnly = @('hwp-native-adjacent-tables.spec.ts', 'hwp-native-fixed-cell-lines.spec.ts', 'hwp-native-fixed-cell-reuse.spec.ts')
+          $files = @(Get-ChildItem tests -Recurse -Filter '*.spec.ts' | Sort-Object FullName |
+            Where-Object { $_.Name -notlike 'android-*' -and $_.Directory.Name -ne 'windows-qa' -and $_.Name -notin $qaOnly } |
+            ForEach-Object { (Resolve-Path -Relative $_.FullName).Replace('\','/') -replace '^\./','' })
+          node node_modules/@playwright/test/cli.js test @files "--shard=$env:QA_GROUP/12" --workers=1 --reporter=line,json --trace=off
+          $status = $LASTEXITCODE
+          if (-not (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE)) { exit 1 }
+          $stats = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
+          if (($stats.expected + $stats.unexpected + $stats.flaky) -eq 0) { throw 'No tests executed' }
+          Write-Host "WINDOWS_FULL group $env:QA_GROUP passed $($stats.expected) failed $($stats.unexpected) skipped $($stats.skipped) flaky $($stats.flaky)"
+          exit $status
+
+  native-word:
+    name: Packaged Windows Word originals and actual DOCX round trips
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Check the integrated renderer snapshot
+        shell: pwsh
+        run: |
+          if ((git rev-parse 'HEAD:src') -ne '7dce0645084f50855723dd2bfbe44460dddc3570') { throw 'Unexpected integrated renderer tree' }
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run package:win:dir
+      - name: Run ten fixed Word originals in the real Windows app
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/docx-lang"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/docx-lang/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/word-docx"
+          $env:WINDOWS_NATIVE_DOCX_AFTER_PRINT = '1'
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 20 *> "$env:RUNNER_TEMP/word-sdk.log"
+          $status = $LASTEXITCODE
+          Write-Host "WINDOWS_FINAL_SDK Word count 20 exit $status"
+          exit $status
+
+  native:
+    name: Windows build, Setup and update bridge
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify the current product tree
+        shell: pwsh
+        run: |
+          if ((git rev-parse 'HEAD:src') -ne '7dce0645084f50855723dd2bfbe44460dddc3570') { throw 'Unexpected test source' }
+          Write-Host "Microsoft Word automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\Word.Application)"
+          Write-Host "Hancom HWP automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\HWPFrame.HwpObject)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Native Node regression
+        run: npm run test:native
+      - name: Update unit regression
+        run: npm run test:updates
+      - name: Build a Windows QA Setup
+        run: npm run package:win
+      - name: Exercise the Electron update bridge
+        run: npm run test:updates:desktop
+      - name: Exercise Windows update helper and cancellation
+        run: node scripts/test-windows-updater-handoff.cjs
+      - name: Install, verify document associations, reinstall and uninstall
+        shell: pwsh
+        run: |
+          ./scripts/test-windows-installer.ps1
+          if (Test-Path '.cache/installer-test.json') {
+            Write-Host ('Windows installer verification ' + (Get-Content '.cache/installer-test.json' -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 8 -Compress))
+          }
+
+      - name: Real in-place update from the official 1.4.12 Setup
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.4.12 --repo beaur8-prog/word-studio --pattern 'Word-Studio-1.4.12-windows-x64-setup.exe' --dir .cache/legacy-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git fetch origin refs/tags/v1.4.12:refs/tags/v1.4.12 --depth=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git show v1.4.12:electron/studio-update-windows.ps1 | Set-Content .cache/legacy-update/helper-1.4.12.ps1 -Encoding utf8BOM
+          ./scripts/test-windows-update-in-place.ps1
+
+  native-hwp:
+    name: Packaged Windows Hangul / ${{ matrix.id }}
+    runs-on: windows-latest
+    timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-3, id: 06-mixed-document, scale: '1.5'}
-          - {group: hwp-1, id: 07-english-exam, scale: '2'}
-          - {group: hwp-2, id: 08-math-exam, scale: '2'}
+          - {group: hwp-1, id: 01-employment-contract, pages: '7,7'}
+          - {group: hwp-2, id: 02-work-rules, pages: '166,169'}
+          - {group: hwp-3, id: 03-health-table, pages: '4,4'}
+          - {group: hwp-1, id: 04-language-plan, pages: '42,43'}
+          - {group: hwp-2, id: 05-return-form, pages: '1,1'}
+          - {group: hwp-3, id: 06-mixed-document, pages: '39,42'}
+          - {group: hwp-1, id: 07-english-exam, pages: '15,15'}
+          - {group: hwp-2, id: 08-math-exam, pages: '20,20'}
+          - {group: hwp-3, id: 09-korean-exam, pages: '20,16'}
+          - {group: hwp-1, id: 10-lh-plan, pages: '8,8'}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
-      WINDOWS_FORCE_DEVICE_SCALE: ${{ matrix.scale }}
+      WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
       WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
       WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
@@ -47,10 +199,16 @@ jobs:
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
           $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
           $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
-          if ((git rev-parse 'HEAD:src') -ne '7dce0645084f50855723dd2bfbe44460dddc3570') { throw 'Unexpected product tree' }
           $inventory = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json)
           if ($inventory.Count -ne 1 -or -not $inventory[0].verified) { throw 'One byte-pinned input is required' }
-          if ($env:QA_ID -eq '07-english-exam') {
+          if ($env:QA_ID -eq '02-work-rules') {
+            $env:WINDOWS_NATIVE_PICTURE_PAINT = '1'
+            $env:WINDOWS_NATIVE_LARGE_HANGUL = '1'
+            $env:WINDOWS_NATIVE_OVERHANG_READBACK = '1'
+            $env:WINDOWS_NATIVE_OVERHANG_ORIGIN = '1'
+            $env:WINDOWS_NATIVE_DOCX_SAVE_TRACE = '1'
+            $env:WINDOWS_NATIVE_HWP_TRACE = '1'
+          } elseif ($env:QA_ID -eq '07-english-exam') {
             $env:WINDOWS_CHECK_NATIVE_NBSPACE = '1'
             $env:WINDOWS_CHECK_HWP_MIXED_ADVANCE = '1'
           }
