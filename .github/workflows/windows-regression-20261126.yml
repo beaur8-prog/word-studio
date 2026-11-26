@@ -1,27 +1,26 @@
 name: Windows regression QA
-run-name: Compare the remaining byte-pinned HWP originals on one Windows runner per case
+run-name: Verify the final large-document PDF speed with both run orders on Windows
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  remaining-native:
-    name: Remaining HWP originals / ${{ matrix.id }}
+  final-pdf-pair:
+    name: Windows final PDF / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-1, id: 01-employment-contract}
-          - {group: hwp-3, id: 03-health-table}
+          - {group: public-2, id: moel-harassment-manual, pages: 97}
+          - {group: hwp-2, id: 02-work-rules, pages: 163}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
+      QA_PAGES: ${{ matrix.pages }}
       WINDOWS_FORCE_DEVICE_SCALE: '1'
-      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
-      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,42 +30,46 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
       - run: node node_modules/electron/install.js
-      - name: Compare physical PDF and native output after two real DOCX saves
+      - name: Build the exact control and product Windows applications
         shell: pwsh
         run: |
-          $caseDir = Join-Path $env:RUNNER_TEMP 'windows-closeout'
+          $caseDir = Join-Path $env:RUNNER_TEMP 'windows-final-pdf'
           python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP $caseDir --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = Join-Path $caseDir 'inventory.json'
-          $inventory = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json)
+          $inventory = @(Get-Content (Join-Path $caseDir 'inventory.json') -Raw | ConvertFrom-Json)
           if ($inventory.Count -ne 1 -or -not $inventory[0].verified) { throw 'One byte-pinned input is required' }
-          $refs = [ordered]@{ control='19892d86e3599cbf2e735c40bdb23bd967242a5d'; verified='c52784078cc2ab47e0864c96000a28e3006b0948' }
-          foreach ($entry in $refs.GetEnumerator()) {
+          $versions = [ordered]@{ control='19892d86e3599cbf2e735c40bdb23bd967242a5d'; final='c52784078cc2ab47e0864c96000a28e3006b0948' }
+          foreach ($entry in $versions.GetEnumerator()) {
             git restore --source $entry.Value --staged --worktree -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             git diff --exit-code $entry.Value -- src electron vendor package.json package-lock.json
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             npm run package:win:dir
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $bundle = Join-Path $caseDir $entry.Key
-            Move-Item release/windows $bundle
-            $env:WORD_STUDIO_EXECUTABLE = Join-Path $bundle 'Word Studio/Word Studio.exe'
-            $env:WINDOWS_PRODUCT = $entry.Key
-            Write-Host "WINDOWS_UNCOVERED_SAMPLE $env:QA_ID $($entry.Key)"
-            Remove-Item Env:WINDOWS_NATIVE_HWP_SAVES, Env:WINDOWS_NATIVE_DOCX_DIR -ErrorAction SilentlyContinue
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            $env:WINDOWS_NATIVE_HWP_SAVES = '1'
-            $env:WINDOWS_NATIVE_DOCX_DIR = Join-Path $caseDir "docx-$($entry.Key)"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> (Join-Path $caseDir "sdk-$($entry.Key).log")
-            $status = $LASTEXITCODE
-            Write-Host "WINDOWS_FINAL_SDK $env:QA_ID $($entry.Key) count 2 exit $status"
-            if ($status -ne 0) { exit $status }
+            Move-Item release/windows (Join-Path $caseDir $entry.Key)
           }
+      - name: Print from the real app in two paired orders
+        shell: pwsh
+        run: |
+          $caseDir = Join-Path $env:RUNNER_TEMP 'windows-final-pdf'
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = Join-Path $caseDir 'inventory.json'
+          $runs = @(
+            @('control','AB'), @('final','AB'), @('final','BA'), @('control','BA')
+          )
+          foreach ($run in $runs) {
+            $version,$pair = $run
+            $env:WORD_STUDIO_EXECUTABLE = Join-Path $caseDir "$version/Word Studio/Word Studio.exe"
+            $env:WINDOWS_NATIVE_PDF_COPY = Join-Path $caseDir "$version-$pair.pdf"
+            if ($version -eq 'control') { $env:WINDOWS_NATIVE_PDF_CLOSE_CONTROL = '1' }
+            else { Remove-Item Env:WINDOWS_NATIVE_PDF_CLOSE_CONTROL -ErrorAction SilentlyContinue }
+            Write-Host "WINDOWS_FINAL_PDF_ORDER $pair $version"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Report physical raster equality apart from speed
+        shell: powershell
+        run: |
+          $caseDir = Join-Path $env:RUNNER_TEMP 'windows-final-pdf'
+          scripts/windows-qa/compare-pdf-paint.ps1 -Control (Join-Path $caseDir 'control-AB.pdf') -Candidate (Join-Path $caseDir 'final-AB.pdf') -ExpectedPages $env:QA_PAGES -ReportOnly
