@@ -1,6 +1,7 @@
 import { characterScaleProperty, parseCharacterScale } from './character-scale';
 import { type HwpBodyLine, parseHwpBodyLine } from './hwp-body-line';
 import { hwpWrapFingerprint } from './hwp-text-advances';
+import { paragraphLineOffsets } from './paragraph-fragments';
 
 const contentElements = ':scope > span';
 const forbidden = 'a,br,img,svg,sup,sub,mark,u,s,del,[data-flow-widget],[data-page-number],[data-docx-tab],[data-note-reference],[data-document-field]';
@@ -107,10 +108,12 @@ export function layoutSourceColumnPredecessor(p: HTMLElement, zoom: number) {
   Object.assign(line.style, { width: `${width}px`, textIndent: `${indent}px`, lineHeight: `${pitch}px` });
   host.append(line); document.body.append(host);
   try {
-    if (line.getBoundingClientRect().height <= pitch + .08) return;
+    const natural = line.getBoundingClientRect().height;
+    if (natural <= pitch + .08 || !paragraphLineOffsets(line).length) return;
     line.style.width = `${width / factor}px`;
     line.style.textIndent = `${indent / factor}px`;
-    if (Math.abs(line.getBoundingClientRect().height - pitch) > .08) return;
+    if (line.getBoundingClientRect().height >= natural || paragraphLineOffsets(line).length ||
+        line.scrollWidth > line.clientWidth + 1) return;
   } finally { host.remove(); }
   p.dataset.hwpColumnScaled = 'true';
   p.style.setProperty('--hwp-column-scaled-width', scaledWidth(factor, left, right));
@@ -129,7 +132,7 @@ export function measureSourceColumnEnd(p: HTMLElement, source: HwpBodyLine, zoom
   const priorScale = previous.dataset.hwpColumnPriorWidth && previous.dataset.hwpColumnScaled === 'true'
     ? horizontalScale(previous) : null;
   if (css.direction !== 'ltr' || css.writingMode !== 'horizontal-tb' || css.transform !== 'none' ||
-      !priorScale && before.transform !== 'none' || (parseFloat(css.marginTop) || 0) || (parseFloat(before.marginBottom) || 0)) return null;
+      (!priorScale && before.transform !== 'none') || (parseFloat(css.marginTop) || 0) || (parseFloat(before.marginBottom) || 0)) return null;
   const previousBox = previous.getBoundingClientRect();
   const room = (bottom - previousBox.bottom) / zoom;
   if (!(room > 0 && room < source.base - .1) || ordinary !== null && ordinary <= room) return null;

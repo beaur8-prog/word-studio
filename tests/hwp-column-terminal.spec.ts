@@ -242,3 +242,46 @@ test('fractional HWP leading keeps standard exact DOCX spacing and yields to an 
   }, data);
   expect(changed).toEqual({ pitch: '15pt', stored: undefined, text: 'Leading with the original exact measure' });
 });
+
+test('the witnessed column predecessor fits with its authored horizontal proportion', async ({ page }) => {
+  await page.goto('/');
+  const evidence = await page.evaluate(async () => {
+    const { layoutSourceColumnPredecessor, markSourceColumnTails } = await import('/src/hwp-column-source-layout.ts');
+    const { hwpWrapFingerprint } = await import('/src/hwp-text-advances.ts');
+    const { encodeHwpBodyLine } = await import('/src/hwp-body-line.ts');
+    const root = document.createElement('div');
+    root.className = 'tiptap';
+    root.style.cssText = 'position:fixed;left:-10000px;top:0;padding:0';
+    root.innerHTML = '<div data-column-count="2"><p style="margin:0;font:20px/32px Arial"><span style="--word-character-scale:95">All the authored words on this measured line </span></p>' +
+      '<p data-hwp-column-end-source="true" style="margin:0;font:20px/32px Arial"><span>Column end</span></p></div>';
+    document.body.append(root);
+    try {
+      await document.fonts.ready;
+      const [previous, ending] = root.querySelectorAll('p');
+      previous.style.width = 'max-content';
+      const width = previous.getBoundingClientRect().width * .975;
+      previous.style.width = '';
+      root.style.width = `${width}px`;
+      const expectedWidth = previous.getBoundingClientRect().width;
+      const authorText = previous.textContent!;
+      ending.dataset.hwpBodyLine = encodeHwpBodyLine({ percent: 160, font: 20, base: 32, maxFont: 20, align: 'column-end',
+        columnFit: { baseline: 14, remainder: 24, width: expectedWidth, fingerprint: hwpWrapFingerprint(ending.textContent!),
+          preceding: hwpWrapFingerprint(authorText), hang: true } });
+      markSourceColumnTails(root);
+      const natural = previous.getBoundingClientRect().height;
+      layoutSourceColumnPredecessor(previous, 1);
+      const fit = previous.getBoundingClientRect();
+      const becomesOneLine = fit.height < natural && Math.abs(fit.width - expectedWidth) < .1;
+      const keepsText = previous.textContent === authorText;
+      const keepsSpace = previous.querySelector('[data-hwp-column-tail]')?.textContent;
+      root.style.width = `${width - 8}px`;
+      layoutSourceColumnPredecessor(previous, 1);
+      return { natural, fitHeight: fit.height, fitWidth: fit.width, expectedWidth, becomesOneLine, keepsText, keepsSpace, appliesAtNewWidth: previous.hasAttribute('data-hwp-column-scaled') };
+    } finally { root.remove(); }
+  });
+  expect(evidence.natural).toBeGreaterThan(32);
+  expect(evidence.becomesOneLine, JSON.stringify(evidence)).toBe(true);
+  expect(evidence.keepsText).toBe(true);
+  expect(evidence.keepsSpace).toBe(' ');
+  expect(evidence.appliesAtNewWidth).toBe(false);
+});
