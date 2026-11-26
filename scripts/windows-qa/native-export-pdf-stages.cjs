@@ -255,6 +255,21 @@ async function main() {
         }
         continue;
       }
+      if (process.env.WINDOWS_COUNT_INK_METRICS === '1') {
+        await page.evaluate(() => {
+          const original = CanvasRenderingContext2D.prototype.measureText;
+          const stats = window.qaCanvasInk = { calls:0, milliseconds:0 };
+          CanvasRenderingContext2D.prototype.measureText = function(text) {
+            if (Number(this.font.match(/(?:^| )([0-9.]+)px /)?.[1]) < 120)
+              return original.call(this,text);
+            const before = performance.now();
+            const metrics = original.call(this,text);
+            stats.calls++;
+            stats.milliseconds += performance.now() - before;
+            return metrics;
+          };
+        });
+      }
       const finishProfile = process.env.WINDOWS_NATIVE_PRINT_PROFILE === '1'
         ? await require('./print-profile.cjs')(page) : undefined;
       stage = 'native-export-command';
@@ -286,6 +301,8 @@ async function main() {
       const longest = await page.evaluate(start => Math.max(0, ...window.qaLongTasks
         .filter(task => task.at >= start).map(task => Math.round(task.duration))), rendererStart);
       console.log('WINDOWS_NATIVE_HOLD_LONGEST ' + longest);
+      if (process.env.WINDOWS_COUNT_INK_METRICS === '1')
+        console.log('WINDOWS_CANVAS_CONTOUR_CALLS ' + JSON.stringify(await page.evaluate(() => window.qaCanvasInk)));
       if (process.env.WINDOWS_DIAGNOSE_WORD_LINE_BOXES === '1') {
         const lines = await require('./word-density-line-boxes.cjs')(page, item.id);
         console.log('WINDOWS_WORD_DENSITY_LINE_BOXES ' + JSON.stringify({ id:item.id, scale:requestedScale, lines }));

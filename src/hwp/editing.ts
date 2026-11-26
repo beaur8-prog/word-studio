@@ -1,4 +1,3 @@
-import { hwpCenteredCellLabelsAttribute, hwpNativeCompactRowAttribute, markHwpNativeCompactRow } from '../hwp-centered-cell-labels';
 import { activeHwpLatinFont, hwpLatinFontAttribute } from '../hwp-latin-font';
 import { characterScaleProperty } from '../character-scale';
 import { clearHwpNestedCellFaceProjection } from '../hwp-nested-cell-face-print';
@@ -245,8 +244,6 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
         const centered = Math.abs(x * 2 + bounds.width - paper.width) < .3 && Math.abs(y * 2 + bounds.height - paper.height) < .3;
         box.setAttribute(nativeBoxAnchor, `${x} ${y} ${Number(centered)}`);
       }
-      const terminalTable = content?.lastElementChild;
-      if (content && terminalTable instanceof HTMLTableElement) markHwpNativeCompactRow(terminalTable, content);
       const body = content?.innerHTML || '<p></p>';
       const original = layout.pageSettings.get(sheet) ?? previousPage;
       const first = sheet.getAttribute('data-section-first') === 'true';
@@ -279,19 +276,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       [box.dataset.documentTextbox, box.getAttribute(nativeBoxAnchor)] as const);
     const continuedTables = [...root.querySelectorAll<HTMLTableElement>('table')].map(table =>
       table.hasAttribute(nativeContinuedTableAttribute) ? table.dataset.tableAnchor : undefined);
-    const compactRows = root.querySelector(`tr[${hwpNativeCompactRowAttribute}]`)
-      ? [...root.querySelectorAll<HTMLTableRowElement>('tr')].map(row =>
-        [row.getAttribute(hwpNativeCompactRowAttribute), row.cells[0]?.getAttribute(hwpCenteredCellLabelsAttribute)] as const)
-      : undefined;
     root.innerHTML = sanitizeImportedHtml(root.innerHTML).html;
-    if (compactRows) {
-      const rows = root.querySelectorAll<HTMLTableRowElement>('tr');
-      if (rows.length === compactRows.length) rows.forEach((row, index) => {
-        const [height, label] = compactRows[index];
-        if (height && label && row.cells[0]?.getAttribute(hwpCenteredCellLabelsAttribute) === label)
-          row.setAttribute(hwpNativeCompactRowAttribute, height);
-      });
-    }
     const tables = root.querySelectorAll<HTMLTableElement>('table');
     if (tables.length === continuedTables.length) tables.forEach((table, index) => {
       const anchor = continuedTables[index];

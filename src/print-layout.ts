@@ -18,7 +18,6 @@ import { layoutTextBoxes } from './textbox-frame';
 import { keepShortWordParagraphTogether, paragraphLineOffsets, paragraphTextWalker, prepareParagraphEnds, splitText } from './paragraph-fragments';
 import { canSplitProtectedMergedRows, centeredCellFits, hasCenteredOrdinaryCell, hasHwpCellLines, measureCenteredCell, multiParagraphHwpOwners, ordinaryHwpTerminalCells, protectedTablePlacement, tableFragmenter } from './table-fragments';
 import { hasUniformTablePageBody, pageMargins, pageFurniture, paperDimensions, activeDocxPrintPaper, type PageSettings } from './types';
-import { reserveWordTabbedStruts } from './word-native-tabbed-strut';
 import { layoutTabs } from './document-tabs';
 import { layoutWordLines, markWordReferenceDensity, layoutWordListLines, markMeasuredWordSymbolItems } from './word-line-metrics';
 import { layoutWordContextualSpacing } from './word-contextual-spacing';
@@ -95,10 +94,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
   const wrappingAnchors = wordFlowHasWrappingAnchors(source);
   // The surrounding paragraphs also determine which sheet receives the table.
   // Keep the existing high-density policy for Word flows without tables.
-  const windowsDensity = wordLayout.nativeDesktop === true && window.wordDesktop?.platform === 'win32' &&
-    Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 1 && document.body.currentCSSZoom === 1;
-  const referenceDensity = windowsDensity && !!source.querySelector('table[data-word-table-layout]');
-  const tabbedStruts = new WeakSet<HTMLElement>();
+  const referenceDensity = wordLayout.nativeDesktop === true && window.wordDesktop?.platform === 'win32' &&
+    Number.isFinite(window.devicePixelRatio) && window.devicePixelRatio > 1 && document.body.currentCSSZoom === 1 &&
+    !!source.querySelector('table[data-word-table-layout]');
   if (wrappingAnchors && wordLayout.wordBodyStrut) markWordReferenceDensity(source);
   const canPlaceProtectedTable = protectedTablePlacement(source);
   if (!wrappingAnchors && (wordLayout.wordHangingSpaces || wordLayout.wordBodyStrut)) {
@@ -240,7 +238,6 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     layoutHwpCellLines(content);
     layoutHwpBodyLines(content, wordLayout.paintHwpCellLines !== false);
     layoutTabs(content);
-    if (windowsDensity && !referenceDensity) reserveWordTabbedStruts(content, tabbedStruts);
     layoutColumns(content, content.getBoundingClientRect().bottom, referenceDensity);
     // Removing overlay flow can move its zero-height frame to another
     // column. Resolve its coordinates against the final column geometry.
