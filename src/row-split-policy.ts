@@ -21,3 +21,13 @@ export function exportedRowCantSplit(attrs: Record<string, unknown> | null | und
 export function rowCanContinue(attrs: Record<string, unknown> | null | undefined, height: number, bodyHeight: number): boolean {
   return attrs?.wordRowRule !== 'exact' && (rowSplitPolicy(attrs) === 'allow' || height > bodyHeight + .5);
 }
+
+/** An observed HWP placement only applies while the row still fits intact
+ * on fresh paper. Standard split permission continues to apply otherwise. */
+export function prefersIntactCenteredRow(row: HTMLTableRowElement): boolean {
+  return row.dataset.hwpRowIntact === 'true' && row.dataset.rowSplit === 'allow' &&
+    row.dataset.wordRowRule !== 'exact' && row.cells.length > 1 && [...row.cells].every(cell =>
+      cell.tagName === 'TD' && cell.rowSpan === 1 && cell.colSpan === 1 && cell.style.verticalAlign === 'middle' &&
+      !cell.hasAttribute('data-print-merge-continuation')) &&
+    !row.querySelector('table, img, [data-note-reference], [data-document-textbox]');
+}

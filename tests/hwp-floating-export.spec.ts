@@ -40,3 +40,39 @@ for (const format of ['hwp', 'hwpx'] as const) test(`${format}: printed floating
     });
   }
 });
+
+for (const format of ['hwp', 'hwpx'] as const) test(`${format} retains the anchor of a picture outside its paper`, async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async format => {
+    const { defaultPage } = await import('/src/types.ts'), { importFile } = await import('/src/document-io.ts');
+    const { parseDocumentHtml } = await import('/src/extensions.ts');
+    const { exportEditableHwp } = await import('/src/hwp/editing.ts'), { HwpReaderSession } = await import('/src/hwp/reader.ts');
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
+    const pos = {
+      horizontalPosition: { relative: 'page', offset: 120 * 9525 },
+      verticalPosition: { relative: 'page', offset: 1500 * 9525 },
+      wrap: { type: 1 }, layoutInCell: false,
+    };
+    const loaded = await importFile(new File([`<p>Body before<img data-inline-image="true" src="data:image/png;base64,${png}"
+      width="80" height="40" data-image-floating="${JSON.stringify(pos).replaceAll('"', '&quot;')}" alt="Off-paper original"/></p><p>Body after</p>`], 'off-paper.html'));
+    const doc = { ...loaded.document, page: { ...defaultPage, pageNumbers: false }, content: parseDocumentHtml(loaded.html!) };
+    const exported = await exportEditableHwp(doc, format), session = new HwpReaderSession();
+    try {
+      const file = new File([exported.blob], 'off-paper.' + format);
+      const info = await session.open(file);
+      const { html } = await session.editable();
+      const root = new DOMParser().parseFromString(html, 'text/html');
+      const picture = root.querySelector('img');
+      return { pages: info.count, text: root.body.textContent!.replace(/\s+/g, ' ').trim(),
+        size: [Number(picture?.getAttribute('width')), Number(picture?.getAttribute('height'))],
+        hasPicture: !!picture?.getAttribute('src'),
+        geometry: JSON.parse(picture?.getAttribute('data-image-floating') || 'null') };
+    } finally { session.close(); }
+  }, format);
+  expect(result.pages).toBe(1);
+  expect(result.text).toBe('Body before Body after');
+  expect(result.hasPicture).toBe(true);
+  expect(result.size).toEqual([80, 40]);
+  expect(result.geometry.horizontalPosition).toEqual({ relative: 'page', offset: 120 * 9525 });
+  expect(result.geometry.verticalPosition).toEqual({ relative: 'page', offset: 1500 * 9525 });
+});

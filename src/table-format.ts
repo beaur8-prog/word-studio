@@ -1,3 +1,5 @@
+import { hwpCenteredCellLabelsAttribute, parseHwpCenteredCellLabels } from './hwp-centered-cell-labels';
+import { hwpCellRasterFillAttribute, hwpCellRasterPaintSource, parseHwpCellRasterFill } from './hwp-cell-raster-fill';
 import { Extension, type Editor } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { CellSelection, cellAround, selectedRect, TableMap } from '@tiptap/pm/tables';
@@ -27,7 +29,25 @@ export function cellStyleValue(name: CellStyle, value: unknown): string | null {
 export const CellAppearance = Extension.create({
   name: 'cellAppearance',
   addGlobalAttributes() {
-    return [{ types: ['tableCell', 'tableHeader'], attributes: { wordCellWidthAuto: { default: null,
+    return [{ types: ['tableCell'], attributes: {
+      hwpCellRasterFill: { default: null,
+        parseHTML: (el: HTMLElement) => {
+          const value = el.getAttribute(hwpCellRasterFillAttribute);
+          return parseHwpCellRasterFill(value) ? value : null;
+        },
+        renderHTML: (attrs: Record<string, unknown>) => {
+          const fill = parseHwpCellRasterFill(attrs.hwpCellRasterFill);
+          return fill ? { [hwpCellRasterFillAttribute]: attrs.hwpCellRasterFill,
+            style: `background-image:url("${hwpCellRasterPaintSource(fill)}");background-size:100% 100%;background-repeat:no-repeat;background-position:center` } : {};
+        } },
+      hwpCenteredCellLabels: { default: null,
+        parseHTML: (el: HTMLElement) => {
+          const value = el.getAttribute(hwpCenteredCellLabelsAttribute);
+          return parseHwpCenteredCellLabels(value) ? value : null;
+        },
+        renderHTML: (attrs: Record<string, unknown>) => parseHwpCenteredCellLabels(attrs.hwpCenteredCellLabels)
+          ? { [hwpCenteredCellLabelsAttribute]: attrs.hwpCenteredCellLabels } : {} },
+    } }, { types: ['tableCell', 'tableHeader'], attributes: { wordCellWidthAuto: { default: null,
       parseHTML: (el: HTMLElement) => el.dataset.wordCellWidthAuto === 'true' ? true : null,
       renderHTML: (a: Record<string, unknown>) => a.wordCellWidthAuto === true ? { 'data-word-cell-width-auto': 'true' } : {} }, cellSplit: { default: null, parseHTML: (el: HTMLElement) => el.dataset.cellSplit === 'allow' ? 'allow' : null,
       renderHTML: (a: Record<string, unknown>) => a.cellSplit === 'allow' ? { 'data-cell-split': 'allow' } : {} }, ...Object.fromEntries(

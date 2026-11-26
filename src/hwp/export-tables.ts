@@ -1,7 +1,7 @@
 import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { tableAnchor, type TableAnchor } from '../table-anchor-data';
-import { elementRanges } from './markup-ranges';
+import { elementRanges, topLevelHwpPasteBlocks } from './markup-ranges';
 import { entities } from './cell-content';
 import documentLimits from '../../electron/document-limits.json';
 
@@ -12,14 +12,63 @@ const set = (tag: string, values: Record<string, string | number>) => {
   }
   return tag;
 };
+/** The source table follows a one-row label and an intact blank on the
+ * same printed sheet. An isolated continuation needs the ordinary paste
+ * placement to avoid creating another sheet for its empty native carrier. */
+function markupAnchor(table: string) {
+  const value = table.match(/\bdata-table-anchor=(["'])([\s\S]*?)\1/)?.[2];
+  return value ? tableAnchor(entities(value)) : undefined;
+}
+
+function nativeParagraphFlowTables(html: string): Map<number, 'flow' | 'label'> {
+  const result = new Map<number, 'flow' | 'label'>();
+  if (!html.includes('data-hwp-centered-borders=')) return result;
+  let start = 0;
+  const scan = (end: number) => {
+    const page = html.slice(start, end);
+    if (!page.includes('data-hwp-centered-borders=')) return;
+    const blocks = topLevelHwpPasteBlocks(page);
+    if (blocks?.length !== 3 || !blocks[0].trimStart().startsWith('<table') || !blocks[2].trimStart().startsWith('<table') ||
+        elementRanges(blocks[0], 'tr').length !== 1) return;
+    const [space] = elementRanges(blocks[1], 'p'), [table] = elementRanges(blocks[2], 'table');
+    const [label] = elementRanges(blocks[0], 'table');
+    if (!table || !space || !label || entities(space.inner.replace(/<\/?span\b[^>]*>/g, '')).trim() ||
+        /<table\b|<(?:img|svg)\b|\bdata-table-anchor=/.test(label.inner)) return;
+    const anchor = markupAnchor(table.open);
+    if (!anchor || !nativeParagraphFlow(table.open, anchor)) return;
+    result.set(end - blocks[2].length + table.start, 'flow');
+    if (!markupAnchor(label.open)) result.set(start + label.start, 'label');
+  };
+  for (const marker of html.matchAll(/<div\b[^>]*\bdata-(?:page-break|section-page)=["'][^>]*>\s*<\/div>/gi)) {
+    scan(marker.index!);
+    start = marker.index! + marker[0].length;
+  }
+  scan(html.length);
+  return result;
+}
+
+function nativeParagraphFlow(table: string, anchor: TableAnchor): 'CELL' | 'TABLE' | undefined {
+  if (anchor.reference !== 'paragraph' || anchor.horizontal !== 'margin' || anchor.wrap ||
+      anchor.x >= .05 || anchor.y !== 0 || anchor.bottom !== 0) return;
+  const border = table.match(/\bdata-hwp-centered-borders="(true|continuation)"/)?.[1];
+  return border === 'continuation' ? 'CELL' : border === 'true' ? 'TABLE' : undefined;
+}
+
 /** Sentinels in an existing cell identify its real control after HTML import;
  * no marker paragraph or original text is removed. */
 export function stageHwpTables(html: string) {
-  const prefix = `WORDSTUDIO-TABLE-${crypto.randomUUID()}-`, records = new Map<string, TableAnchor>();
+  type Placement = { mode: 'label' } | { mode: 'overlay'; anchor: TableAnchor } |
+    { mode: 'flow'; anchor: TableAnchor; breakMode: 'CELL' | 'TABLE' };
+  const prefix = `WORDSTUDIO-TABLE-${crypto.randomUUID()}-`, records = new Map<string, Placement>();
+  const flowTables = nativeParagraphFlowTables(html);
   let staged = html;
   for (const table of elementRanges(html, 'table').reverse()) {
-    const value = table.open.match(/\bdata-table-anchor=(["'])([\s\S]*?)\1/)?.[2];
-    const anchor = value ? tableAnchor(entities(value)) : undefined; if (!anchor?.overlay) continue;
+    const anchor = markupAnchor(table.open), mode = flowTables.get(table.start);
+    const breakMode = anchor && mode === 'flow' ? nativeParagraphFlow(table.open, anchor) : undefined;
+    const placement = mode === 'label' ? { mode } as const
+      : anchor && breakMode ? { mode: 'flow', anchor, breakMode } as const
+      : anchor?.overlay ? { mode: 'overlay', anchor } as const : undefined;
+    if (!placement) continue;
     let depth = 0, at = -1;
     for (const m of table.inner.matchAll(/<\/?(?:table|p)\b[^>]*>/g)) {
       if (/^<table\b/.test(m[0])) depth++;
@@ -27,7 +76,7 @@ export function stageHwpTables(html: string) {
       else if (!depth && /^<p\b/.test(m[0])) { at = m.index! + m[0].length; break; }
     }
     if (at < 0) continue;
-    const token = `${prefix}${records.size}-END`; records.set(token, anchor);
+    const token = `${prefix}${records.size}-END`; records.set(token, placement);
     const inner = table.inner.slice(0, at) + `<span>${token}</span>` + table.inner.slice(at);
     staged = staged.slice(0, table.start) + table.open + inner + '</table>' + staged.slice(table.end);
   }
@@ -44,17 +93,21 @@ export function stageHwpTables(html: string) {
         const tokens = table.inner.match(new RegExp(`${prefix}\\d+-END`, 'g')) || [];
         if (!tokens.length) continue;
         if (tokens.length !== 1) throw Error('한글 표의 배치 위치가 모호합니다.');
-        const anchor = records.get(tokens[0]); if (!anchor) throw Error('한글 표의 배치 정보를 찾지 못했습니다.');
-        const open = set(table.open, { textWrap: 'IN_FRONT_OF_TEXT' });
+        const record = records.get(tokens[0]); if (!record) throw Error('한글 표의 배치 정보를 찾지 못했습니다.');
+        const flow = record.mode === 'flow';
+        const open = record.mode === 'label' ? table.open : set(table.open, flow
+          ? { textWrap: 'TOP_AND_BOTTOM', pageBreak: record.breakMode }
+          : { textWrap: 'IN_FRONT_OF_TEXT' });
         let found = false;
         const inner = table.inner.replace(/<hp:pos\b[^>]*\/>/, tag => {
           found = true;
-          return set(tag, { treatAsChar: 0, affectLSpacing: 0, flowWithText: 0, allowOverlap: 1, holdAnchorAndSO: 0,
-            vertRelTo: 'PAPER', horzRelTo: 'PAPER', vertAlign: 'BOTTOM', horzAlign: 'LEFT',
+          if (record.mode === 'label') return tag;
+          const { anchor } = record;
+          return set(tag, { treatAsChar: 0, affectLSpacing: 0, flowWithText: flow ? 1 : 0, allowOverlap: flow ? 0 : 1, holdAnchorAndSO: 0,
+            vertRelTo: flow ? 'PARA' : 'PAPER', horzRelTo: flow ? 'COLUMN' : 'PAPER', vertAlign: flow ? 'TOP' : 'BOTTOM', horzAlign: 'LEFT',
             vertOffset: Math.round(anchor.y * 75), horzOffset: Math.round(anchor.x * 75) });
-        // The recorded pixel anchor already includes the original outer gap.
-        // The HTML bridge otherwise adds its default 283-HWPUNIT margins on
-        // every save, moving a bottom-anchored table upward by another 3.8px.
+        // The print group already accounted for its margins. The paste API
+        // adds another 283 HU on every edge, even around the inline label.
         }).replace(/<hp:outMargin\b[^>]*\/>/, tag => set(tag, { left: 0, right: 0, top: 0, bottom: 0 })).replace(tokens[0], '');
         if (!found) throw Error('한글 표의 위치 속성을 찾지 못했습니다.');
         xml = xml.slice(0, table.start) + open + inner + '</hp:tbl>' + xml.slice(table.end); restored++;

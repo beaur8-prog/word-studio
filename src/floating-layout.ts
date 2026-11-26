@@ -1,5 +1,5 @@
 import { paperInset } from './paper-inset';
-import { cellRelativePicture, reserveCellPicture, restoreCellPictureReservations, cellPictureReservation } from './floating-cell-relative';
+import { cellRelativePicture, reserveCellPicture, reservePictureMinimum, restoreCellPictureReservations, cellPictureReservation } from './floating-cell-relative';
 import { documentScale } from './document-scale';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import {inlineDrawingAnchor,prepareDrawingGroupAnchors} from './drawing-group';
@@ -36,6 +36,9 @@ type Picture = {
   wrapCell?: HTMLElement | null;
   cellRelative?: boolean;
   minimumHeight?: number;
+  hwpFullBodyWidth?: boolean;
+  unconstrainedWidth?: boolean;
+  hwpPaperCover?: boolean;
   offPage?: boolean;
   index: number;
   left: number;
@@ -44,6 +47,7 @@ type Picture = {
   height: number;
   cssLeft: number;
   cssTop: number;
+  cssTranslation?: string;
   geometry: ImageFloating;
 };
 type ParagraphPlan = { index: number; widgets: Widget[]; pictures: Picture[]; minimumHeight?: number; originalMinimum?: string; startPage?: boolean; wordSpaceAdjustment?: number; bottomBorderInset?: number };
@@ -60,6 +64,22 @@ function ownerPaper(element: HTMLElement, root: HTMLElement) {
   const height = Number(sheet.dataset.pageHeight) || 1122.52, top = paperInset(sheet.dataset.margin, 96);
   const page = Math.max(0, Math.floor((y - top + .5) / (height + 24)));
   return { page, y, height, top, sheet, scale, bottom: paperInset(sheet.dataset.bottomMargin, top) };
+}
+
+function reserveHwpBodyPicture(paragraph: HTMLElement, picture: Picture, root: HTMLElement) {
+  const { geometry, height, top } = picture;
+  const proof = geometry.hwpBodyFlow, next = paragraph.nextElementSibling;
+  if (!proof || !picture.hwpFullBodyWidth || !(next instanceof HTMLParagraphElement) || next.textContent?.trim() ||
+      next.querySelector('img,svg,br:not(.ProseMirror-trailingBreak),[data-note-reference]')) return;
+  const paper = ownerPaper(paragraph, root);
+  if (!paper || Math.abs(paper.scale - 1) > 1 / 64 || Math.abs(paper.y - paper.page * (paper.height + 24) - proof.anchorY) > .2) return;
+  const sheet = paper.sheet.getBoundingClientRect();
+  const nextStyle = getComputedStyle(next);
+  if (Math.abs(parseFloat(nextStyle.fontSize) - proof.followingEm) > .06 ||
+      Math.abs(parseFloat(nextStyle.marginTop) || 0) > .05) return;
+  const target = top + height - proof.followingEm - paragraph.getBoundingClientRect().top;
+  if (target > 0 && top + height <= sheet.top + (paper.page + 1) * paper.height + paper.page * 24 - paper.bottom + .16)
+    reservePictureMinimum(paragraph, target);
 }
 
 type OwnerPageStep = { page: number; layout: number; pass: number };
@@ -84,6 +104,17 @@ function pageSquareBounds({ image, paper }: Pick<RepeatedOwner, "image" | "paper
   if (!(width > 0 && height > 0) || x < 0 || x + width > paper.sheet.clientWidth ||
       y < paper.top || y + height > paper.height - paper.bottom) return;
   return { left: x, right: x + width, top: y, bottom: y + height };
+}
+
+function hwpPaperCoverEditorTop(picture: Picture, image: HTMLImageElement, root: HTMLElement) {
+  if (!picture.hwpPaperCover) return;
+  const paper = ownerPaper(image, root);
+  if (!paper) return;
+  // This picture wraps no text. Use the paper containing its live anchor;
+  // the detached flow can place the same paragraph before a page seam.
+  const stride = paper.height + 24;
+  const start = Math.max(0, Math.floor((paper.y + .5) / stride)) * stride;
+  if (paper.y >= start - .5 && paper.y < start + paper.height) return start - paper.y;
 }
 
 /** A source page containing only one drawing has no text to wrap. If the
@@ -407,8 +438,9 @@ function imagePosition(
       : vertical.align === "bottom"
         ? vh - height
         : (vertical.offset || 0) / 9525);
+  const paperEdgeColumnPicture = !offPage && isPaperEdgeColumnPicture(img, g, sheet, top);
   if (
-    !offPage && g.wrap?.type !== 0 &&
+    !paperEdgeColumnPicture && !offPage && g.wrap?.type !== 0 &&
     height <= ph - top - bottom &&
     !["paragraph", "line"].includes(vertical.relative || "paragraph")
   )
@@ -417,6 +449,30 @@ function imagePosition(
   if (recovery) {
     left = Math.max(rect.left, Math.min(left, rect.right - width));
     y = rect.top + (g.verticalPosition.offset || 0) / 9525;
+  }
+  // A proven full-width HWP square is aligned to the paper body, not
+  // limited to the width of its indented marker paragraph.
+  const hwpFullBodyWidth = !!g.hwpBodyFlow && !offPage && g.wrap?.type === 1 && !g.behindDocument && !g.drawingGroup &&
+    g.layoutInCell === false && horizontal.relative === 'page' && vertical.relative === 'page' &&
+    !Object.values(g.margins || {}).some(n => n) && !cell && !group && !p.closest('.document-textbox,.document-furniture,[data-document-note]') &&
+    Math.abs(height - g.hwpBodyFlow.height) <= .16 && Math.abs(left - sr.left - leftMargin) <= .16 &&
+    Math.abs(left + width - sr.right + rightMargin) <= .16 && y + height <= py + ph - bottom + .16;
+  // A non-wrapping HWP bitmap can be anchored to all four paper edges.
+  // The body max-width would shrink its actual drawing without moving it.
+  const paper = g.hwpPaperDrawing;
+  const paperCover = Boolean(paper && !offPage && g.wrap?.type === 0 && !g.drawingGroup && g.layoutInCell === false &&
+    !cell && !group && !p.closest('.document-textbox,.document-furniture,[data-document-note]') &&
+    horizontal.relative === 'page' && vertical.relative === 'page' && !horizontal.align && !vertical.align &&
+    horizontal.offset === 0 && vertical.offset === 0 && !Object.values(g.margins || {}).some(n => n) &&
+    Math.abs(paper.width - sheet.clientWidth) <= 1 && Math.abs(paper.height - ph) <= 1 &&
+    Math.abs(paper.width - width) <= 1 && Math.abs(paper.height - height) <= 1);
+  const unconstrainedWidth = Boolean(hwpFullBodyWidth || paperEdgeColumnPicture || paperCover);
+  if (unconstrainedWidth) {
+    img.dataset.hwpFullWidthPicture = 'true';
+    img.style.maxWidth = 'none';
+  } else if (img.dataset.hwpFullWidthPicture === 'true') {
+    delete img.dataset.hwpFullWidthPicture;
+    img.style.removeProperty('max-width');
   }
   Object.assign(img.style, {
     display: offPage ? "none" : "",
@@ -430,6 +486,9 @@ function imagePosition(
   return {
     index,
     minimumHeight,
+    hwpFullBodyWidth,
+    unconstrainedWidth,
+    hwpPaperCover: paperCover,
     wrapCell: g.layoutInCell !== false ? cell : null,
     cellRelative: !!cellFrame,
     offPage,
@@ -441,6 +500,60 @@ function imagePosition(
     cssTop: y - rect.top,
     geometry: g,
   };
+}
+
+function isPaperEdgeColumnPicture(image: HTMLImageElement, floating: ImageFloating, paper: HTMLElement, bodyTop: number) {
+  const source = floating.hwpPaperDrawing;
+  if (!source) return false;
+  const columns = image.closest<HTMLElement>('[data-column-count]');
+  const { horizontalPosition: horizontal, verticalPosition: vertical } = floating;
+  const x = Number(horizontal.offset) / 9525, y = Number(vertical.offset) / 9525;
+  const width = Number(image.getAttribute('width')), height = Number(image.getAttribute('height'));
+  // The two DOCX extents can round independently. Retain the source
+  // placement only while the drawing is still the same size and on paper.
+  const tolerance = .16;
+  return !!columns && Number(columns.dataset.columnCount) >= 2 &&
+    !image.closest('td,th,.document-textbox') && floating.layoutInCell === false &&
+    floating.wrap?.type === 3 && !floating.behindDocument && !floating.drawingGroup &&
+    horizontal.relative === 'page' && vertical.relative === 'page' && !horizontal.align && !vertical.align &&
+    Math.abs(width - source.width) <= tolerance && Math.abs(height - source.height) <= tolerance &&
+    x >= 0 && x + width <= paper.clientWidth + tolerance &&
+    y >= 0 && y < bodyTop && y + height <= Number(paper.dataset.pageHeight) + tolerance;
+}
+
+function isPaperRelativeColumnImage(image: HTMLImageElement, floating: ImageFloating) {
+  const columns = image.closest<HTMLElement>('[data-column-count]');
+  const { horizontalPosition: horizontal, verticalPosition: vertical } = floating;
+  return !!columns && Number(columns.dataset.columnCount) >= 2 && !image.closest('td,th,.document-textbox') &&
+    floating.wrap?.type === 0 && !floating.drawingGroup &&
+    horizontal.relative === 'page' && vertical.relative === 'page' && !horizontal.align && !vertical.align &&
+    horizontal.offset !== undefined && vertical.offset !== undefined;
+}
+
+function canCoalesceColumnImageLayout(root: HTMLElement) {
+  let hasPaperColumnImage = false;
+  for (const image of floatingImages(root)) {
+    const floating = imageFloating(image.dataset.imageFloating);
+    if (!floating) continue;
+    // Wrapped images depend on settled text geometry. Keep their scheduling
+    // even in a document with an unrelated nonwrapping image in columns.
+    if (floating.wrap?.type !== 0) return false;
+    if (isPaperRelativeColumnImage(image, floating)) hasPaperColumnImage = true;
+  }
+  return hasPaperColumnImage;
+}
+
+function paperColumnTranslation(image: HTMLImageElement, floating: ImageFloating, left: number, top: number, scale: number) {
+  const paper = image.closest<HTMLElement>('[data-page-height]');
+  const bodyTop = paperInset(paper?.dataset.margin, 96);
+  if ((!isPaperRelativeColumnImage(image, floating) && !(paper && isPaperEdgeColumnPicture(image, floating, paper, bodyTop))) ||
+      image.style.display === 'none' || image.style.position !== 'absolute') return;
+  // An absolute child can paint against a different column fragment from
+  // the one used to calculate its CSS offsets. Translate its paint without
+  // moving its anchor paragraph or affecting the column flow.
+  const painted = image.getBoundingClientRect();
+  const dx = (left - painted.left) / scale, dy = (top - painted.top) / scale;
+  if (Math.abs(dx) > .5 || Math.abs(dy) > .5) return `${dx}px ${dy}px`;
 }
 
 /** Plan in a detached copy of the live geometry. The editable document receives
@@ -537,6 +650,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
   try {
     const ps = paragraphs(copy),
       images = floatingImages(copy);
+    if (pageFlow) for (const image of images) image.style.removeProperty('translate');
     // Stripping old wrap widgets changes the clone's physical coordinates.
     // A page-anchored picture must still belong to its source page segment:
     // an explicit body break prevents it from wrapping preceding paper.
@@ -700,6 +814,7 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
           !p.textContent?.replace(/[\s\u200b\u2060\ufeff]/gu, '') &&
           !p.querySelector('img:not([data-image-floating]):not(.ProseMirror-separator),svg,video,canvas,[data-note-reference],[data-page-number],[data-symbol-font],[data-word-overlap],[data-docx-tab]') &&
           own.every(picture => !picture.geometry.drawingGroup)) {
+        if (own.length === 1) reserveHwpBodyPicture(p, own[0], copy);
         result.push({ index: pi, widgets: [], pictures: own });
         continue;
       }
@@ -1037,7 +1152,9 @@ function planFloatingLayoutPass(root: HTMLElement, pageFlow: PageFlow | undefine
     for (const paragraph of result) {
       const resolved: Picture[] = [];
       for (const picture of paragraph.pictures) {
-        const placed = imagePosition(images[picture.index], picture.index, copy) || picture;
+        const image = images[picture.index];
+        const placed = imagePosition(image, picture.index, copy) || picture;
+        if (pageFlow) placed.cssTranslation = paperColumnTranslation(image, placed.geometry, placed.left, placed.top, 1);
         const projection = applied.get(picture.index);
         if (projection) {
           const paper = ownerPaper(images[picture.index], copy);
@@ -1103,6 +1220,21 @@ export function applyFloatingLayout(root: HTMLElement, wordHangingSpaces = false
   images.forEach((img, index) => imagePosition(img, index, root));
 }
 
+export function positionPaperImagesInPrintColumns(root: HTMLElement) {
+  for (const image of root.querySelectorAll<HTMLImageElement>('.print-content [data-column-count] img[data-image-floating]')) {
+    const paper = image.closest<HTMLElement>('.print-page');
+    const floating = imageFloating(image.dataset.imageFloating);
+    if (!paper || !floating) continue;
+    const {horizontalPosition: horizontal, verticalPosition: vertical} = floating;
+    if (horizontal.offset === undefined || vertical.offset === undefined) continue;
+    const paperRect = paper.getBoundingClientRect();
+    const scale = documentScale(paper);
+    const translation = paperColumnTranslation(image, floating,
+      paperRect.left + horizontal.offset / 9525 * scale, paperRect.top + vertical.offset / 9525 * scale, scale);
+    if (translation) image.style.translate = translation;
+  }
+}
+
 const key = new PluginKey("floatingLayout");
 export const FloatingLayout = Extension.create({
   name: "floatingLayout",
@@ -1123,9 +1255,21 @@ export const FloatingLayout = Extension.create({
           const backwardsSeen = new Set<number>(), paperHistory = new Map<number, OwnerPageStep[]>();
           let layoutPass = 0;
           let flowDocument: typeof view.state.doc | undefined = view.state.doc, flowShape = '';
+          let scheduledDocument: typeof view.state.doc | undefined;
+          let coalesceColumnLayout = false;
           const calculate = () => {
-            cancelAnimationFrame(frame);
+            if (frame) {
+              if (scheduledDocument !== view.state.doc) {
+                scheduledDocument = view.state.doc;
+                coalesceColumnLayout = canCoalesceColumnImageLayout(view.dom);
+              }
+              // Column image paint can starve while the editor keeps updating.
+              // Measure its latest anchor in the pass already queued.
+              if (coalesceColumnLayout) return;
+              cancelAnimationFrame(frame);
+            }
             frame = requestAnimationFrame(() => {
+              frame = 0;
               if (
                 editorLayoutSuspended() || !view.dom.isConnected ||
                 view.composing ||
@@ -1217,10 +1361,13 @@ export const FloatingLayout = Extension.create({
                   if (!token) continue;
                   const g = picture.geometry;
                   const img = token.start[0].childNodes[token.start[1]] as HTMLImageElement;
-                  const top = paragraph.startPage ? picture.cssTop : isolatedPagePictureTop(picture, img, view, position);
-                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${top}px;z-index:${g.behindDocument ? -1 : 1}${picture.offPage ? ";display:none" : ""}`;
+                  const top = hwpPaperCoverEditorTop(picture, img, view.dom) ??
+                    (paragraph.startPage ? picture.cssTop : isolatedPagePictureTop(picture, img, view, position));
+                  const translation = picture.cssTranslation ? `;translate:${picture.cssTranslation}` : "";
+                  const style = `position:absolute;float:none;margin:0;left:${picture.cssLeft}px;top:${top}px;z-index:${g.behindDocument ? -1 : 1}${picture.offPage ? ";display:none" : ""}${picture.unconstrainedWidth ? ";max-width:none" : ""}${translation}`;
                   decorations.push(
-                    Decoration.node(position + 1 + token.from, position + 1 + token.to, { style }),
+                    Decoration.node(position + 1 + token.from, position + 1 + token.to,
+                      { style, ...(picture.unconstrainedWidth ? { 'data-hwp-full-width-picture': 'true' } : {}) }),
                   );
                   values.push(`image:${position + token.from}:${style}`);
                 }

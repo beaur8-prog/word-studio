@@ -3,7 +3,8 @@ import { canMeasureMergedFragments } from './editor-merged-fragments';
 import { canSplitProtectedMergedRows, protectedTablePlacement } from './table-fragments';
 import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
 import { wordFlowHasWrappingAnchors, wordKeepParagraph, wordKeepPrefixHeight } from './word-keep-policy';
-import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
+import { prefersIntactCenteredRow, rowCanContinue, rowSplitPolicy } from './row-split-policy';
+import { matchesHwpIntactTopRow } from './hwp-intact-row';
 import { documentScale } from './document-scale';
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
@@ -13,13 +14,16 @@ import { imageOutsidePaper, imageFloating } from './image-floating';
 import { paginateCellRow, paginateMergedRows } from './editor-cell-pagination';
 import { layoutColumns } from './column-layout';
 import { layoutTableAnchors, tableFollowingParagraph } from './table-anchor';
+import { hwpTableTopGap } from './table-anchor-data';
+import { layoutEditorHwpCenteredBorders } from './hwp-centered-table-borders';
 import { paginateParagraph } from './editor-paragraph-pagination';
 import { paragraphFitBottom } from './paragraph-fit';
+import { editorSourceBodyEnd } from './hwp-body-end-editor';
 import { wholeListItem } from './list-fragments';
 import { canHideEmptyPageLine, hiddenEmptyLineClass } from './page-empty-lines';
 
 const key = new PluginKey('studioPagination');
-type RepeatingHeader = { table: HTMLTableElement; rows: HTMLTableRowElement[]; height: number };
+type RepeatingHeader = { table: HTMLTableElement; rows: HTMLTableRowElement[]; height: number; topGap: number };
 type Piece = { pos: number; end: number; top: number; height: number; columns?: number; columnFlow?: boolean; cellRow?: HTMLTableRowElement; listItem?: PMNode; mergedRows?: HTMLTableRowElement[]; explicit?: 'pageBreak' | 'sectionBreak'; breakType?: string; empty?: boolean; references?: { id: string; offset: number }[]; header?: RepeatingHeader; protectedHeader?: RepeatingHeader; protectedRows?: boolean; tableTop?: number };
 
 /** Printed continuations have a new table edge. Measuring only the original
@@ -119,6 +123,7 @@ function pieces(view: EditorView, usableHeight: number, scale: number, removed: 
     const header: RepeatingHeader | undefined = headerEnd && headerEnd < rows.length ? {
       table: rows[0].dom.closest('table')!, rows: rows.slice(0, headerEnd).map(r => r.dom as HTMLTableRowElement),
       height: rect(rows[headerEnd - 1].dom).top + rect(rows[headerEnd - 1].dom).height - rect(rows[0].dom).top,
+      topGap: hwpTableTopGap(table?.dataset.hwpTableTopGap) ?? 0,
     } : undefined;
     const headerHeights = new Map<string, number>();
     const headerFor = (row: HTMLTableRowElement) => {
@@ -198,7 +203,10 @@ export const Pagination = Extension.create({
         // Reveal a formerly blank line in the same input transaction. Layout
         // waits during IME composition, but the composition must remain visible.
         return mapped.remove(mapped.find().filter(decoration => {
-          if (!decoration.spec.hiddenEmptyLine) return false;
+          const spec = decoration.spec;
+          if (spec.hwpBodyEndNode) return tr.doc.nodeAt(decoration.from) !== spec.hwpBodyEndNode ||
+            tr.doc.resolve(decoration.from).nodeBefore !== spec.hwpBodyEndPredecessor;
+          if (!spec.hiddenEmptyLine) return false;
           const node = tr.doc.nodeAt(decoration.from);
           return !node || !!node.textContent.trim() || node.content.content.some(child => child.type.name !== 'text');
         }));
@@ -207,15 +215,21 @@ export const Pagination = Extension.create({
       view(view) {
         let scheduled = 0, signature = '', lastDocument: PMNode | undefined;
         const overlays = document.createElement('div'); overlays.className = 'pagination-headers'; overlays.setAttribute('aria-hidden', 'true');
+        const centeredBorderStyle = document.createElement('style'); document.head.append(centeredBorderStyle);
         const calculate = () => {
-          cancelAnimationFrame(scheduled);
+          // View transactions and resize callbacks can both request layout
+          // in the same frame. Measure the current view once instead of
+          // cancelling a pending calculation until those requests stop.
+          if (scheduled) return;
           scheduled = requestAnimationFrame(() => {
+            scheduled = 0;
             if (editorLayoutSuspended() || !view.dom.isConnected || view.composing || view.dom.classList.contains('table-row-resizing')) return;
             const sheet = view.dom.closest<HTMLElement>('.document-stack'); if (!sheet) return;
             // Column prefixes depend on the previous page gaps. Resolve them
             // before measuring; min-height can keep the root's ResizeObserver
             // silent even when column fragments have moved inside the sheet.
             layoutWordAutoFitTables(view.dom);
+            layoutEditorHwpCenteredBorders(view.dom, centeredBorderStyle);
             layoutTableAnchors(view.dom); layoutColumns(view.dom); layoutTableAnchors(view.dom);
             view.dom.classList.add('pagination-measuring-cells');
             try {
@@ -279,11 +293,11 @@ export const Pagination = Extension.create({
                 if (!shown.has(page)) {
                   shown.add(page); headerPages.set(header.table, shown);
                   const box = header.table.getBoundingClientRect(), sheetBox = sheet.getBoundingClientRect();
-                  repeated.push({ header, top: (origin - sheetBox.top) / scale + page * stride + top,
+                  repeated.push({ header, top: (origin - sheetBox.top) / scale + page * stride + top + header.topGap,
                     left: (box.left - sheetBox.left) / scale, width: box.width / scale });
-                  signatures.push(`header:${view.posAtDOM(header.table, 0)}:${page}:${header.height}`);
+                  signatures.push(`header:${view.posAtDOM(header.table, 0)}:${page}:${header.height + header.topGap}`);
                 }
-                return header.height;
+                return header.height + header.topGap;
               };
               const uniformTableBody = context.sheet.dataset.uniformTablePageBody === 'true';
               const paper = { width: context.sheet.clientWidth, height: h, top, bottom };
@@ -362,7 +376,8 @@ export const Pagination = Extension.create({
                 if (piece.header && !tablePages.has(piece.header.table)) tablePages.set(piece.header.table,
                   Math.max(0, Math.floor(((piece.tableTop ?? piece.top) + extra - top + .5) / stride)));
                 const trialPages = new Set<number>();
-                const measureRepeatAt = (page: number) => !piece.header || page <= (tablePages.get(piece.header.table) ?? page) ? 0 : piece.header.height;
+                const measureRepeatAt = (page: number) => !piece.header || page <= (tablePages.get(piece.header.table) ?? page) ? 0
+                  : piece.header.height + piece.header.topGap;
                 const repeatAt = (page: number) => {
                   const height = measureRepeatAt(page);
                   if (height) trialPages.add(page); return height;
@@ -394,7 +409,7 @@ export const Pagination = Extension.create({
                 if (piece.mergedRows && y + piece.height > end + .5) {
                   const protectedRows = piece.protectedRows === true;
                   const header = protectedRows ? piece.protectedHeader : undefined;
-                  const measureHeader = (target: number) => target > page ? header?.height ?? 0 : 0;
+                  const measureHeader = (target: number) => target > page && header ? header.height + header.topGap : 0;
                   const flow = paginateMergedRows(view, piece.mergedRows, { origin, scale, top, bottom, height: h, extra, removed,
                     repeatAt: header ? target => {
                       const height = measureHeader(target);
@@ -402,7 +417,7 @@ export const Pagination = Extension.create({
                       return height;
                     } : repeatAt,
                     measureRepeatAt: header ? measureHeader : measureRepeatAt,
-                    continuationHeaders: protectedRows ? (header ?? piece.header)?.rows : undefined,
+                    continuationHeaders: (header ?? piece.header)?.rows,
                     longProtectedGroup: Boolean(header),
                     reserveAt: page => reserve(page, refs) }, protectedRows);
                   if (flow) {
@@ -413,7 +428,11 @@ export const Pagination = Extension.create({
                     dec.push(...flow.decorations); signatures.push(...flow.signatures); extra += flow.extra; sectionJustStarted = false; continue;
                   }
                 }
-                if (piece.cellRow && y + piece.height > end + .5) {
+                if (piece.cellRow && y + piece.height > end + .5 &&
+                  !(piece.height <= usable && (prefersIntactCenteredRow(piece.cellRow) ||
+                    piece.header && matchesHwpIntactTopRow(piece.cellRow, piece.height, scale) &&
+                    view.state.doc.resolve(piece.pos).parent.attrs.hwpTableContinuation) &&
+                    piece.height + measureRepeatAt(page + 1) + reserve(page + 1, []) <= usable + .5)) {
                   const flow = paginateCellRow(view, piece.cellRow, piece.pos, { origin, scale, top, bottom, height: h, extra, removed, repeatAt,
                     references: (piece.references ?? []).filter(ref => refs.some(r => r.id === ref.id)).map(ref => ({ id: ref.id, top: piece.top + ref.offset })),
                     reserveAt: (page, own) => reserve(page, own ?? []) });
@@ -422,7 +441,26 @@ export const Pagination = Extension.create({
                 let fitHeight = piece.height;
                 if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
-                  if (paragraph instanceof HTMLElement) fitHeight -= Math.max(0, paragraph.getBoundingClientRect().bottom - paragraphFitBottom(paragraph, suppressBottomSpacing)) / scale;
+                  if (paragraph instanceof HTMLElement) {
+                    const nativeEmptyLine = hideEmptyLines && hiddenEmptyLines.get(page) === 2;
+                    fitHeight -= Math.max(0, paragraph.getBoundingClientRect().bottom -
+                      paragraphFitBottom(paragraph, suppressBottomSpacing, nativeEmptyLine)) / scale;
+                    if (suppressBottomSpacing && paragraph instanceof HTMLParagraphElement &&
+                        (y + fitHeight > end + .5 || paragraph.dataset.hwpEditorBodyEnd === 'true') && paragraph.dataset.hwpBodyLayout === 'mixed-top' && !piece.references?.length && !reserve(page, [])) {
+                      const prior = queue[index - 1], previous = prior && view.nodeDOM(prior.pos);
+                      if (prior && previous instanceof HTMLParagraphElement &&
+                          Math.abs(prior.top + prior.height - piece.top) <= .08 &&
+                          y - prior.height >= page * stride + top - .05) {
+                        const placement = editorSourceBodyEnd(paragraph, previous, scale, end - y);
+                        if (placement) {
+                          dec.push(Decoration.node(piece.pos, piece.end, { 'data-hwp-editor-body-end': 'true', style: placement.style },
+                            { hwpBodyEndNode: view.state.doc.nodeAt(piece.pos), hwpBodyEndPredecessor: view.state.doc.nodeAt(prior.pos) }));
+                          signatures.push(`hwp-body-end:${piece.pos}:${placement.style}`);
+                          fitHeight = placement.bottom;
+                        }
+                      }
+                    }
+                  }
                 }
                 if (!piece.columns && !piece.explicit && y + fitHeight > end + .5) {
                   const paragraph = view.nodeDOM(piece.pos);
@@ -449,10 +487,11 @@ export const Pagination = Extension.create({
                   let tableEdge = 0;
                   const row = piece.columns ? view.nodeDOM(piece.pos) as HTMLTableRowElement : null;
                   const table = row?.closest('table');
-                  if (row && table && getComputedStyle(table).borderCollapse === 'collapse' &&
-                    [...table.rows].filter(r => !r.classList.contains('ProseMirror-widget'))[0] === row)
+                  const firstRow = table && [...table.rows].find(r => !r.classList.contains('ProseMirror-widget')) === row;
+                  if (row && table && firstRow && getComputedStyle(table).borderCollapse === 'collapse')
                     tableEdge = Math.max(0, (row.getBoundingClientRect().top - table.getBoundingClientRect().top) / scale);
-                  const gap = Math.max(0, Math.ceil((destination * stride + top + repeat(piece.header, destination) - y + tableEdge) * 64) / 64);
+                  const tableTopGap = firstRow && table ? hwpTableTopGap(table.dataset.hwpTableTopGap) ?? 0 : 0;
+                  const gap = Math.max(0, Math.ceil((destination * stride + top + repeat(piece.header, destination) - y + tableEdge + tableTopGap) * 64) / 64);
                   if (piece.explicit) dec.push(Decoration.node(piece.pos, piece.end, { style: `height:${gap}px` }));
                   else dec.push(Decoration.widget(piece.pos, () => {
                     const el = document.createElement(piece.columns ? 'tr' : 'div');
@@ -510,7 +549,7 @@ export const Pagination = Extension.create({
         calculate(); document.addEventListener(editorLayoutResume, calculate);
         const observer = new ResizeObserver(calculate); observer.observe(view.dom);
         document.fonts.addEventListener('loadingdone', calculate); view.dom.addEventListener('compositionend', calculate);
-        return { update: calculate, destroy() { overlays.remove(); cancelAnimationFrame(scheduled); observer.disconnect();
+        return { update: calculate, destroy() { overlays.remove(); centeredBorderStyle.remove(); cancelAnimationFrame(scheduled); observer.disconnect();
           document.removeEventListener(editorLayoutResume, calculate); document.fonts.removeEventListener('loadingdone', calculate); view.dom.removeEventListener('compositionend', calculate); } };
       },
     })];

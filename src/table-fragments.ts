@@ -1,7 +1,10 @@
+import { hwpCenteredLabelInkFits, matchesHwpCenteredCellLabels, matchesHwpCenteredMergeHeadLabel } from './hwp-centered-cell-labels';
 import { rowCanContinue, rowSplitPolicy } from './row-split-policy';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
+import { hasUnchangedSourceWrap } from './hwp-text-advance-layout';
 import { cssPixels, parseHwpCellLine } from './hwp-cell-line';
 import { documentScale } from './document-scale';
+import { fittedHwpRowReserve } from './hwp-row-reserve';
 import { imageFloating } from './image-floating';
 import { paragraphLineOffsets, paragraphTextWalker, splitText, textUnitLength } from './paragraph-fragments';
 
@@ -327,10 +330,72 @@ function centeredParagraphFits(after: MeasuredParagraph, before: MeasuredParagra
   });
 }
 
-interface FragmentContext { bodyHeight(): number; hasDeferredNote(element: HTMLElement): boolean; deferredNotes(): ReadonlySet<string> }
+interface FragmentContext {
+  keepCenteredMergeLabels?: boolean | 'first';
+  bodyHeight(): number;
+  hasDeferredNote(element: HTMLElement): boolean;
+  deferredNotes(): ReadonlySet<string>;
+  preserveSplitCellWrap?(paragraph: HTMLElement): (() => void) | undefined;
+}
+
+function mergedGrid(rows: HTMLTableRowElement[]) {
+  const entries: { cell: HTMLTableCellElement; row: number; col: number }[] = [];
+  const occupied: number[] = [];
+  rows.forEach((row, index) => {
+    let col = 0;
+    for (const cell of row.cells) {
+      while ((occupied[col] || 0) > index) col++;
+      entries.push({ cell, row: index, col });
+      for (let j = col; j < col + cell.colSpan; j++) occupied[j] = index + cell.rowSpan;
+      col += cell.colSpan;
+    }
+  });
+  return entries;
+}
+
+export function canSplitInsideMergedRows(rows: HTMLTableRowElement[]) {
+  return rows.length > 1 && rows.some(isObservedContinuingRow) &&
+    rows.every(row => rowSplitPolicy(row.dataset) !== 'avoid' && row.dataset.wordRowRule !== 'exact' &&
+      [...row.cells].every(cell => cell.tagName === 'TD' &&
+        (cell.rowSpan === 1 || cell.dataset.cellSplit === 'allow') &&
+        [...cell.children].every(block => block.tagName === 'P') &&
+        // Rows without an observed inside-row cut are moved whole. Their
+        // ordinary cells keep the complete bookmark when the merge continues.
+        ((!isObservedContinuingRow(row) && cell.rowSpan === 1) || !cell.querySelector('[data-docx-bookmark]')) &&
+        !cell.querySelector('img:not(.ProseMirror-separator),svg,table,[data-note-reference],[data-page-number],' +
+          '[data-document-field],[data-word-overlap],[data-docx-tab],[data-symbol-font],' +
+          '[data-word-keep-lines="true"],[data-word-keep-next="true"]')));
+}
+
+function isObservedContinuingRow(row: HTMLTableRowElement) {
+  return row.dataset.rowSplit === 'allow' && row.dataset.hwpRowContinued === 'true';
+}
+
+/** At a whole-paragraph cut HWP needs the last line's glyphs inside
+ * the cell. Part of its CSS pitch can be after the final glyph box. */
+export function unpaintedHwpCellExcess(cell: HTMLTableCellElement, paragraph: HTMLElement, boundary: number, scale = 1) {
+  let next = paragraph.nextElementSibling;
+  while (next?.classList.contains('ProseMirror-widget')) next = next.nextElementSibling;
+  if (!(paragraph instanceof HTMLParagraphElement) || !(next instanceof HTMLParagraphElement) ||
+    cell.tagName !== 'TD' || cell.rowSpan !== 1 || cell.colSpan !== 1 ||
+    rowSplitPolicy((cell.parentElement as HTMLTableRowElement).dataset) !== 'allow' ||
+    cell.closest('table')?.parentElement?.closest('td,th') ||
+    !paragraph.hasAttribute('data-exact-line-height') || paragraph.style.marginBottom !== '0px' ||
+    paragraph.querySelector('img,svg,br,sup,sub,[data-flow-widget],[data-docx-tab],[data-document-field],[data-note-reference]')) return;
+  const box = paragraph.getBoundingClientRect(), excess = box.bottom - boundary;
+  if (!(excess > .5) || !hasUnchangedSourceWrap(paragraph)) return;
+  const css = getComputedStyle(paragraph), trailing = parseFloat(css.lineHeight) - parseFloat(css.fontSize);
+  if (!(excess <= trailing * scale)) return;
+  const bounds = cell.getBoundingClientRect(), range = document.createRange();
+  range.selectNodeContents(paragraph);
+  const ink = [...range.getClientRects()].filter(rect => rect.height > 0 && rect.width > 0);
+  if (ink.length && ink.every(rect => rect.top >= bounds.top - .5 && rect.bottom <= boundary &&
+      rect.left >= bounds.left - .5 && rect.right <= bounds.right + .5)) return excess;
+}
 
 /** Shared measured table fragments for print and editable continuation plans. */
 export function tableFragmenter(context: FragmentContext) {
+  const explicitFirstLabelsOnly = context.keepCenteredMergeLabels === 'first';
   // Split editable form rows at paragraph or nested-table row boundaries. A
   // large single cell must not shrink all its text just to fit one sheet.
   function hasEarlierBodyContent(row: HTMLTableRowElement) {
@@ -355,9 +420,10 @@ export function tableFragmenter(context: FragmentContext) {
     }
     return row.getBoundingClientRect().top > start + .5;
   }
-  function splitElement(element: HTMLElement, boundary: number, depth = 0): HTMLElement | null {
+  function splitElement(element: HTMLElement, boundary: number, depth = 0, keepCenteredLabels = true): HTMLElement | null {
     if (depth > 30) return null;
     if (element.matches('p,h1,h2,h3,h4,h5,h6') && ((element.textContent?.length ?? 0) > 1 || element.querySelector('br'))) {
+      const restoreWrap = context.preserveSplitCellWrap?.(element);
       let offsets = paragraphLineOffsets(element);
       if (context.hasDeferredNote(element)) {
         const walker = paragraphTextWalker(element); let offset = 0;
@@ -378,7 +444,7 @@ export function tableFragmenter(context: FragmentContext) {
         head.remove();
       }
       marker.replaceWith(element);
-      if (!best) return null;
+      if (!best) { restoreWrap?.(); return null; }
       const [head, tail] = splitText(element, best); element.replaceChildren(...head.childNodes); element.style.marginBottom = '0';
       element.dataset.printSoftEnd = 'true'; delete element.dataset.printTrailingBreak;
       if (head.dataset.hwpCellContinuation) element.dataset.hwpCellContinuation = 'true';
@@ -400,6 +466,7 @@ export function tableFragmenter(context: FragmentContext) {
         const tail = row.cloneNode(false) as HTMLTableRowElement;
         row.style.removeProperty('height');
         let moved = false, reservedSpace = false;
+        const centered: HTMLTableCellElement[] = [];
         // Split every column against the same physical boundary. Even a
         // finished column needs its empty continuation cell to keep the grid.
         for (const cell of [...row.cells]) {
@@ -413,13 +480,21 @@ export function tableFragmenter(context: FragmentContext) {
             const css = getComputedStyle(child);
             return sum + child.getBoundingClientRect().height + (parseFloat(css.marginTop) || 0) + (parseFloat(css.marginBottom) || 0);
           }, 0);
-          if (innerHeight > available - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0) + .5) cell.style.verticalAlign = 'top';
+          const space = available - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0);
+          const leadingLabels = keepCenteredLabels && innerHeight < space - .5 && matchesHwpCenteredCellLabels(cell)
+            ? cell.children.length : 0;
+          // Keep a verified short label in this head while finding the cut.
+          // The committed fragment is still vertically centered.
+          if (leadingLabels || innerHeight > space + .5) cell.style.verticalAlign = 'top';
           const rest = splitElement(cell, boundary, depth + 1);
           if (rest) { next.append(...rest.childNodes); moved = true; }
           else if (context.hasDeferredNote(cell) || [...cell.children].some(child => child.getBoundingClientRect().bottom > boundary - (parseFloat(getComputedStyle(cell).paddingBottom) || 0) + .5)) {
             next.append(...cell.childNodes); moved = true;
           }
-          cell.style.verticalAlign = align;
+          const topContinuation = align === 'middle' && nativeTopContinuation(cell, next, row);
+          cell.style.verticalAlign = topContinuation ? 'top' : align;
+          if (topContinuation) next.style.verticalAlign = 'top';
+          if (leadingLabels && cell.children.length === leadingLabels && !next.hasChildNodes()) centered.push(cell);
         }
         // A stored minimum height can reserve space after the text. Divide
         // that reserve too; repeating the full height on the continuation
@@ -428,8 +503,10 @@ export function tableFragmenter(context: FragmentContext) {
           row.style.height = `${available}px`; moved = reservedSpace = true;
         }
         const progress = reservedSpace || [...row.cells].some(c => c.textContent?.trim() || c.querySelector('img,table'));
-        if (!moved || !progress || row.getBoundingClientRect().bottom > boundary + .5) {
-          row.replaceChildren(...original.childNodes); row.style.cssText = original.style.cssText; return null;
+        if (!moved || !progress || row.getBoundingClientRect().bottom > boundary + .5 ||
+            centered.some(cell => !hwpCenteredLabelInkFits(cell))) {
+          row.replaceChildren(...original.childNodes); row.style.cssText = original.style.cssText;
+          return centered.length ? splitElement(row, boundary, depth, false) : null;
         }
         tail.style.height = `${Math.max(0, height - row.getBoundingClientRect().height)}px`;
         return tail;
@@ -449,6 +526,14 @@ export function tableFragmenter(context: FragmentContext) {
     const index = children.findIndex(child => !child.matches('colgroup') && (context.hasDeferredNote(child) || child.getBoundingClientRect().bottom + (parseFloat(getComputedStyle(child).marginBottom) || 0) > innerBoundary + .5));
     if (index < 0) return null;
     const child = children[index], tail = element.cloneNode(false) as HTMLElement;
+    if (element instanceof HTMLTableCellElement && !context.hasDeferredNote(child)) {
+      const excess = unpaintedHwpCellExcess(element, child, innerBoundary);
+      if (excess !== undefined) {
+        child.style.marginBottom = `-${excess}px`;
+        children.slice(index + 1).forEach(next => tail.append(next));
+        return tail;
+      }
+    }
     const childTail = splitElement(child, innerBoundary - (parseFloat(getComputedStyle(child).marginBottom) || 0), depth + 1);
     if (childTail) tail.append(childTail);
     else if (index === 0 || children.slice(0, index).every(c => c.matches('colgroup'))) return null;
@@ -458,22 +543,147 @@ export function tableFragmenter(context: FragmentContext) {
     if (element.matches('tr')) { element.style.removeProperty('height'); tail.style.removeProperty('height'); }
     return tail;
   }
+  function nativeTopContinuation(cell: HTMLTableCellElement, next: HTMLTableCellElement, row: HTMLTableRowElement) {
+    const table = row.closest('table');
+    return rowSplitPolicy(row.dataset) === 'allow' && table?.dataset.hwpCenteredBorders === 'continuation' &&
+      table.dataset.hwpCenteredBordersActive === 'true' && cell.rowSpan === 1 && cell.colSpan === 1 &&
+      !!cell.textContent?.trim() && !!next.textContent?.trim();
+  }
+  function contentBottom(block: Element, includeMargin = false) {
+    const range = document.createRange();
+    range.selectNodeContents(block);
+    const bottom = Math.max(block.getBoundingClientRect().bottom, range.getBoundingClientRect().bottom);
+    return bottom + (includeMargin ? cssPixels(getComputedStyle(block).marginBottom) ?? 0 : 0);
+  }
+
+  /** A proven last spanned row can still be taller than a full page after
+   * separating it from its merge. Share the detached-row fit with the live
+   * view; on rejection, restore the unmodified render row. */
+  function splitDetachedRow(group: HTMLTableRowElement[], boundary: number, fitsHere: () => boolean): HTMLTableRowElement[] | null {
+    const row = group[0];
+    if (row.dataset.printContinuedInsideRow !== 'true' || !isObservedContinuingRow(row) ||
+      row.getBoundingClientRect().height <= context.bodyHeight() + .5) return null;
+    const copy = row.cloneNode(true) as HTMLTableRowElement;
+    row.replaceWith(copy);
+    let accepted = false;
+    try {
+      const tail = splitElement(copy, boundary) as HTMLTableRowElement | null;
+      if (!tail || !fitsHere() || copy.cells.length !== row.cells.length || tail.cells.length !== row.cells.length) return null;
+      for (const [index, cell] of [...copy.cells].entries()) {
+        const cellBottom = Math.min(boundary, cell.getBoundingClientRect().bottom);
+        if (row.cells[index].textContent !== cell.textContent + tail.cells[index].textContent ||
+          [...cell.children].some(child => contentBottom(child) > cellBottom + .5)) return null;
+      }
+      group[0] = copy;
+      accepted = true;
+      return [tail];
+    } finally { if (!accepted) copy.replaceWith(row); }
+  }
+
+  /** Divide a permitted row and the merges above it on a rendering copy.
+   * Both fragments include the cut row; the document still has one logical
+   * row and each piece still belongs to its original cell. */
+  function splitMergedRow(group: HTMLTableRowElement[], boundary: number, fitsHere: () => boolean): HTMLTableRowElement[] | null {
+    if (group.length === 1) return splitDetachedRow(group, boundary, fitsHere);
+    if (!canSplitInsideMergedRows(group)) return null;
+    const table = group[0].closest('table')!;
+    const inset = Math.max(0, table.getBoundingClientRect().bottom - group.at(-1)!.getBoundingClientRect().bottom);
+    const limit = boundary - inset;
+    const cut = group.findIndex(row => {
+      const box = row.getBoundingClientRect();
+      return box.top + .5 < limit && box.bottom > boundary + .5;
+    });
+    const row = group[cut];
+    if (!row || !isObservedContinuingRow(row)) return null;
+    const entries = mergedGrid(group);
+    const crossing = entries.filter(entry => entry.row <= cut && entry.row + entry.cell.rowSpan > cut);
+    // A short cell alongside a continuing merge stays in its authored row.
+    // Reserve an inside-row cut for a cell whose own text needs both pages.
+    if (!crossing.some(({ cell }) => cell.rowSpan > 1) ||
+      !crossing.some(({ cell }) => cell.rowSpan === 1)) return null;
+    const box = row.getBoundingClientRect();
+    const minimum = fittedHwpRowReserve(row, limit - box.top) ?? cssPixels(row.style.height) ?? 0;
+    const parent = row.parentNode!, anchor = group.at(-1)!.nextSibling;
+    const attempt = (keepLabels: boolean) => {
+      const copies = group.map(original => original.cloneNode(true) as HTMLTableRowElement);
+      group.forEach((original, i) => original.replaceWith(copies[i]));
+      const headRows = copies.slice(0, cut + 1), head = headRows.at(-1)!;
+      const tail = head.cloneNode(false) as HTMLTableRowElement;
+      tail.dataset.printContinuedInsideRow = 'true';
+      const tailRows = [tail, ...copies.slice(cut + 1)];
+      const halves: { cell: HTMLTableCellElement; next: HTMLTableCellElement; span: number; row: number }[] = [];
+      const centered: HTMLTableCellElement[] = [];
+      let accepted = false, continued = false;
+      try {
+        for (const { cell: original, row: owner } of crossing.sort((a, b) => a.col - b.col)) {
+          const cell = copies[owner].cells[original.cellIndex];
+          const span = cell.rowSpan;
+          const next = cell.cloneNode(false) as HTMLTableCellElement;
+          const before = cell.textContent, align = cell.style.verticalAlign;
+          const css = getComputedStyle(cell);
+          const padding = (parseFloat(css.paddingTop) || 0) + (parseFloat(css.paddingBottom) || 0);
+          const naturalContent = [...cell.children].reduce((height, child) => {
+            const style = getComputedStyle(child);
+            return height + child.getBoundingClientRect().height +
+              (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0);
+          }, 0);
+          const available = limit - cell.getBoundingClientRect().top;
+          const labelParagraphs = cell.children.length;
+          const leadingLabel = keepLabels && span === 1 && naturalContent + padding < available - .5 &&
+            matchesHwpCenteredMergeHeadLabel(cell, explicitFirstLabelsOnly);
+          if (leadingLabel || naturalContent + padding > available + .5) cell.style.verticalAlign = 'top';
+          const rest = splitElement(cell, limit);
+          if (rest) next.append(...rest.childNodes);
+          else if ([...cell.children].some(child => contentBottom(child, true) > limit - (parseFloat(css.paddingBottom) || 0) + .5))
+            next.append(...cell.childNodes);
+          const topContinuation = align === 'middle' && nativeTopContinuation(cell, next, head);
+          cell.style.verticalAlign = topContinuation ? 'top' : align;
+          if (topContinuation) next.style.verticalAlign = 'top';
+          if (before !== cell.textContent + next.textContent) return null;
+          if (leadingLabel) {
+            if (cell.children.length !== labelParagraphs || next.hasChildNodes()) return null;
+            centered.push(cell);
+          }
+          continued ||= span === 1 && !!cell.textContent?.trim() && !!next.textContent?.trim();
+          halves.push({ cell, next, span, row: owner });
+        }
+        if (!continued) return null;
+        for (const { cell, next, span, row: owner } of halves) {
+          cell.rowSpan = cut - owner + 1;
+          next.rowSpan = owner + span - cut;
+          next.dataset.printMergeContinuation = 'true';
+          cell.style.removeProperty('height');
+          next.style.removeProperty('height');
+          tail.append(next);
+        }
+        copies.slice(cut + 1).forEach(row => row.remove());
+        const available = limit - box.top;
+        if (minimum) head.style.height = `${Math.min(minimum, available)}px`;
+        if (!fitsHere()) return null;
+        const measuredHead = head.getBoundingClientRect();
+        if (measuredHead.bottom > limit + .5 || centered.some(cell => !hwpCenteredLabelInkFits(cell)) ||
+          halves.some(({ cell }) => [...cell.children].some(child => contentBottom(child) > limit + .5))) return null;
+        if (minimum) tail.style.height = `${Math.max(0, minimum - measuredHead.height)}px`;
+        group.splice(0, group.length, ...headRows);
+        accepted = true;
+        return tailRows;
+      } finally {
+        if (!accepted) {
+          copies.forEach(row => row.remove());
+          for (const original of group) parent.insertBefore(original, anchor);
+        }
+      }
+    };
+    if (context.keepCenteredMergeLabels && crossing.some(({ cell }) => matchesHwpCenteredMergeHeadLabel(cell, explicitFirstLabelsOnly)))
+      return attempt(true) ?? attempt(false);
+    return attempt(false);
+  }
   function splitMergedGroup(group: HTMLTableRowElement[], boundary: number, protectedFit?: () => boolean): HTMLTableRowElement[] | null {
     if (group.length < 2) return null;
     if (protectedFit) {
       if (group.at(-1)!.getBoundingClientRect().bottom <= boundary + .5) return null;
     } else if (group.some(r => rowSplitPolicy(r.dataset) === 'avoid' || r.dataset.wordRowRule === 'exact')) return null;
-    const entries: { cell: HTMLTableCellElement; row: number; col: number }[] = [];
-    const occupied: number[] = [];
-    for (let row = 0; row < group.length; row++) {
-      let col = 0;
-      for (const cell of [...group[row].cells]) {
-        while ((occupied[col] || 0) > row) col++;
-        entries.push({ cell, row, col });
-        for (let j = col; j < col + cell.colSpan; j++) occupied[j] = row + cell.rowSpan;
-        col += cell.colSpan;
-      }
-    }
+    const entries = mergedGrid(group);
     const firstBody = protectedFit ? group.findIndex(row => !headerRow(row)) : 0;
     if (firstBody < 0) return null;
     const borderFactor = protectedFit && getComputedStyle(group[0].closest('table')!).borderCollapse === 'collapse' ? .5 : 1;
@@ -556,5 +766,5 @@ export function tableFragmenter(context: FragmentContext) {
     }
     return null;
   }
-  return { splitElement, splitMergedGroup };
+  return { splitElement, splitMergedGroup, splitMergedRow };
 }

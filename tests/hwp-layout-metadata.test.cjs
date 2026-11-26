@@ -1,19 +1,23 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
+const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { createRequire } = require('node:module');
 const ts = require('typescript');
 const createFixture = require('./hwp-layout-fixture.cjs');
 const JSZip = require('jszip');
-const setup = (async () => {
-  const source = path.resolve(__dirname, '../src/hwp/layout-metadata.ts'), module = { exports: {} };
-  new Function('require', 'module', 'exports', ts.transpileModule(await fs.readFile(source, 'utf8'), {
+function loadSource(source) {
+  const module = { exports: {} };
+  const load = createRequire(source);
+  new Function('require', 'module', 'exports', ts.transpileModule(readFileSync(source, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
-  }).outputText)(createRequire(source), module, module.exports);
+  }).outputText)(name => name.startsWith('.') && !path.extname(name)
+    ? loadSource(path.resolve(path.dirname(source), name + '.ts')) : load(name), module, module.exports);
   return module.exports;
-})();
+}
+const setup = loadSource(path.resolve(__dirname, '../src/hwp/layout-metadata.ts'));
 test('original HWP and HWPX paragraph headers retain explicit column/page breaks and physical column gaps', async () => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'word-hwp-layout-'));
   try {
@@ -110,4 +114,76 @@ test('tracking flags use the case-insensitive root FileHeader, not a nested deco
     const result = await readHwpLayoutMetadata(CFB.write(cfb, { type: 'buffer' }));
     assert.match(result.conversionBlock, /변경 내용 추적/);
   }
+});
+
+test('ordinary space policy follows the root HWP character records even with compressed DocInfo', async () => {
+  const CFB = require('cfb'), { deflateRawSync } = require('node:zlib');
+  const { readHwpLayoutMetadata } = await setup;
+  const shape = value => {
+    const record = Buffer.alloc(54);
+    record.writeUInt32LE(21 | (50 << 20));
+    record.writeUInt32LE(value ? 1 << 25 : 0, 50);
+    return record;
+  };
+  const records = Buffer.concat([shape(false), shape(true)]);
+  for (const compressed of [false, true]) {
+    const cfb = CFB.utils.cfb_new(), header = Buffer.alloc(256);
+    if (compressed) header[36] = 1;
+    CFB.utils.cfb_add(cfb, 'FileHeader', header);
+    CFB.utils.cfb_add(cfb, 'Preview/DocInfo', shape(true));
+    CFB.utils.cfb_add(cfb, '/docinfo', compressed ? deflateRawSync(records) : records);
+    const result = await readHwpLayoutMetadata(CFB.write(cfb, {type:'buffer'}));
+    assert.deepEqual(result.fontSpace, [false, true]);
+    assert.deepEqual(result.warnings, []);
+  }
+});
+
+test('HWPX uses declared character-space flags only at verified shape indices', async () => {
+  const { readHwpLayoutMetadata } = await setup;
+  const zip = new JSZip();
+  zip.file('Contents/content.hpf', '<p:package><p:item id="header" href="./styles/default.xml" media-type="application/xml"/><p:item id="s" href="section0.xml" media-type="application/xml"/><p:itemref idref="s"/></p:package>');
+  zip.file('Contents/section0.xml', '<s:sec><p:p pageBreak="1"/></s:sec>');
+  zip.file('Contents/header.xml', '<h:head><h:charPr id="0" useFontSpace="1"/></h:head>');
+  const first = '<h:charPr id="0" useFontSpace="0"/>';
+  const second = '<h:charPr useFontSpace="true" id="1"/>';
+  const variants = [
+    { xml: first + '<!-- <h:charPr id="1" useFontSpace="0"/> -->' + second, flags: [false, true] },
+    { xml: first + '<h:charPr id="0" useFontSpace="1"/>' },
+    { xml: first + '<h:charPr id="2" useFontSpace="0"/>' },
+    { xml: first + '<h:charPr id="1"/>' },
+  ];
+  for (const { xml, flags } of variants) {
+    zip.file('Contents/styles/default.xml', '<h:head>' + xml + '</h:head>');
+    const result = await readHwpLayoutMetadata(await zip.generateAsync({ type: 'uint8array' }), true);
+    assert.deepEqual(result.hwpxCellFontSpace, flags);
+    assert.equal(result.fontSpace, undefined);
+    assert.equal(result.paragraphs['0:0'].pageBreak, true);
+    assert.deepEqual(result.warnings, []);
+  }
+});
+
+test('HWPX retains local picture fills and authored brightness beside invalid optional references', async () => {
+  const { readHwpLayoutMetadata } = await setup;
+  const zip = new JSZip();
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+s1gUAAAAASUVORK5CYII=';
+  zip.file('Contents/content.hpf', '<p:package>' +
+    '<p:item id="header" href="header.xml" media-type="application/xml"/>' +
+    '<p:item id="s" href="section0.xml" media-type="application/xml"/>' +
+    '<p:item id="local" href="../BinData/brush.png" media-type="image/png"/>' +
+    '<p:item id="remote" href="https://example.invalid/brush.png" media-type="image/png"/>' +
+    '<p:itemref idref="s"/></p:package>');
+  zip.file('Contents/section0.xml', '<s:sec><p:p pageBreak="1"/></s:sec>');
+  zip.file('BinData/brush.png', png, { base64: true });
+  const brush = (id, image, alpha, bright = 0) => `<h:borderFill id="${id}"><c:fillBrush><c:imgBrush mode="TOTAL">` +
+    `<c:img binaryItemIDRef="${image}" bright="${bright}" contrast="0" effect="REAL_PIC" alpha="${alpha}"/>` +
+    '</c:imgBrush></c:fillBrush></h:borderFill>';
+  zip.file('Contents/header.xml', '<h:head>' + brush(1, 'local', 0) + brush(2, 'remote', 0) + brush(3, 'local', 20) +
+    brush(4, 'local', 0, 8) + brush(5, 'local', 0, 101) + brush(6, 'local', 0, -8) + '</h:head>');
+  const result = await readHwpLayoutMetadata(await zip.generateAsync({ type: 'uint8array' }), true);
+  const source = 'data:image/png;base64,' + png;
+  assert.deepEqual(result.hwpxCellRasterFills, {
+    1: { source, brightness: 0 }, 4: { source, brightness: 8 }, 6: { source, brightness: -8 },
+  });
+  assert.equal(result.paragraphs['0:0'].pageBreak, true);
+  assert.deepEqual(result.warnings, []);
 });

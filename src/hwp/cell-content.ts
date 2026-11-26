@@ -1,20 +1,23 @@
+import { boxedDigitHtml } from '../hwp-boxed-digit';
+import { circledComposition, circledCompositionHtml } from './circled-composition';
 import type { HwpDocument } from '@rhwp/core';
 import { strFromU8 } from 'fflate';
 import { serializedParts } from './serialized-parts';
-import { hwpBookmark, hwpTabAttribute, hwpTabDefinitions } from './text-navigation';
+import { hwpBookmark, hwpPageReferenceLink, hwpTabAttribute, hwpTabDefinitions } from './text-navigation';
 import type { DocumentTabStop } from '../document-tabs';
-import { restoreScriptFonts, sourceFontRuns } from './script-fonts';
+import { preserveHwpSourceSpaces, restoreScriptFonts, sourceFontRuns, type HwpScriptTypography } from './script-fonts';
 import { restoreHwpFixedSpaces } from './fixed-spaces';
 
 export type CellPath = { controlIndex: number; cellIndex: number; cellParaIndex: number }[];
 type Equation = { script: string; fontSize: number; color: number; width: number; height: number };
-export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string; noteId?: string; noteLabel?: string; bookmarkName?: string; fieldType?: string; fieldId?: string };
+type PageReference = { target: string; start: number; end: number };
+export type SerializedControl = { offset: number; kind: string; numberType?: string; emptyHeader?: boolean; binaryItem?: string; noteId?: string; noteLabel?: string; bookmarkName?: string; fieldType?: string; fieldId?: string; boxedDigit?: string; circledNumber?: string; fieldArgument?: string };
 export type SerializedTablePolicy = { pageBreak: 'NONE' | 'TABLE' | 'CELL'; repeatHeader: boolean; treatAsChar?: boolean };
-type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[]; fixedSpaces?: number[]; tabStops?: DocumentTabStop[]; tablePolicies?: (SerializedTablePolicy | undefined)[] };
+type CellContent = { equations: Equation[]; controls: SerializedControl[]; breaks: number[]; pageReference?: PageReference; fixedSpaces?: number[]; tabStops?: DocumentTabStop[]; tablePolicies?: (SerializedTablePolicy | undefined)[] };
 type Paragraph = { key: string; tables: number; cell: boolean; offset: number; tabRef: string; width: number; tabCell?: Cell };
 type Cell = { key: string; paragraphs: number; width?: number };
 type Table = { key: string; cells: number; policy?: SerializedTablePolicy };
-type Frame = { name: string; paragraph?: Paragraph; table?: Table; cell?: Cell; equation?: Equation; control?: SerializedControl };
+type Frame = { name: string; paragraph?: Paragraph; table?: Table; cell?: Cell; equation?: Equation; control?: SerializedControl; referenceArgument?: SerializedControl };
 const fragment = (html: string) => html.match(/<!--StartFragment-->([\s\S]*?)<!--EndFragment-->/)?.[1].trim() ?? html;
 export const entities = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|#\d+|#x[\da-f]+);/gi, value => {
   const names: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&apos;': "'" };
@@ -22,6 +25,36 @@ export const entities = (text: string) => text.replace(/&(?:amp|lt|gt|quot|apos|
   const n = value[2].toLowerCase() === 'x' ? parseInt(value.slice(3, -1), 16) : Number(value.slice(2, -1));
   return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '\ufffd';
 });
+
+/** The clipboard provides the cached digit run and emits the unsupported
+ * Field comment separately. Retain the exact text/style and link just the
+ * authored cached page number to its uniquely identified native bookmark. */
+function cellPageReferenceHtml(content: string, source: string, reference: PageReference) {
+  const markers = /<!--\s*rhwp:\s*셀 안 Field\b[\s\S]*?-->/g;
+  if ([...content.matchAll(markers)].length !== 1 || reference.end !== source.length) return;
+  const plain = content.replace(markers, '').trim();
+  const paragraph = /^(<p\b[^>]*>)([\s\S]*?)(<\/p>)$/.exec(plain);
+  const cache = source.slice(reference.start, reference.end);
+  if (!paragraph || !/^[0-9]{1,6}$/.test(cache) ||
+      /<\/?(?:a|p|table|img|br|svg)\b/i.test(paragraph[2])) return;
+  let offset = 0, depth = 0, literal = '', updated = '', linked = false;
+  for (const [part] of paragraph[2].matchAll(/<[^>]*>|[^<]+/g)) {
+    if (part.startsWith('<')) {
+      if (part.startsWith('<span ')) depth++;
+      if (part === '</span>') depth--;
+      updated += part;
+      continue;
+    }
+    if (!depth && /^[\t\r\n ]*[\r\n][\t\r\n ]*$/.test(part)) { updated += part; continue; }
+    const decoded = entities(part.replace(/&nbsp;/g, '\u00a0'));
+    if (offset <= reference.start && part.endsWith(cache) && reference.end - offset === decoded.length) {
+      updated += part.slice(0, -cache.length) + hwpPageReferenceLink(reference.target, cache);
+      linked = true;
+    } else updated += part;
+    offset += decoded.length; literal += decoded;
+  }
+  return linked && literal === source ? paragraph[1] + updated + paragraph[3] : undefined;
+}
 
 /** Native selection HTML can omit explicit line-break characters. Offsets
  * come from the logical source text, never from cached visual line wrapping. */
@@ -74,6 +107,10 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
         const decoded = text.startsWith('<![CDATA[') ? text.slice(9, -3) : entities(text);
         if (parent?.control?.kind === 'header' && decoded.trim()) parent.control.emptyHeader = false;
         if (parent?.name === 'script' && parent.equation) parent.equation.script += decoded;
+        if (parent?.name === 'stringParam' && parent.referenceArgument && parent.referenceArgument.fieldArgument !== '!') {
+          const argument = (parent.referenceArgument.fieldArgument ?? '') + decoded;
+          parent.referenceArgument.fieldArgument = argument.length <= 1024 ? argument : '!';
+        }
         if (parent?.name === 't' && stack.at(-2)?.name === 'run' && parent.paragraph) parent.paragraph.offset += decoded.length;
         continue;
       }
@@ -117,12 +154,24 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
       } else if (name === 'sz' && parent?.name === 'equation' && frame.equation) {
         frame.equation.width = Number(attr('width')); frame.equation.height = Number(attr('height'));
       }
+      if (name === 'stringParam' && parent?.name === 'parameters' && stack.at(-2)?.name === 'fieldBegin' &&
+          parent.control?.fieldType === 'CROSSREF' && attr('name') === 'Command' && !text.endsWith('/>')) {
+        if (parent.control.fieldArgument === undefined) {
+          parent.control.fieldArgument = '';
+          frame.referenceArgument = parent.control;
+        } else parent.control.fieldArgument = '!';
+      }
       if (parent?.control?.kind === 'header' && ['rect', 'line', 'pic', 'ellipse', 'polygon', 'container', 'tbl', 'equation', 'ole', 'autoNum', 'fieldBegin'].includes(name)) parent.control.emptyHeader = false;
       if (parent?.paragraph && ((parent.name === 'run' && !['t', 'ctrl'].includes(name)) || parent.name === 'ctrl')) {
         const control: SerializedControl = { offset: parent.paragraph.offset, kind: name };
         if (name === 'autoNum') control.numberType = attr('numType');
         if (name === 'header') control.emptyHeader = true;
         if (name === 'ole') control.binaryItem = attr('binaryItemIDRef');
+        if (name === 'compose' && attr('composeType') === 'SPREAD' && attr('charSz') === '-3') {
+          const kind = attr('circleType'), value = entities(attr('composeText'));
+          if (kind === 'SHAPE_RECTANGLE' && /^[0-9]$/.test(value)) control.boxedDigit = value;
+          if (kind === 'SHAPE_CIRCLE') control.circledNumber = circledComposition(value);
+        }
         if (name === 'bookmark') control.bookmarkName = entities(attr('name'));
         if (name === 'fieldBegin') { control.fieldType = attr('type'); control.fieldId = attr('id'); if (control.fieldType === 'BOOKMARK') control.bookmarkName = entities(attr('name')); }
         if (name === 'fieldEnd') control.fieldId = attr('beginIDRef');
@@ -147,6 +196,20 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
   const bookmarks = new Set([...result].flatMap(([key, value]) => value.controls
     .filter(c => c.kind === 'fieldBegin' && c.fieldType === 'BOOKMARK' && c.fieldId)
     .map(c => `${key.split(':')[0]}:${c.fieldId}`)));
+  const destinations = new Map<string, number>();
+  for (const value of result.values()) for (const control of value.controls) {
+    const name = control.bookmarkName;
+    if (name) destinations.set(name, (destinations.get(name) ?? 0) + 1);
+  }
+  for (const [key, value] of result) {
+    const [begin, end] = value.controls;
+    if (!key.includes('/c') || value.controls.length !== 2 || begin.kind !== 'fieldBegin' ||
+        begin.fieldType !== 'CROSSREF' || end.kind !== 'fieldEnd' || !begin.fieldId ||
+        begin.fieldId !== end.fieldId || end.offset <= begin.offset) continue;
+    const target = /^\?([^;\u0000-\u001f]{1,1000});6;0;1;0;$/.exec(begin.fieldArgument ?? '')?.[1];
+    if (target && destinations.get(target) === 1)
+      value.pageReference = { target, start: begin.offset, end: end.offset };
+  }
   for (const [key, value] of result) value.controls = value.controls.filter(c =>
     !(c.kind === 'fieldEnd' && bookmarks.has(`${key.split(':')[0]}:${c.fieldId}`)));
   return result;
@@ -158,10 +221,10 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
 export function restoreCellContent(doc: HwpDocument, section: number, para: number, tableControl: number, tableOrdinal: number, html: string,
   equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
   picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined,
-  nestedTable?: (path: CellPath, html: string, policy?: SerializedTablePolicy) => string, caption?: (key: string, html: string) => string) {
+  nestedTable?: (path: CellPath, html: string, policy?: SerializedTablePolicy) => string, caption?: (key: string, html: string) => string, fontSpace?: readonly boolean[]) {
   const breakKeys = [...metadata()].filter(([, value]) => value.breaks.length).map(([key]) => key);
   const hasBreaks = (prefix: string) => breakKeys.some(key => key.startsWith(prefix + '/'));
-  const fontCache = new Map<number, readonly string[]>();
+  const fontCache = new Map<number, HwpScriptTypography>();
   const scriptFonts = (content: string, path: CellPath, key: string) => {
     // Do not tokenize inline object payloads or guess text/control offsets.
     if (/<(?:img|table)\b|<!--\s*rhwp:/i.test(content)) return content;
@@ -170,7 +233,9 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
       if (!text) return content;
       const runs = sourceFontRuns(doc.getCharShapeRunsInCellByPath(section, para, json, 0, [...text].length), 0, text,
         offset => JSON.parse(doc.getCellCharPropertiesAtByPath(section, para, json, offset)), fontCache);
-      return restoreHwpFixedSpaces(restoreScriptFonts(content, text, runs), text, metadata().get(key)?.fixedSpaces ?? []);
+      const scripts = preserveHwpSourceSpaces(restoreScriptFonts(content, text, runs), text, runs, fontSpace,
+        () => doc.getParagraphLineMetrics(section, para, json));
+      return restoreHwpFixedSpaces(scripts, text, metadata().get(key)?.fixedSpaces ?? []);
     } catch {
       // Font recovery is optional. An unsupported character shape must not
       // discard controls, fields or pictures already repaired in this table.
@@ -247,7 +312,20 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
             } catch { break; }
           }
           const data = metadata().get(paragraphKey);
-          const known = (value: SerializedControl | undefined): string | undefined => {
+          if (data?.pageReference && controls.length === 1 && controls[0].type === 'Field') {
+            const linked = cellPageReferenceHtml(content, doc.getTextInCellByPath(section, para, json, 0, 0xffffffff), data.pageReference);
+            if (linked) {
+              warnings.add('한글 쪽 참조를 책갈피 링크로 가져오며 저장된 쪽 번호를 표시합니다.');
+              parts.push(annotate(scriptFonts(linked, path, paragraphKey), p, paragraphKey));
+              continue;
+            }
+          }
+          const known = (value: SerializedControl | undefined, type: string): string | undefined => {
+            if (type === 'CharOverlap' && value && (value.boxedDigit || value.circledNumber)) {
+              const char = JSON.parse(doc.getCellCharPropertiesAtByPath(section, para, json, value.offset));
+              return value.circledNumber ? circledCompositionHtml(value.circledNumber, char.fontSize)
+                : boxedDigitHtml(value.boxedDigit, char.fontSize);
+            }
             if (value?.bookmarkName) return hwpBookmark(value.bookmarkName);
             if (value?.noteId) return note?.(value);
             if (value?.kind === 'autoNum' && ['PAGE', 'TOTAL_PAGE'].includes(value.numberType ?? ''))
@@ -262,7 +340,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
             // of trusting that placeholder order as the inline position.
             let eq = 0;
             const replacements = controls.map((c, i) => ({ offset: data.controls[i].offset, html: c.type === 'Equation' && data.equations[eq]
-              ? equation(data.equations[eq++]) : c.type === 'Shape' ? shape(path, c.index) ?? c.html : known(data.controls[i]) ?? c.html }));
+              ? equation(data.equations[eq++]) : c.type === 'Shape' ? shape(path, c.index) ?? c.html : known(data.controls[i], c.type) ?? c.html }));
             const paragraph = content.match(/<p\b[^>]*>[\s\S]*?<\/p>/)?.[0] ?? '<p></p>';
             let offset = 0, next = 0, nextBreak = 0, output = '', spanDepth = 0;
             const emit = () => {
@@ -301,7 +379,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
             const index = controls.findIndex((c, i) => i >= next && c.type === type);
             if (index < 0) return comment; next = index + 1;
             if (data?.controls.length === controls.length) {
-              const restored = known(data.controls[index]); if (restored !== undefined) return restored;
+              const restored = known(data.controls[index], type); if (restored !== undefined) return restored;
             }
             if (type === 'Equation') {
               const value = data?.equations[eq++];
@@ -323,6 +401,15 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
             }
           }
           content = fixed + content.slice(at);
+          if (controls.length === 1 && controls[0].type === 'Table' &&
+              /^<p\b[^>]*>[\s\S]*?<\/p>\s*<table\b/.test(content) &&
+              /^ +$/.test(doc.getTextInCellByPath(section, para, json, 0, 0xffffffff))) {
+            const { stored, controlCount, lines, tables } = JSON.parse(doc.getParagraphLineMetrics(section, para, json));
+            if (stored && controlCount === 1 && lines.length === 1 && tables.some((table: { index: number; inline: boolean }) =>
+              table.index === controls[0].index && table.inline)) {
+              content = content.replace(/^<p\b[^>]*>/, tag => tag.replace(/>$/, ' data-hwp-inline-table-spaces="true">'));
+            }
+          }
         }
         // Empty paragraphs also disappear from native selection HTML. Keep
         // their slots: tableGeometry applies the source paragraph formats by

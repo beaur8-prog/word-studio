@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
 import JSZip from 'jszip';
+import type { PageSettings, StudioDocument } from '../src/types';
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, HeightRule, LineRuleType, BorderStyle, SectionType } from 'docx';
 
 const none = { style: BorderStyle.NONE, size: 0, color: 'auto' };
@@ -277,4 +278,85 @@ test('page controls update identical continuous settings in the first shared fra
   await page.keyboard.press('ControlOrMeta+Shift+z');
   await expect.poll(() => editor.locator('.document-section-content').first().getAttribute('data-margin')).toBe('96');
   await page.keyboard.press('ControlOrMeta+z'); await expect.poll(() => editor.evaluate((root: any) => root.editor.getJSON())).toEqual(original);
+});
+
+test('precise custom print paper survives two saves and yields to an external paper-size edit', async ({ page }, testInfo) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { importFile, exportDocx } = await import('/src/document-io.ts');
+    const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
+    const { generateHTML } = await import('/node_modules/@tiptap/core/dist/index.js');
+    const { createPrintLayout } = await import('/src/print-layout.ts');
+    const { defaultPage } = await import('/src/types.ts');
+    const { default: Zip } = await import('/node_modules/.vite/deps/jszip.js');
+    const ns = 'https://word-studio.app/ooxml/paper-size';
+    const w = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const authored = { ...defaultPage, size: 'Custom', width: 296.9965555555556, height: 419.989, orientation: 'portrait' } as const;
+    const landscape = { ...authored, width: 249.915, height: 350.015, orientation: 'landscape' } as const;
+    let document: StudioDocument = { format: 'word-studio', version: 1, title: 'Custom stationery', page: authored,
+      comments: [], updatedAt: '2026-11-20T13:00:00Z',
+      content: parseDocumentHtml('<p>Portrait copy</p><div data-section-page="' +
+        JSON.stringify(landscape).replace(/"/g, '&quot;') + '"></div><p>Landscape copy</p>') };
+    const folder = [];
+    const measurements = [];
+    const settings = (doc: StudioDocument) => {
+      const sections = (doc.content.content ?? []).filter(node => node.type === 'sectionBreak')
+        .map(node => JSON.parse(node.attrs!.page) as PageSettings);
+      return [doc.page, ...sections].map(({ width, height, orientation }) => [width, height, orientation]);
+    };
+    const read = async (file: Blob) => {
+      const loaded = await importFile(new File([file], 'custom.docx'));
+      return { ...loaded.document, content: parseDocumentHtml(loaded.html!) };
+    };
+    const parse = async (zip: typeof Zip.prototype) =>
+      new DOMParser().parseFromString(await zip.file('word/document.xml')!.async('string'), 'application/xml');
+    for (let pass = 0; pass < 3; pass++) {
+      const print = await createPrintLayout(generateHTML(document.content, editorExtensions), document.page);
+      try {
+        measurements.push({ paper: settings(document), pages: print.pages, rules: print.element.querySelector('style')?.textContent, surface: [...print.element.querySelectorAll<HTMLElement>('.print-page')]
+          .map(p => [p.style.width, p.style.height, p.querySelector('.print-content')?.textContent]) });
+      } finally { print.dispose(); }
+      if (pass >= 2) continue;
+      const file = await exportDocx(document);
+      const zip = await Zip.loadAsync(await file.arrayBuffer());
+      const xml = await parse(zip);
+      const layout = [...xml.getElementsByTagNameNS(w,'pgSz')].map(el => ({
+        standard: [el.getAttributeNS(w, 'w'), el.getAttributeNS(w, 'h')],
+        exact: el.getAttributeNS(ns, 'sizeMm'),
+      }));
+      folder.push({ layout, output: [...new Uint8Array(await file.arrayBuffer())] });
+      document = await read(file);
+    }
+    const unchanged = new Uint8Array(folder[1].output);
+    const altered = await Zip.loadAsync(unchanged);
+    const xml = await parse(altered);
+    xml.getElementsByTagNameNS(w, 'pgSz')[0].setAttributeNS(w, 'w:h', '24000');
+    altered.file('word/document.xml', new XMLSerializer().serializeToString(xml));
+    const edited = await read(await altered.generateAsync({type:'blob'}));
+    const malformed = await Zip.loadAsync(unchanged);
+    const bad = await parse(malformed);
+    bad.getElementsByTagNameNS(w, 'pgSz')[0].setAttributeNS(ns, 'wspg:sizeMm', 'Infinity 419.989');
+    malformed.file('word/document.xml', new XMLSerializer().serializeToString(bad));
+    const invalid = await read(await malformed.generateAsync({type:'blob'}));
+    return { measurements, folder, edited: settings(edited), invalid: settings(invalid) };
+  });
+  const expected = [[296.9965555555556, 419.989, 'portrait'], [249.915, 350.015, 'landscape']] as const;
+  const twip = (mm: number) => Math.round(mm * 1440 / 25.4) * 25.4 / 1440;
+  const standard = expected.map(([width, height, orientation]) => [twip(width), twip(height), orientation]);
+  for (const [index, stage] of result.measurements.entries()) {
+    expect(stage.paper).toEqual(index === 0 ? expected : standard);
+    expect(stage.pages).toBe(2);
+    expect(stage.rules).toContain('size:296.9965555555556mm 419.989mm');
+    expect(stage.rules).toContain('size:350.015mm 249.915mm');
+    expect(stage.surface.map(row => row[2])).toEqual(['Portrait copy', 'Landscape copy']);
+    if (index === 2) expect(stage.surface).toEqual(result.measurements[1].surface);
+  }
+  for (const [index, saved] of result.folder.entries()) {
+    expect(saved.layout).toEqual(result.folder[0].layout);
+    expect(saved.layout.map(r => r.exact)).toEqual(['296.9965555555556 419.989', '249.915 350.015']);
+    expect(saved.layout[0].standard).toEqual(['16838', '23810']);
+    await writeFile(testInfo.outputPath('custom-paper-save-' + (index + 1) + '.docx'), Buffer.from(saved.output));
+  }
+  expect(result.edited).toEqual([[16838 * 25.4 / 1440, 24000 * 25.4 / 1440, 'portrait'], standard[1]]);
+  expect(result.invalid).toEqual([[16838 * 25.4 / 1440, 23810 * 25.4 / 1440, 'portrait'], standard[1]]);
 });

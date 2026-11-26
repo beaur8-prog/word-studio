@@ -795,7 +795,7 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       }
       const blob =
         extension === "docx"
-          ? await exportDocx(doc)
+          ? await withoutEditorReflow(() => exportDocx(doc))
           : extension === "wordstudio"
             ? new Blob([JSON.stringify(doc, null, 2)], {
                 type: "application/json",
@@ -853,7 +853,9 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
     if (session.current) { setFileMenu(false); session.current.onViewer(); return; }
     outputLayout.current?.dispose();
     const doc = currentRef.current;
-    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), doc.page, undefined, undefined, wordLayoutOptions(doc)));
+    const layout = await withoutEditorReflow(() => createPrintLayout(editor!.getHTML(), doc.page, undefined, undefined, {
+      ...wordLayoutOptions(doc), nativeDesktop: !!window.wordDesktop,
+    }));
     outputLayout.current = layout;
     layout.element.classList.replace('measuring', 'preview');
     document.body.classList.add('studio-printing');

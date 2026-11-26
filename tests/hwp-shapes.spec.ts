@@ -8,6 +8,70 @@ let directory: string, files: Record<string, string>, grouped: Record<string, st
 test.beforeAll(async () => { directory = await fs.mkdtemp(path.join(os.tmpdir(), 'word-studio-hwp-shapes-')); files = await createFixture(directory); grouped = await createFixture.grouped(directory); });
 test.afterAll(async () => { if (directory) await fs.rm(directory, { recursive: true, force: true }); });
 
+test('proven HWP paper artwork keeps its authored size and anchor in columns through two DOCX saves', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { createPrintLayout } = await import('/src/print-layout.ts');
+    const { exportDocx, importFile } = await import('/src/document-io.ts');
+    const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_react.js');
+    const { defaultPage } = await import('/src/types.ts');
+    const canvas = document.createElement('canvas');
+    canvas.width = 380;
+    canvas.height = 75;
+    const drawing = canvas.getContext('2d')!;
+    drawing.fillStyle = '#763843';
+    drawing.fillRect(0, 0, 380, 75);
+    const src = canvas.toDataURL();
+    const results = [];
+    for (const mode of ['source', 'resized', 'ordinary']) {
+      const picture = document.createElement('img');
+      picture.src = src;
+      picture.width = mode === 'resized' ? 350 : 380;
+      picture.height = 75;
+      picture.dataset.inlineImage = 'true';
+      picture.dataset.imageFloating = JSON.stringify({
+        horizontalPosition: { relative: 'page', offset: 36 * 9525 },
+        verticalPosition: { relative: 'page', offset: 35 * 9525 },
+        wrap: { type: 3 }, layoutInCell: false,
+        ...(mode !== 'ordinary' ? { hwpPaperDrawing: { width: 380, height: 75 } } : {}),
+      });
+      const html = '<div data-column-count="2" data-column-space="12" data-column-balance="false">' +
+        '<p style="line-height:1px;margin:0">' + picture.outerHTML + '</p><p>BODY</p></div>';
+      let doc: Awaited<ReturnType<typeof importFile>>['document'] = { ...(await importFile(new File([html], 'columns.html'))).document,
+        page: { ...defaultPage, size: 'Custom' as const, width: 132, height: 150, margin: 20 },
+        content: parseDocumentHtml(html) };
+      const stages = [];
+      for (let save = 0; save < (mode === 'source' ? 3 : 1); save++) {
+        const preview = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page);
+        try {
+          const sheet = preview.element.querySelector('.print-page')!;
+          const image = sheet.querySelector('img')!;
+          const paper = sheet.getBoundingClientRect(), b = image.getBoundingClientRect();
+          stages.push({ pages: preview.pages, x: b.left - paper.left, y: b.top - paper.top,
+            width: b.width, sameBytes: image.getAttribute('src') === src });
+        } finally { preview.dispose(); }
+        if (save < 2 && mode === 'source') {
+          const reopened = await importFile(new File([await exportDocx(doc)], 'columns.docx'));
+          doc = { ...reopened.document, content: parseDocumentHtml(reopened.html!) };
+        }
+      }
+      results.push(stages);
+    }
+    return results;
+  });
+  for (const stage of result[0]) {
+    expect(stage).toMatchObject({ pages: 1, sameBytes: true });
+    expect(stage.x).toBeCloseTo(36, 1);
+    expect(stage.y).toBeCloseTo(35, 1);
+    expect(stage.width).toBeCloseTo(380, 1);
+  }
+  for (const [control] of result.slice(1)) {
+    expect(control.y).toBeGreaterThan(70);
+    expect(control.width).toBeLessThan(250);
+  }
+});
+
 for (const format of ['hwp', 'hwpx']) test(`${format}: a grouped drawing remains one inline image through two DOCX saves`, async ({ page }) => {
   await page.goto('/');
   const states = await page.evaluate(async ({ bytes, format }) => {
@@ -135,4 +199,32 @@ test('object preparation draws only its own clipped paths and rejects unsupporte
   expect(result.left).toEqual([255, 0, 0, 255]); expect(result.right[3]).toBe(0);
   expect(result.fallback.html).toContain('KEEP OBJECT TEXT'); expect(result.fallback.html).not.toContain('<img');
   expect(result.fallback.warnings).toHaveLength(1); expect(result.oversized).toBe(true); expect(result.aborted).toBe(true); expect(requests).toEqual([]);
+});
+
+test('source tab leader may extend past text bounds while remaining inside its drawing', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { rasterizeHwpObject } = await import('/src/hwp/object-preview.ts');
+    const bounds = { x: 100, y: 200, width: 100, height: 30 };
+    const op = { type: 'tabLeader', bbox: { x: 110, y: 204, width: 50, height: 20 },
+      color: '#ff0000', fontSize: 20, leadersComplete: true,
+      leaders: [{ startX: 10, endX: 70, fillType: 3 }] };
+    const render = (run: typeof op) => rasterizeHwpObject(JSON.stringify({ kind: 'leaf', bounds, ops: [run] }), 104, 34);
+    const png = await render(op), img = new Image(); img.src = png; await img.decode();
+    const canvas = document.createElement('canvas'); canvas.width = 208; canvas.height = 68;
+    const ctx = canvas.getContext('2d')!; ctx.drawImage(img, 0, 0);
+    const rgba = ctx.getImageData(130, 27, 28, 15).data;
+    let beyondText = 0;
+    for (let i = 0; i < rgba.length; i += 4) {
+      if (rgba[i] === 255 && rgba[i + 1] === 0 && rgba[i + 2] === 0 && rgba[i + 3] > 200) beyondText++;
+    }
+    const reject = async (run: typeof op) => {
+      try { await render(run); return false; } catch { return true; }
+    };
+    return { beyondText, outsideObject: await reject({ ...op, leaders: [{ startX: 10, endX: 91, fillType: 3 }] }),
+      invalidOrder: await reject({ ...op, leaders: [{ startX: 20, endX: 10, fillType: 3 }] }),
+      unconfirmed: await reject({ ...op, leadersComplete: false }) };
+  });
+  expect(result.beyondText).toBeGreaterThan(8);
+  expect(result.outsideObject && result.invalidOrder && result.unconfirmed).toBe(true);
 });

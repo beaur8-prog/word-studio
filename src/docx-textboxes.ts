@@ -21,8 +21,9 @@ type PreparedBox={ marker:string; frames:{ frame:TextBoxFrame; html:string }[]; 
 
 function isGeneratedTextBoxCarrier(drawing: Element) {
  const run = drawing.parentElement, paragraph = run?.parentElement;
+ const position = drawing.firstElementChild?.localName;
  if (drawing.namespaceURI !== W || drawing.localName !== 'drawing' ||
-     drawing.children.length !== 1 || drawing.firstElementChild?.namespaceURI !== WP || drawing.firstElementChild.localName !== 'anchor' ||
+     drawing.children.length !== 1 || drawing.firstElementChild?.namespaceURI !== WP || position !== 'anchor' && position !== 'inline' ||
      run?.namespaceURI !== W || run.localName !== 'r' || run.children.length !== 1 ||
      paragraph?.namespaceURI !== W || paragraph.localName !== 'p' || paragraph.children.length !== 2) return false;
  const properties = paragraph.firstElementChild;
@@ -32,7 +33,7 @@ function isGeneratedTextBoxCarrier(drawing: Element) {
  // exact generated spacer, leaving authored content and formatting intact.
  return style?.namespaceURI === W && style.attributes.length === 1 && val(style) === textBoxAnchorStyle.id &&
    spacing?.namespaceURI === W && spacing.attributes.length === 4 && val(spacing, 'before') === '0' &&
-   val(spacing, 'after') === '0' && val(spacing, 'line') === '1' && val(spacing, 'lineRule') === 'exact';
+   val(spacing, 'after') === '0' && val(spacing, 'line') === '1' && val(spacing, 'lineRule') === (position === 'inline' ? 'atLeast' : 'exact');
 }
 
 async function hasGeneratedTextBoxAnchorStyle(zip: JSZip) {
@@ -138,6 +139,14 @@ function modernFrame(shape:Element,page:PageSettings,palette:Awaited<ReturnType<
   return {offset:pct ? base+available*Number(pct.textContent)/100000 : first(p,'posOffset') ? base+Number(first(p,'posOffset')!.textContent)/EMU : align==='center'?base+(available-own)/2 : ['right','bottom','outside'].includes(align||'')?base+available-own:base,relative};
  };
  const hp=position('positionH',false),vp=position('positionV',true),properties=first(shape,'bodyPr');
+ const geometry = first(first(shape, 'spPr'), 'prstGeom');
+ const kind = geometry?.getAttribute('prst');
+ const guides = first(geometry, 'avLst');
+ const guide = guides?.children.length === 1 ? guides.firstElementChild : null;
+ const adjustment = kind === 'roundRect' && guide?.namespaceURI === A && guide.localName === 'gd' &&
+   guide.getAttribute('name') === 'adj' ? /^val ([0-9]{1,5})$/.exec(guide.getAttribute('fmla') ?? '') : null;
+ const adj = adjustment ? Number(adjustment[1]) : undefined;
+ const cornerRadius = adj !== undefined && adj <= 50000 ? Math.min(width, height) / EMU * adj / 100000 : undefined;
  const line=first(first(shape,'spPr'),'ln'),lineColor=first(line,'solidFill'),border=palette.color(lineColor?.firstElementChild||undefined);
  const hAlign=first(anchorPosition(anchor,'positionH'),'align')?.textContent||'';
  const hReference=grouped?'page':['margin','column'].includes(hp.relative)?hp.relative as 'margin'|'column':'page';
@@ -145,7 +154,8 @@ function modernFrame(shape:Element,page:PageSettings,palette:Awaited<ReturnType<
   wrapMargins:[number(anchor,'distT')/EMU,number(anchor,'distR')/EMU,number(anchor,'distB')/EMU,number(anchor,'distL')/EMU],
   padding:[number(properties,'tIns',45720)/EMU,number(properties,'rIns',91440)/EMU,number(properties,'bIns',45720)/EMU,number(properties,'lIns',91440)/EMU],
   align:properties?.getAttribute('anchor')==='ctr'?'center':properties?.getAttribute('anchor')==='b'?'bottom':'top',
-  shape:['homePlate','roundRect'].includes(first(first(shape,'spPr'),'prstGeom')?.getAttribute('prst')||'') ? first(first(shape,'spPr'),'prstGeom')!.getAttribute('prst') as 'homePlate'|'roundRect':'rect',
+  shape:kind === 'homePlate' || kind === 'roundRect' ? kind : 'rect',
+  ...(cornerRadius !== undefined ? { cornerRadius } : {}),
   autoFit:!!first(properties,'spAutoFit'),horizontalReference:hReference,horizontalOffset:hp.offset+x/EMU-(hReference==='page'?0:margins.left*96/25.4),horizontalAlign:!grouped && ['center','right'].includes(hAlign)?hAlign as 'center'|'right':'left',
   wrap:anchor && Array.from(anchor.children).some(c=>['wrapSquare','wrapTight','wrapThrough','wrapTopAndBottom'].includes(c.localName))?'square':'none',noWrap:properties?.getAttribute('wrap')==='none',
   ...palette.fill(shape),...(border ? {border,borderWidth:number(line,'w')/EMU}:{}),behind:anchor?.getAttribute('behindDoc')==='1'};
@@ -242,7 +252,7 @@ export async function prepareTextBoxes(zip:JSZip,body:Document,pages:PageSetting
   const bookmark=body.createElementNS(W,'w:bookmarkStart');bookmark.setAttributeNS(W,'w:id',String(800000+records.length));bookmark.setAttributeNS(W,'w:name',marker);
   const end=body.createElementNS(W,'w:bookmarkEnd');end.setAttributeNS(W,'w:id',String(800000+records.length));
   const generatedCarrier = generatedStyle && possibleCarriers.has(container) &&
-    frames.every(item => item.frame.position === 'floating' && !item.frame.drawingGroup);
+    frames.every(item => !item.frame.drawingGroup && (item.frame.position === 'floating' || frames.length === 1));
   container.before(bookmark,end);container.remove();records.push({marker,frames,generatedCarrier});
  }
  return {count:records.reduce((n,r)=>n+r.frames.length,0),decorate(html:string) {
@@ -280,9 +290,13 @@ export async function writeTextBoxes(zip:JSZip,records:TextBoxExport[]) {
    while(next && next!==finish) {const following=next.nextElementSibling;children.push(next);next=following;}
    if(next!==finish)throw Error('텍스트상자 구조가 올바르지 않습니다.');
    const f=record.frame,emu=(v:number)=>String(Math.round(v*EMU));
-   const syntheticStyle = f.position === 'floating' && !f.drawingGroup ? `<w:pStyle w:val="${textBoxAnchorStyle.id}"/>` : '';
+   const syntheticStyle = !f.drawingGroup ? `<w:pStyle w:val="${textBoxAnchorStyle.id}"/>` : '';
+   const lineRule = f.position === 'inline' && !f.drawingGroup ? 'atLeast' : 'exact';
    const gradient=f.gradient ? `<a:gradFill><a:gsLst>${f.gradient.map(s=>`<a:gs pos="${Math.round(s.position*100000)}"><a:srgbClr val="${s.color.slice(1)}"/></a:gs>`).join('')}</a:gsLst><a:lin ang="5400000" scaled="1"/></a:gradFill>`:f.fill?`<a:solidFill><a:srgbClr val="${f.fill.slice(1)}"/></a:solidFill>`:'<a:noFill/>';
-   const xml=`<w:p xmlns:w="${W}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}"><w:pPr>${syntheticStyle}<w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="exact"/></w:pPr><w:r><w:drawing><wp:anchor distT="${emu(f.wrapMargins?.[0]||0)}" distB="${emu(f.wrapMargins?.[2]||0)}" distL="${emu(f.wrapMargins?.[3]||0)}" distR="${emu(f.wrapMargins?.[1]||0)}" simplePos="0" relativeHeight="${100000+index}" behindDoc="${f.behind?1:0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="${f.horizontalReference||'page'}">${f.horizontalReference && f.horizontalAlign && f.horizontalAlign!=='left'?`<wp:align>${f.horizontalAlign}</wp:align>`:`<wp:posOffset>${emu(f.horizontalOffset??f.x)}</wp:posOffset>`}</wp:positionH><wp:positionV relativeFrom="${f.vertical}"><wp:posOffset>${emu(f.y)}</wp:posOffset></wp:positionV><wp:extent cx="${emu(f.width)}" cy="${emu(f.height)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${f.wrap==='square'?'<wp:wrapSquare wrapText="bothSides"/>':'<wp:wrapNone/>'}<wp:docPr id="${100000+index}" name="Text Box ${index+1}"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri="${WPS}"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(f.width)}" cy="${emu(f.height)}"/></a:xfrm><a:prstGeom prst="${f.shape}"><a:avLst/></a:prstGeom>${gradient}<a:ln w="${emu(f.borderWidth||0)}">${f.border?`<a:solidFill><a:srgbClr val="${f.border.slice(1)}"/></a:solidFill>`:'<a:noFill/>'}</a:ln></wps:spPr><wps:txbx><w:txbxContent/></wps:txbx><wps:bodyPr rot="0" vert="horz" wrap="${f.noWrap?'none':'square'}" lIns="${emu(f.padding[3])}" tIns="${emu(f.padding[0])}" rIns="${emu(f.padding[1])}" bIns="${emu(f.padding[2])}" anchor="${f.align==='center'?'ctr':f.align==='bottom'?'b':'t'}">${f.autoFit?'<a:spAutoFit/>':'<a:noAutofit/>'}</wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
+   const adj = f.shape === 'roundRect' && f.cornerRadius !== undefined
+     ? Math.round(f.cornerRadius * 100000 / Math.min(f.width, f.height)) : undefined;
+   const adjustments = adj === undefined ? '<a:avLst/>' : `<a:avLst><a:gd name="adj" fmla="val ${adj}"/></a:avLst>`;
+   const xml=`<w:p xmlns:w="${W}" xmlns:wp="${WP}" xmlns:a="${A}" xmlns:wps="${WPS}"><w:pPr>${syntheticStyle}<w:spacing w:before="0" w:after="0" w:line="1" w:lineRule="${lineRule}"/></w:pPr><w:r><w:drawing><wp:anchor distT="${emu(f.wrapMargins?.[0]||0)}" distB="${emu(f.wrapMargins?.[2]||0)}" distL="${emu(f.wrapMargins?.[3]||0)}" distR="${emu(f.wrapMargins?.[1]||0)}" simplePos="0" relativeHeight="${100000+index}" behindDoc="${f.behind?1:0}" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="${f.horizontalReference||'page'}">${f.horizontalReference && f.horizontalAlign && f.horizontalAlign!=='left'?`<wp:align>${f.horizontalAlign}</wp:align>`:`<wp:posOffset>${emu(f.horizontalOffset??f.x)}</wp:posOffset>`}</wp:positionH><wp:positionV relativeFrom="${f.vertical}"><wp:posOffset>${emu(f.y)}</wp:posOffset></wp:positionV><wp:extent cx="${emu(f.width)}" cy="${emu(f.height)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>${f.wrap==='square'?'<wp:wrapSquare wrapText="bothSides"/>':'<wp:wrapNone/>'}<wp:docPr id="${100000+index}" name="Text Box ${index+1}"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri="${WPS}"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emu(f.width)}" cy="${emu(f.height)}"/></a:xfrm><a:prstGeom prst="${f.shape}">${adjustments}</a:prstGeom>${gradient}<a:ln w="${emu(f.borderWidth||0)}">${f.border?`<a:solidFill><a:srgbClr val="${f.border.slice(1)}"/></a:solidFill>`:'<a:noFill/>'}</a:ln></wps:spPr><wps:txbx><w:txbxContent/></wps:txbx><wps:bodyPr rot="0" vert="horz" wrap="${f.noWrap?'none':'square'}" lIns="${emu(f.padding[3])}" tIns="${emu(f.padding[0])}" rIns="${emu(f.padding[1])}" bIns="${emu(f.padding[2])}" anchor="${f.align==='center'?'ctr':f.align==='bottom'?'b':'t'}">${f.autoFit?'<a:spAutoFit/>':'<a:noAutofit/>'}</wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>`;
    const parsed=new DOMParser().parseFromString(xml,'application/xml');if(parsed.getElementsByTagName('parsererror').length)throw Error('텍스트상자 XML을 만들 수 없습니다.');
    const p=doc.importNode(parsed.documentElement,true),target=all(p,'txbxContent')[0];target.append(...children);
    if(f.position==='inline'){const anchor=p.getElementsByTagNameNS(WP,'anchor')[0],inline=doc.createElementNS(WP,'wp:inline');for(const c of [...anchor.children])if(['extent','effectExtent','docPr','cNvGraphicFramePr','graphic'].includes(c.localName))inline.append(c);anchor.replaceWith(inline);}

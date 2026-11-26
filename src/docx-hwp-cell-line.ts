@@ -1,6 +1,7 @@
 import { ImportedXmlComponent, Paragraph, type IParagraphOptions } from 'docx';
 import { hwpCellLineNamespace } from './hwp-cell-line';
 import { hwpBodyLineNamespace } from './hwp-body-line';
+import { hwpSourceSpacesNamespace, parseHwpSourceWrap } from './hwp-text-advances';
 import { paragraphTextAlignment } from './paragraph-text-alignment';
 import { wordReflectionXmlAttributes } from './word-reflection';
 
@@ -9,7 +10,8 @@ import { wordReflectionXmlAttributes } from './word-reflection';
 export class HwpCellParagraph extends Paragraph {
   constructor(options: IParagraphOptions, private readonly policy?: string, private readonly bodyPolicy?: string,
     private readonly autoSpacing?: { de?: unknown; dn?: unknown }, private readonly textAlignment?: unknown,
-    private readonly paragraphReflection?: unknown) { super(options); }
+    private readonly paragraphReflection?: unknown, private readonly sourceSpaces = false, private readonly sourceWrap?: unknown,
+    private readonly inlineTableSpaces = false) { super(options); }
   prepForXml(context: Parameters<Paragraph['prepForXml']>[0]) {
     const result = super.prepForXml(context), children = result?.['w:p'];
     // docx 9.x emits wordWrap before tabs. CT_PPr requires tabs first;
@@ -50,15 +52,28 @@ export class HwpCellParagraph extends Paragraph {
       }
       run.push(new ImportedXmlComponent('w14:reflection', reflection).prepForXml(context));
     }
-    if ((this.policy || this.bodyPolicy) && Array.isArray(children)) {
+    const sourceWrap = parseHwpSourceWrap(this.sourceWrap);
+    const wrap = sourceWrap && (this.sourceSpaces || sourceWrap.ends.length === 1 || sourceWrap.nestedHanging ||
+      sourceWrap.columnWidth !== undefined || sourceWrap.columnCellHeight !== undefined || sourceWrap.expandedRowHeight !== undefined ||
+      sourceWrap.authoredCellFace || sourceWrap.cellWidthFallback || sourceWrap.inlineTextBox || sourceWrap.noteTerminal || sourceWrap.floatingTextBox)
+      ? sourceWrap : sourceWrap?.authoredBodyLines &&
+        { fingerprint: sourceWrap.fingerprint, ends: sourceWrap.ends, authoredBodyLines: sourceWrap.authoredBodyLines };
+    if ((this.policy || this.bodyPolicy || this.inlineTableSpaces || this.sourceSpaces || wrap) && Array.isArray(children)) {
       let attributes = children.find((entry: any) => entry && '_attr' in entry)?.['_attr'];
       if (!attributes) { attributes = {}; children.unshift({ _attr: attributes }); }
       Object.assign(attributes, {
         'xmlns:mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006',
-        'mc:Ignorable': [this.policy && 'wsh', this.bodyPolicy && 'wsb'].filter(Boolean).join(' '),
-        'mc:PreserveAttributes': [this.policy && 'wsh:cellLine', this.bodyPolicy && 'wsb:bodyLine'].filter(Boolean).join(' '),
+        'mc:Ignorable': [this.policy && 'wsh', (this.bodyPolicy || this.inlineTableSpaces) && 'wsb',
+          (this.sourceSpaces || wrap) && 'wsa'].filter(Boolean).join(' '),
+        'mc:PreserveAttributes': [this.policy && 'wsh:cellLine', this.bodyPolicy && 'wsb:bodyLine',
+          this.inlineTableSpaces && 'wsb:inlineTableSpaces', this.sourceSpaces && 'wsa:fixed', wrap && 'wsa:wrap'].filter(Boolean).join(' '),
         ...(this.policy ? { 'xmlns:wsh': hwpCellLineNamespace, 'wsh:cellLine': this.policy } : {}),
-        ...(this.bodyPolicy ? { 'xmlns:wsb': hwpBodyLineNamespace, 'wsb:bodyLine': this.bodyPolicy } : {}),
+        ...(this.bodyPolicy || this.inlineTableSpaces ? { 'xmlns:wsb': hwpBodyLineNamespace } : {}),
+        ...(this.bodyPolicy ? { 'wsb:bodyLine': this.bodyPolicy } : {}),
+        ...(this.inlineTableSpaces ? { 'wsb:inlineTableSpaces': '1' } : {}),
+        ...(this.sourceSpaces || wrap ? { 'xmlns:wsa': hwpSourceSpacesNamespace } : {}),
+        ...(this.sourceSpaces ? { 'wsa:fixed': '1' } : {}),
+        ...(wrap ? { 'wsa:wrap': JSON.stringify(wrap) } : {}),
       });
     }
     return result;

@@ -43,7 +43,16 @@ export function stageHwpSections(html: string, page: PageSettings) {
       let body = group.join('').replace(/<hp:secPr\b[^>]*>[\s\S]*?<\/hp:secPr>/g, '')
         .replace(/<hp:linesegarray\b[^>]*>[\s\S]*?<\/hp:linesegarray>/g, '')
         .replace(/<hp:(header|footer)\b[^>]*>[\s\S]*?<\/hp:\1>/g, '');
-      body = body.replace(/(<hp:run\b[^>]*>)/, '$1' + sectionDef);
+      // An intentionally empty leading paragraph might have no run. A
+      // section definition placed in a later paragraph lets the writer
+      // synthesize a duplicate with the wrong paper settings.
+      const [first] = elementRanges(body, 'hp:p');
+      if (!first) throw Error('한글 구역의 첫 문단을 찾지 못했습니다.');
+      const firstRun = /^\s*<hp:run\b[^>]*>/.exec(first.inner)?.[0];
+      const openRun = firstRun && !firstRun.endsWith('/>') ? firstRun : '';
+      const at = first.start + first.open.length + openRun.length;
+      const definition = openRun ? sectionDef : `<hp:run charPrIDRef="0">${sectionDef}</hp:run>`;
+      body = body.slice(0, at) + definition + body.slice(at);
       files[`Contents/section${index}.xml`] = strToU8(start + body + end);
     });
     let content = strFromU8(files['Contents/content.hpf']);

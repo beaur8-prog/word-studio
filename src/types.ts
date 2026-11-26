@@ -7,6 +7,8 @@ export interface PageSettings {
   /** Unrotated physical paper dimensions in millimetres. */
   width?: number;
   height?: number;
+  /** Precise physical print size preserved beside the editable DOCX twip dimensions. */
+  docxPrintPaper?: [number, number];
   orientation: "portrait" | "landscape";
   margin: number;
   margins?: { top: number; right: number; bottom: number; left: number };
@@ -72,6 +74,14 @@ export const basePageMargins = (page: PageSettings) => page.margins ?? {
 export function paperSize(page: PageSettings): [number, number] {
   return page.size === 'Custom' && Number.isFinite(page.width) && Number.isFinite(page.height)
     ? [page.width!, page.height!] : page.size === 'Letter' ? [215.9, 279.4] : [210, 297];
+}
+export function activeDocxPrintPaper(page: PageSettings): [number, number] | undefined {
+  const precise = page.docxPrintPaper;
+  // A later paper-size edit wins, including edits inside the same twip.
+  if (page.size !== 'Custom' || !Array.isArray(precise) || precise.length !== 2 ||
+      !(precise[0] >= 25 && precise[0] <= precise[1] && precise[1] <= 1320)) return;
+  const roundedMm = (mm: number) => Math.round(mm * 1440 / 25.4) * 25.4 / 1440;
+  if (roundedMm(precise[0]) === page.width && roundedMm(precise[1]) === page.height) return precise;
 }
 export function paperDimensions(page: PageSettings): [number, number] {
   const [width, height] = paperSize(page);

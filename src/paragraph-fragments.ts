@@ -1,5 +1,6 @@
 import {imageFloating} from './image-floating';
 import {layoutTabs} from './document-tabs';
+import { paragraphBorderBoxEnd, paragraphBorderBoxStart } from './paragraph-border-box';
 // A hard break belongs to the preceding printed line. Give it an offset so
 // cutting after that line does not leave a spurious blank line on the tail.
 export function paragraphTextWalker(element: HTMLElement) {
@@ -42,18 +43,20 @@ export function prepareParagraphEnds(root: HTMLElement) {
 }
 /** Use existing visual lines: truncating at arbitrary characters can pull part
  * of the next word onto the preceding line, unlike the editable paragraph. */
+const lineGraphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 export function paragraphLineOffsets(element: HTMLElement) {
-  const breaks = new Set<number>(), walker = paragraphTextWalker(element);
+  const breaks = new Set<number>(), walker = paragraphTextWalker(element), range = document.createRange();
   let offset = 0, previousTop: number | undefined;
   while (walker.nextNode()) {
     if (walker.currentNode instanceof HTMLBRElement) { breaks.add(++offset); previousTop = undefined; continue; }
-    const node = walker.currentNode as Text, range = document.createRange();
+    const node = walker.currentNode as Text;
     if (node.parentElement?.closest('[data-docx-tab]')) { offset += node.length; continue; }
     range.selectNodeContents(node);
-    const offsets = [...new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(node.data)].map(s => s.index);
+    let offsets: number[] | undefined;
     for (const rect of range.getClientRects()) {
       if (rect.width < .1 || rect.height < 1) continue;
       if (previousTop === undefined || Math.abs(rect.top - previousTop) > rect.height * .5) {
+        offsets ??= Array.from(lineGraphemes.segment(node.data), segment => segment.index);
         let low = 0, high = offsets.length - 1, first = 0;
         while (low <= high) {
           const mid = (low + high) >> 1;
@@ -89,6 +92,8 @@ export function splitText(element: HTMLElement, offset: number): [HTMLElement, H
   else after.collapse(false);
   const a = element.cloneNode(false) as HTMLElement, b = element.cloneNode(false) as HTMLElement;
   a.append(before.cloneContents()); b.append(after.cloneContents());
+  a.removeAttribute(paragraphBorderBoxEnd);
+  b.removeAttribute(paragraphBorderBoxStart);
   a.dataset.printSoftEnd = 'true'; delete a.dataset.printTrailingBreak;
   if (element.dataset.fragmentOffset !== undefined) b.dataset.fragmentOffset = String(Number(element.dataset.fragmentOffset) + offset);
   // Fragment boundaries retain the same line budget as editor continuation.

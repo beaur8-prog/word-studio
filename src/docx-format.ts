@@ -3,6 +3,8 @@ import { isWordNumberingTabPosition, normalizeWordNumberingTabs } from './docume
 import type JSZip from 'jszip';
 import { wordNumberText } from './word-numbering';
 import { parseWordParagraphBottomBorder } from './word-paragraph-border';
+import { parseParagraphBorderBox, type ParagraphBorderBox } from './paragraph-border-box';
+import { characterScaleProperty, parseCharacterScale } from './character-scale';
 
 export const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 export const all = (root: Element | Document, tag: string) => Array.from(root.getElementsByTagNameNS(W, tag));
@@ -57,6 +59,19 @@ export async function docxFormat(zip: JSZip) {
     return [value?.getAttribute('val'), value?.getAttribute('lastClr'), fallback]
       .find(color => color && hex(color)) || (fallback === 'auto' ? fallback : undefined);
   }
+  function paragraphBorderLine(side: Element | undefined) {
+    if (!side) return null;
+    const style = val(side);
+    if (style === 'none' || style === 'nil') return { style } as const;
+    if (style !== 'single' || ['shadow', 'frame'].some(flag => !['', 'false', '0', 'off'].includes(val(side, flag)))) return null;
+    const rawSize = val(side, 'sz').trim();
+    const rawSpace = side.getAttributeNS(W, 'space')?.trim();
+    if (!/^\+?\d+$/.test(rawSize) || (rawSpace !== undefined && !/^\+?\d+$/.test(rawSpace))) return null;
+    const color = paragraphBorderColor(side);
+    if (color === null) return null;
+    return parseWordParagraphBottomBorder(JSON.stringify({ style, size: Number(rawSize),
+      ...(rawSpace !== undefined ? { space: Number(rawSpace) } : {}), ...(color ? { color } : {}) }));
+  }
   function themeFont(value: string, language: string) {
     const group = theme?.getElementsByTagNameNS('*', value.startsWith('major') ? 'majorFont' : 'minorFont')[0];
     if (!group || !/^(major|minor)(Ascii|HAnsi|EastAsia|Bidi)$/.test(value)) return '';
@@ -97,6 +112,54 @@ export async function docxFormat(zip: JSZip) {
   function paragraphProperties(p: Element) {
     return [child(child(defaults, 'pPrDefault'), 'pPr'), ...tableParagraphProperties(p),
       ...paragraphStyles(p).map(s => child(s, 'pPr')), child(numberingLevel(p).definition, 'pPr'), child(p, 'pPr')];
+  }
+  function partialParagraphBorder(p: Element) {
+    if (p.namespaceURI !== W || p.localName !== 'p') return;
+    const direct = child(p, 'pPr');
+    const border = child(direct, 'pBdr');
+    if (border?.namespaceURI !== W) return;
+    const sides = new Map<string, Element>();
+    for (const side of border.children) {
+      if (side.namespaceURI !== W || !['top', 'left', 'right', 'bottom'].includes(side.localName) || sides.has(side.localName) ||
+          [...side.attributes].some(attr => attr.namespaceURI !== W || !['val', 'sz', 'space', 'color'].includes(attr.localName))) return;
+      sides.set(side.localName, side);
+    }
+    const top = sides.has('top'), bottom = sides.has('bottom');
+    if (top && bottom) return;
+    const left = paragraphBorderLine(sides.get('left')), right = paragraphBorderLine(sides.get('right'));
+    if (left?.style !== 'single' || right?.style !== 'single' || left.size !== right.size || left.color !== right.color) return;
+    if (top || bottom) {
+      const cap = paragraphBorderLine(sides.get(top ? 'top' : 'bottom'));
+      if (cap?.style !== 'single' || cap.size !== left.size || cap.color !== left.color || (cap.space ?? 0) !== 0) return;
+    }
+    // Only ordinary text in direct body paragraphs can share these bounds.
+    if (![...p.children].every(element => element.namespaceURI === W && (element.localName === 'pPr' ||
+        element.localName === 'r' && [...element.children].every(run => run.namespaceURI === W && ['rPr', 't'].includes(run.localName)))) ||
+        !all(p, 't').some(text => text.textContent?.trim()) || all(p, 't').some(text => /[\r\n\t]/.test(text.textContent ?? ''))) return;
+    const margins = [0, 0], spacing = [0, 0];
+    for (const props of paragraphProperties(p)) {
+      if ((props !== direct && child(props, 'pBdr')) || ['sectPr', 'framePr', 'numPr'].some(name => child(props, name)) ||
+          ['pageBreakBefore', 'mirrorIndents', 'bidi'].some(name => { const option = child(props, name); return option && on(option); })) return;
+      const indent = child(props, 'ind');
+      if ([...indent?.attributes ?? []].some(attr => /^(?:left|right|start|end)Chars$/.test(attr.localName))) return;
+      for (const [index, [alternate, physical]] of [['start', 'left'], ['end', 'right']].entries()) {
+        const value = val(indent, alternate) || val(indent, physical);
+        if (value === '') continue;
+        if (!/^\+?\d+$/.test(value) || !Number.isSafeInteger(Number(value))) return;
+        margins[index] = Number(value);
+      }
+      const vertical = child(props, 'spacing');
+      if (['beforeLines', 'afterLines', 'beforeAutospacing', 'afterAutospacing'].some(name => val(vertical, name))) return;
+      for (const [index, name] of ['before', 'after'].entries()) {
+        const value = val(vertical, name);
+        if (value !== '') spacing[index] = Number(value);
+      }
+    }
+    // The existing box painter does not draw through inter-paragraph spacing.
+    if (spacing.some(value => value !== 0)) return;
+    const box = parseParagraphBorderBox(JSON.stringify({ size: left.size, color: left.color ?? 'auto',
+      leftSpace: left.space ?? 0, rightSpace: right.space ?? 0 }));
+    return box ? { box, geometry: JSON.stringify([box, margins]), position: top ? 'open' : bottom ? 'close' : 'middle' } : undefined;
   }
   function numberingLevel(p: Element, selectedLevel?: number) {
     let id = '', level = 0;
@@ -156,6 +219,8 @@ export async function docxFormat(zip: JSZip) {
       // characters. Flatten the compatibility setting into run formatting.
       if (spacing) style.letterSpacing = `${Number(val(spacing)) / 20 *
         (script === 'eastAsia' && balanceWidths && on(balanceWidths) ? 2 : 1)}pt`;
+      const scale = parseCharacterScale(val(child(props, 'w')));
+      if (scale !== null) style.setProperty(characterScaleProperty, String(scale));
       for (const [tag, property, enabled, disabled] of [
         ['b', 'font-weight', 'bold', '400'], ['i', 'font-style', 'italic', 'normal'],
       ]) {
@@ -185,7 +250,16 @@ export async function docxFormat(zip: JSZip) {
       if (shading) style.backgroundColor = shading;
     }
     const family = resolved[script] || resolved.ascii || resolved.hAnsi || resolved.eastAsia;
-    if (family) style.fontFamily = family;
+    if (family) {
+      style.fontFamily = family;
+      // Preserve valid font lists. A literal OOXML font name may contain
+      // a numeric segment that CSS only accepts in a quoted string.
+      if (!style.fontFamily) {
+        const escaped = family.replace(/["\\\n\r\f]/g, character => `\\${character.charCodeAt(0).toString(16)} `);
+        style.fontFamily = `"${escaped}"`;
+      }
+    }
+    if (style.getPropertyValue(characterScaleProperty) === '100') style.removeProperty(characterScaleProperty);
     return style.cssText;
   }
   return {
@@ -204,6 +278,18 @@ export async function docxFormat(zip: JSZip) {
       }
       return result;
     },
+    plainTableOffset(p: Element) {
+      const direct = child(p, 'pPr'), style = byId.get(val(child(direct, 'pStyle'))), spacing = child(direct, 'spacing');
+      const before = Number(val(spacing, 'before')), line = Number(val(spacing, 'line'));
+      const smallMark = (run: Element | undefined) => Array.from(run?.children || []).every(el =>
+        el.namespaceURI === W && ['sz', 'szCs'].includes(el.localName) && val(el) === '2');
+      return !!style && before > 0 && Number.isSafeInteger(before) && line > 0 && Number.isSafeInteger(line) &&
+        Number(val(spacing, 'after')) === 0 && Array.from(spacing?.attributes || []).every(attr =>
+          attr.namespaceURI === W && ['before', 'after', 'line', 'lineRule'].includes(attr.localName)) &&
+        paragraphProperties(p).every(props => Array.from(props?.children || []).every(el =>
+        el.namespaceURI === W && ['pStyle', 'spacing', 'rPr'].includes(el.localName))) &&
+        smallMark(child(direct, 'rPr')) && chain(val(style, 'styleId')).every(layer => smallMark(child(layer, 'rPr')));
+    },
     contextualSpacing(p: Element): boolean | null {
       let enabled: boolean | null = null;
       for (const props of paragraphProperties(p)) {
@@ -212,27 +298,50 @@ export async function docxFormat(zip: JSZip) {
       }
       return enabled;
     },
-    paragraphBottomBorder(p: Element) {
-      if (p.parentElement?.localName !== 'body') return null;
-      // Resolve each side before checking scope. A direct pBdr with just a
-      // bottom side does not remove another side inherited from a style.
+    paragraphBorders(p: Element) {
+      if (p.parentElement?.localName !== 'body') return {};
+      // Resolve each side. Direct formatting for one edge still inherits the
+      // other edges from a style or the document defaults.
       const sides = new Map<string, Element>();
       for (const properties of paragraphProperties(p)) {
         const border = child(properties, 'pBdr');
         if (border) for (const side of border.children) if (side.namespaceURI === W) sides.set(side.localName, side);
       }
-      const bottom = sides.get('bottom');
-      if (!bottom || sides.size !== 1) return null;
-      const style = val(bottom);
-      if (style === 'none' || style === 'nil') return { style };
-      if (style !== 'single' || ['shadow', 'frame'].some(flag => !['', 'false', '0', 'off'].includes(val(bottom, flag)))) return null;
-      const rawSize = val(bottom, 'sz').trim();
-      const rawSpace = bottom.getAttributeNS(W, 'space')?.trim();
-      if (!/^\+?\d+$/.test(rawSize) || (rawSpace !== undefined && !/^\+?\d+$/.test(rawSpace))) return null;
-      const color = paragraphBorderColor(bottom);
-      if (color === null) return null;
-      return parseWordParagraphBottomBorder(JSON.stringify({ style, size: Number(rawSize),
-        ...(rawSpace !== undefined ? { space: Number(rawSpace) } : {}), ...(color ? { color } : {}) }));
+      const read = (edge: string) => paragraphBorderLine(sides.get(edge));
+      const bottom = read('bottom');
+      if (!bottom) return {};
+      if (sides.size === 1) return { bottom };
+      if (bottom.style !== 'single' || (bottom.space ?? 0) ||
+          [...sides.keys()].some(edge => !['top', 'left', 'bottom', 'right', 'between'].includes(edge)) ||
+          (sides.has('between') && !['none', 'nil'].includes(val(sides.get('between'))))) return {};
+      const top = read('top'), left = read('left'), right = read('right');
+      if (top?.style !== 'single' || left?.style !== 'single' || right?.style !== 'single' || (top.space ?? 0) ||
+          [top, left, right].some(edge => edge.size !== bottom.size || (edge.color ?? 'auto') !== (bottom.color ?? 'auto'))) return {};
+      const box = parseParagraphBorderBox(JSON.stringify({ size: bottom.size, color: bottom.color ?? 'auto',
+        leftSpace: left.space ?? 0, rightSpace: right.space ?? 0 }));
+      return box ? { box } : {};
+    },
+    connectedBodyBorders(document: Document) {
+      const children = [...(all(document, 'body')[0]?.children ?? [])];
+      const parts = children.map(partialParagraphBorder);
+      const boxes = new WeakMap<Element, ParagraphBorderBox>();
+      const hasBorder = (p: Element | undefined) => p?.namespaceURI === W && p.localName === 'p' &&
+        paragraphProperties(p).some(props => child(props, 'pBdr'));
+      for (let i = 0; i < parts.length; i++) {
+        const start = parts[i];
+        if (start?.position !== 'open') continue;
+        let end = i + 1;
+        while (parts[end]?.position === 'middle' && parts[end]?.geometry === start.geometry) end++;
+        const close = parts[end];
+        if (close?.position !== 'close' || close.geometry !== start.geometry) continue;
+        // An already bordered adjacent paragraph could fuse two separately
+        // drawn outlines when represented by the same continuous box model.
+        if (!hasBorder(children[i - 1]) && !hasBorder(children[end + 1])) {
+          for (let index = i; index <= end; index++) boxes.set(children[index], start.box);
+        }
+        i = end;
+      }
+      return boxes;
     },
     headingMarks(p: Element) {
       // Typing defaults belong to the source paragraph style/mark, separately

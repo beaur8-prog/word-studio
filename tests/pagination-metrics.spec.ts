@@ -70,3 +70,25 @@ test('a form row can use the first sheet while its indivisible nested notice mov
   await expect(page.locator('.print-page').nth(1)).toContainText('Notice stays together');
   expect(await page.locator('.print-content [style]').evaluateAll(els => els.some(e => (e as HTMLElement).style.zoom))).toBe(false);
 });
+
+test('editor pagination reaches new content while layout requests continue on each frame', async ({ page }) => {
+  await page.goto('/');
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  await expect(editor).toBeVisible();
+  await expect(page.locator('.document-stack')).toHaveAttribute('data-pages', '1');
+  const counts = await editor.evaluate(root => new Promise<number[]>(resolve => {
+    const element = root as HTMLElement & { editor: { commands: { setContent: (html: string) => boolean } } };
+    const paper = element.closest<HTMLElement>('.document-stack')!;
+    const observed: number[] = [];
+    const repeat = () => {
+      observed.push(Number(paper.dataset.pages));
+      if (observed.length === 12) { resolve(observed); return; }
+      requestAnimationFrame(repeat);
+      document.dispatchEvent(new Event('studio-editor-layout-resume'));
+    };
+    requestAnimationFrame(repeat);
+    element.editor.commands.setContent('<p style="line-height:32px">Paragraph for the live page flow</p>'.repeat(72));
+  }));
+  expect(counts.slice(2, -1).some(count => count > 1)).toBe(true);
+  await expect(page.locator('.paper-backgrounds .paper')).not.toHaveCount(1);
+});

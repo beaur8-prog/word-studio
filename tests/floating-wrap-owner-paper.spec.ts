@@ -111,12 +111,12 @@ test('a blank floating anchor after tables does not wrap an earlier paper', asyn
     await page.evaluate(() => document.fonts.ready);
     const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
     await expect(editor.locator('img[alt="' + figureLabel + '"]')).toHaveCount(1);
-    await expect.poll(async () => {
+    let settled!: Measurement;
+    await expect(async () => {
       const frame = await measure(editor);
-      return { image: frame.image.page, clear: frame.targetWidgets === 0 };
-    }).toEqual({ image: figurePage, clear: figurePage === 2 });
-    const settled = await measure(editor);
-    verifyFrame(settled, followingRows, figurePage);
+      verifyFrame(frame, followingRows, figurePage);
+      settled = frame;
+    }).toPass({ timeout: 5000 });
 
     const original = await editor.evaluate(root => (root as HTMLElement & { editor: Editor }).editor.getJSON());
     const target = editor.locator('p').filter({ hasText: targetLabel });

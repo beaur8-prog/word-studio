@@ -3,8 +3,8 @@ import { Decoration } from '@tiptap/pm/view';
 import { measureParagraphLines } from './editor-lines';
 import { layoutHwpCellLines } from './hwp-cell-line-metrics';
 import { layoutWordLines } from './word-line-metrics';
-import { centeredContinuationParagraph, hasCenteredOrdinaryCell, hasHwpCellLines, measureHwpTerminalParagraph, precedingSourceRow, sameHwpTerminalParagraph, tableFragmenter } from './table-fragments';
-import { paragraphLineOffsets, prepareParagraphEnds } from './paragraph-fragments';
+import { canSplitInsideMergedRows, centeredContinuationParagraph, hasCenteredOrdinaryCell, hasHwpCellLines, measureHwpTerminalParagraph, precedingSourceRow, sameHwpTerminalParagraph, tableFragmenter } from './table-fragments';
+import { paragraphLineOffsets, paragraphTextOffset, prepareParagraphEnds } from './paragraph-fragments';
 
 function measureOrdinaryParagraph(paragraph: HTMLParagraphElement) {
   const rect = paragraph.getBoundingClientRect(), range = document.createRange();
@@ -29,20 +29,27 @@ export function canMeasureMergedFragments(rows: HTMLTableRowElement[]) {
 /** A browser redistributes minimum row heights when a vertical merge is split.
  * Measure those same print fragments instead of budgeting every continuation
  * against the unsplit table's original row distribution. Only the view changes. */
-export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElement[], g: Geometry, protectedRows = false) {
-  const merges = rows.flatMap(row => [...row.cells].filter(cell => cell.rowSpan > 1));
+export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElement[], g: Geometry, protectedRows = false, withinRows = false) {
+  const cells = rows.flatMap(row => [...row.cells]);
+  const merges = cells.filter(cell => cell.rowSpan > 1);
   if (!protectedRows && !canMeasureMergedFragments(rows)) return null;
+  if (withinRows && (!canSplitInsideMergedRows(rows) || cells.some(cell => !cell.childElementCount) ||
+    !rows.some(row => row.dataset.rowSplit === 'allow' && [...row.cells].some(cell =>
+      cell.rowSpan === 1 && (cell.childElementCount > 1 ||
+        cell.firstElementChild && paragraphLineOffsets(cell.firstElementChild as HTMLElement).length > 0))))) return null;
+  const flowingCells = withinRows ? cells : merges;
   const table = rows[0].closest('table')!;
   const naturalY = (value: number) => {
     const y = (value - g.origin) / g.scale;
     return y - g.removed.filter(gap => gap.top < y - .5).reduce((sum, gap) => sum + gap.height, 0);
   };
-  const blocks = merges.flatMap(cell => [...cell.children].map(element => {
+  const blocks = flowingCells.flatMap(cell => [...cell.children].map(element => {
     const p = element as HTMLElement, pos = view.posAtDOM(p, 0) - 1;
     const lines = measureParagraphLines(view, p, naturalY);
     const terminal = protectedRows && p.dataset.hwpCellTerminal === 'true' ? measureHwpTerminalParagraph(p) : null;
     return { p, cell, pos, lines, terminal, offsets: lines.map((line, i) => i ? line.pos() - pos - 1 : 0), targets: new Array<number>(lines.length).fill(NaN) };
   }));
+  const blockIds = new Map(blocks.map((block, index) => [block.p, index]));
   if (protectedRows && blocks.some(block => block.p.dataset.hwpCellTerminal === 'true' && !block.terminal)) return null;
   const originalTop = naturalY(rows[0].getBoundingClientRect().top) + g.extra;
   const originalBottom = naturalY(rows.at(-1)!.getBoundingClientRect().bottom) + g.extra;
@@ -63,12 +70,12 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
     const copy = copyRow(row); copy.dataset.fragmentRow = String(i);
     for (let n = 0; n < row.cells.length; n++) {
       const cell = row.cells[n], target = copy.cells[n];
-      if (!merges.includes(cell)) {
+      if (!flowingCells.includes(cell)) {
         if (protectedRows && cell.tagName === 'TD') target.dataset.fragmentCell = String(n);
         continue;
       }
       for (let b = 0; b < cell.children.length; b++) {
-        const id = blocks.findIndex(block => block.p === cell.children[b]);
+        const id = blockIds.get(cell.children[b] as HTMLElement);
         (target.children[b] as HTMLElement).dataset.fragmentBlock = String(id);
         (target.children[b] as HTMLElement).dataset.fragmentOffset = '0';
       }
@@ -94,12 +101,14 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
     return paragraph ? paragraph.getBoundingClientRect().top - row.getBoundingClientRect().top : undefined;
   };
   let leadingEdge: HTMLTableRowElement | null = null;
-  let measurementHeaders: HTMLTableRowElement[] = [];
+  let measurementHeaders = withinRows ? (g.continuationHeaders ?? []).map(copyRow) : [];
   const rowTargets: { top: number; height: number }[] = [], usedPages = new Set<number>();
   const repeatAt = g.measureRepeatAt ?? g.repeatAt;
   const stride = g.height + 24, usable = g.height - g.top - g.bottom;
   const canPlanLongGroup = g.longProtectedGroup && hasCenteredOwner && !hasOrdinaryCenters && !hasHwpCellLines([...rows, ...(g.continuationHeaders ?? [])]) && originalBottom - originalTop > usable + .5;
   let currentTop = originalTop, page = Math.max(0, Math.floor((currentTop - g.top + .5) / stride));
+  const startingPage = page;
+  let splitInsideRow = false;
   let rowAnchor = true;
   let pending = copies, finalBottom = originalBottom;
   const fragments = tableFragmenter({ bodyHeight: () => usable - (g.reserveAt?.(page) ?? 0), hasDeferredNote: () => false, deferredNotes: () => new Set() });
@@ -136,7 +145,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
 
     for (let pass = 0; pending.length && pass < 512; pass++) {
       const first = !usedPages.size;
-      const repeated = !first && measurementHeaders.length > 0;
+      const repeated = (!first || withinRows && page > startingPage) && measurementHeaders.length > 0;
       const prefix = repeated ? measurementHeaders : first && leadingEdge ? [leadingEdge] : [];
       body.replaceChildren(...prefix, ...pending); prepareParagraphEnds(probe); layoutWordLines(probe); layoutHwpCellLines(probe);
       const origin = probe.getBoundingClientRect().top;
@@ -147,6 +156,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       const tableTop = currentTop - (rowAnchor ? inset : 0);
       const boundary = page * stride + g.height - g.bottom - (g.reserveAt?.(page) ?? 0);
       let tail: HTMLTableRowElement[] | null = null;
+      let continuedRow = false;
       const fitsHere = () => probe.getBoundingClientRect().height <= boundary - tableTop + .5;
       if (!fitsHere()) {
         const fragmentHeight = probe.getBoundingClientRect().height - (prefix.length ? inset : 0);
@@ -156,13 +166,19 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
           layoutHwpCellLines(probe);
           return fitsHere();
         };
-        tail = fragments.splitMergedGroup(pending, origin + boundary - tableTop, protectedRows ? verifyProtectedFit : undefined);
+        const cut = origin + boundary - tableTop;
+        if (withinRows) {
+          tail = fragments.splitMergedRow(pending, cut, verifyProtectedFit);
+          continuedRow = !!tail;
+          splitInsideRow ||= continuedRow;
+        }
+        tail ??= fragments.splitMergedGroup(pending, cut, protectedRows ? verifyProtectedFit : undefined);
         if (!tail) {
           // Like print, a group with no fitting first row starts on a fresh
           // sheet. An oversized unsplittable group retains the old fallback.
           if (protectedRows && (!usedPages.size || canPlanLongGroup)) return null;
           if (currentTop <= page * stride + g.top + (repeatAt?.(page) ?? 0) + .5) return null;
-          page++; const header = repeatAt?.(page) ?? 0;
+          page++; const header = withinRows && measurementHeaders.length ? 0 : repeatAt?.(page) ?? 0;
           currentTop = page * stride + g.top + header; rowAnchor = header > 0; continue;
         }
         layoutWordLines(probe); layoutHwpCellLines(probe);
@@ -170,7 +186,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       }
       const localY = (value: number) => tableTop + value - origin;
       usedPages.add(page);
-      if (repeated) {
+      if (repeated && protectedRows) {
         const row = pending[0], source = rows[Number(row.dataset.fragmentRow)];
         for (const cell of row.cells) {
           if (cell.dataset.fragmentCell === undefined || hasOrdinaryCenters && getComputedStyle(cell).verticalAlign === 'middle') continue;
@@ -183,7 +199,9 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       }
       for (const row of pending) {
         const sourceIndex = Number(row.dataset.fragmentRow), rowBox = row.getBoundingClientRect();
-        rowTargets[sourceIndex] = { top: localY(rowBox.top), height: rowBox.height };
+        const prior = rowTargets[sourceIndex];
+        rowTargets[sourceIndex] = withinRows && prior ? { top: prior.top, height: localY(rowBox.bottom) - prior.top } :
+          { top: localY(rowBox.top), height: rowBox.height };
         if (hasOrdinaryCenters) for (const cell of row.cells) {
           if (cell.dataset.fragmentCell === undefined || getComputedStyle(cell).verticalAlign !== 'middle') continue;
           const paragraph = centeredContinuationParagraph(cell);
@@ -202,6 +220,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
         if (block.terminal && !sameHwpTerminalParagraph(block.terminal, measureHwpTerminalParagraph(p))) return null;
         // DOM offsets include real BRs, matching ProseMirror's hard-break unit.
         const position = (node: Node, at: number) => {
+          if (withinRows) return paragraphTextOffset(p, node, at);
           const range = document.createRange(); range.selectNodeContents(p); range.setEnd(node, at);
           return range.toString().length + range.cloneContents().querySelectorAll('br').length;
         };
@@ -217,13 +236,14 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
       // Cutting a merge can make its retained rows shorter. Print may then
       // fit the next source row on the same sheet; advance only when that
       // next group has no fitting row at the remaining physical boundary.
-      if (pending.length && protectedRows) {
+      if (pending.length && (protectedRows || continuedRow)) {
         page++;
         const header = measurementHeaders.length ? 0 : repeatAt?.(page) ?? 0;
         currentTop = page * stride + g.top + header; rowAnchor = header > 0;
       } else if (pending.length) { currentTop = finalBottom; rowAnchor = true; }
     }
-    if (pending.length || rows.some((_, i) => !rowTargets[i]) || blocks.some(block => block.targets.some(y => !Number.isFinite(y)))) return null;
+    if (pending.length || withinRows && !splitInsideRow ||
+      rows.some((_, i) => !rowTargets[i]) || blocks.some(block => block.targets.some(y => !Number.isFinite(y)))) return null;
     const gaps = rowTargets.map((target, i) => Math.max(0, target.top -
       (i ? rowTargets[i - 1].top + rowTargets[i - 1].height : originalTop)));
     if (ordinaryTargets.size) {
@@ -285,7 +305,7 @@ export function measuredMergedFragments(view: EditorView, rows: HTMLTableRowElem
         { class: 'pagination-merge-label', style: `--pagination-label-shift:${shift}px` }));
       signatures.push(`measured-merge-seam:${pos}:${shift}`);
     }
-    for (const cell of merges) {
+    for (const cell of flowingCells) {
       const own = blocks.filter(block => block.cell === cell), cellPos = view.posAtDOM(cell, 0) - 1;
       const style = getComputedStyle(cell), border = getComputedStyle(table).borderCollapse === 'collapse' ? .5 : 1;
       const padding = ownerInsets.get(cell) ?? ((parseFloat(style.paddingTop) || 0) + (parseFloat(style.borderTopWidth) || 0) * border);
