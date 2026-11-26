@@ -10,6 +10,10 @@ const { pathToFileURL } = require('node:url');
 async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
   const title = page.locator('.topbar').getByRole('textbox', { name: '문서 제목', exact: true });
   await fs.mkdir(directory, { recursive: true });
+  const readStoredAdvances = () => page.locator('.document-stack p[data-hwp-body-line^="14 "]')
+    .evaluateAll(paragraphs => paragraphs.map(p => [p.dataset.hwpBodyLine, p.textContent]));
+  const storedAdvances = process.env.WINDOWS_CHECK_HWP_MIXED_ADVANCE === '1' ? await readStoredAdvances() : null;
+  if (storedAdvances && storedAdvances.length < 3) throw Error('Missing original mixed-height measurements');
   for (let generation = 1; generation <= 2; generation++) {
     selectStage('native-docx-save-' + generation);
     const name = 'textbox-save-' + item.id + '-native-' + generation;
@@ -72,6 +76,12 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
     }
     await page.locator('.busy-indicator').waitFor({state: 'hidden', timeout: 180000});
     await page.evaluate(() => document.fonts.ready);
+    if (storedAdvances) {
+      const roundtrip = await readStoredAdvances();
+      const equal = JSON.stringify(roundtrip) === JSON.stringify(storedAdvances);
+      console.log('WINDOWS_MIXED_ADVANCE_ROUNDTRIP ' + JSON.stringify({ generation, expected:storedAdvances.length, actual:roundtrip.length, equal }));
+      if (!equal) throw Error('Stored mixed-font advances changed');
+    }
     console.log('WINDOWS_NATIVE_DOCX_SAVED_AND_REOPENED ' + generation);
   }
 }

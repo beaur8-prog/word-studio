@@ -9,7 +9,7 @@ module.exports = async function captureTerminalWitness(page, sourcePath) {
   const { default: init, HwpDocument } = await import(pathToFileURL(join(engineRoot, 'rhwp.js')).href);
   await init({ module_or_path: await readFile(join(engineRoot, 'rhwp_bg.wasm')) });
   const source = new HwpDocument(await readFile(sourcePath));
-  const wanted = [119, 120, 121, 122, 123, 124, 163, 164, 165, 166, 167, 168];
+  const wanted = [103, 111, 117, 119, 120, 121, 122, 123, 124, 163, 164, 165, 166, 167, 168];
   let keys;
   try {
     keys = wanted.map(index => [index, source.getTextRange(0, index, 0, 0xffffffff).replace(/\s/gu, '')]);
@@ -49,7 +49,7 @@ module.exports = async function captureTerminalWitness(page, sourcePath) {
       records.push({ index, found: true, page: Number(paper.dataset.page), p: relative(pBox), frame: relative(frameBox),
         fragmentRects: [...node.getClientRects()].map(relative), glyphs,
         tail: tail ? relative(tail.getBoundingClientRect()) : null,
-        lineHeight: css.lineHeight, indent: css.textIndent,
+        lineHeight: css.lineHeight, indent: css.textIndent, storedMixedPitch: node.hasAttribute('data-hwp-stored-mixed-pitch'),
         columnChildren: column?.childElementCount ?? null,
         flags: [...node.attributes].filter(value => value.name.startsWith('data-hwp-column')).map(value => value.name) });
     }

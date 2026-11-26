@@ -128,6 +128,10 @@ function textTokens(html: string) {
   return tokens;
 }
 
+export function hwpRunText(html: string) {
+  return textTokens(html).map(token => token.text ?? '').join('');
+}
+
 /** Compare the actual metric-bearing run properties across a re-numbering
  * of native character shapes. Unused script family slots can change on save. */
 export function nativeLineTypography(doc: Pick<HwpDocument, 'getCharShapeRuns' | 'getCharPropertiesAt'>, section: number, paragraph: number, length: number) {
@@ -159,7 +163,7 @@ function preserveHwpMeasuredLineEnds(html: string, text: string, readLines: () =
   body?: BodyLineWitness, columnPaint?: readonly ColumnPaintLine[]) {
   if (text.length > 20000 || /[\u0000-\u001f\uD800-\uDFFF\ufffc]/u.test(text) ||
       !/^<p\b[^>]*>[\s\S]*<\/p>$/i.test(html) || /<(?!\/?(?:p|span|strong|b|i|em|u)\b)/i.test(html)) return html;
-  const literal = textTokens(html).map(token => token.text ?? '').join('');
+  const literal = hwpRunText(html);
   const normalized = normalizeHwpWrapText(literal);
   if (!normalized || normalized !== normalizeHwpWrapText(text)) return html;
   try {
@@ -236,7 +240,7 @@ export function restoreUniformLatinMetrics(html: string, text: string, run: HwpF
   if (run.start !== 0 || run.end !== text.length || !(run.base && run.base > 0) ||
       run.widths?.[1] || !run.fonts[1] || !/[A-Za-z]/.test(text) ||
       !/^[ -~\u00a0\u2007\u2010-\u201f\u2026]+$/.test(text) || /<(?!\/?(?:p|span)\b)/i.test(html)) return;
-  const literal = textTokens(html).map(token => token.text ?? '').join('');
+  const literal = hwpRunText(html);
   // A serialized fixed space is already projected to its quarter-em
   // counterpart. Its one-character position must stay exactly where it was.
   if (literal.length !== text.length || [...text].some((char, i) =>

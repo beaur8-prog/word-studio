@@ -60,6 +60,29 @@ function measuredPosition(pitches: ReadonlyMap<string, number>, section: number,
   return { page, x, y };
 }
 
+/** A mixed-font line can keep its stored advance when the next line
+ * starts immediately after that advance and its authored paragraph spacing. */
+export function sourceHwpMixedColumnPitch(doc: HwpDocument, section: number, paragraph: number,
+  pitches: ReadonlyMap<string, number>, font: number, pitch: number, after: number): number | undefined {
+  const here = measuredPosition(pitches, section, paragraph, true);
+  if (!here || pitches.get(`lines:${section}:${paragraph}`) !== 1 || !(after >= 0)) return;
+  try {
+    const paper: Paper = JSON.parse(doc.getPageInfo(here.page));
+    const current: Lines = JSON.parse(doc.getParagraphLineMetrics(section, paragraph, '[]'));
+    const next: Lines = JSON.parse(doc.getParagraphLineMetrics(section, paragraph + 1, '[]'));
+    const position = JSON.parse(doc.getPageOfPosition(section, paragraph + 1));
+    if (laneAt(paper, here.x) < 0 || !position.ok || position.page !== here.page ||
+        !current.stored || current.controlCount || current.lines?.length !== 1 || !next.stored || !next.lines?.length) return;
+    const [line] = current.lines, following = next.lines[0];
+    if (line.textStart || !near(line.height, font, .06) || !near(line.textHeight, font, .06) ||
+        !near(line.height + line.spacing, pitch, .06) || line.width < font * 4 ||
+        !near(here.y, bodyTop(paper) + line.verticalPosition) ||
+        !near(line.verticalPosition + line.height + line.spacing + after, following.verticalPosition, .12)) return;
+    const bottom = paper.footerArea?.y;
+    if (bottom !== undefined && here.y + pitch + after <= bottom + .08) return line.width;
+  } catch { /* The natural mixed-font line remains available without a stored advance. */ }
+}
+
 /** Only a complete stored line before a native column/page break can omit
  * its unused leading. The source layer supplies the shared paint baseline. */
 export function sourceHwpColumnEndFit(doc: HwpDocument, section: number, paragraph: number,

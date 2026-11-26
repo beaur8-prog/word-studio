@@ -63,6 +63,30 @@ function applyStoredMixedPitch(paragraph: HTMLElement, line: HwpBodyLine) {
   }
 }
 
+/** Apply the source advance without moving the visible glyphs. This
+ * keeps browser fallback leading from accumulating before a column break. */
+function applyStoredMixedColumnPitch(paragraph: HTMLElement, line: HwpBodyLine) {
+  const proof = line.columnSingle;
+  if (!proof || paragraph.style.height || !paragraph.parentElement?.matches('[data-column-count="2"]') ||
+      !paragraph.closest('.print-content') ||
+      paragraph.matches('[data-print-paragraph-fragment],[data-print-soft-end],[data-paragraph-border-box],[data-word-paragraph-bottom-border]') ||
+      paragraph.querySelector('a,[id],mark,u,s,del,[data-flow-widget]') ||
+      hwpWrapFingerprint(paragraph.textContent ?? '') !== proof.fingerprint) return;
+  const css = getComputedStyle(paragraph), scale = documentScale(paragraph), indent = parseFloat(css.textIndent);
+  const boxes = paragraph.getClientRects();
+  if (!(scale > 0 && indent < 0) || css.direction !== 'ltr' || css.writingMode !== 'horizontal-tb' ||
+      css.textAlign !== 'justify' || css.transform !== 'none' || boxes.length !== 1) return;
+  const box = boxes[0], difference = box.height / scale - line.base;
+  const tolerance = .05 + 1 / 15 + 2 / 64;
+  if (Math.abs(box.width / scale - indent - proof.width) > tolerance ||
+      difference <= 1 / 64 || difference > line.base - line.font || paragraphLineOffsets(paragraph).length) return;
+  const ink = measuredHwpLineInk(paragraph, scale, line.font, true);
+  if (!ink || ink.top < box.top || ink.bottom > box.top + line.base * scale ||
+      !horizontalInkFits(paragraph, document.createRange(), { left: box.left + indent * scale, right: box.right })) return;
+  paragraph.style.height = `${line.base}px`;
+  paragraph.dataset.hwpStoredMixedPitch = 'true';
+}
+
 /** Keep the native two-line strut at the unchanged width when the
  * laid-out lines already clear its lower edge. */
 function storedPairHeight(paragraph: HTMLElement, line: HwpBodyLine, active = false) {
@@ -217,7 +241,8 @@ export function layoutHwpBodyLines(root: HTMLElement, paintSourcePairs = false) 
     // retains its font size and supplies its own percentage line box.
     p.style.lineHeight = '0';
     applyStoredMixedPitch(p, line);
-    if (paintSourcePairs && line.storedUniformPair) {
+    if (paintSourcePairs && line.columnSingle) applyStoredMixedColumnPitch(p, line);
+    else if (paintSourcePairs && line.storedUniformPair) {
       const height = storedPairHeight(p, line);
       if (height !== undefined) {
         p.style.height = `${height}px`;

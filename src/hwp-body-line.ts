@@ -9,7 +9,7 @@ export type HwpTerminalLineFit = { baseline: number; remainder: number; width: n
 export type HwpColumnEndFit = HwpTerminalLineFit & { hang?: true };
 export type HwpStoredMixedLinePair = readonly [first: { pitch: number; baseline: number }, second: { pitch: number; baseline: number }];
 export type HwpPaperHeading = { fingerprint: string; width: number };
-export interface HwpBodyLine { percent: number; font: number; base: number; maxFont?: number; align?: 'top' | 'mixed-top' | 'column-end'; cell?: true; empty?: true; storedSingleLine?: true; storedUniformPair?: true; mixedLinePair?: HwpStoredMixedLinePair; precisePitch?: true; columnFit?: HwpColumnEndFit; bodyEndFit?: HwpTerminalLineFit; paperHeading?: HwpPaperHeading }
+export interface HwpBodyLine { percent: number; font: number; base: number; maxFont?: number; align?: 'top' | 'mixed-top' | 'column-end'; cell?: true; empty?: true; storedSingleLine?: true; storedUniformPair?: true; mixedLinePair?: HwpStoredMixedLinePair; columnSingle?: { fingerprint: string; width: number }; precisePitch?: true; columnFit?: HwpColumnEndFit; bodyEndFit?: HwpTerminalLineFit; paperHeading?: HwpPaperHeading }
 export const hwpBodyLineNamespace = 'urn:wordstudio:hwp-body-line:1';
 const alignments = [undefined, 'top', 'mixed-top', 'column-end'] as const;
 
@@ -20,12 +20,13 @@ function validStoredUniformPair(percent: number, font: number, base: number) {
 export function parseHwpBodyLine(value: unknown): HwpBodyLine | null {
   if (typeof value !== 'string' || value.length > 160) return null;
   const [version, ...parts] = value.trim().split(/\s+/);
-  if (version === '13') {
+  if (version === '13' || version === '14') {
     const [percent, font, base, width] = parts.slice(0, 4).map(Number);
     const fingerprint = parts[4];
     return parts.length === 5 && validStoredUniformPair(percent, font, base) && Number.isFinite(width) &&
       width > font && width <= 10000 && /^[0-9a-f]{16}$/.test(fingerprint)
-      ? { percent, font, base, paperHeading: { width, fingerprint } } : null;
+      ? { percent, font, base, ...(version === '13' ? { paperHeading: { width, fingerprint } } :
+        { columnSingle: { width, fingerprint } }) } : null;
   }
   if (version === '12') {
     const [percent, font, base] = parts.map(Number);
@@ -74,6 +75,8 @@ export function parseHwpBodyLine(value: unknown): HwpBodyLine | null {
 }
 const rounding = (n: number) => Math.round(n * 10000) / 10000;
 export function encodeHwpBodyLine(line: HwpBodyLine) {
+  if (line.columnSingle) return [14, ...[line.percent, line.font, line.base, line.columnSingle.width].map(rounding),
+    line.columnSingle.fingerprint].join(' ');
   if (line.paperHeading) return [13, ...[line.percent, line.font, line.base, line.paperHeading.width].map(rounding),
     line.paperHeading.fingerprint].join(' ');
   const column = line.align === 'column-end' ? line.columnFit : undefined;

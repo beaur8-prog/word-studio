@@ -251,3 +251,54 @@ test('fractional HWP leading keeps standard exact DOCX spacing and yields to an 
   }, data);
   expect(changed).toEqual({ pitch: '15pt', stored: undefined, text: 'Leading with the original exact measure' });
 });
+
+test('a stored mixed-font column line keeps its authored advance while its ink fits', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { layoutHwpBodyLines } = await import('/src/hwp-body-line-metrics.ts');
+    const { encodeHwpBodyLine, parseHwpBodyLine } = await import('/src/hwp-body-line.ts');
+    const { hwpWrapFingerprint } = await import('/src/hwp-text-advances.ts');
+    const root = document.createElement('div');
+    root.className = 'tiptap print-content';
+    Object.assign(root.style, { position: 'fixed', left: '-10000px', top: '0', padding: '0', width: '840px' });
+    root.innerHTML = `<div data-column-count="2" style="column-count:2;column-gap:12px">
+      <p style="margin:0 0 0 15px;text-align:justify;text-indent:-15px;font-family:'Noto Sans KR';font-size:18px"><span style="font-family:'Noto Sans KR';font-size:18px">01. Alpha</span><span style="font-family:'Studio Text';font-size:17.5px"> 가나다 Vyg.</span></p></div>`;
+    document.body.append(root);
+    try {
+      await Promise.all([document.fonts.load('18px "Noto Sans KR"', '01. Alpha'), document.fonts.load('17.5px "Studio Text"', '가나다 Vyg.')]);
+      const paragraph = root.querySelector('p')!, group = paragraph.parentElement!;
+      const format = { percent: 130, font: 18, base: 23.4 };
+      paragraph.dataset.hwpBodyLine = encodeHwpBodyLine(format);
+      layoutHwpBodyLines(root, false);
+      const ordinary = paragraph.getBoundingClientRect().height;
+      const width = paragraph.getBoundingClientRect().width + 15;
+      const authored = paragraph.textContent!;
+      paragraph.dataset.hwpBodyLine = encodeHwpBodyLine({ ...format,
+        columnSingle: { width, fingerprint: hwpWrapFingerprint(authored) } });
+      const proof = parseHwpBodyLine(paragraph.dataset.hwpBodyLine)?.columnSingle;
+      layoutHwpBodyLines(root, true);
+      const fitted = paragraph.getBoundingClientRect().height;
+      const applied = paragraph.dataset.hwpStoredMixedPitch === 'true';
+      const preserved = paragraph.textContent === authored;
+      layoutHwpBodyLines(root, false);
+      const nativeKeepsNatural = paragraph.getBoundingClientRect().height === ordinary &&
+        !paragraph.hasAttribute('data-hwp-stored-mixed-pitch');
+      group.style.width = '820px';
+      layoutHwpBodyLines(root, true);
+      const changedWidth = paragraph.hasAttribute('data-hwp-stored-mixed-pitch');
+      group.style.width = '';
+      paragraph.append(' edit');
+      layoutHwpBodyLines(root, true);
+      return { ordinary, fitted, applied, preserved, proof, width, nativeKeepsNatural,
+        changedWidth, changedContent:paragraph.hasAttribute('data-hwp-stored-mixed-pitch') };
+    } finally { root.remove(); }
+  });
+  expect(result.proof?.width).toBeCloseTo(result.width, 3);
+  expect(result.applied, JSON.stringify(result)).toBe(true);
+  expect(result.fitted).toBeLessThan(result.ordinary);
+  expect(result.fitted).toBeCloseTo(23.4, 1);
+  expect(result.preserved).toBe(true);
+  expect(result.nativeKeepsNatural).toBe(true);
+  expect(result.changedWidth).toBe(false);
+  expect(result.changedContent).toBe(false);
+});

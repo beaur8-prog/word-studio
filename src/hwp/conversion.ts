@@ -36,13 +36,13 @@ import { sourceCellCaptionLine, sourceScaledCellLine, type NativeCellInkRun } fr
 import { sourceHwpCompactCellFace, type CompactCellFacePosition } from './source-cell-face';
 import { encodeHwpCellRasterFill, hwpCellRasterFillAttribute, type HwpCellRasterPicture } from '../hwp-cell-raster-fill';
 import { hwpCenteredCellLabelsAttribute } from '../hwp-centered-cell-labels';
-import { sourceHwpBodyEndFit, sourceHwpColumnEndFit, sourceHwpForcedBodyEnd } from './source-column-end';
+import { sourceHwpBodyEndFit, sourceHwpColumnEndFit, sourceHwpForcedBodyEnd, sourceHwpMixedColumnPitch } from './source-column-end';
 import { sourceFootnoteTerminal } from './source-footnote-terminal';
 import { sourceCellTerminal, sourceTableTerminalBoxes } from './source-cell-terminal';
 import { nestedTableGeometry } from './nested-tables';
 import { hwpCellBorders } from './cell-borders';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, sourcePreciseColumnPitch, cellParagraphCss, paragraphAutoSpace, hwpBodyTextAtLineTop, sourceStoredMixedLine, sourceMixedBodyLinePair, sourceUniformMixedLinePair, sourceTerminalTextAtLineTop, sourceTextAfterInlineTableFits, sourceInitialTableLead, sourceHostBeforeFloatingTable, sourceHostOnPriorPage, sourceTerminalEmptyLine, sourceTerminalEmptyLineAfterTable, sourceInlineStrokeHeight, sourceKeptInlineTable, sourceKeptInlineTableAfterBody, sourceMixedCellLeading, sourceBlankAutoCellFits, sourceIntactCellBefore, sourceSplitCellBefore, sourcePaintedCellBefore, sourceWholeParagraphPeerRow, sourceInlinePeerInMiddleFragment, sourceColumnCellWrap, sourceBeforeNestedCellTail, sourceCellBoundsTolerance, sourceScaledCellRun, sourceBodyPictureFlow, sourceInlineGroupReserve, sourcePaperHeadingLine, sourceTightInlinePicture, sourceInlineColumnTableIndent, type HwpPaintedLine, connectedHwpBorderGroup } from './paragraph-layout';
-import { nativeLineTypography, preserveHwpBodyLineEnds, preserveHwpColumnLineEnds, preserveHwpSourceSpaces, restoreUniformLatinMetrics, restoreScriptFonts, sourceFontRuns, type HwpScriptTypography } from './script-fonts';
+import { hwpRunText, nativeLineTypography, preserveHwpBodyLineEnds, preserveHwpColumnLineEnds, preserveHwpSourceSpaces, restoreUniformLatinMetrics, restoreScriptFonts, sourceFontRuns, type HwpScriptTypography } from './script-fonts';
 import { restoreHwpFixedSpaces } from './fixed-spaces';
 import { metafilePreview } from './metafile-preview';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
@@ -2123,8 +2123,16 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
           const storedUniformPair = atTop && !startsNewFlow && !stories && whole.includes(hwpSourceWrapAttribute) &&
             sourceUniformMixedLinePair(doc, section, para, pitches, font, base, properties);
           const maxFont = Math.max(largest, font);
+          const columnWidth = columnCount === 2 && sourceTextLine && !stories && !noteStory &&
+            properties.alignment === 'justify' && properties.indent < 0 && !properties.marginLeft && !properties.marginRight &&
+            !properties.spacingBefore && textLength >= 8 && textLength <= 200
+            ? sourceHwpMixedColumnPitch(doc, section, para, pitches, font, base, Number(properties.spacingAfter || 0) / 2) : undefined;
+          const literal = columnWidth ? hwpRunText(whole) : '';
+          const columnSingle = columnWidth && literal.trim() &&
+            normalizeHwpWrapText(literal) === normalizeHwpWrapText(doc.getTextRange(section, para, 0, textLength))
+            ? { width: columnWidth, fingerprint: hwpWrapFingerprint(literal) } : undefined;
           open = cssStyle(open, `--hwp-body-line:${encodeHwpBodyLine({ percent, font: maxFont, base,
-            ...(storedSingleLine ? { storedSingleLine: true } : { align: atTop ? 'mixed-top' : undefined, mixedLinePair }),
+            ...(storedSingleLine ? { storedSingleLine: true } : { align: atTop ? 'mixed-top' : undefined, mixedLinePair, columnSingle }),
             ...(bodyEndFit ? { bodyEndFit, maxFont } : {}), ...(storedUniformPair ? { storedUniformPair: true } : {}) })};`);
         } else if (atTop || sourceTextLine && columnCount === 1 && !startsNewFlow && !stories &&
           !Number(properties.spacingBefore) && !Number(properties.spacingAfter) &&
