@@ -1,37 +1,47 @@
 name: Windows regression QA
-run-name: Isolate the first rejected check in the Windows page-heading repair
+run-name: Measure physical width of the remaining Windows Word wrap
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native:
-    name: Windows page-head diagnosis
+  display:
+    name: Windows Word paragraph line boundaries
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
-      PLAYWRIGHT_CHANNEL: chromium
-      WINDOWS_QA_PAGE_HEAD_TRACE: '1'
-      WINDOWS_NATIVE_SKIP_PRINT: '1'
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_AUTHORED_PAGE_HEAD: '1'
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
+      WINDOWS_WORD_WRAP_WIDTH: '1'
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: npx playwright install chromium
-      - name: Read the native conditions for a single HWPX diagnostic output
+      - run: node node_modules/electron/install.js
+      - name: Measure logical line starts and glyph bands in the Windows print flow
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/head-diagnosis" --ids 04-language-plan
+          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/word-breaks" --ids 06-long-body
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/head-diagnosis/inventory.json"
-          $env:WINDOWS_LATIN_WITNESS = "$env:RUNNER_TEMP/head-witness.json"
-          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-          exit $LASTEXITCODE
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/word-breaks/inventory.json"
+          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
+          if ($verified -ne 1) { throw 'Pinned input missing' }
+          $control = '0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2'
+          git restore --source $control --staged --worktree -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code $control -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run package:win:dir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          foreach ($scale in @('1','1.25')) {
+            $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

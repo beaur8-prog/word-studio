@@ -363,6 +363,11 @@ async function main() {
         const geometry = await require('./print-geometry.cjs')(page);
         await fs.writeFile(process.env.WINDOWS_NATIVE_PRINT_GEOMETRY, JSON.stringify(geometry));
       }
+      if (process.env.WINDOWS_WORD_WRAP_WIDTH === '1') {
+        stage = 'pdf-wrap-width';
+        const width = await require('./word-wrap-width-witness.cjs')(page);
+        console.log('WINDOWS_WORD_WRAP_WIDTH ' + JSON.stringify({ scale: requestedScale, ...width }));
+      }
       if (process.env.WINDOWS_WORD_LINE_BREAKS) {
         stage = 'pdf-line-breaks';
         const lines = await require('./word-print-line-breaks.cjs')(page);
