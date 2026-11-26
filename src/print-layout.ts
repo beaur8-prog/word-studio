@@ -421,7 +421,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
   }
 
-  function appendTable(table: HTMLTableElement) {
+  function* appendTable(table: HTMLTableElement): Generator<void> {
     const next = table.nextElementSibling;
     const beforeBreak = next?.matches('[data-page-break]') || next?.matches('p:empty') && next.nextElementSibling?.matches('[data-page-break]');
     if (beforeBreak && table.rows.length === 1) {
@@ -560,6 +560,9 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       return false;
     };
     for (let i = 0; i < rows.length;) {
+      // The preceding complete row group has settled. Never suspend the
+      // probing, rollback or continuation of a protected merge halfway.
+      if (wordLayout.interactive) yield;
       if (protectedStarts.has(rows[i])) openContinuation(i);
       let end = i + 1;
       for (let j = i; j < end; j++) for (const cell of rows[j].cells) end = Math.min(rows.length, Math.max(end, j + cell.rowSpan));
@@ -691,7 +694,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     }
   }
   const pairedParagraphs = new WeakSet<HTMLElement>();
-  function append(element: HTMLElement) {
+  function* append(element: HTMLElement): Generator<void> {
     if (pairedParagraphs.has(element)) return;
     if (element.hasAttribute('data-section-page')) {
       const next = JSON.parse(element.getAttribute('data-section-page')!) as PageSettings;
@@ -740,7 +743,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       }
       newPage(true); return;
     }
-    if (element.hasAttribute('data-section-content')) { for (const child of [...element.children]) append(child as HTMLElement); return; }
+    if (element.hasAttribute('data-section-content')) { for (const child of [...element.children]) yield* append(child as HTMLElement); return; }
     if (element.tagName === 'TABLE' && tableAnchor(element.dataset.tableAnchor)?.wrap && element.nextElementSibling?.matches('p,h1,h2,h3,h4,h5,h6')) {
       const following = element.nextElementSibling as HTMLElement, prior = content.children.length;
       content.append(element, following); fits();
@@ -753,7 +756,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         following.remove(); content.append(first);
         const firstFits = fits(); first.remove();
         if (!firstFits && prior) { element.remove(); newPage(); content.append(element); }
-        append(following); pairedParagraphs.add(following); return;
+        yield* append(following); pairedParagraphs.add(following); return;
       }
       // Resized/oversized labels use the ordinary splittable table path.
       following.remove(); element.remove();
@@ -769,13 +772,14 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         let part = element.cloneNode(false) as HTMLElement;
         for (const child of [...element.children]) {
           if (child.hasAttribute('data-page-break') || child.hasAttribute('data-section-page')) {
-            if (part.children.length) append(part); append(child as HTMLElement); part = element.cloneNode(false) as HTMLElement;
+            if (part.children.length) yield* append(part);
+            yield* append(child as HTMLElement); part = element.cloneNode(false) as HTMLElement;
           } else part.append(child);
         }
-        if (part.children.length) append(part);
+        if (part.children.length) yield* append(part);
         return;
       }
-      if (Number(element.dataset.columnCount) === 1) { for (const child of [...element.children]) append(child as HTMLElement); return; }
+      if (Number(element.dataset.columnCount) === 1) { for (const child of [...element.children]) yield* append(child as HTMLElement); return; }
       content.append(element); if (fits()) return;
       // Split at block boundaries first. Character-only ranges lose the
       // position of empty paragraphs, pictures and forced column breaks.
@@ -813,16 +817,16 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         // The break that overflowed the last column is fulfilled by this new
         // sheet. Applying it again at its start would skip the first column.
         if (tail.firstElementChild?.hasAttribute('data-column-break')) tail.firstElementChild.remove();
-        if (tail.children.length) append(tail);
+        if (tail.children.length) yield* append(tail);
         return;
       }
       head.remove();
-      if (content.children.length) { newPage(); append(element); return; }
+      if (content.children.length) { newPage(); yield* append(element); return; }
       content.append(element); fits(); scaleOversized(element); return;
     }
     if (element.textContent?.trim() || element.querySelector('img,table')) sectionJustStarted = false;
     const table = element.matches('table') ? element : element.querySelector(':scope > table');
-    if (table) { appendTable(table as HTMLTableElement); return; }
+    if (table) { yield* appendTable(table as HTMLTableElement); return; }
     if (element.matches('ul,ol')) {
       const children = [...element.children] as HTMLElement[];
       let shell = element.cloneNode(false) as HTMLElement; content.append(shell);
@@ -892,7 +896,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
         // Word suppresses space-before at an automatic keep break. The editor
         // gap already places this paragraph at the body top. Retain the saved
         // spacing; this adjustment belongs only to the new printed fragment.
-        element.style.marginTop = '0'; append(element); return;
+        element.style.marginTop = '0'; yield* append(element); return;
       }
     }
     let fitsPage = fits();
@@ -934,14 +938,14 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
       }
       if (best) {
         const [a, b] = splitText(element, best);
-        content.append(a); newPage(); append(b); return;
+        content.append(a); newPage(); yield* append(b); return;
       }
       if (content.children.length) {
         // A rejected probe may have wrapped older text around this anchor.
         // Its exclusion leaves this sheet together with the paragraph.
         fits(); newPage();
         if (wordKeepParagraph(element) && element.dataset.wordKeepLines === 'true') element.style.marginTop = '0';
-        append(element); return;
+        yield* append(element); return;
       }
       content.append(element); scaleOversized(element); return;
     }
@@ -1001,13 +1005,18 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     hwpSourceFlow = await prepareHwpSourceFlow(source);
     newPage();
     const children = [...source.children]; let processed = 0, yieldedAt = performance.now();
+    const checkRows = wordLayout.interactive ? printCheckpoint(signal) : undefined;
     for (const child of children) {
       if ((onProgress && child.tagName === 'TABLE') ||
           ((onProgress || wordLayout.interactive) && performance.now() - yieldedAt >= 32)) {
         onProgress?.(child.tagName === 'TABLE' ? { label: '표의 쪽 배치를 계산하는 중…' } : { label: 'Word 쪽 배치를 계산하는 중…', completed: processed, total: children.length, unit: '항목' });
         await new Promise(resolve => setTimeout(resolve, 0)); signal?.throwIfAborted(); yieldedAt = performance.now();
       }
-      append(child as HTMLElement); processed++;
+      for (const _ of append(child as HTMLElement)) {
+        const pause = checkRows?.();
+        if (pause) await pause;
+      }
+      processed++;
       onProgress?.({ label: 'Word 쪽 배치를 계산하는 중…', completed: processed, total: children.length, unit: '항목' });
     }
     refreshNotes();

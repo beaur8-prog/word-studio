@@ -69,3 +69,38 @@ test('desktop preview combines repeat requests and cancels a cold measurement', 
     await expect(page.locator('.print-content')).toContainText('A cold snapshot');
   } finally { release(); }
 });
+
+test('a preview can cancel between complete row groups in a single long table', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { createPrintLayout } = await import('/src/print-layout.ts');
+    const { defaultPage } = await import('/src/types.ts');
+    const rows = 320, controller = new AbortController();
+    const body = Array.from({ length: rows }, (_, i) =>
+      '<tr><td><p>Left ' + i + '</p></td><td><p>Right ' + i + '</p></td></tr>').join('');
+    // Exercise the time budget independently of the test machine's speed.
+    const realTime = performance.now.bind(performance);
+    let budget = 0, partial = 0;
+    performance.now = () => realTime() + (budget += 4);
+    const observer = new MutationObserver(() => {
+      const host = document.querySelector('.print-layout.measuring');
+      const count = host?.querySelectorAll('.print-content tr').length ?? 0;
+      if (!partial && count > 0 && count < rows) {
+        partial = count;
+        controller.abort();
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    let aborted = false;
+    try {
+      const print = await createPrintLayout('<table><tbody>' + body + '</tbody></table>',
+        { ...defaultPage, pageNumbers: false }, undefined, controller.signal, { interactive: true });
+      print.dispose();
+    } catch (error) { aborted = error instanceof DOMException && error.name === 'AbortError'; }
+    finally { observer.disconnect(); performance.now = realTime; }
+    return { partial, aborted, remaining: document.querySelectorAll('.print-layout').length };
+  });
+  expect(result).toMatchObject({ aborted: true, remaining: 0 });
+  expect(result.partial).toBeGreaterThan(0);
+  expect(result.partial).toBeLessThan(320);
+});
