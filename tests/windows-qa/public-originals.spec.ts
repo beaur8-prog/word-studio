@@ -343,6 +343,13 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
     expect(result.reverse.map(out => ({ format: out.format, valid: out.valid })))
       .toEqual(formats.map(format => ({ format, valid: true })));
   }
+  if (process.env.WINDOWS_EXPECT_ONE_SHEET === '1') {
+    expect(result.printPages).toEqual([1, 1, 1]);
+    expect(result.reverse.map(out => out.pages)).toEqual([1, 1]);
+    expect(result.reverse.map(out => out.pictureReadback)).toEqual([
+      { count:3, exactByteOrder:true }, { count:3, exactByteOrder:true },
+    ]);
+  }
   if (process.env.WINDOWS_REQUIRE_REVERSE === '1') {
     expect(result.reverse).toHaveLength(2);
     expect(result.reverse.map(out => ({ format: out.format, valid: out.valid, pictures: out.pictureReadback?.count }))).toEqual([
