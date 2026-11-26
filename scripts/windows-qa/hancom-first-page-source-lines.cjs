@@ -16,10 +16,41 @@ function ranges(source,name) {
   return result;
 }
 function id(tag, attribute='id') { return tag?.match(new RegExp('\\b'+attribute+'="(\\d+)"'))?.[1]; }
-function indexText(doc) {
+
+// Preserve the authored character offsets while matching the quarter-em
+// representation used by the current DOCX/HTML conversion path.
+function sourceFixedSpaceKey(owner, literal) {
+  if (!owner?.inner.includes('<hp:fwSpace')) return literal;
+  const controls = { fwSpace:'\u2007', nbSpace:'\u00a0', tab:'\t', lineBreak:'\n' };
+  const entities = { amp:'&', lt:'<', gt:'>', quot:'"', apos:"'" };
+  let reconstructed = '', projected = '';
+  for (const run of owner.inner.matchAll(/<hp:t(?:\s[^>]*)?>([\s\S]*?)<\/hp:t>/g)) {
+    for (const token of run[1].matchAll(/<[^>]+>|[^<]+/g)) {
+      const tag = /^<hp:(fwSpace|nbSpace|tab|lineBreak)\b[^>]*\/>$/.exec(token[0]);
+      if (!tag && token[0].startsWith('<')) return literal;
+      if (tag) {
+        const name = tag[1];
+        reconstructed += controls[name];
+        projected += name === 'fwSpace' ? '\u2005' : controls[name];
+      } else {
+        const value = token[0].replace(/&(#\d+|#x[\da-f]+|amp|lt|gt|quot|apos);/gi, (original, name) => {
+          if (entities[name]) return entities[name];
+          const codePoint = name.startsWith('#x') ? parseInt(name.slice(2),16) : parseInt(name.slice(1),10);
+          return codePoint >= 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : original;
+        });
+        reconstructed += value;
+        projected += value;
+      }
+    }
+  }
+  return reconstructed === literal && projected.length === literal.length ? projected : literal;
+}
+
+function indexText(doc, structure) {
   const result = new Map();
   for (let p=0; p<doc.getParagraphCount(0); p++) {
-    const text = doc.getTextRange(0,p,0,0xffffffff);
+    const literal = doc.getTextRange(0,p,0,0xffffffff);
+    const text = structure ? sourceFixedSpaceKey(structure.paras[p],literal) : literal;
     if (text.trim()) result.set(text, result.has(text) ? null : p);
   }
   return result;
@@ -73,9 +104,10 @@ module.exports = function trial(Core, source, output) {
       !original.placement.includes('treatAsChar="0"') ||
       !titleAlreadyAuthored && !saved.placement.includes('treatAsChar="1"'))
     throw Error('Unexpected title carrier geometry');
-  const from = indexText(source), to = indexText(output);
   const expand = process.env.WINDOWS_HWP_FIRST_PAGE_EXPAND === '1';
   const includeLong = expand && process.env.WINDOWS_HWP_FIRST_PAGE_INCLUDE_LONG === '1';
+  const matchFixedSpaces = includeLong && process.env.WINDOWS_HWP_FIRST_PAGE_PROJECT_FWSPACE === '1';
+  const from = indexText(source, matchFixedSpaces ? original : undefined), to = indexText(output);
   const limit = expand ? 40 : 4;
   const originalPaint = paint(source,limit);
   const proof = [];
@@ -90,7 +122,8 @@ module.exports = function trial(Core, source, output) {
     const line = originalOwner.inner.match(cache)?.[0];
     const authoredUnit = before?.inner.match(unit)?.[0], generatedUnit = after?.inner.match(unit)?.[0];
     if (line && authoredUnit && generatedUnit && JSON.parse(source.getParagraphLineMetrics(0,index,'[]')).controlCount===0)
-      proof.push({index,next,page,length:text.length,owner:savedOwner,after,line,authoredUnit,generatedUnit,tab:text.includes('\t')});
+      proof.push({index,next,page,length:text.length,projected:matchFixedSpaces &&
+        source.getTextRange(0,index,0,0xffffffff)!==text,owner:savedOwner,after,line,authoredUnit,generatedUnit,tab:text.includes('\t')});
   }
   if (!proof.some(row=>row.tab)) throw Error('Missing an unchanged authored tab row');
   const count = (doc, title) => {
@@ -111,12 +144,18 @@ module.exports = function trial(Core, source, output) {
     return { title,pages:doc.pageCount(),starts,exactLineBreaks,firstPageStarts,firstPageExactLineBreaks,body,cell };
   };
   const results = [count(output, 'ordinary output')];
-  const onFirst = row => row.page===0;
+  const literal = row => !row.projected;
+  const onFirst = row => literal(row) && row.page===0;
   const scopes = [
     ['title only',()=>false], ['first-page tab rows',row=>onFirst(row)&&row.tab], ['all exact first-page rows',onFirst],
-    ...(expand ? [['first two source pages',row=>row.page<=1], ['first three source pages',row=>row.page<=2],
-      ['all eligible source pages',row=>!includeLong || row.length<=200], ['after the first page only',row=>!onFirst(row)]] : []),
-    ...(includeLong ? [['all exact including long owners',()=>true],['long exact owners only',row=>row.length>200]] : []),
+    ...(expand ? [['first two source pages',row=>literal(row) && row.page<=1], ['first three source pages',row=>literal(row) && row.page<=2],
+      ['all eligible source pages',row=>literal(row) && (!includeLong || row.length<=200)],
+      ['after the first page only',row=>literal(row) && !onFirst(row)]] : []),
+    ...(includeLong ? [['all exact including long owners',literal],['long exact owners only',row=>literal(row) && row.length>200]] : []),
+    ...(matchFixedSpaces ? [['all including exact projected fwSpace',()=>true],
+      ['new matches after source page two',row=>literal(row) || row.page>=2],
+      ['new matches after source page three',row=>literal(row) || row.page>=3],
+      ['new matches after source page four',row=>literal(row) || row.page>=4]] : []),
   ];
   for (const [scope,include] of scopes) {
     if (scope==='title only' && titleAlreadyAuthored) continue;
@@ -144,5 +183,6 @@ module.exports = function trial(Core, source, output) {
   if (includeLong) for (const row of proof.filter(row=>row.length>200))
     longBySourcePage[row.page+1] = (longBySourcePage[row.page+1] ?? 0) + 1;
   return { originalPages:source.pageCount(),fixed:proof.length,fixedFirstPage:proof.filter(row=>row.page===0).length,
-    titleAlreadyAuthored,...(includeLong ? {longBySourcePage} : {}),results };
+    titleAlreadyAuthored,...(matchFixedSpaces ? { projectedOwners:proof.filter(row=>row.projected).length } : {}),
+    ...(includeLong ? {longBySourcePage} : {}),results };
 };

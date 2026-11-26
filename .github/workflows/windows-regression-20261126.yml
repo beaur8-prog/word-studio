@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Compare short and long unchanged paragraph geometry on actual Windows native files
+run-name: Isolate later authored fixed spaces without displacing the verified first Windows pages
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -22,6 +22,7 @@ jobs:
       WINDOWS_HWP_FIRST_PAGE_SOURCE_TRIAL: '1'
       WINDOWS_HWP_FIRST_PAGE_EXPAND: '1'
       WINDOWS_HWP_FIRST_PAGE_INCLUDE_LONG: '1'
+      WINDOWS_HWP_FIRST_PAGE_PROJECT_FWSPACE: '1'
       WINDOWS_CHECK_NATIVE_NBSPACE: '1'
     steps:
       - uses: actions/checkout@v4
