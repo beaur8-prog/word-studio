@@ -33,6 +33,7 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
     // Windows can ignore a new Open command during that interval.
     await page.locator('.busy-indicator').waitFor({state: 'hidden', timeout: 180000});
     selectStage('native-docx-reopen-' + generation);
+    const openAt = Date.now();
     await app.evaluate(({ dialog, Menu }, source) => {
       globalThis.qaDocxOpenDialogCount = 0;
       dialog.showOpenDialog = async () => {
@@ -64,7 +65,7 @@ async function saveTwoDocxAndReopen(app, page, item, directory, selectStage) {
       const state = await classify();
       const dialogCalls = await app.evaluate(() => globalThis.qaDocxOpenDialogCount);
       console.log('WINDOWS_NATIVE_DOCX_DIAGNOSIS ' + JSON.stringify({ id:item.id, generation, dialogCalls, reopened,
-        bytes:(await fs.stat(output)).size, ...state }));
+        bytes:(await fs.stat(output)).size, milliseconds:Date.now()-openAt, ...state }));
       if (!reopened) throw Error('Native DOCX reopen did not reach the editor');
     } else {
       await expect(title).toHaveValue(name, {timeout: 180000});

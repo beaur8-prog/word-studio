@@ -2178,7 +2178,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       let pictureTableSpacesShareSourceLine = false;
       let tableFollowingHost: number | undefined;
       let hostOnPriorPage: ReturnType<typeof sourceHostOnPriorPage>;
-      let inlineTail: { piece: number; line: number; width: number; left: number; available: number; wrapping: boolean; right: number; bottom: number } | undefined;
+      let inlineTail: { piece: number; line: number; width: number; left: number; available: number; wrapping: boolean; right: number; top?: number; bottom: number } | undefined;
       let replacedTextBox = false;
       const appendInline = (value: string) => { contentBytes += hwpHtmlBytes(value); checkHwpHtmlSize(size + contentBytes); content += value; };
       for (const c of byParagraph.get(globalPara) ?? []) {
@@ -2463,12 +2463,26 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             const top = hwpInlineTableTop(inlineProperties.outerTop);
             if (top !== undefined)
               controlHtml = controlHtml.replace(/^<table\b/, `<table ${hwpInlineTableTopAttribute}="${top}"`);
-            // An authored whitespace host is carried separately in DOCX.
-            // Keep the inline table's own short trailing margin in HWP.
-            if (spacesOnObjectLine) {
-              const bottom = hwpInlineTableBottom(inlineProperties.outerBottom);
+            const bottom = hwpInlineTableBottom(inlineProperties.outerBottom);
+            if (bottom !== undefined) {
               const dims = JSON.parse(doc.getTableDimensions(section, para, c.controlIndex));
-              if (bottom !== undefined && dims.rowCount > 1 && dims.colCount > 1)
+              let terminal = false;
+              if (!spacesOnObjectLine && top === bottom && inlineProperties.vertRelTo === 'Para' &&
+                  inlineProperties.vertAlign === 'Top' && inlineProperties.vertOffset === 0 &&
+                  paragraphControls.length === 1 && doc.getParagraphLength(section, para) === 0) {
+                const position = controlPosition(section, para, c.controlIndex);
+                const native = JSON.parse(doc.getParagraphLineMetrics(section, para, '[]'));
+                if (position && native.stored && native.lines?.length === 1) {
+                  const paper = JSON.parse(doc.getPageInfo(position.page));
+                  const clearance = Number(paper.footerArea?.y) - position.y - position.h;
+                  // This intact authored line uses its short outer margins
+                  // near the body boundary. The paste default can spill it.
+                  terminal = clearance >= 0 && clearance <= native.lines[0].spacing &&
+                    JSON.parse(doc.getTableCellBboxes(section, para, c.controlIndex))
+                      .every((box: { pageIndex: number }) => box.pageIndex === position.page);
+                }
+              }
+              if ((spacesOnObjectLine || terminal) && dims.rowCount > 1 && dims.colCount > 1)
                 controlHtml = controlHtml.replace(/^<table\b/, `<table ${hwpInlineTableBottomAttribute}="${bottom}"`);
             }
           }
@@ -2483,7 +2497,8 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
               const props = JSON.parse(doc.getTableProperties(section, para, c.controlIndex));
               inlineTail = { piece: tablePiece, line: JSON.parse(doc.getLineInfo(section, para, pos)).lineIndex, width: tableWidth, left, available,
                 wrapping: pos === 0 && paragraphControls.length === 1 && !props.hasCaption && !Number(properties.spacingBefore) && left >= 0 && tableWidth <= available * .65,
-                right: px(Math.max(0, Number(props.outerRight) || 0)), bottom: px(Math.max(0, Number(props.outerBottom) || 0)) };
+                right: px(Math.max(0, Number(props.outerRight) || 0)), top: hwpInlineTableTop(props.outerTop),
+                bottom: px(Math.max(0, Number(props.outerBottom) || 0)) };
             }
           }
           if (fullWidth) { append('</div>'); openColumns(); }
@@ -2514,7 +2529,13 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         const cell = 'padding:0;border:none;vertical-align:bottom;';
         const tailWidth = Math.max(1, available - width);
         const tail = cssStyle(open, 'margin:0;text-indent:0;text-align:left;') + content + '</p>';
-        const wrapped = `<table style="width:${available}px;margin-left:${left}px;margin-bottom:${gap}px;border:none;"><tr><td colwidth="${Math.round(width)}" style="${cell}width:${width}px;">${inner}</td><td colwidth="${Math.round(tailWidth)}" style="${cell}width:${tailWidth}px;">${tail}</td></tr></table>`;
+        // The wrapper stands in for this authored inline object's line.
+        // Keep both measured short insets when native paste would add its own.
+        const { top } = inlineTail;
+        const bottom = hwpInlineTableBottom(Math.round(inlineTail.bottom * 75));
+        const leading = top !== undefined && top < 283 ? ` ${hwpInlineTableTopAttribute}="${top}"` : '';
+        const trailing = bottom === undefined ? '' : ` ${hwpInlineTableBottomAttribute}="${bottom}"`;
+        const wrapped = `<table${leading}${trailing} style="width:${available}px;margin-left:${left}px;margin-bottom:${gap}px;border:none;"><tr><td colwidth="${Math.round(width)}" style="${cell}width:${width}px;">${inner}</td><td colwidth="${Math.round(tailWidth)}" style="${cell}width:${tailWidth}px;">${tail}</td></tr></table>`;
         size += hwpHtmlBytes(wrapped) - hwpHtmlBytes(table); checkHwpHtmlSize(size);
         pieces[piece] = wrapped; content = ''; contentBytes = 0;
       } else if (inlineTail?.wrapping && inlineTail.line === 0 && !onlyWhitespace(content) &&

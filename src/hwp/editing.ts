@@ -1,4 +1,5 @@
 import { nativeOverhangOriginAttribute } from '../hwp-table-continuation';
+import { clearHwpSingleCellLineProjection } from '../hwp-source-cell-lines';
 import { hwpCenteredCellLabelsAttribute, hwpNativeCompactRowAttribute, markHwpNativeCompactRow } from '../hwp-centered-cell-labels';
 import { activeHwpLatinFont, hwpLatinFontAttribute } from '../hwp-latin-font';
 import { characterScaleProperty } from '../character-scale';
@@ -270,6 +271,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       }
       const terminalTable = content?.lastElementChild;
       if (content && terminalTable instanceof HTMLTableElement) markHwpNativeCompactRow(terminalTable, content);
+      if (content) clearHwpSingleCellLineProjection(content);
       const body = content?.innerHTML || '<p></p>';
       const original = layout.pageSettings.get(sheet) ?? previousPage;
       const first = sheet.getAttribute('data-section-first') === 'true';
