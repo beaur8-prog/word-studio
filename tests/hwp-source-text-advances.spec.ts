@@ -3,6 +3,13 @@ import { expect, test } from '@playwright/test';
 import JSZip from 'jszip';
 import { Document, Packer, Paragraph, Table, TableCell, TableRow, TextRun, WidthType } from 'docx';
 
+declare global {
+  interface Window {
+    hwpProbeInterrupted?: Promise<number>;
+    resumeHwpProbe?: () => void;
+  }
+}
+
 const content = '한글 문자 공백과 글꼴';
 const source = `<p data-hwp-source-spaces="true" style='font-family:"Malgun Gothic";font-size:14pt;line-height:28px'>${content}</p>
 <p style='font-family:"Malgun Gothic";font-size:14pt;line-height:28px'>${content}</p>`;
@@ -90,6 +97,59 @@ test('HWP source advances finish across multiple batches after a document replac
     buffer: Buffer.from(paragraph(content).repeat(70)),
   });
   await expect(title).toHaveValue('hwp-batch-new');
+  const paragraphs = editor.locator('p[data-hwp-source-spaces="true"]');
+  await expect(paragraphs).toHaveText(Array(70).fill(content));
+  await expect(paragraphs.filter({ has: page.locator('[data-hwp-source-advance-run]') })).toHaveCount(70);
+});
+
+test('a print measurement interrupts an active HWP editor probe and the editor restarts afterwards', async ({ page }) => {
+  await page.goto('/');
+  const installed = await page.evaluate(async () => {
+    try {
+      await new FontFace('HWP probe test native face', 'local("한양중고딕")').load();
+      return true;
+    } catch { return false; }
+  });
+  test.skip(installed, 'An installed source face does not need correction');
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  await editor.waitFor();
+  await page.evaluate(async () => {
+    const { suspendEditorReflow } = await import('/src/editor-layout-task.ts');
+    window.hwpProbeInterrupted = new Promise<number>(resolve => {
+      const observed = new MutationObserver(records => {
+        for (const record of records) for (const node of record.addedNodes) {
+          if (!(node instanceof HTMLElement) || node.getAttribute('aria-hidden') !== 'true' ||
+              node.style.left !== '-100000px' || !node.querySelector('p[data-hwp-source-spaces]')) continue;
+          observed.disconnect();
+          const resume = suspendEditorReflow();
+          const original = Element.prototype.getBoundingClientRect;
+          let measurements = 0;
+          Element.prototype.getBoundingClientRect = function () {
+            if (node.contains(this)) measurements++;
+            return original.call(this);
+          };
+          const removed = new MutationObserver(() => {
+            if (node.isConnected) return;
+            removed.disconnect();
+            Element.prototype.getBoundingClientRect = original;
+            window.resumeHwpProbe = resume;
+            resolve(measurements);
+          });
+          removed.observe(document.body, { childList: true });
+          return;
+        }
+      });
+      observed.observe(document.body, { childList: true });
+    });
+  });
+  const paragraph = `<p data-hwp-source-spaces="true" style='font-family:"한양중고딕";font-size:14pt;line-height:28px'>${content}</p>`;
+  await page.locator('input[type=file]').first().setInputFiles({
+    name: 'hwp-probe-interrupted.html', mimeType: 'text/html', buffer: Buffer.from(paragraph.repeat(70)),
+  });
+  await expect(page.getByRole('textbox', { name: '문서 제목', exact: true })).toHaveValue('hwp-probe-interrupted');
+  expect(await page.evaluate(() => window.hwpProbeInterrupted)).toBe(0);
+  await expect(editor.locator('[data-hwp-source-advance-run]')).toHaveCount(0);
+  await page.evaluate(() => window.resumeHwpProbe?.());
   const paragraphs = editor.locator('p[data-hwp-source-spaces="true"]');
   await expect(paragraphs).toHaveText(Array(70).fill(content));
   await expect(paragraphs.filter({ has: page.locator('[data-hwp-source-advance-run]') })).toHaveCount(70);

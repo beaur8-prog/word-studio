@@ -19,3 +19,18 @@ export async function withoutEditorReflow<T>(measure: () => Promise<T>): Promise
   try { return await measure(); }
   finally { resume(); }
 }
+
+export type LayoutCheckpoint = () => Promise<void> | undefined;
+
+/** Yield between complete operations in a detached layout tree. */
+export function layoutCheckpoint(assertCurrent: () => void): LayoutCheckpoint {
+  let started = performance.now();
+  return () => {
+    assertCurrent();
+    if (performance.now() - started < 32) return;
+    return new Promise<void>(resolve => setTimeout(resolve, 0)).then(() => {
+      assertCurrent();
+      started = performance.now();
+    });
+  };
+}

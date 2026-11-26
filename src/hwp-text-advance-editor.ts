@@ -5,7 +5,7 @@ import { columnResizingPluginKey } from '@tiptap/pm/tables';
 import { Mapping } from '@tiptap/pm/transform';
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
 import { documentScale } from './document-scale';
-import { editorLayoutResume, editorLayoutSuspended } from './editor-layout-task';
+import { editorLayoutResume, editorLayoutSuspended, layoutCheckpoint } from './editor-layout-task';
 import { editorHwpSingleCellLine, hwpEditorSingleLine } from './hwp-source-cell-lines';
 import { parseHwpSourceWrap } from './hwp-text-advances';
 import { hasUnchangedSourceWrap, hwpSourceAdvanceParagraph, hwpSourceAdvanceRun, mixedHwpCellRunParagraph, planHwpSourceAdvanceDecorations, shortHwpCellInkFits, shortHwpCellWidthParagraph, sourceCellWidthAdjustment, sourceFlowAllowance, type HwpCellWidthAdjustment, type HwpSourceAdvancePlan } from './hwp-text-advance-layout';
@@ -25,8 +25,10 @@ type EditorAdvanceProbe = {
   mixed: boolean; allowance?: number; widthAdjustment?: HwpCellWidthAdjustment;
 };
 const probesPerBatch = 64;
+const abandonedProbe = Symbol();
 
 async function editorAdvances(view: EditorView, cache: WeakMap<ModelNode, CachedAdvance>, isCurrent: () => boolean) {
+  const checkpoint = layoutCheckpoint(() => { if (!isCurrent()) throw abandonedProbe; });
   const host = document.createElement('div');
   host.className = 'tiptap';
   host.style.cssText = 'position:fixed;left:-100000px;top:0;visibility:hidden;pointer-events:none';
@@ -168,7 +170,7 @@ async function editorAdvances(view: EditorView, cache: WeakMap<ModelNode, Cached
           probe.remove();
         }
       }
-      const approved = await planHwpSourceAdvanceDecorations(host, allowances, widths, mixedRuns);
+      const approved = await planHwpSourceAdvanceDecorations(host, allowances, widths, mixedRuns, checkpoint);
       if (!isCurrent()) return;
       for (const [paragraph, { node, start, width, signature, marginRight }] of addresses) {
         const plan = paragraph.textContent === node.textContent ? approved.get(paragraph) : undefined;
@@ -176,6 +178,9 @@ async function editorAdvances(view: EditorView, cache: WeakMap<ModelNode, Cached
         cache.set(node, { signature, width, plan: value });
         append(node, start, value, marginRight);
       }
+    } catch (error) {
+      if (error !== abandonedProbe) throw error;
+      return;
     } finally { host.remove(); host.replaceChildren(); }
   }
   return decorations.sort((a, b) => a.from - b.from || a.to - b.to);

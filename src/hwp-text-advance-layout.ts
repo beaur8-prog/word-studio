@@ -1,3 +1,4 @@
+import type { LayoutCheckpoint } from './editor-layout-task';
 import { hwpNestedCellFaceAttribute } from './hwp-nested-table-layout';
 import { characterScaleProperty, parseCharacterScale } from './character-scale';
 import { hwpBodyFallbackSelector, hwpCellFaceFallbackSelector, hwpCellWidthFallbackSelector, hwpCompactCellFace, hwpCompactHeaderFace, hwpShortCellLabel, hwpSingleBodyFace, hwpSourceSpacesAttribute, hwpSourceWrapAttribute, hwpWrapFingerprint, normalizeHwpWrapText, parseHwpSourceWrap, type HwpSourceWrap } from './hwp-text-advances';
@@ -111,10 +112,13 @@ async function knownMissingFaces(families: Iterable<string>) {
   return new Map(await Promise.all([...new Set(families)].map(async family => [family, await fontUnavailable(family)] as const)));
 }
 
-async function candidates(root: HTMLElement): Promise<ParagraphAdjustment[]> {
+async function candidates(root: HTMLElement, checkpoint?: LayoutCheckpoint): Promise<ParagraphAdjustment[]> {
   const selected = candidateText(root.querySelectorAll<HTMLElement>(paragraphs));
   if (!selected.length) return [];
-  return createAdvanceMeasurements()(selected, await knownMissingFaces(selected.map(run => run.family)));
+  const faces = await knownMissingFaces(selected.map(run => run.family));
+  const pause = checkpoint?.();
+  if (pause) await pause;
+  return createAdvanceMeasurements()(selected, faces);
 }
 
 function replaceRuns(runs: InlineAdjustment[]) {
@@ -411,8 +415,6 @@ export function hasUnchangedSourceWrap(paragraph: HTMLElement) {
 
 /** The original break offsets decide which measured native advance can
  * restore ordinary wrapping. No break is added to the paragraph. */
-type LayoutCheckpoint = () => Promise<void> | undefined;
-
 async function chooseAdvances(programs: ParagraphAdjustment[], contained: (p: HTMLElement) => boolean,
   checkpoint?: LayoutCheckpoint) {
   const pending: (ParagraphAdjustment & { text: string; reference?: readonly number[]; width: number; height: number })[] = [];
@@ -631,50 +633,73 @@ function sourceWidthTrial(program: ParagraphAdjustment, adjustment: HwpCellWidth
   if (target > 0) return { ...program, reference, text, target };
 }
 
-function chooseSourceWidths<T extends WidthTrial>(trials: T[], fits: (trial: T) => boolean) {
-  const selected = new Map<HTMLElement, { trial: T; runs: InlineAdjustment[]; restore: () => void }>();
+async function chooseSourceWidths<T extends WidthTrial>(trials: T[], fits: (trial: T) => boolean,
+  checkpoint?: LayoutCheckpoint) {
+  type Applied = { trial: T; runs: InlineAdjustment[]; restore: () => void };
+  const selected = new Map<HTMLElement, Applied>();
   // Box geometry and the fallback font can each account for part of an
   // inexact line. Keep an isolated width match before trying both together.
   for (const useAdvances of [false, true]) {
-    const active = trials.flatMap(trial => {
+    const active: Applied[] = [];
+    for (const trial of trials) {
+      const pause = checkpoint?.();
+      if (pause) await pause;
       const { paragraph, target } = trial;
-      if (selected.has(paragraph) || useAdvances && !trial.runs.length) return [];
+      if (selected.has(paragraph) || useAdvances && !trial.runs.length) continue;
       const runs = useAdvances ? trial.runs : [];
       const oldWidth = paragraph.style.width;
       const restoreRuns = replaceRuns(runs);
       paragraph.style.width = `${target}px`;
-      return [{ trial, runs, restore: () => { paragraph.style.width = oldWidth; restoreRuns(); } }];
-    });
-    const accepted: typeof active = [], rejected: typeof active = [];
-    for (const item of active) (fits(item.trial) ? accepted : rejected).push(item);
-    for (const item of rejected) item.restore();
-    if ([...selected.values(), ...accepted].some(item => !fits(item.trial))) {
-      for (const item of accepted) item.restore();
-    } else {
-      for (const item of accepted) selected.set(item.trial.paragraph, item);
+      active.push({ trial, runs, restore: () => { paragraph.style.width = oldWidth; restoreRuns(); } });
+    }
+    const accepted: Applied[] = [], rejected: Applied[] = [];
+    for (const item of active) {
+      const pause = checkpoint?.();
+      if (pause) await pause;
+      (fits(item.trial) ? accepted : rejected).push(item);
+    }
+    for (const item of rejected) {
+      const pause = checkpoint?.();
+      if (pause) await pause;
+      item.restore();
+    }
+    let preservesSelection = true;
+    for (const item of [...selected.values(), ...accepted]) {
+      const pause = checkpoint?.();
+      if (pause) await pause;
+      if (!fits(item.trial)) { preservesSelection = false; break; }
+    }
+    for (const item of accepted) {
+      const pause = checkpoint?.();
+      if (pause) await pause;
+      if (preservesSelection) selected.set(item.trial.paragraph, item);
+      else item.restore();
     }
   }
   return [...selected.values()];
 }
 
-function correctSourceCellWidths(programs: ParagraphAdjustment[]) {
-  const attempts = programs.flatMap(program => {
+async function correctSourceCellWidths(programs: ParagraphAdjustment[], checkpoint?: LayoutCheckpoint) {
+  const attempts: (WidthTrial & { box: ReturnType<typeof geometry> })[] = [];
+  for (const program of programs) {
+    const pause = checkpoint?.();
+    if (pause) await pause;
     const adjustment = sourceCellWidthAdjustment(program.paragraph);
     const trial = adjustment && sourceWidthTrial(program, adjustment);
-    return trial ? [{ ...trial, box: geometry(program.paragraph) }] : [];
-  });
+    if (trial) attempts.push({ ...trial, box: geometry(program.paragraph) });
+  }
   return chooseSourceWidths(attempts, ({ paragraph, reference, text, box }) =>
     geometry(paragraph).slice(1).every((value, index) => value === box[index + 1]) &&
-    inkWithinPage(paragraph) && matchesStoredWrap(paragraph, text, reference.ends));
+    inkWithinPage(paragraph) && matchesStoredWrap(paragraph, text, reference.ends), checkpoint);
 }
 
 /** Keep all previous physical paragraph and row boundaries. The measured
  * advance affects text inside that space and leaves the source font intact. */
 export async function layoutHwpSourceAdvances(root: HTMLElement, checkpoint?: LayoutCheckpoint) {
-  const programs = await candidates(root);
+  const programs = await candidates(root, checkpoint);
   const original = new Map(programs.map(({ paragraph }) => [paragraph, geometry(paragraph)]));
   const accepted = await chooseAdvances(programs, inkWithinPage, checkpoint);
-  const widths = correctSourceCellWidths(programs);
+  const widths = await correctSourceCellWidths(programs, checkpoint);
   const expanded = new Set(widths.map(({ trial }) => trial.paragraph));
   if ([...accepted.keys()].some(paragraph =>
     geometry(paragraph).some((size, index) => (!expanded.has(paragraph) || index > 0) &&
@@ -688,10 +713,12 @@ export type HwpSourceAdvanceRun = { from: number; to: number; style: string };
 export type HwpSourceAdvancePlan = { runs: HwpSourceAdvanceRun[]; baseHeight?: number; widthDelta?: number };
 
 export async function planHwpSourceAdvanceDecorations(root: HTMLElement, allowances: ReadonlyMap<HTMLElement, number>,
-  widths: ReadonlyMap<HTMLElement, HwpCellWidthAdjustment>, mixedRuns: ReadonlySet<HTMLElement>) {
-  const programs = await candidates(root);
+  widths: ReadonlyMap<HTMLElement, HwpCellWidthAdjustment>, mixedRuns: ReadonlySet<HTMLElement>, checkpoint?: LayoutCheckpoint) {
+  const programs = await candidates(root, checkpoint);
   const offsets = new Map<Text, number>();
   for (const { paragraph } of programs) {
+    const pause = checkpoint?.();
+    if (pause) await pause;
     const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
     let offset = 0;
     while (walker.nextNode()) {
@@ -717,12 +744,16 @@ export async function planHwpSourceAdvanceDecorations(root: HTMLElement, allowan
     }) });
   };
   for (const paragraph of mixedRuns) {
+    const pause = checkpoint?.();
+    if (pause) await pause;
     const trial = tryMixedHwpCellRun(paragraph);
     if (!trial) continue;
     trial.restore();
     result.set(paragraph, trial.plan);
   }
   for (const [paragraph, adjustment] of widths) {
+    const pause = checkpoint?.();
+    if (pause) await pause;
     const reference = parseHwpSourceWrap(paragraph.dataset.hwpSourceWrap);
     if (reference?.ends.length !== 1) continue;
     const trial = tryShortCellWidth(paragraph, adjustment);
@@ -731,6 +762,8 @@ export async function planHwpSourceAdvanceDecorations(root: HTMLElement, allowan
     savePlan(paragraph, [], trial.baseHeight, adjustment.delta);
   }
   for (const program of programs) {
+    const pause = checkpoint?.();
+    if (pause) await pause;
     const allowance = allowances.get(program.paragraph);
     if (!allowance) continue;
     const candidate = sourceFlowCandidate(program, allowance, contained, 'body');
@@ -740,26 +773,33 @@ export async function planHwpSourceAdvanceDecorations(root: HTMLElement, allowan
       savePlan(program.paragraph, candidate.runs, candidate.baseHeight);
     }
   }
-  const accepted = await chooseAdvances(programs.filter(({ paragraph }) => !flow.has(paragraph)), contained);
+  const accepted = await chooseAdvances(programs.filter(({ paragraph }) => !flow.has(paragraph)), contained, checkpoint);
   for (const [paragraph, { runs, restore }] of accepted) {
+    const pause = checkpoint?.();
+    if (pause) await pause;
     restore();
     savePlan(paragraph, runs);
   }
-  const trials = programs.flatMap(program => {
+  const trials: (WidthTrial & { adjustment: HwpCellWidthAdjustment; box: DOMRect })[] = [];
+  for (const program of programs) {
+    const pause = checkpoint?.();
+    if (pause) await pause;
     const { paragraph } = program;
     const adjustment = widths.get(paragraph);
-    if (!adjustment || result.has(paragraph)) return [];
+    if (!adjustment || result.has(paragraph)) continue;
     const trial = sourceWidthTrial(program, adjustment);
-    return trial ? [{ ...trial, adjustment, box: paragraph.getBoundingClientRect() }] : [];
-  });
-  const ownedWidths = chooseSourceWidths(trials, ({ paragraph, adjustment, text, reference, box }) => {
+    if (trial) trials.push({ ...trial, adjustment, box: paragraph.getBoundingClientRect() });
+  }
+  const ownedWidths = await chooseSourceWidths(trials, ({ paragraph, adjustment, text, reference, box }) => {
     range.selectNodeContents(paragraph);
     const left = box.left + adjustment.left - .5, right = box.left + adjustment.right + .5;
     return box.height === paragraph.getBoundingClientRect().height &&
       [...range.getClientRects()].every(rect => !(rect.width > 0 && rect.height > 0) || rect.left >= left && rect.right <= right) &&
       matchesStoredWrap(paragraph, text, reference.ends);
-  });
+  }, checkpoint);
   for (const { trial, runs, restore } of ownedWidths) {
+    const pause = checkpoint?.();
+    if (pause) await pause;
     restore();
     savePlan(trial.paragraph, runs, undefined, trial.adjustment.delta);
   }

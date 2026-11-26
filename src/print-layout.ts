@@ -1,3 +1,4 @@
+import { layoutCheckpoint } from './editor-layout-task';
 import { sourceFootnoteEndBottom } from './print-hwp-note-terminal';
 import { hwpNestedCellFaceAttribute } from './hwp-nested-table-layout';
 import { layoutHwpNestedCellFaces } from './hwp-nested-cell-face-print';
@@ -54,20 +55,6 @@ export type PrintLayoutProgress = { label: string; completed?: number; total?: n
 const PX = 96 / 25.4;
 const dimensions = paperDimensions;
 type PrintOptions = WordLayoutOptions & { nativeDesktop?: boolean; paintHwpCellLines?: boolean; hwpNativeExport?: boolean; interactive?: boolean };
-
-// Preview owns a hidden print tree. Yield between complete layout operations
-// so the live window can paint status or cancel without changing print order.
-function printCheckpoint(signal?: AbortSignal) {
-  let started = performance.now();
-  return () => {
-    signal?.throwIfAborted();
-    if (performance.now() - started < 32) return;
-    return new Promise<void>(resolve => setTimeout(resolve, 0)).then(() => {
-      signal?.throwIfAborted();
-      started = performance.now();
-    });
-  };
-}
 
 /** Build one measured page tree used unchanged by preview, PDF and native printing. */
 export async function createPrintLayout(html: string, initialPage: PageSettings,
@@ -1005,7 +992,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     hwpSourceFlow = await prepareHwpSourceFlow(source);
     newPage();
     const children = [...source.children]; let processed = 0, yieldedAt = performance.now();
-    const checkRows = wordLayout.interactive ? printCheckpoint(signal) : undefined;
+    const checkRows = wordLayout.interactive ? layoutCheckpoint(() => signal?.throwIfAborted()) : undefined;
     for (const child of children) {
       if ((onProgress && child.tagName === 'TABLE') ||
           ((onProgress || wordLayout.interactive) && performance.now() - yieldedAt >= 32)) {
@@ -1034,7 +1021,7 @@ export async function createPrintLayout(html: string, initialPage: PageSettings,
     // them once so every new sheet does not invalidate the live editor's styles.
     style.textContent = [...new Set(pageStyles)].join('\n');
     await layoutWordCellSpacing(host);
-    await layoutHwpSourceAdvances(host, wordLayout.interactive ? printCheckpoint(signal) : undefined);
+    await layoutHwpSourceAdvances(host, wordLayout.interactive ? layoutCheckpoint(() => signal?.throwIfAborted()) : undefined);
     if (wordLayout.paintHwpCellLines !== false) {
       layoutHwpSourceCellLines(host);
       if (hwpSourceFlow?.missingCompactCellFace) {
