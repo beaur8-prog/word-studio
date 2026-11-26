@@ -551,6 +551,8 @@ async function main() {
       }
       if (process.env.WINDOWS_ENGLISH_TERMINAL_DETAIL === '1')
         await require('./hwp-column-terminal-witness.cjs')(page, item.path);
+      if (process.env.WINDOWS_MATH_EQUATIONS === '1')
+        await require('./math-equation-density.cjs').record(page, process.env.WINDOWS_MATH_EQUATIONS_RESULT);
       if (process.env.WINDOWS_NATIVE_PRINT_GEOMETRY) {
         stage = 'pdf-geometry';
         const geometry = await require('./print-geometry.cjs')(page);
