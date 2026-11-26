@@ -135,6 +135,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
             bodyBottom: body.getBoundingClientRect().bottom - origin.top, lineY,
             inkBottom: ink.length ? Math.max(...ink.map(rect => rect.bottom - origin.top)) : null,
             fragment: p.hasAttribute('data-print-paragraph-fragment'), authored: p.dataset.hwpSourceWrap?.includes('authoredBodyLines') ?? false,
+            tailProof: p.dataset.hwpSourceWrap?.includes('authoredTailInk') ?? false,
             fontSize: getComputedStyle(p).fontSize, lineHeight: getComputedStyle(p).lineHeight } };
         }).filter(row => row.literal);
         for (const {ordinal, literal} of watched) {
@@ -190,6 +191,12 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   expect(result.saves).toBe(2);
   const { saves: _, nativeFlow, ...metrics } = result;
   if (watched.length) console.log('WINDOWS_HANCOM_PRE_EXPORT_FLOW ' + JSON.stringify(nativeFlow));
+  if (process.env.WINDOWS_AUTHORED_TAIL_PROOF === '1') {
+    const tail = nativeFlow.find(entry => entry.ordinal === 80);
+    expect(tail?.results).toHaveLength(1);
+    expect(tail?.results[0]).toHaveLength(1);
+    expect(tail?.results[0][0]).toMatchObject({ page: 7, literalLength: 60, fragment: false, tailProof: true });
+  }
   console.log('WINDOWS_PUBLIC_RESULT ' + JSON.stringify({ id: item.id, ext: item.ext, ...metrics }));
   if (verifyGeometry) {
     const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
@@ -241,7 +248,16 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
             console.log('WINDOWS_HANCOM_LINE_WITNESS ' + JSON.stringify(value));
             if (process.env.WINDOWS_PAGE_OFFSETS) {
               const measure = require('../../scripts/windows-qa/hancom-source-page-offsets.cjs');
-              console.log('WINDOWS_HANCOM_PAGE_OFFSETS ' + JSON.stringify({ format, ...measure(original, saved) }));
+              const offsets = measure(original, saved);
+              console.log('WINDOWS_HANCOM_PAGE_OFFSETS ' + JSON.stringify({ format, ...offsets }));
+              if (process.env.WINDOWS_AUTHORED_TAIL_PROOF === '1') {
+                const tail = offsets.bodyTail;
+                console.log('WINDOWS_HANCOM_NATIVE_TAIL ' + JSON.stringify({ format, ...tail }));
+                expect(tail?.saved?.map(line => [line.page, line.glyphs]).reduce((totals, [page, glyphs]) => {
+                  totals[page] = (totals[page] ?? 0) + glyphs;
+                  return totals;
+                }, {})).toEqual({ 7: 60 });
+              }
             }
           } finally { original.free(); }
         }

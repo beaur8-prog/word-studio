@@ -36,76 +36,33 @@ function viewHeight(p: HTMLElement, line: HwpCellLine, font: number, mixedGrowth
   return simple && !mixedGrowth && !multipleLines(p) ? Math.min(advance, line.end * font / line.font)
     : line.rule === 'Fixed' ? advance : Math.max(advance, font);
 }
-function prepareCellLine(p: HTMLElement, line: HwpCellLine) {
-  unwrapHwpCellPrefixes(p);
-  delete p.dataset.hwpCellTerminal; delete p.dataset.hwpCellAdvance; delete p.dataset.hwpCellEnd;
-  const inherited = p.dataset.hwpCellSourceSize || p.style.fontSize;
-  if (!p.dataset.hwpCellSourceSize) p.dataset.hwpCellSourceSize = inherited;
-  const content = [], walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
-  while (walker.nextNode()) if (walker.currentNode.textContent?.length && !walker.currentNode.parentElement?.closest('.pagination-gap,.pagination-cell-gap,[data-flow-widget]')) {
-    let parent = walker.currentNode.parentElement, size = inherited;
-    while (parent && parent !== p) { if (parent.style.fontSize) { size = parent.style.fontSize; break; } parent = parent.parentElement; }
-    content.push({ type: 'text', text: walker.currentNode.textContent, marks: [{ type: 'textStyle', attrs: { fontSize: size } }] });
-  }
-  const profile = hwpCellFontProfile({ attrs: { paragraphSize: inherited }, content }, line), { font } = profile;
-  p.style.fontSize = `${profile.uniform ? font : profile.inherited}px`;
-  const advance = hwpCellAdvance(line, font), end = Math.min(advance, line.end * font / line.font);
-  p.style.lineHeight = `${end}px`;
-  p.style.setProperty('--exact-line-height', `${end}px`);
-  return {p,line,profile,font,advance,end};
-}
-type PreparedCellLine = ReturnType<typeof prepareCellLine>;
-function cellHeight({p,line,profile,font,advance}:PreparedCellLine) {
-  return p.dataset.hwpCellContinuation || p.dataset.hwpCellFullLine ? advance
-    : viewHeight(p,line,font,!profile.uniform && font > line.font + .05);
-}
-function writeCellHeight({p}:PreparedCellLine, height: number) {
-  p.style.lineHeight = `${height}px`;
-  p.style.setProperty('--exact-line-height', `${height}px`);
-}
-function cellTerminal({p,profile,font,line,advance,end}:PreparedCellLine) {
-  if (!p.dataset.hwpCellFullLine && (profile.uniform || font <= line.font + .05))
-    return hwpCellTerminalLayout(p,font,advance,end);
-}
-
-export function layoutHwpCellLines(root: HTMLElement, measureFixedTablesTogether = false) {
+export function layoutHwpCellLines(root: HTMLElement) {
   const paragraphs = [...(root.matches('[data-hwp-cell-line]') ? [root] : []), ...root.querySelectorAll<HTMLElement>('[data-hwp-cell-line]')];
-  const fixed = new Map<HTMLTableElement, PreparedCellLine[] | null>();
   for (const p of paragraphs) {
     const line = parseHwpCellLine(p.dataset.hwpCellLine);
-    const cell = p.closest('td,th');
-    if (!line || !cell) continue;
-    const table = measureFixedTablesTogether ? cell.closest('table') : null;
-    if (table?.parentElement === root && !fixed.has(table)) {
-      // Fixed-width columns don't start wrapping differently as a sibling
-      // line becomes taller. Put the reads between two shared write passes.
-      const widths = [...table.querySelectorAll<HTMLTableColElement>(':scope > colgroup > col')];
-      const knownGrid = /^\d+(?:\.\d+)?px$/.test(table.style.width) && !table.style.zoom &&
-        widths.length && widths.every(col => /^\d+(?:\.\d+)?px$/.test(col.style.width)) &&
-        !table.querySelector('table,[data-column-count],[data-document-textbox]') &&
-        getComputedStyle(table).tableLayout === 'fixed';
-      fixed.set(table,knownGrid ? [] : null);
+    if (!line || !p.closest('td,th')) continue;
+    unwrapHwpCellPrefixes(p);
+    delete p.dataset.hwpCellTerminal; delete p.dataset.hwpCellAdvance; delete p.dataset.hwpCellEnd;
+    const inherited = p.dataset.hwpCellSourceSize || p.style.fontSize;
+    if (!p.dataset.hwpCellSourceSize) p.dataset.hwpCellSourceSize = inherited;
+    const content = [], walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) if (walker.currentNode.textContent?.length && !walker.currentNode.parentElement?.closest('.pagination-gap,.pagination-cell-gap,[data-flow-widget]')) {
+      let parent = walker.currentNode.parentElement, size = inherited;
+      while (parent && parent !== p) { if (parent.style.fontSize) { size = parent.style.fontSize; break; } parent = parent.parentElement; }
+      content.push({ type: 'text', text: walker.currentNode.textContent, marks: [{ type: 'textStyle', attrs: { fontSize: size } }] });
     }
-    const current = prepareCellLine(p,line), group = table && fixed.get(table);
-    if (group) group.push(current);
-    else {
-      writeCellHeight(current,cellHeight(current));
-      const terminal = cellTerminal(current);
-      if (terminal) applyHwpCellTerminal(p,terminal,current.advance,current.end);
-    }
-  }
-
-  for (const group of fixed.values()) if (group?.length) {
-    const heights = group.map(cellHeight);
-    group.forEach((line,index) => writeCellHeight(line,heights[index]));
-    const terminals = group.map(cellTerminal);
-    group.forEach(({p,advance,end},index) => {
-      const terminal = terminals[index];
-      if (terminal) applyHwpCellTerminal(p,terminal,advance,end);
-    });
+    const profile = hwpCellFontProfile({ attrs: { paragraphSize: inherited }, content }, line), { font } = profile;
+    p.style.fontSize = `${profile.uniform ? font : profile.inherited}px`;
+    const advance = hwpCellAdvance(line, font), end = Math.min(advance, line.end * font / line.font);
+    p.style.lineHeight = `${end}px`;
+    p.style.setProperty('--exact-line-height', `${end}px`);
+    const height = p.dataset.hwpCellContinuation || p.dataset.hwpCellFullLine ? advance : viewHeight(p, line, font, !profile.uniform && font > line.font + .05);
+    p.style.lineHeight = `${height}px`;
+    p.style.setProperty('--exact-line-height', `${height}px`);
+    const terminal = !p.dataset.hwpCellFullLine && (profile.uniform || font <= line.font + .05) && hwpCellTerminalLayout(p, font, advance, end);
+    if (terminal) applyHwpCellTerminal(p, terminal, advance, end);
   }
 }
-
 const key = new PluginKey('hwpCellLineMetrics');
 export const HwpCellLineMetrics = Extension.create({
   name: 'hwpCellLineMetrics',

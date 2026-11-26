@@ -1,7 +1,7 @@
 import { hwpNativeCompactRowAttribute } from '../hwp-centered-cell-labels';
 import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
-import { hwpInlineTableBottom, hwpInlineTableBottomAttribute, hwpInlineTableTop, hwpInlineTableTopAttribute, tableAnchor, type TableAnchor } from '../table-anchor-data';
+import { hwpInlineTableTop, hwpInlineTableTopAttribute, tableAnchor, type TableAnchor } from '../table-anchor-data';
 import { elementRanges, topLevelHwpPasteBlocks } from './markup-ranges';
 import { entities } from './cell-content';
 import documentLimits from '../../electron/document-limits.json';
@@ -76,23 +76,20 @@ function projectedInlineInsets(table: string, body: string, anchor: TableAnchor)
  * no marker paragraph or original text is removed. */
 export function stageHwpTables(html: string) {
   type Placement = { mode: 'label' } | { mode: 'overlay'; anchor: TableAnchor } |
-    { mode: 'flow'; anchor: TableAnchor; breakMode: 'CELL' | 'TABLE' } | { mode: 'inline-insets'; top?: number; bottom?: number; left?: number };
+    { mode: 'flow'; anchor: TableAnchor; breakMode: 'CELL' | 'TABLE' } | { mode: 'inline-insets'; top: number; bottom?: number; left?: number };
   const prefix = `WORDSTUDIO-TABLE-${crypto.randomUUID()}-`, records = new Map<string, Placement>();
   const flowTables = nativeParagraphFlowTables(html);
   const topAttribute = new RegExp(`\\b${hwpInlineTableTopAttribute}="([^"]*)"`);
-  const bottomAttribute = new RegExp(`\\b${hwpInlineTableBottomAttribute}="([^"]*)"`);
   let staged = html;
   for (const table of elementRanges(html, 'table').reverse()) {
     const anchor = markupAnchor(table.open), mode = flowTables.get(table.start);
     const breakMode = anchor && mode === 'flow' ? nativeParagraphFlow(table.open, anchor) : undefined;
     const top = anchor ? undefined : hwpInlineTableTop(topAttribute.exec(table.open)?.[1]);
-    const bottom = anchor ? undefined : hwpInlineTableBottom(bottomAttribute.exec(table.open)?.[1]);
     const placement = mode === 'label' ? { mode } as const
       : anchor && breakMode ? { mode: 'flow', anchor, breakMode } as const
       : anchor?.overlay ? { mode: 'overlay', anchor } as const
       : anchor ? projectedInlineInsets(table.open, table.inner, anchor)
-      : bottom !== undefined || top !== undefined && top !== pasteOuterMargin
-        ? { mode: 'inline-insets', top, bottom } as const : undefined;
+      : top !== undefined && top !== pasteOuterMargin ? { mode: 'inline-insets', top } as const : undefined;
     if (!placement) continue;
     let depth = 0, at = -1;
     for (const m of table.inner.matchAll(/<\/?(?:table|p)\b[^>]*>/g)) {
@@ -131,7 +128,7 @@ export function stageHwpTables(html: string) {
           const inner = table.inner.replace(/^<hp:sz\b[^>]*\/><hp:pos\b[^>]*\/><hp:outMargin\b[^>]*\/>/, prefix =>
             /<hp:pos\b[^>]*\btreatAsChar="1"/.test(prefix) ? prefix.replace(/<hp:outMargin\b[^>]*\/>/, tag => {
               const values: Record<string, number> = {};
-              if (record.top !== undefined && /\btop="283"/.test(tag)) values.top = record.top;
+              if (/\btop="283"/.test(tag)) values.top = record.top;
               if (record.bottom !== undefined && /\bbottom="283"/.test(tag)) values.bottom = record.bottom;
               if (record.left !== undefined && /\bleft="283"/.test(tag)) {
                 while (owner >= 0 && hosts[owner].start > table.start) owner--;

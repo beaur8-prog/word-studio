@@ -10,7 +10,7 @@ function measure(doc, lastPage) {
     let body = 0;
     let cells = 0;
     for (const run of runs) {
-      if (run.headerFooter || run.paraIdx === 0xffffffff) continue;
+      if (run.headerFooter || !Number.isInteger(run.paraIdx) || run.paraIdx === 0xffffffff) continue;
       const literal = run.text.replace(/\s/gu, '');
       if (!literal) continue;
       const inCell = run.cellPath?.length > 0;
@@ -87,5 +87,10 @@ module.exports = (original, saved) => {
     const cleaned = ({ literal, ...value }) => ({ ...value, glyphs: literal.length });
     tablePairs.push({ source: cleaned(table), saved: cleaned(candidates[0]) });
   }
-  return { offsets: [...offsets], boundaries, endLines, tablePairs, sourcePages: source.pages, savedPages: output.pages };
+  const originalTail = [...source.unique.values()].find(value => value && !value.inCell &&
+    value.paragraph === 80 && value.page === 7 && value.literal.length === 60);
+  const savedTail = originalTail && output.unique.get(originalTail.literal);
+  const bodyTail = originalTail ? { source: [...originalTail.lines.values()],
+    saved: savedTail ? [...savedTail.lines.values()] : [] } : undefined;
+  return { offsets: [...offsets], boundaries, endLines, tablePairs, bodyTail, sourcePages: source.pages, savedPages: output.pages };
 };

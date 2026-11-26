@@ -21,13 +21,12 @@ import { parseHwpBodyLine } from '../hwp-body-line';
 import { tableAnchor } from '../table-anchor';
 import { sealHwpRowReserves } from '../hwp-row-reserve';
 import { nativeBoxAnchor, prepareHwpExportTextBoxes } from './export-textbox-projection';
-import { measuredAdjacentNativeTables, type AdjacentNativeTables } from './export-adjacent-tables';
 import { measuredTableLead } from './export-table-lead';
 import { measuredContinuationPlacement, measuredPaperHeaderTable, measuredRasterTablePair, nativeContinuedTableAttribute, type PaperHeaderTable,
   type RasterTablePair, type TablePlacement } from './export-table-placement';
 import { measuredStandaloneBitmapSources, nativeStandalonePictureAttribute } from './export-picture-line';
 import { measuredTerminalEmptyFonts, type TerminalEmptyFonts } from './export-empty-paragraph-format';
-import { measuredAuthoredSingleLines, measuredAuthoredTerminalWrap, type AuthoredSingleLine, measuredTerminalPageBreak, type AuthoredTerminalWrap, type TerminalPageBreak } from './export-terminal-page-break';
+import { measuredAuthoredTerminalWrap, measuredTerminalPageBreak, type AuthoredTerminalWrap, type TerminalPageBreak } from './export-terminal-page-break';
 import { measuredEmptyTableRows, type EmptyTableRows } from './export-empty-table-rows';
 
 function renderedBody(root: HTMLElement, doc: StudioDocument) {
@@ -184,12 +183,10 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const wordPages = layout.pages;
   const tableLeads: NonNullable<ReturnType<typeof measuredTableLead>>[] = [];
   const continuations: TablePlacement[] = [];
-  const adjacentTables: AdjacentNativeTables[] = [];
   const rasterTablePairs: RasterTablePair[] = [];
   const terminalEmptyFonts: TerminalEmptyFonts[] = [];
   const terminalPageBreaks: TerminalPageBreak[] = [];
   const authoredTerminalWraps: AuthoredTerminalWrap[] = [];
-  const authoredSingleLines: AuthoredSingleLine[] = [];
   const emptyTableRows: EmptyTableRows[] = [];
   let paperHeaderTable: PaperHeaderTable | undefined;
   let standaloneBitmaps: string[] = [];
@@ -200,9 +197,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     // Preserve Word's measured page boundaries. Letting one enormous HTML table
     // reflow in the engine can collapse hundreds of pages into a few dozen.
     let previousPage = doc.page;
-    root.innerHTML = [...layout.element.querySelectorAll<HTMLElement>('.print-page')].map((sheet, index, sheets) => {
-      const adjacent = index && measuredAdjacentNativeTables(sheets[index - 1], sheet);
-      if (adjacent) adjacentTables.push(adjacent);
+    root.innerHTML = [...layout.element.querySelectorAll('.print-page')].map((sheet, index) => {
       const paper = sheet.getBoundingClientRect();
       for (const table of sheet.querySelectorAll<HTMLElement>('table.table-overlay-active')) {
         const anchor = tableAnchor(table.dataset.tableAnchor); if (!anchor?.overlay) continue;
@@ -241,7 +236,6 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
       if (terminalBreak) terminalPageBreaks.push(terminalBreak);
       const wrap = content && !terminalBreak && index+1 < wordPages ? measuredAuthoredTerminalWrap(content, index) : undefined;
       if (wrap) authoredTerminalWraps.push(wrap);
-      if (content) authoredSingleLines.push(...measuredAuthoredSingleLines(content,index));
       if (content) emptyTableRows.push(...measuredEmptyTableRows(content));
       for (const box of content?.querySelectorAll(':scope > [data-textbox-position="floating"]') ?? []) {
         const frame = box.querySelector(':scope > [data-textbox-content]');
@@ -326,7 +320,7 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
   const session = new HwpReaderSession();
   try {
     const result = await session.export(rendered.html, exportPage, format, onProgress, rendered.boxes,
-      { pages: wordPages, tableLeads, continuations, adjacentTables, paperHeaderTable, rasterTablePairs, terminalEmptyFonts, terminalPageBreaks, authoredTerminalWraps, authoredSingleLines, emptyTableRows, emptyParagraphs: rendered.emptyParagraphs });
+      { pages: wordPages, tableLeads, continuations, paperHeaderTable, rasterTablePairs, terminalEmptyFonts, terminalPageBreaks, authoredTerminalWraps, emptyTableRows, emptyParagraphs: rendered.emptyParagraphs });
     warnings.push(`쪽 수 비교: Word 인쇄 ${wordPages}쪽 → ${format.toUpperCase()} 원본 보기 ${result.pages}쪽.` + (wordPages !== result.pages ? ' 쪽 배치가 달라졌습니다. 정확한 쪽 참조가 필요한 문서는 원본과 대조하세요.' : ' 쪽 수가 같아도 세부 배치는 다를 수 있습니다.'));
     return { blob: new Blob([new Uint8Array(result.bytes)], { type: format === 'hwp' ? 'application/x-hwp' : 'application/vnd.hancom.hwpx' }), warnings: [...new Set([...warnings, ...result.warnings])] };
   } finally { session.close(); }

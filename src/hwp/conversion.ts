@@ -42,7 +42,7 @@ import { sourceCellTerminal, sourceTableTerminalBoxes } from './source-cell-term
 import { nestedTableGeometry } from './nested-tables';
 import { hwpCellBorders } from './cell-borders';
 import { physicalLineHeight, paragraphCss, sourceLinePitches, sourcePreciseColumnPitch, cellParagraphCss, paragraphAutoSpace, hwpBodyTextAtLineTop, sourceStoredMixedLine, sourceMixedBodyLinePair, sourceUniformMixedLinePair, sourceTerminalTextAtLineTop, sourceTextAfterInlineTableFits, sourceInitialTableLead, sourceHostBeforeFloatingTable, sourceHostOnPriorPage, sourceTerminalEmptyLine, sourceTerminalEmptyLineAfterTable, sourceInlineStrokeHeight, sourceKeptInlineTable, sourceKeptInlineTableAfterBody, sourceMixedCellLeading, sourceBlankAutoCellFits, sourceIntactCellBefore, sourceSplitCellBefore, sourcePaintedCellBefore, sourceWholeParagraphPeerRow, sourceInlinePeerInMiddleFragment, sourceColumnCellWrap, sourceBeforeNestedCellTail, sourceCellBoundsTolerance, sourceScaledCellRun, sourceBodyPictureFlow, sourcePaperHeadingLine, sourceTightInlinePicture, sourceInlineColumnTableIndent, type HwpPaintedLine, connectedHwpBorderGroup } from './paragraph-layout';
-import { nativeLineTypography, preserveHwpBodyLineEnds, preserveHwpColumnLineEnds, preserveHwpSourceSpaces, restoreUniformLatinMetrics, restoreScriptFonts, sourceFontRuns, type HwpScriptTypography } from './script-fonts';
+import { preserveHwpBodyLineEnds, preserveHwpColumnLineEnds, preserveHwpSourceSpaces, restoreUniformLatinMetrics, restoreScriptFonts, sourceFontRuns, type HwpScriptTypography } from './script-fonts';
 import { restoreHwpFixedSpaces } from './fixed-spaces';
 import { metafilePreview } from './metafile-preview';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
@@ -50,12 +50,11 @@ import { encodeHwpBodyLine } from '../hwp-body-line';
 import { restoreNativeContinuationPlacement, restoreNativePaperHeaderTable, restoreNativeRasterTablePair } from './export-table-placement';
 import { restoreStandalonePictureLine } from './export-picture-line';
 import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts, withoutPastedEmptyCarriers } from './export-empty-paragraph-format';
-import { restoreAuthoredNativeSingleLine, restoreAuthoredTerminalWrap, restoreTerminalPageBreak } from './export-terminal-page-break';
+import { restoreAuthoredTerminalWrap, restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
-import { restoreAdjacentNativeTables } from './export-adjacent-tables';
 import { stageHwpTables } from './export-tables';
 import { tableCaptionDefinitions, renderTableCaptions, restoreTableCaptions } from './table-captions';
-import { hwpInlineTableBottom, hwpInlineTableBottomAttribute, hwpInlineTableTop, hwpInlineTableTopAttribute, hwpTableTopGap } from '../table-anchor-data';
+import { hwpInlineTableTop, hwpInlineTableTopAttribute, hwpTableTopGap } from '../table-anchor-data';
 import { hwpMarginCenteredTableAnchor } from './table-position';
 import { elementRanges, topLevelHwpPasteBlocks } from './markup-ranges';
 import { stageHwpCharacterStyles } from './export-character-width';
@@ -2045,22 +2044,27 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
       const whole = range(0, 0xffffffff);
       let open = whole.match(/^<p\b[^>]*>/)?.[0] ?? '<p style="">';
       const painted = bodyLines.get(wrapKey), bodyX = wrapX ?? pitches.get(`leading-x:${wrapKey}`);
-      if (recordBodyWidth && positions.length === 0 && properties.indent < 0 && painted?.length &&
+      const tailRightMargin = (() => {
+        if (!recordBodyWidth || !properties.marginRight || properties.marginLeft || painted?.length !== 2 ||
+            wrapPage === undefined || pitches.get(`page:${section}:${para + 1}`) !== wrapPage + 1 ||
+            para + 1 >= paragraphCount || positions.length || properties.lineSpacingType !== 'Percent') return;
+        const last = painted[1], paper = JSON.parse(doc.getPageInfo(wrapPage));
+        const clearance = paper.footerArea?.y - last.y - last.h;
+        const leading = properties.lineSpacing * last.h / 100 - last.h;
+        if (Number.isFinite(clearance) && clearance >= 0 && clearance <= leading + .15) return Number(properties.marginRight);
+      })();
+      if (recordBodyWidth && positions.length === 0 && properties.indent < 0 && painted && painted.length >= 2 &&
           wrapPage !== undefined && bodyX !== undefined && wrapY !== undefined && bodyX >= 0 && wrapY >= 0 &&
-          painted.every(line => line.page === wrapPage) && !properties.marginLeft && !properties.marginRight &&
+          painted.every(line => line.page === wrapPage) && !properties.marginLeft && (!properties.marginRight || tailRightMargin) &&
           !properties.keepWithNext && !properties.keepLines && !properties.pageBreakBefore &&
           properties.lineSpacingType === 'Percent' && !properties.fontLineHeight) {
         const text = doc.getTextRange(section, para, 0, textLength);
-        const nativeSingle = painted.length === 1 && properties.alignment === 'justify' &&
-          text.length >= 12 && text.length <= 160 && /^[ \u00a0]{2}/.test(text)
-          ? nativeLineTypography(doc, section, para, textLength) : undefined;
-        if (painted.length > 1 || nativeSingle) {
-          const witnessed = preserveHwpBodyLineEnds(whole, text, () => doc.getParagraphLineMetrics(section, para, '[]'), {
-            origin: { page: wrapPage + 1, x: bodyX, y: wrapY }, hanging: -properties.indent, painted, nativeSingle,
-          });
-          // Keep the witness separate from the original fixed-space input.
-          open = witnessed.match(/^<p\b[^>]*>/)?.[0] ?? open;
-        }
+        const witnessed = preserveHwpBodyLineEnds(whole, text, () => doc.getParagraphLineMetrics(section, para, '[]'), {
+          origin: { page: wrapPage + 1, x: bodyX, y: wrapY }, hanging: -properties.indent, painted, tailRightMargin,
+        });
+        // A new print witness must not activate the original fixed-space
+        // leading policy below. Keep its input markup separate from the tag.
+        open = witnessed.match(/^<p\b[^>]*>/)?.[0] ?? open;
       }
       const blank = !textLength && !paragraphControls.length;
       if (whole.includes('\t')) open = open.replace(/>$/, `${hwpTabAttribute(equationMetadata().get(`${section}:${para}`)?.tabStops)}>`);
@@ -2323,10 +2327,10 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
           // Spaces before an inline table share the table's line. Keep their
           // text, but do not turn them into an additional full-height line.
           // A positive subpixel pitch also survives DOCX exact-line spacing.
-          const spacesOnObjectLine = !!content.trim() && inlineTable && paragraphControls.length === 1 && onlyWhitespace(content) &&
-            /^ +$/.test(entities(content.replace(/<[^>]*>/g, ''))) &&
-            JSON.parse(doc.getLineInfo(section, para, pos)).lineCount === 1;
           if (content.trim()) {
+            const spacesOnObjectLine = inlineTable && paragraphControls.length === 1 && onlyWhitespace(content) &&
+              /^ +$/.test(entities(content.replace(/<[^>]*>/g, ''))) &&
+              JSON.parse(doc.getLineInfo(section, para, pos)).lineCount === 1;
             const host = spacesOnObjectLine ? cssStyle(open, 'line-height:0.1pt;margin-bottom:0px;')
               .replace(/>$/, ' data-hwp-inline-table-spaces="true">')
               : inlineTable && onlyWhitespace(content) ? cssStyle(open, 'line-height:0.1px;margin-bottom:0px;')
@@ -2427,14 +2431,6 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             const top = hwpInlineTableTop(inlineProperties.outerTop);
             if (top !== undefined)
               controlHtml = controlHtml.replace(/^<table\b/, `<table ${hwpInlineTableTopAttribute}="${top}"`);
-            // An authored whitespace host is carried separately in DOCX.
-            // Keep the inline table's own short trailing margin in HWP.
-            if (spacesOnObjectLine) {
-              const bottom = hwpInlineTableBottom(inlineProperties.outerBottom);
-              const dims = JSON.parse(doc.getTableDimensions(section, para, c.controlIndex));
-              if (bottom !== undefined && dims.rowCount > 1 && dims.colCount > 1)
-                controlHtml = controlHtml.replace(/^<table\b/, `<table ${hwpInlineTableBottomAttribute}="${bottom}"`);
-            }
           }
           append(controlHtml);
           inlineTail = undefined;
@@ -2829,10 +2825,6 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withEmptyTableRows !== doc) { doc.free(); doc = withEmptyTableRows; }
     const withAuthoredTerminal = restoreAuthoredTerminalWrap(Core, doc, nativePrint?.authoredTerminalWraps, nativePrint?.pages);
     if (withAuthoredTerminal !== doc) { doc.free(); doc = withAuthoredTerminal; }
-    const withAdjacentTables = restoreAdjacentNativeTables(Core, doc, nativePrint?.adjacentTables, nativePrint?.pages);
-    if (withAdjacentTables !== doc) { doc.free(); doc = withAdjacentTables; }
-    const withAuthoredLine = restoreAuthoredNativeSingleLine(Core, doc, nativePrint?.authoredSingleLines, nativePrint?.pages);
-    if (withAuthoredLine !== doc) { doc.free(); doc = withAuthoredLine; }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {
