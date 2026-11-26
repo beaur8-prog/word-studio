@@ -75,6 +75,7 @@ module.exports = function trial(Core, source, output) {
     throw Error('Unexpected title carrier geometry');
   const from = indexText(source), to = indexText(output);
   const expand = process.env.WINDOWS_HWP_FIRST_PAGE_EXPAND === '1';
+  const includeLong = expand && process.env.WINDOWS_HWP_FIRST_PAGE_INCLUDE_LONG === '1';
   const limit = expand ? 40 : 4;
   const originalPaint = paint(source,limit);
   const proof = [];
@@ -82,14 +83,14 @@ module.exports = function trial(Core, source, output) {
     const next = to.get(text), originalOwner = original.paras[index], savedOwner = saved.paras[next];
     const page = originalPaint.get(index)?.values().next().value?.page;
     if (index===null || !Number.isInteger(next) || !originalOwner || !savedOwner ||
-        page===undefined || !expand && page!==0 || text.length<8 || text.length>200 ||
+        page===undefined || !expand && page!==0 || text.length<8 || !includeLong && text.length>200 ||
         /[^\p{L}\p{N}\p{P}\p{S}\p{Zs}\t]/u.test(text) || /<hp:(?:ctrl|pic|tbl|shape)\b/.test(originalOwner.inner)) continue;
     const before = original.styles.get(id(originalOwner.tag,'paraPrIDRef'));
     const after = saved.styles.get(id(savedOwner.tag,'paraPrIDRef'));
     const line = originalOwner.inner.match(cache)?.[0];
     const authoredUnit = before?.inner.match(unit)?.[0], generatedUnit = after?.inner.match(unit)?.[0];
     if (line && authoredUnit && generatedUnit && JSON.parse(source.getParagraphLineMetrics(0,index,'[]')).controlCount===0)
-      proof.push({index,next,page,owner:savedOwner,after,line,authoredUnit,generatedUnit,tab:text.includes('\t')});
+      proof.push({index,next,page,length:text.length,owner:savedOwner,after,line,authoredUnit,generatedUnit,tab:text.includes('\t')});
   }
   if (!proof.some(row=>row.tab)) throw Error('Missing an unchanged authored tab row');
   const count = (doc, title) => {
@@ -114,7 +115,8 @@ module.exports = function trial(Core, source, output) {
   const scopes = [
     ['title only',()=>false], ['first-page tab rows',row=>onFirst(row)&&row.tab], ['all exact first-page rows',onFirst],
     ...(expand ? [['first two source pages',row=>row.page<=1], ['first three source pages',row=>row.page<=2],
-      ['all eligible source pages',()=>true], ['after the first page only',row=>!onFirst(row)]] : []),
+      ['all eligible source pages',row=>!includeLong || row.length<=200], ['after the first page only',row=>!onFirst(row)]] : []),
+    ...(includeLong ? [['all exact including long owners',()=>true],['long exact owners only',row=>row.length>200]] : []),
   ];
   for (const [scope,include] of scopes) {
     if (scope==='title only' && titleAlreadyAuthored) continue;
@@ -138,5 +140,9 @@ module.exports = function trial(Core, source, output) {
     try { results.push({...count(changed,scope), ownerEdits:additions.length}); }
     finally { changed.free(); }
   }
-  return { originalPages:source.pageCount(),fixed:proof.length,fixedFirstPage:proof.filter(row=>row.page===0).length,titleAlreadyAuthored,results };
+  const longBySourcePage = {};
+  if (includeLong) for (const row of proof.filter(row=>row.length>200))
+    longBySourcePage[row.page+1] = (longBySourcePage[row.page+1] ?? 0) + 1;
+  return { originalPages:source.pageCount(),fixed:proof.length,fixedFirstPage:proof.filter(row=>row.page===0).length,
+    titleAlreadyAuthored,...(includeLong ? {longBySourcePage} : {}),results };
 };
