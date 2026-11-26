@@ -51,7 +51,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   await page.exposeFunction('writeActualHangul', async (format: 'hwp' | 'hwpx', encoded: string) => {
     await writeFile(info.outputPath('hancom-saved.' + format), Buffer.from(encoded, 'base64'));
   });
-  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry, watched, flowOnly, skipPrint, formats, stripEmptyTabs}) => {
+  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry, watched, flowOnly, skipPrint, formats, stripEmptyTabs, verifyFormFlow}) => {
     const qa = window as Window & {
       logOriginalForward(metrics: object): Promise<void>;
       logOriginalStage(stage: string, pages: number): Promise<void>;
@@ -130,6 +130,31 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       }
     }
 
+    if (verifyFormFlow) {
+      const { wordContentLanguage } = await import('/src/types.ts');
+      const html = generateHTML(doc.content, editorExtensions);
+      for (const native of [false,true]) {
+        const options = native ? {
+          paintHwpCellLines:false,hwpNativeExport:true,interactive:true,language:wordContentLanguage(doc.wordDefaultLanguage),
+        } : wordLayoutOptions(doc);
+        const layout = await createPrintLayout(html, doc.page, undefined, undefined, options);
+        try {
+          const papers = [...layout.element.querySelectorAll('.print-page')].map(paper => {
+            const origin = paper.getBoundingClientRect();
+            const body = paper.querySelector('.print-content')!, frame = body.getBoundingClientRect();
+            const number = (v: number) => Math.round(v*100)/100;
+            return {bottom:number(frame.bottom-origin.top), blocks:[...body.children].map(el=>{
+              const g = el.getBoundingClientRect(), style = getComputedStyle(el);
+              const table = el instanceof HTMLTableElement;
+              return [el.tagName,el.textContent?.replace(/\s/gu,'').length ?? 0,table ? el.rows.length:null,
+                number(g.top-origin.top),number(g.height),style.marginTop,style.marginBottom,
+                table ? el.hasAttribute('data-hwp-inline-table-bottom'):null];
+            })};
+          });
+          await qa.logOriginalForward({stage:'form-print-geometry',native,papers});
+        } finally { layout.dispose(); }
+      }
+    }
     const nativeFlow = [];
     if (watched.length) {
       const { wordContentLanguage } = await import('/src/types.ts');
@@ -201,7 +226,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       await qa.logOriginalStage('reverse-' + format, reverse.at(-1)?.pages ?? 0);
     }
     return { nativeOriginalPages, printPages, preservation, reverse, saves, nativeFlow };
-  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1', watched, flowOnly: process.env.WINDOWS_NATIVE_FLOW_ONLY === '1', skipPrint: process.env.WINDOWS_NATIVE_SKIP_PRINT === '1', formats, stripEmptyTabs:process.env.WINDOWS_DIAGNOSTIC_DROP_EMPTY_TABS === '1' });
+  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1', watched, flowOnly: process.env.WINDOWS_NATIVE_FLOW_ONLY === '1', skipPrint: process.env.WINDOWS_NATIVE_SKIP_PRINT === '1', verifyFormFlow:process.env.WINDOWS_DIAGNOSTIC_FORM_FLOW === '1', formats, stripEmptyTabs:process.env.WINDOWS_DIAGNOSTIC_DROP_EMPTY_TABS === '1' });
   if (process.env.WINDOWS_NATIVE_FLOW_ONLY !== '1' && process.env.WINDOWS_NATIVE_SKIP_PRINT !== '1') {
     expect(result.printPages).toHaveLength(3);
     expect(result.printPages.every(pages => pages > 0)).toBe(true);

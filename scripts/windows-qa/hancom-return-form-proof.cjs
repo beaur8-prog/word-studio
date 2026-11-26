@@ -71,7 +71,18 @@ async function main(){
       }));
       return {top:paper.marginTop+paper.marginHeader,bottom:paper.footerArea.y,rows,pages};
     };
-    console.log('WINDOWS_RETURN_FORM_FLOW '+JSON.stringify({original:flow(original,input),target:flow(saved,target)}));
+    const before = flow(saved,target);
+    if (before.rows[target.paraIdx].pageBreakBefore) {
+      const rebuilt = new HwpDocument(new Uint8Array(await fs.readFile(process.argv[3])));
+      try {
+        const changed = JSON.parse(rebuilt.applyParaFormat(target.secIdx,target.paraIdx,JSON.stringify({pageBreakBefore:false}))).ok;
+        const after = flow(rebuilt,target);
+        console.log('WINDOWS_RETURN_FORM_BREAK_TRIAL '+JSON.stringify({changed, before:before.pages.length, after:after.pages.length,
+          sameText:JSON.stringify([...text(rebuilt)].sort())===prior,
+          afterBody:after.pages.flatMap(page=>page.lines), afterControls:after.pages.flatMap(page=>page.objects),
+          wrapperBefore:box(target), bodyBottom:after.bottom}));
+      } finally { rebuilt.free(); }
+    }
     console.log('WINDOWS_RETURN_FORM_INSET_TRIAL '+JSON.stringify({original:box(input),target:box(target),bounds:[props.width,props.height,props.footerArea.y],
       originalInsets:[originalStyle.outerTop,originalStyle.outerBottom,originalStyle.outerLeft],currentInsets:[savedStyle.outerTop,savedStyle.outerBottom,savedStyle.outerLeft],hostLeft:host.marginLeft,control:size(saved),attempts}));
   } finally {original.free();saved.free();}
