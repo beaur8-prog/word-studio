@@ -48,12 +48,14 @@ import { metafilePreview } from './metafile-preview';
 import { emptyLineCompatibilityWarning } from '../page-empty-lines';
 import { encodeHwpBodyLine } from '../hwp-body-line';
 import { restoreNativeContinuationPlacement, restoreNativePaperHeaderTable, restoreNativeRasterTablePair } from './export-table-placement';
-import { restoreStandalonePictureLines } from './export-picture-line';
+import { restoreStandalonePictureLine } from './export-picture-line';
 import { repairBinaryTerminalEmptyPage, restorePastedEmptyParagraphs, restoreTerminalEmptyFonts, withoutPastedEmptyCarriers } from './export-empty-paragraph-format';
 import { restoreAuthoredNativeSingleLine, restoreAuthoredTerminalWrap, restoreTerminalPageBreak } from './export-terminal-page-break';
 import { restoreNativeEmptyTableRows } from './export-empty-table-rows';
 import { restoreNativePageHead } from './export-page-head';
 import { sourceHwpPageHead } from './source-page-head';
+import { sourceNativeTableFragment } from './source-native-table-fragment';
+import { restoreNativeTableFragment } from './export-native-table-fragment';
 import { stageHwpTables } from './export-tables';
 import { tableCaptionDefinitions, renderTableCaptions, restoreTableCaptions } from './table-captions';
 import { hwpInlineTableTop, hwpInlineTableTopAttribute, hwpTableTopGap } from '../table-anchor-data';
@@ -2412,8 +2414,12 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             const y = offset + (outerTop > 0 && Math.abs(sourceDistance - outerTop) <= .5 ? outerTop : 0);
             const x = position && (props.horzRelTo === 'Paper' ? position.x : position.x - px(pd.marginLeft));
             if (props.textWrap === 'TopAndBottom' && props.vertRelTo === 'Para' && props.vertAlign === 'Top' && !props.hasCaption &&
-              ['Column', 'Para', 'Paper'].includes(props.horzRelTo) && Number(props.vertOffset) >= 0 && y >= 0 && x !== undefined && x >= 0)
-              controlHtml = controlHtml.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify({ x, y, bottom: px(props.outerBottom || 0), reference: 'paragraph', ...(props.horzRelTo !== 'Paper' ? { horizontal: 'margin' } : {}) }))}"`);
+              ['Column', 'Para', 'Paper'].includes(props.horzRelTo) && Number(props.vertOffset) >= 0 && y >= 0 && x !== undefined && x >= 0) {
+              const nativeFirstFragment = position && sourceNativeTableFragment(doc, section, para, c.controlIndex, position, props);
+              const anchor = { x, y, bottom: px(props.outerBottom || 0), reference: 'paragraph',
+                ...(props.horzRelTo !== 'Paper' ? { horizontal: 'margin' } : {}), ...(nativeFirstFragment ? { nativeFirstFragment } : {}) };
+              controlHtml = controlHtml.replace(/^<table\b/, `<table data-table-anchor="${escape(JSON.stringify(anchor))}"`);
+            }
           }
           if (c.ctrlId === 'tbl' && !inlineTable && !/^<table\b[^>]*\bdata-table-anchor=/.test(controlHtml))
             warnings.add('일부 떠 있는 표는 본문 흐름 안으로 옮깁니다. 음수 위치·호스트 본문·단·겹침·캡션은 원본과 다를 수 있습니다.');
@@ -2830,7 +2836,7 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withContinuationPlacement !== doc) { doc.free(); doc = withContinuationPlacement; }
     const withPaperHeaderTable = restoreNativePaperHeaderTable(Core, doc, nativePrint?.paperHeaderTable);
     if (withPaperHeaderTable !== doc) { doc.free(); doc = withPaperHeaderTable; }
-    const withPictureLine = restoreStandalonePictureLines(Core, doc, pictures.standaloneIds);
+    const withPictureLine = restoreStandalonePictureLine(Core, doc, pictures.standaloneIds);
     if (withPictureLine !== doc) { doc.free(); doc = withPictureLine; }
     const withRasterTable = restoreNativeRasterTablePair(Core, doc, nativePrint?.rasterTablePairs, nativePrint?.pages);
     if (withRasterTable !== doc) { doc.free(); doc = withRasterTable; }
@@ -2846,6 +2852,10 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     if (withSourcePageHead !== doc) { doc.free(); doc = withSourcePageHead; }
     const withAuthoredLine = restoreAuthoredNativeSingleLine(Core, doc, nativePrint?.authoredSingleLines, nativePrint?.pages);
     if (withAuthoredLine !== doc) { doc.free(); doc = withAuthoredLine; }
+    if (format === 'hwpx') {
+      const withTableFragment = restoreNativeTableFragment(Core, doc, nativePrint?.authoredTableFragments, nativePrint?.pages);
+      if (withTableFragment !== doc) { doc.free(); doc = withTableFragment; }
+    }
     onProgress?.({ label: `${format.toUpperCase()} 파일을 만드는 중…` });
     const output = format === 'hwp' ? doc.exportHwpWithReport() : doc.exportHwpxWithReport();
     try {

@@ -1,10 +1,25 @@
-export type TableAnchor = { x: number; y: number; bottom: number; reference?: 'paragraph'; horizontal?: 'margin'; horizontalAlign?: 'center'; overlay?: 'page-bottom' | 'paper-bottom'; wrap?: 'right'; right?: number };
+export type AuthoredNativeTableFragment = { page: number; x: number; y: number; width: number; bodyWidth: number;
+  paperHeight: number; rows: number; columns: number; top: number; bottom: number; left: number; right: number;
+  fingerprint: string };
+export type TableAnchor = { x: number; y: number; bottom: number; reference?: 'paragraph'; horizontal?: 'margin'; horizontalAlign?: 'center'; overlay?: 'page-bottom' | 'paper-bottom'; wrap?: 'right'; right?: number; nativeFirstFragment?: AuthoredNativeTableFragment };
 export const paragraphTableNamespace = 'urn:wordstudio:paragraph-table:1';
 
 export function hwpTableTopGap(value: unknown): number | undefined {
   if (typeof value !== 'string' && typeof value !== 'number') return;
   const gap = Number(value);
   return Number.isFinite(gap) && gap > 0 && gap <= 1000 ? gap : undefined;
+}
+
+function nativeFirstFragment(value: unknown): AuthoredNativeTableFragment | undefined {
+  if (!value || typeof value !== 'object') return;
+  const { page, x, y, width, bodyWidth, paperHeight, rows, columns, top, bottom, left, right, fingerprint } = value as AuthoredNativeTableFragment;
+  if (Number.isSafeInteger(page) && page > 1 && page <= 1000 &&
+      [x, y, width, bodyWidth, paperHeight].every(n => Number.isFinite(n) && n >= 0 && n <= 5000) &&
+      width > 0 && width <= bodyWidth && y > 0 && y < paperHeight &&
+      Number.isSafeInteger(rows) && rows >= 2 && rows <= 12 && Number.isSafeInteger(columns) && columns >= 2 && columns <= 6 &&
+      [top, bottom, left, right].every(n => Number.isSafeInteger(n) && n >= 0 && n <= 32767) &&
+      typeof fingerprint === 'string' && /^[0-9a-f]{16}$/.test(fingerprint))
+    return { page, x, y, width, bodyWidth, paperHeight, rows, columns, top, bottom, left, right, fingerprint };
 }
 
 /** Page-bottom overlays do not reserve flow height. Paragraph labels can
@@ -16,9 +31,12 @@ export function tableAnchor(value: unknown): TableAnchor | undefined {
       (a.reference === undefined || a.reference === 'paragraph') && (a.horizontal === undefined || a.horizontal === 'margin') &&
       (a.horizontalAlign === undefined || a.horizontalAlign === 'center' && a.horizontal === 'margin' && a.x === 0 && !a.reference && !a.overlay && !a.wrap) &&
       (a.overlay === undefined || ['page-bottom', 'paper-bottom'].includes(a.overlay) && !a.reference && !a.horizontal) &&
-      (a.wrap === undefined || a.wrap === 'right' && a.reference === 'paragraph' && a.horizontal === 'margin' && !a.overlay && a.y === 0 && Number.isFinite(a.right) && a.right >= 0 && a.right <= 1000))
+      (a.wrap === undefined || a.wrap === 'right' && a.reference === 'paragraph' && a.horizontal === 'margin' && !a.overlay && a.y === 0 && Number.isFinite(a.right) && a.right >= 0 && a.right <= 1000)) {
+      const fragment = a.reference === 'paragraph' && a.horizontal === 'margin' && !a.wrap && nativeFirstFragment(a.nativeFirstFragment);
       return { x: a.x, y: a.y, bottom: a.bottom, ...(a.reference ? { reference: a.reference } : {}), ...(a.horizontal ? { horizontal: a.horizontal } : {}),
-        ...(a.horizontalAlign ? { horizontalAlign: a.horizontalAlign } : {}), ...(a.overlay ? { overlay: a.overlay } : {}), ...(a.wrap ? { wrap: a.wrap, right: a.right } : {}) };
+        ...(a.horizontalAlign ? { horizontalAlign: a.horizontalAlign } : {}), ...(a.overlay ? { overlay: a.overlay } : {}),
+        ...(a.wrap ? { wrap: a.wrap, right: a.right } : {}), ...(fragment ? { nativeFirstFragment: fragment } : {}) };
+    }
   } catch { /* Unsupported floating settings retain ordinary flow. */ }
 }
 

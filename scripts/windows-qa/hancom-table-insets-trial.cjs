@@ -107,9 +107,15 @@ module.exports.placement = (Core, original, saved, elementRanges) => {
       const paper = Number.isInteger(pageIndex) ? JSON.parse(candidate.getPageInfo(pageIndex)) : null;
       const runs = paper ? JSON.parse(candidate.getPageTextLayout(pageIndex)).runs.filter(run => !run.headerFooter &&
         run.secIdx === observed.section && run.parentParaIdx === observed.para && run.cellPath?.[0]?.controlIndex === observed.control) : [];
-      const outside = runs.filter(run => run.x < paper.bodyLeft - .15 || run.x + run.w > paper.bodyRight + .15 ||
-        run.y < paper.marginTop + paper.marginHeader - .15 || run.y + run.h > paper.footerArea.y + .15).length;
-      return { mode, pages: candidate.pageCount(), runCount:runs.length, outside, tableOrdinals: group.map(item => {
+      const outside = [];
+      const content = runs.filter(run => run.text.replace(/\s/gu, ''));
+      for (const run of runs) {
+        const spills = [paper.bodyLeft - run.x, run.x + run.w - paper.bodyRight,
+          paper.marginTop + paper.marginHeader - run.y, run.y + run.h - paper.footerArea.y].map(value => Math.round(value * 100) / 100);
+        if (spills.some(value => value > .15)) outside.push({spills, nonspace:run.text.replace(/\s/gu,'').length,
+          y:run.y,h:run.h,font:run.fontSize,cell:run.cellPath[0].cellIndex});
+      }
+      return { mode, pages: candidate.pageCount(), runCount:runs.length, bodyGlyphRuns:content.length, outside, tableOrdinals: group.map(item => {
         const { page, x, y, height, glyphs, bottomRoom } = item.saved;
         return { page, x, y, height, glyphs, bottomRoom };
       }), sameOwnerText: baseline.paragraphs === next.paragraphs, sameShapes: baseline.shapes === next.shapes };

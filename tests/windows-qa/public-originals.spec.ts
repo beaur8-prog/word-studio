@@ -16,7 +16,8 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   test.setTimeout(process.env.WINDOWS_STAGED_ORIGINAL === item.id ? 1800000 : 900000);
   const source = await readFile(item.path!);
   const diagnostic = process.env.WINDOWS_QA_PAGE_HEAD_TRACE === '1';
-  const formats: ('hwp' | 'hwpx')[] = diagnostic || process.env.WINDOWS_PAGE_TWELVE_TRIAL === '1' ? ['hwpx'] : ['hwp', 'hwpx'];
+  const formats: ('hwp' | 'hwpx')[] = diagnostic || process.env.WINDOWS_PAGE_TWELVE_TRIAL === '1' ||
+    process.env.WINDOWS_PAGE_TWELVE_PRODUCT === '1' ? ['hwpx'] : ['hwp', 'hwpx'];
   if (diagnostic) page.on('console', message => {
     if (message.text().startsWith('QA_PAGE_HEAD_')) console.log(message.text());
   });

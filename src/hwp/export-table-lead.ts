@@ -8,6 +8,7 @@ import type { PaperHeaderTable, RasterTablePair, TablePlacement } from './export
 import type { PastedEmptyParagraphs, TerminalEmptyFonts } from './export-empty-paragraph-format';
 import type { AuthoredSingleLine, AuthoredTerminalWrap, TerminalPageBreak } from './export-terminal-page-break';
 import type { NativePageHead } from './export-page-head';
+import type { AuthoredNativeTableFragment } from '../table-anchor-data';
 import type { EmptyTableRows } from './export-empty-table-rows';
 import { boundedNativeParts, nativeBodyRuns, nativeGlyphBaselines, nativePaintedControls, sameNativeLineContent, type NativeBodyRun } from './export-binary-pages';
 
@@ -16,7 +17,7 @@ export type NativePrintPlan = { pages: number; tableLeads: readonly TableLead[];
   continuations?: readonly TablePlacement[]; paperHeaderTable?: PaperHeaderTable;
   rasterTablePairs?: readonly RasterTablePair[]; terminalEmptyFonts?: readonly TerminalEmptyFonts[];
   terminalPageBreaks?: readonly TerminalPageBreak[]; authoredTerminalWraps?: readonly AuthoredTerminalWrap[]; emptyTableRows?: readonly EmptyTableRows[];
-  authoredSingleLines?: readonly AuthoredSingleLine[]; pageHeads?: readonly NativePageHead[]; emptyParagraphs?: PastedEmptyParagraphs };
+  authoredSingleLines?: readonly AuthoredSingleLine[]; pageHeads?: readonly NativePageHead[]; authoredTableFragments?: readonly AuthoredNativeTableFragment[]; emptyParagraphs?: PastedEmptyParagraphs };
 const round = (pixels: number) => Math.round(pixels * 75);
 const nonspace = (text: string) => text.replace(/\s/gu, '');
 const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);

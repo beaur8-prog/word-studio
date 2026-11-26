@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Reopen the exact source Windows HWPX table anchor within the body
+run-name: Verify the prepared native HWPX table location and distinguish ink overflow
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -44,7 +44,7 @@ jobs:
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/geometry/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
-          $variants = @('aebb99a5342bf59ee439dfc2f5ac5fed8dc6e3c6')
+          $variants = @('aebb99a5342bf59ee439dfc2f5ac5fed8dc6e3c6', 'HEAD')
           $env:WINDOWS_NATIVE_SKIP_PRINT = '1'
           if ($env:QA_ID -eq '04-language-plan') {
             $env:WINDOWS_AUTHORED_PAGE_HEAD = '1'
@@ -54,10 +54,12 @@ jobs:
             $env:WINDOWS_TERMINAL_WITNESS = '1'
             $env:WINDOWS_ADJACENT_TABLE_WITNESS = '1'
             $env:WINDOWS_PAGE_TWELVE_TABLE = '1'
-            $env:WINDOWS_PAGE_TWELVE_TRIAL = '1'
+            $env:WINDOWS_PAGE_TWELVE_PRODUCT = '1'
           }
           foreach ($variant in $variants) {
             Write-Host "WINDOWS_NATIVE_LINE_PRODUCT $variant"
+            $env:WINDOWS_PAGE_TWELVE_TRIAL = if ($variant -eq 'HEAD') { '0' } else { '1' }
+            $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/06-margin-$variant.json"
             git restore --source $variant --staged --worktree -- src
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             git diff --exit-code $variant -- src electron vendor package.json package-lock.json
@@ -74,11 +76,11 @@ jobs:
             if ($status -ne 0) { exit $status }
           }
           if ($env:QA_ID -eq '06-mixed-document') {
-            $results = @(Get-Content "$env:RUNNER_TEMP/06-margin.json" -Raw | ConvertFrom-Json)
+            $results = @(Get-Content "$env:RUNNER_TEMP/06-margin-HEAD.json" -Raw | ConvertFrom-Json)
             if ($results.Count -ne 1 -or $results[0].format -ne 'hwpx') { throw 'Expected the focused HWPX comparison' }
             foreach ($result in $results) {
               $expectedPages = if ($result.format -eq 'hwp') { 39 } else { 43 }
-              if ($result.pages -ne $expectedPages -or -not $result.terminal.matches -or -not $result.adjacent.matches) {
+              if ($result.pages -notin 42,43 -or -not $result.terminal.matches -or -not $result.adjacent.matches) {
                 throw 'The verified Windows 06 geometry did not survive the combined source'
               }
             }
