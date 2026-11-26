@@ -4,6 +4,38 @@ const { _electron: electron, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
+const { pathToFileURL } = require('node:url');
+
+async function saveHangulFile(app, page, item, directory, Core, phase) {
+  const formats = ['hwp', 'hwpx'];
+  for (const format of formats) {
+    const output = path.join(directory, item.id + '-actual.' + format);
+    phase('native-' + format + '-command');
+    const started = Date.now();
+    await app.evaluate(({ dialog, Menu }, { output, format }) => {
+      dialog.showSaveDialog = async () => ({ canceled: false, filePath: output });
+      const file = Menu.getApplicationMenu().items.find(item => item.label === 'File');
+      const command = file?.submenu?.items.find(item => item.label === 'Export Hangul Document (' + format.toUpperCase() + ')…');
+      if (!command) throw new Error('Native Hangul command unavailable');
+      setTimeout(() => command.click(), 0);
+    }, { output, format });
+    const review = page.getByRole('dialog', { name: '한글 문서로 내보내기' });
+    phase('native-' + format + '-review');
+    await review.waitFor({ state: 'visible', timeout: 240000 });
+    const comparison = await review.getByText(/^쪽 수 비교:/).innerText();
+    const pages = comparison.match(/Word 인쇄 (\d+)쪽.*?원본 보기 (\d+)쪽/);
+    phase('native-' + format + '-save');
+    await review.getByRole('button', {name: format.toUpperCase() + ' 파일 저장', exact: true}).click({ timeout: 30000 });
+    await review.waitFor({ state: 'hidden', timeout: 90000 });
+    const bytes = await fs.readFile(output), native = new Core(bytes);
+    try {
+      const readback = native.pageCount();
+      if (!pages || readback < 1 || readback !== Number(pages[2])) throw new Error('Native Hangul readback disagreed');
+      console.log('WINDOWS_NATIVE_HANGUL ' + JSON.stringify({ id:item.id, format, bytes:bytes.length,
+        printPages:Number(pages[1]), savedPages:readback, seconds:(Date.now()-started)/1000 }));
+    } finally { native.free(); }
+  }
+}
 
 async function main() {
   const inventory = JSON.parse(await fs.readFile(process.env.WINDOWS_PUBLIC_QA_INVENTORY, 'utf8'));
@@ -11,6 +43,13 @@ async function main() {
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
   delete env.WORD_STUDIO_DEV;
+  let Core;
+  if (process.env.WINDOWS_NATIVE_HWP_SAVES === '1') {
+    const directory = path.dirname(require.resolve('@rhwp/core'));
+    const { default: init, HwpDocument } = await import(pathToFileURL(path.join(directory, 'rhwp.js')).href);
+    await init({ module_or_path: await fs.readFile(path.join(directory, 'rhwp_bg.wasm')) });
+    Core = HwpDocument;
+  }
   let failures = 0;
   let measured = 0;
 
@@ -91,6 +130,11 @@ async function main() {
       const editorLongTasks = await page.evaluate(start => window.qaLongTasks.filter(task => task.at >= start)
         .map(task => Math.round(task.duration)).sort((a,b) => b-a).slice(0,5), rendererStarted);
       console.log('WINDOWS_HWP_EDITOR_READY ' + JSON.stringify({ id: item.id, editorPages, editorMilliseconds, editorLongTasks }));
+      if (Core) {
+        await saveHangulFile(app, page, item, directory, Core, name => { stage = name; });
+        measured++;
+        continue;
+      }
       const finishProfile = process.env.WINDOWS_NATIVE_PRINT_PROFILE === '1'
         ? await require('./print-profile.cjs')(page) : undefined;
       stage = 'native-export-command';

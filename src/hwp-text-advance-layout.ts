@@ -135,6 +135,7 @@ function replaceRuns(runs: InlineAdjustment[]) {
     for (const { from, to, style } of program) {
       if (from > start) result.append(document.createTextNode(text.data.slice(start, from)));
       const span = document.createElement('span');
+      span.setAttribute(hwpSourceAdvanceRun, 'true');
       span.style.cssText = style;
       span.textContent = text.data.slice(from, to);
       result.append(span);

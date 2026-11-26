@@ -1,5 +1,6 @@
 import { clearHwpNestedCellFaceProjection } from '../hwp-nested-cell-face-print';
 import { clearHwpNativeCellWidthProjection } from '../hwp-source-cell-lines';
+import { hwpSourceAdvanceRun } from '../hwp-text-advance-layout';
 import { generateHTML } from '@tiptap/core';
 import { editorExtensions, parseDocumentHtml } from '../extensions';
 import { sanitizeImportedHtml } from '../document-html';
@@ -228,6 +229,11 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     unwrapHwpCellPrefixes(root);
     clearHwpNestedCellFaceProjection(root);
     clearHwpNativeCellWidthProjection(root);
+    // Browser fallback advances help measure a page with the available
+    // faces. The native writer has its own metrics and must keep the
+    // authored run spacing instead of serializing those temporary spans.
+    for (const span of root.querySelectorAll(`span[${hwpSourceAdvanceRun}]`))
+      span.replaceWith(...span.childNodes);
     const anchors = [...root.querySelectorAll<HTMLElement>('[data-document-textbox]')].map(box =>
       [box.dataset.documentTextbox, box.getAttribute(nativeBoxAnchor)] as const);
     root.innerHTML = sanitizeImportedHtml(root.innerHTML).html;
