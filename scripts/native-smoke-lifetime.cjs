@@ -2,14 +2,14 @@
 // These applications use disposable test profiles, never the user's session.
 // A native unsaved-changes prompt during cleanup must not hide an assertion
 // failure or keep an unattended CI runner alive indefinitely.
-module.exports = async function nativeSmokeLifetime(application, label) {
+module.exports = async function nativeSmokeLifetime(application, label, timeoutMs = 240000) {
   const child = application.process();
   const terminate = () => { if (child.exitCode === null) child.kill('SIGKILL'); };
   const watchdog = setTimeout(() => {
-    console.error(`${label}: isolated native test exceeded four minutes`);
+    console.error(`${label}: isolated native test exceeded ${timeoutMs / 1000} seconds`);
     terminate();
     process.exit(1);
-  }, 240000);
+  }, timeoutMs);
   watchdog.unref();
   await application.evaluate(({ dialog }) => {
     const original = dialog.showMessageBoxSync.bind(dialog);

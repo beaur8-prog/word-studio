@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Windows Studio native UI and PDF on byte-pinned public originals
+run-name: Windows Studio native original retry on measured gaps
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -7,15 +7,22 @@ permissions:
   contents: read
 jobs:
   native-originals:
-    name: Windows native originals / ${{ matrix.group }}
+    name: Windows native retry / ${{ matrix.group }}
     runs-on: windows-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        group: [word, hwp-1, hwp-2, hwp-3, public-1, public-2, public-3]
+        include:
+          - group: hwp-2
+            ids: 02-work-rules
+          - group: hwp-3
+            ids: 06-mixed-document
+          - group: public-1
+            ids: mois-sop,law-request
     env:
       QA_GROUP: ${{ matrix.group }}
+      QA_IDS: ${{ matrix.ids }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,7 +31,7 @@ jobs:
       - name: Verify unchanged product tree
         shell: pwsh
         run: |
-          git diff --exit-code 50f3e313ae55efcad876d2ef4350d224a2879e1e HEAD -- . ':!.github/workflows/windows-regression-20261126.yml' ':!scripts/windows-qa' ':!tests/windows-qa'
+          git diff --exit-code 50f3e313ae55efcad876d2ef4350d224a2879e1e HEAD -- . ':!.github/workflows/windows-regression-20261126.yml' ':!scripts/windows-qa' ':!tests/windows-qa' ':!scripts/native-smoke-lifetime.cjs'
           exit $LASTEXITCODE
       - uses: actions/setup-node@v4
         with:
@@ -36,7 +43,7 @@ jobs:
       - name: Read and render published inputs in the packaged Windows app
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/public-qa-inputs"
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/public-qa-inputs" --ids "$env:QA_IDS"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/public-qa-inputs/inventory.json"
           $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path

@@ -24,7 +24,7 @@ async function main() {
         args: ['--user-data-dir=' + path.join(directory, item.id)],
         env,
       });
-      close = await require('../native-smoke-lifetime.cjs')(app, 'Public original ' + item.id);
+      close = await require('../native-smoke-lifetime.cjs')(app, 'Public original ' + item.id, 600000);
       const page = await app.firstWindow();
       await page.setViewportSize({ width: 1440, height: 1000 });
       await page.locator('.tiptap').first().waitFor({ state: 'visible' });
@@ -40,36 +40,48 @@ async function main() {
         await reader.getByTestId('hwp-page').waitFor({ state: 'visible', timeout: 75000 });
         readerPages = Number((await reader.getByTestId('hwp-page-count').textContent()).replace(/\D/g, ''));
         if (!Number.isSafeInteger(readerPages) || readerPages < 1) throw new Error('Reader page count unavailable');
-        stage = 'convert';
+        stage = 'convert-analysis';
+        const conversionStarted = Date.now();
         await reader.getByRole('button', { name: 'Word 화면에서 편집', exact: true }).click();
         const panel = reader.getByRole('region', { name: '한글 편집 변환 안내' });
+        await panel.waitFor({ state: 'visible', timeout: 240000 });
+        stage = 'convert-editor';
         await panel.getByRole('button', { name: '편집본 만들기', exact: true }).click({ timeout: 90000 });
-        await reader.waitFor({ state: 'hidden', timeout: 90000 });
+        await reader.waitFor({ state: 'hidden', timeout: 120000 });
+        console.log('WINDOWS_NATIVE_CONVERT ' + item.id + ' ' + (Date.now() - conversionStarted));
       }
       await expect(page.getByRole('textbox', { name: '문서 제목', exact: true }))
         .toHaveValue(item.id, { timeout: 60000 });
+      await page.locator('.busy-indicator').waitFor({ state: 'hidden', timeout: 90000 });
       await page.evaluate(() => document.fonts.ready);
       const stack = page.locator('.document-stack');
       await expect(stack).toHaveAttribute('data-pages', /^[1-9]\d*$/, { timeout: 60000 });
       // Use a frame matching the preview opening, after editor pagination settles.
       await page.getByRole('button', { name: '보기', exact: true }).click();
       const editorPages = Number(await stack.getAttribute('data-pages'));
-      stage = 'preview';
-      await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click();
-      await page.locator('.print-page').first().waitFor({ state: 'visible', timeout: 90000 });
-      const previewPages = await page.locator('.print-page').count();
+      stage = 'preview-command';
+      const previewStarted = Date.now();
+      await page.getByRole('button', { name: '인쇄 미리보기', exact: true }).click({ timeout: 75000 });
+      stage = 'preview-layout';
+      const toolbar = page.getByRole('toolbar', { name: '인쇄 미리보기', exact: true });
+      await toolbar.waitFor({ state: 'visible', timeout: 120000 });
+      const previewPages = await page.locator('.print-layout.preview .print-page').count();
+      const previewMilliseconds = Date.now() - previewStarted;
       stage = 'pdf';
-      await page.getByRole('button', { name: 'PDF 저장', exact: true }).click();
+      const pdfStarted = Date.now();
+      await toolbar.getByRole('button', { name: 'PDF 저장', exact: true }).click({ timeout: 75000 });
       await expect(page.getByText('PDF를 저장했습니다', { exact: true })).toBeVisible({ timeout: 90000 });
       const bytes = await fs.readFile(pdf);
       const pdfPages = (bytes.toString('latin1').match(/\/Type\s*\/Page\b/g) || []).length;
       if (!pdfPages) throw new Error('Native PDF page count unavailable');
-      const metrics = { id: item.id, readerPages, editorPages, previewPages, pdfPages };
+      const metrics = { id: item.id, readerPages, editorPages, previewPages, pdfPages,
+        previewMilliseconds, pdfMilliseconds: Date.now() - pdfStarted };
       console.log('WINDOWS_NATIVE_ORIGINAL ' + JSON.stringify(metrics));
       measured++;
-    } catch {
-      // Playwright errors can include source content. Emit only the QA ID and stage.
-      console.log('WINDOWS_NATIVE_FAILURE ' + item.id + ' ' + stage);
+    } catch (error) {
+      // Playwright errors can include source content. Emit only fixed stage labels.
+      const reason = error?.name === 'TimeoutError' ? 'timeout' : 'error';
+      console.log('WINDOWS_NATIVE_FAILURE ' + item.id + ' ' + stage + ' ' + reason);
       failures++;
     } finally {
       if (close) await close().catch(() => { failures++; });

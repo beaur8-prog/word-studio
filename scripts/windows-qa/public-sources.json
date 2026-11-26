@@ -207,21 +207,33 @@
       "url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=103804927",
       "bytes": 64000,
       "sha256": "4ebb4f96816569e1c35b85535f2a46538dd6d75c4e6a5f094584a2e0d749facb",
-      "ext": "hwp"
+      "ext": "hwp",
+      "alternateUrls": [
+        "https://law.go.kr/flDownload.do?flSeq=103804927",
+        "https://www.law.go.kr/flDownload.do?flSeq=103804927"
+      ]
     },
     {
       "id": "law-register",
       "url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=103804951",
       "bytes": 15872,
       "sha256": "ff31141a81d3665b926ca3c3b002bb9e4bc71bb29f1e8987bec1e93cb8637510",
-      "ext": "hwp"
+      "ext": "hwp",
+      "alternateUrls": [
+        "https://law.go.kr/flDownload.do?flSeq=103804951",
+        "https://www.law.go.kr/flDownload.do?flSeq=103804951"
+      ]
     },
     {
       "id": "law-operation",
       "url": "https://www.law.go.kr/LSW/flDownload.do?flSeq=103805037",
       "bytes": 19456,
       "sha256": "9f1bf45018afb6fa10084fc7e14db90d53049f401c5d444388d233aec39306ef",
-      "ext": "hwp"
+      "ext": "hwp",
+      "alternateUrls": [
+        "https://law.go.kr/flDownload.do?flSeq=103805037",
+        "https://www.law.go.kr/flDownload.do?flSeq=103805037"
+      ]
     }
   ]
 }

@@ -27,6 +27,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("group", choices=["word"] + [f"{label}-{n}" for label in ("hwp", "public") for n in range(1, 4)])
     parser.add_argument("directory", type=Path)
+    parser.add_argument("--ids", help="Comma-separated subset for a targeted retry")
     args = parser.parse_args()
     sources = json.loads(Path(__file__).with_name("public-sources.json").read_text())
     label, _, part = args.group.partition("-")
@@ -34,6 +35,11 @@ def main():
     args.directory.mkdir(parents=True)
     if part:
         entries = entries[int(part)-1::3]
+    if args.ids:
+        selected = set(args.ids.split(","))
+        entries = [entry for entry in entries if entry["id"] in selected]
+        if len(entries) != len(selected):
+            raise ValueError("unknown-case-in-shard")
     archive = None
     if label == "word":
         try:
@@ -51,7 +57,14 @@ def main():
                 if hashlib.sha256(data).hexdigest() != entry["sha256"]:
                     raise ValueError("different-member")
             else:
-                data = verified_download(entry)
+                for url in [entry["url"], *entry.get("alternateUrls", ())]:
+                    try:
+                        data = verified_download({**entry, "url": url})
+                        break
+                    except (OSError, ValueError) as error:
+                        last_error = error
+                else:
+                    raise last_error
             path = args.directory / f'{entry["id"]}.{entry["ext"]}'
             path.write_bytes(data)
             row["path"] = str(path.resolve())
