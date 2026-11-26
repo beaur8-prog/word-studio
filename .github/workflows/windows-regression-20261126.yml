@@ -1,25 +1,115 @@
 name: Windows regression QA
-run-name: Measure physical Hangul print invariance across three Windows display scales
+run-name: Verify the Windows print-only serif scope and stable native Hangul output
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  hangul-density:
-    name: Packaged Hangul display density / ${{ matrix.id }}
+  native-hwp:
+    name: Packaged Windows Hangul / ${{ matrix.id }}
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-2, id: 05-return-form}
-          - {group: hwp-1, id: 07-english-exam}
-          - {group: hwp-2, id: 08-math-exam}
+          - {group: hwp-1, id: 07-english-exam, pages: ''}
+          - {group: hwp-3, id: 09-korean-exam, pages: '20,16'}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
+      WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
+      WINDOWS_FORCE_DEVICE_SCALE: '1'
+      WINDOWS_NATIVE_HWP_SAVES: '1'
+      WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
+      WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run package:win:dir
+      - name: Run the file-menu export and reopen both native outputs
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/final-native" --ids $env:QA_ID
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          $env:WINDOWS_NATIVE_DOCX_DIR = "$env:RUNNER_TEMP/native-docx"
+          if ($env:QA_ID -eq '07-english-exam') { $env:WINDOWS_CHECK_NATIVE_NBSPACE = '1' }
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> "$env:RUNNER_TEMP/native-sdk.log"
+          $status = $LASTEXITCODE
+          Write-Host "WINDOWS_FINAL_SDK Hangul $($env:QA_ID) count 2 exit $status"
+          exit $status
+
+  english-print:
+    name: Packaged Windows print / ${{ matrix.id }} / ${{ matrix.dpi }}
+    runs-on: windows-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {group: hwp-1, id: 07-english-exam, pages: '', dpi: '1'}
+          - {group: hwp-1, id: 07-english-exam, pages: '', dpi: '1.25'}
+          - {group: hwp-1, id: 07-english-exam, pages: '', dpi: '1.5'}
+    env:
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      WINDOWS_FORCE_DEVICE_SCALE: ${{ matrix.dpi }}
+      WINDOWS_ENGLISH_TERMINAL_DETAIL: '1'
+      WINDOWS_EXPECT_NATIVE_PAGES: ${{ matrix.pages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - run: npm run package:win:dir
+      - name: Compare the real native Windows print preview to the witnessed source
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/final-native" --ids $env:QA_ID
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/final-native/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
+          $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/print-geometry.json"
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/windows-qa/compare-hwp-print-witness.cjs
+          exit $LASTEXITCODE
+
+  story-assets:
+    name: Authored footer and font guards / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,35 +119,26 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Print at actual 100, 125 and 150 percent native display scale
+      - run: npx playwright install chromium
+        if: runner.os == 'Windows'
+      - run: npx playwright install --with-deps chromium
+        if: runner.os == 'Linux'
+      - name: Check exact line and column placement
         shell: pwsh
         run: |
-          if ((git rev-parse 'HEAD:src') -ne 'e037a5cdd5c175540e0f515031329fd4346dfd30') { throw 'Unexpected baseline product source' }
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/hangul-density" --ids $env:QA_ID
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/hangul-density/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          foreach ($density in @('1','1.25','1.5')) {
-            $env:WINDOWS_FORCE_DEVICE_SCALE = $density
-            $env:WINDOWS_NATIVE_PRINT_GEOMETRY = "$env:RUNNER_TEMP/hwp-geometry-$density.json"
-            $env:WINDOWS_NATIVE_PDF_COPY = "$env:RUNNER_TEMP/hwp-paper-$density.pdf"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          foreach ($density in @('1.25','1.5')) {
-            node scripts/windows-qa/compare-print-geometry.cjs "$env:RUNNER_TEMP/hwp-geometry-1.json" "$env:RUNNER_TEMP/hwp-geometry-$density.json" "$env:QA_ID-$density"
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-      - name: Compare physical PDF rasters when the page counts match
-        shell: powershell
-        run: |
-          $expectedPages = @(Get-Content "$env:RUNNER_TEMP/hwp-geometry-1.json" -Raw | ConvertFrom-Json).Count
-          foreach ($density in @('1.25','1.5')) {
-            $outputPages = @(Get-Content "$env:RUNNER_TEMP/hwp-geometry-$density.json" -Raw | ConvertFrom-Json).Count
-            Write-Host "WINDOWS_HANGUL_DENSITY PDF $env:QA_ID $density pages $expectedPages $outputPages"
-            if ($expectedPages -eq $outputPages) {
-              scripts/windows-qa/compare-pdf-paint.ps1 -Control "$env:RUNNER_TEMP/hwp-paper-1.pdf" -Candidate "$env:RUNNER_TEMP/hwp-paper-$density.pdf" -ExpectedPages $expectedPages -ReportOnly -MeasureDelta
-            }
-          }
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type)
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS='--import=./ci-document-limits.mjs'
+          npm run test -- tests/word-font-fallbacks.spec.ts tests/hwp-column-terminal.spec.ts --workers=1 --trace=off
+          exit $LASTEXITCODE
