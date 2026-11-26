@@ -1,122 +1,34 @@
 name: Windows regression QA
-run-name: Verify native Hancom page-margin units through two actual DOCX saves
+run-name: Attribute current long Windows print tasks using source maps
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  originals:
-    name: Windows native margins / ${{ matrix.id }}
+  native-profile:
     runs-on: windows-latest
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { group: hwp-3, id: 06-mixed-document }
-          - { group: hwp-1, id: 04-language-plan }
-          - { group: hwp-2, id: 08-math-exam }
+    timeout-minutes: 25
     env:
-      PLAYWRIGHT_CHANNEL: chromium
-      QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.id }}
-      WINDOWS_VERIFY_NATIVE_GEOMETRY: '1'
-      WINDOWS_VERIFY_REVERSE_MEDIA: '1'
-      WINDOWS_REQUIRE_REOPEN: '1'
+      WINDOWS_NATIVE_PRINT_PROFILE: '1'
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
       - run: npm ci
-      - run: npx playwright install chromium
-      - name: Compare the precise margin boundary in the mixed document
+      - run: node node_modules/electron/install.js
+      - run: npm run build -- --sourcemap
+      - run: node scripts/package-win.cjs
+      - name: Attribute the longest renderer work on the large native export
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/exact-margins" --ids $env:QA_ID
+          python scripts/windows-qa/fetch-public-inputs.py hwp-2 "$env:RUNNER_TEMP/profile-input" --ids 02-work-rules
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/exact-margins/inventory.json"
-          $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
-          if ($verified -ne 1) { throw 'Pinned input missing' }
-          $variants = @('HEAD')
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $variants = @('3e86bb7d97f163b8529b82aa6cad47c38d2527a8','HEAD')
-          }
-          if ($env:QA_ID -eq '08-math-exam') {
-            $env:WINDOWS_REQUIRE_REVERSE = '1'
-            $env:WINDOWS_EXACT_REVERSE_PAGES = '1'
-          }
-          foreach ($variant in $variants) {
-            Write-Host "WINDOWS_PRECISE_MARGIN_PRODUCT $variant"
-            git restore --source $variant -- src
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            git diff --exit-code $variant -- src electron vendor package.json package-lock.json
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-            if ($env:QA_ID -eq '06-mixed-document') { $env:WINDOWS_MARGIN_WITNESS = "$env:RUNNER_TEMP/margins-$variant.json" }
-            npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          if ($env:QA_ID -eq '06-mixed-document') {
-            $old = @(Get-Content "$env:RUNNER_TEMP/margins-$($variants[0]).json" -Raw | ConvertFrom-Json)
-            $new = @(Get-Content "$env:RUNNER_TEMP/margins-HEAD.json" -Raw | ConvertFrom-Json)
-            if ($old.Count -ne 2 -or $new.Count -ne 2) { throw 'Expected both Hancom formats' }
-            foreach ($index in 0,1) {
-              $control=$old[$index]; $candidate=$new[$index]
-              Write-Host "WINDOWS_PRECISE_MARGIN_RESULT $($candidate.format) pages $($control.pages) to $($candidate.pages) lines $($control.lines) to $($candidate.lines) left $($control.marginLeft) to $($candidate.marginLeft) right $($control.marginRight) to $($candidate.marginRight)"
-              if ($candidate.format -ne $control.format -or $candidate.pages -gt $control.pages -or $candidate.lines -ne 2 -or
-                  $candidate.marginLeft -ne 2834 -or $candidate.marginRight -ne 2834 -or $candidate.outsideRight -ne 0) {
-                throw 'Exact source margin or saved text fit changed unexpectedly'
-              }
-            }
-          }
-      - name: Validate both actual DOCX packages
-        shell: pwsh
-        run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if ($docs.Count -ne 2) { throw 'Expected two actual DOCX saves' }
-          dotnet run --project scripts/word-openxml-validator -- test-results 2 *> "$env:RUNNER_TEMP/exact-margin-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_PUBLIC_SDK total $($docs.Count) exit $status"
-          exit $status
-  related:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, ubuntu-latest]
-    timeout-minutes: 20
-    env:
-      PLAYWRIGHT_CHANNEL: chromium
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-      - run: npm ci
-      - run: npx playwright install chromium
-      - run: npm run test -- tests/hwp-native-page-margins.spec.ts tests/hwp-sections.spec.ts tests/hwp-columns.spec.ts tests/hwp-paper-heading.spec.ts tests/floating-cell-offpaper.spec.ts --workers=1 --trace=off
-      - name: SDK validate the three exact-margin synthetic DOCX saves
-        shell: pwsh
-        run: |
-          $docs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-native-margins-*.docx')
-          if ($docs.Count -ne 3) { throw 'Expected three actual DOCX saves' }
-          $subset = New-Item "$env:RUNNER_TEMP/native-margin-sdk-input" -ItemType Directory
-          foreach ($doc in $docs) { Copy-Item -LiteralPath $doc.FullName -Destination $subset.FullName }
-          dotnet run --project scripts/word-openxml-validator -- $subset.FullName 3 *> "$env:RUNNER_TEMP/native-margin-sdk.log"
-          $status = $LASTEXITCODE
-          Write-Host "WINDOWS_NATIVE_MARGIN_SDK total $($docs.Count) exit $status"
-          exit $status
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/profile-input/inventory.json"
+          $env:WORD_STUDIO_EXECUTABLE = "$((Get-Location).Path)/release/windows/Word Studio/Word Studio.exe"
+          node scripts/windows-qa/native-export-pdf-stages.cjs
+          exit $LASTEXITCODE
