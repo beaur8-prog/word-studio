@@ -1,62 +1,40 @@
 name: Windows regression QA
-run-name: Windows HWP responsive preview candidate
+run-name: Windows responsive preview remaining regression and Setup
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  native:
-    name: Windows HWP ${{ matrix.version }} / ${{ matrix.document }}
+  browser:
+    name: Windows browser / ${{ matrix.group }}
     runs-on: windows-latest
-    timeout-minutes: 36
+    timeout-minutes: 70
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {version: candidate, document: 02-work-rules, group: hwp-2}
-          - {version: candidate, document: moel-harassment-manual, group: public-2}
+        group: [hwp-terminal, hwpx-terminal, hwp-large, docx-sdk, remaining-1, remaining-2, remaining-3, remaining-4, remaining-5, remaining-6]
     env:
       QA_GROUP: ${{ matrix.group }}
-      QA_ID: ${{ matrix.document }}
-      QA_VERSION: ${{ matrix.version }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-      - run: npm ci
-      - run: node node_modules/electron/install.js
-      - run: npm run package:win:dir
-      - name: Run exact public input through the Windows app
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/qa-inputs" --ids "$env:QA_ID"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/qa-inputs/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          node scripts/windows-qa/native-preview-stages.cjs
-          exit $LASTEXITCODE
-  regression:
-    name: Windows print coordination and layout regression
-    runs-on: windows-latest
-    timeout-minutes: 26
-    env:
       PLAYWRIGHT_CHANNEL: chromium
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: 0a27a533809639dec26140f24e989c46f0968fcf
           persist-credentials: false
+      - name: Verify the current product tree
+        shell: pwsh
+        run: |
+          if ((git rev-parse 'HEAD:src/App.tsx') -ne '6b1504e10073e771dce3cd553a6fdda892263402') { throw 'Unexpected print source' }
+          if ((git rev-parse 'HEAD:src/hwp-text-advance-layout.ts') -ne '263ebebbb51e4e349e567cdea08522e6ccc3ac80') { throw 'Unexpected print source' }
+          if ((git rev-parse 'HEAD:src/print-layout.ts') -ne '10834114710d7a3bf4369db990e801e496c3aa9d') { throw 'Unexpected print source' }
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: npm
       - run: npm ci
       - run: npx playwright install chromium
-      - name: Exercise print cancellation, layout, and DOCX saves
+      - name: Exercise a disjoint desktop browser group
         shell: pwsh
         run: |
           @'
@@ -73,24 +51,103 @@ jobs:
           });
           '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
           $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
-          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP 'hwp-preview-tests.json'
-          node node_modules/@playwright/test/cli.js test tests/desktop-print-coordination.spec.ts tests/hwp-source-text-advances.spec.ts tests/hwp-cell-content.spec.ts tests/paragraph-widows.spec.ts --reporter=line,json --trace=off
+          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP 'windows-full.json'
+          $flags = @('--trace=off', '--reporter=line,json')
+          if ($env:QA_GROUP -match '^(hwp|hwpx)-terminal$') {
+            $files = @('tests/hwp-cell-terminal.spec.ts')
+            $flags += @('--grep', ("\b" + $Matches[1] + " "))
+          } elseif ($env:QA_GROUP -eq 'hwp-large') {
+            $files = @('tests/hwp-editing.spec.ts')
+          } elseif ($env:QA_GROUP -eq 'docx-sdk') {
+            $files = @('tests/docx-textboxes.spec.ts')
+          } else {
+            $alreadyChecked = @('desktop-print-coordination.spec.ts', 'hwp-source-text-advances.spec.ts',
+              'hwp-cell-content.spec.ts', 'paragraph-widows.spec.ts')
+            $isolated = @('hwp-cell-terminal.spec.ts', 'hwp-editing.spec.ts', 'docx-textboxes.spec.ts')
+            $files = @(
+              Get-ChildItem tests -Recurse -Filter '*.spec.ts' | Sort-Object FullName |
+                Where-Object { $_.Name -notlike 'android-*' -and $_.Name -notin $alreadyChecked -and $_.Name -notin $isolated -and $_.Directory.Name -ne 'windows-qa' } |
+                ForEach-Object { (Resolve-Path -Relative $_.FullName).Replace('\','/') -replace '^\./','' }
+            )
+            $shard = $env:QA_GROUP.Split('-')[-1]
+            $flags += "--shard=$shard/6"
+          }
+          node node_modules/@playwright/test/cli.js test @files @flags
           $status = $LASTEXITCODE
           if (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE) {
-            $s = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
-            Write-Host "WINDOWS_HWP_PREVIEW_TESTS expected $($s.expected) failed $($s.unexpected) skipped $($s.skipped)"
+            $report = Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json
+            $stats = $report.stats
+            if (($stats.expected + $stats.unexpected + $stats.flaky) -eq 0) { throw 'No tests executed' }
+            $line = "Windows complete $env:QA_GROUP | expected $($stats.expected) | unexpected $($stats.unexpected) | skipped $($stats.skipped) | flaky $($stats.flaky)"
+            Write-Host $line
+            Add-Content -Path $env:GITHUB_STEP_SUMMARY -Value $line
+          } elseif ($status -eq 0) {
+            throw 'Missing test report'
           }
           exit $status
-      - name: Check written DOCX packages with the official SDK
-        if: always()
+
+      - name: Validate the DOCX files written by this group
+        if: matrix.group == 'docx-sdk'
         shell: pwsh
         run: |
-          if (-not (Test-Path 'test-results')) { Write-Host 'WINDOWS_HWP_SDK unavailable'; exit 1 }
-          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
-          if (-not $outputs.Count) { Write-Host 'WINDOWS_HWP_SDK no outputs'; exit 1 }
-          dotnet run --project scripts/word-openxml-validator -- test-results $outputs.Count *> "$env:RUNNER_TEMP/preview-sdk.log"
+          $all = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save*.docx')
+          if (-not $all.Count) { throw 'Expected actual DOCX files' }
+          dotnet run --project scripts/word-openxml-validator -- test-results $all.Count *> "$env:RUNNER_TEMP/preview-sdk.log"
           $status = $LASTEXITCODE
           $bad = @(Get-Content "$env:RUNNER_TEMP/preview-sdk.log" | Where-Object { $_ -match '^\{' } |
             ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.PSObject.Properties.Name -contains 'failure' -or $_.errors.Count -gt 0 })
-          Write-Host "WINDOWS_HWP_SDK total $($outputs.Count) withErrors $($bad.Count) exit $status"
+          Write-Host "WINDOWS_HWP_SDK total $($all.Count) withErrors $($bad.Count) exit $status"
           exit $status
+
+  native:
+    name: Windows build, Setup and update bridge
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 0a27a533809639dec26140f24e989c46f0968fcf
+          persist-credentials: false
+      - name: Verify the current product tree
+        shell: pwsh
+        run: |
+          if ((git rev-parse 'HEAD:src/App.tsx') -ne '6b1504e10073e771dce3cd553a6fdda892263402') { throw 'Unexpected print source' }
+          if ((git rev-parse 'HEAD:src/hwp-text-advance-layout.ts') -ne '263ebebbb51e4e349e567cdea08522e6ccc3ac80') { throw 'Unexpected print source' }
+          if ((git rev-parse 'HEAD:src/print-layout.ts') -ne '10834114710d7a3bf4369db990e801e496c3aa9d') { throw 'Unexpected print source' }
+          Write-Host "Microsoft Word automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\Word.Application)"
+          Write-Host "Hancom HWP automation class installed: $(Test-Path Registry::HKEY_CLASSES_ROOT\HWPFrame.HwpObject)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Native Node regression
+        run: npm run test:native
+      - name: Update unit regression
+        run: npm run test:updates
+      - name: Build a Windows QA Setup
+        run: npm run package:win
+      - name: Exercise the Electron update bridge
+        run: npm run test:updates:desktop
+      - name: Exercise Windows update helper and cancellation
+        run: node scripts/test-windows-updater-handoff.cjs
+      - name: Install, verify document associations, reinstall and uninstall
+        shell: pwsh
+        run: |
+          ./scripts/test-windows-installer.ps1
+          if (Test-Path '.cache/installer-test.json') {
+            Write-Host ('Windows installer verification ' + (Get-Content '.cache/installer-test.json' -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 8 -Compress))
+          }
+
+      - name: Real in-place update from the official 1.4.12 Setup
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download v1.4.12 --repo beaur8-prog/word-studio --pattern 'Word-Studio-1.4.12-windows-x64-setup.exe' --dir .cache/legacy-update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git fetch origin refs/tags/v1.4.12:refs/tags/v1.4.12 --depth=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git show v1.4.12:electron/studio-update-windows.ps1 | Set-Content .cache/legacy-update/helper-1.4.12.ps1 -Encoding utf8BOM
+          ./scripts/test-windows-update-in-place.ps1
