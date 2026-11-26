@@ -60,3 +60,92 @@ for (const format of ['hwp', 'hwpx']) test(`${format}: source script fonts, size
   await expect(editor).toContainText('EDIT'); await page.keyboard.press('ControlOrMeta+z'); await expect(editor).not.toContainText('EDIT');
   await page.keyboard.press('ControlOrMeta+Shift+z'); await expect(editor).toContainText('EDIT');
 });
+
+test('the authored Latin face survives native save and yields to a font edit', async ({ page }, info) => {
+  const directoryForAlias = path.join(directory, 'authored-face');
+  await fs.mkdir(directoryForAlias);
+  const [authoredLatin, resolvedLatin] = ['HCI Poppy', 'Palatino Linotype'];
+  const source = await fixture(directoryForAlias, { latinFace: authoredLatin, latinRenderedFace: resolvedLatin,
+    hangulWidth: 95, body: '한글 Latin 123, Bold words.' });
+  await page.goto('/');
+  const result = await page.evaluate(async ({ hwp, hwpx }) => {
+    const { HwpReaderSession } = await import('/src/hwp/reader.ts');
+    const { importEditableHwp, exportEditableHwp } = await import('/src/hwp/editing.ts');
+    const { exportDocx, importFile } = await import('/src/document-io.ts');
+    const { parseDocumentHtml, editorExtensions } = await import('/src/extensions.ts');
+    const { generateHTML } = await import('/node_modules/.vite/deps/@tiptap_core.js');
+    const { createPrintLayout } = await import('/src/print-layout.ts');
+    const loadSource = async (bytes: number[], format: 'hwp' | 'hwpx') => {
+      const reader = new HwpReaderSession();
+      try {
+        const input = new File([Uint8Array.from(bytes)], 'native-script-fonts.' + format);
+        await reader.open(input);
+        return importEditableHwp(await reader.editable(), input.name);
+      } finally { reader.close(); }
+    };
+    let doc = await loadSource(hwp, 'hwp');
+    const fromHwpx = await loadSource(hwpx, 'hwpx');
+    const authoredHwpx = generateHTML(fromHwpx.content, editorExtensions).includes('HCI Poppy');
+    const paragraph = doc.content.content?.find(node => node.content?.some(child => child.text?.startsWith('한글')));
+    if (!paragraph) throw Error('Missing authored line');
+    paragraph.attrs = { ...paragraph.attrs, lineSpacing: '24px', hwpBodyLine: '1 150 16 24' };
+    const docx = [];
+    for (let i = 0; i < 2; i++) {
+      const saved = await exportDocx(doc);
+      docx.push([...new Uint8Array(await saved.arrayBuffer())]);
+      const opened = await importFile(new File([saved], 'again.docx'));
+      doc = { ...opened.document, content: parseDocumentHtml(opened.html!) };
+    }
+    const print = await createPrintLayout(generateHTML(doc.content, editorExtensions), doc.page,
+      undefined, undefined, { hwpNativeExport: true, paintHwpCellLines: false });
+    let usedStrut;
+    try {
+      usedStrut = Boolean(print.element.querySelector('span[data-hwp-latin-font] span[data-hwp-body-run="true"]'));
+    } finally { print.dispose(); }
+    const outputs = [];
+    for (const format of ['hwp', 'hwpx'] as const) {
+      const out = await exportEditableHwp(doc, format);
+      outputs.push({ format, edited: false, bytes: [...new Uint8Array(await out.blob.arrayBuffer())] });
+    }
+    const update = (node: import('@tiptap/core').JSONContent) => {
+      if (node.text?.includes('한글')) {
+        const mark = node.marks?.find(m => m.type === 'textStyle');
+        if (mark?.attrs) mark.attrs.fontFamily = '맑은 고딕';
+      }
+      node.content?.forEach(update);
+    };
+    update(doc.content);
+    const edited = await exportEditableHwp(doc, 'hwpx');
+    outputs.push({ format: 'hwpx', edited: true, bytes: [...new Uint8Array(await edited.blob.arrayBuffer())] });
+    return { outputs, docx, usedStrut, authoredHwpx };
+  }, { hwp: [...await fs.readFile(source.hwp)], hwpx: [...await fs.readFile(source.hwpx)] });
+  expect(result.usedStrut).toBe(true);
+  expect(result.authoredHwpx).toBe(true);
+
+  const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
+  const JSZip = require('jszip');
+  const { pathToFileURL } = await import('node:url');
+  const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
+  await init({ module_or_path: await fs.readFile(path.join(core, 'rhwp_bg.wasm')) });
+  for (const [index, bytes] of result.docx.entries())
+    await fs.writeFile(info.outputPath(`textbox-save-latin-${index + 1}.docx`), Buffer.from(bytes));
+  for (const output of result.outputs) {
+    const doc = new HwpDocument(Uint8Array.from(output.bytes));
+    try {
+      const paragraph = Array.from({ length: doc.getParagraphCount(0) }, (_, i) => i)
+        .find(i => doc.getTextRange(0, i, 0, 0xffffffff).startsWith('한글 Latin 123,'));
+      expect(paragraph, output.format).toBeDefined();
+      const { charShapeId, fontFamilies, ratios, fontSize } = JSON.parse(doc.getCharPropertiesAt(0, paragraph!, 0));
+      expect(fontFamilies.slice(0, 2)).toEqual(output.edited ? ['맑은 고딕', '맑은 고딕'] : ['Arial', resolvedLatin]);
+      const header = await (await JSZip.loadAsync(doc.exportHwpx())).file('Contents/header.xml').async('string');
+      const shape = [...header.matchAll(/<hh:charPr id="(\d+)"[^>]*>[\s\S]*?<\/hh:charPr>/g)]
+        .find(([, id]) => Number(id) === charShapeId)?.[0];
+      const id = /<hh:fontRef\b[^>]*\blatin="(\d+)"/.exec(shape ?? '')?.[1];
+      const fonts = /<hh:fontface lang="LATIN"[^>]*>([\s\S]*?)<\/hh:fontface>/.exec(header)?.[1];
+      const stored = [...(fonts ?? '').matchAll(/<hh:font id="(\d+)" face="([^"]+)"/g)].find(font => font[1] === id)?.[2];
+      expect(stored).toBe(output.edited ? '맑은 고딕' : authoredLatin);
+      expect(ratios[0]).toBe(95);
+      expect(fontSize).toBe(1200);
+    } finally { doc.free(); }
+  }
+});

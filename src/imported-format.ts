@@ -1,3 +1,4 @@
+import { activeHwpLatinFont, hwpLatinFontAttribute } from './hwp-latin-font';
 import { hwpNativeGridAttribute, parseHwpNativeGrid } from './hwp-native-grid';
 import { hwpRelatedTableLayoutAttribute, parseHwpRelatedTableLayout } from './hwp-related-table-layout';
 import { hwpNestedTableLayoutAttribute, parseHwpNestedTableLayout } from './hwp-nested-table-layout';
@@ -144,6 +145,14 @@ export const ImportedFormat = Extension.create({
       { types: ['textStyle'], attributes: { letterSpacing: {
         default: null, parseHTML: (el: HTMLElement) => el.style.letterSpacing || null,
         renderHTML: (a: Record<string, unknown>) => css('letter-spacing', a.letterSpacing) ? { style: `letter-spacing:${css('letter-spacing', a.letterSpacing)}` } : {},
+      },
+      hwpLatinFont: { default: null,
+        parseHTML: (el: HTMLElement) => {
+          const source = el.getAttribute(hwpLatinFontAttribute);
+          return activeHwpLatinFont(source, el.style.fontFamily) ? source : null;
+        },
+        renderHTML: (a: Record<string, unknown>) => activeHwpLatinFont(a.hwpLatinFont, a.fontFamily)
+          ? { [hwpLatinFontAttribute]: a.hwpLatinFont } : {},
       },
       characterScale: { default: null,
         parseHTML: (el: HTMLElement) => parseCharacterScale(el.style.getPropertyValue(characterScaleProperty)),

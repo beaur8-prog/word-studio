@@ -57,7 +57,7 @@ import { tableCaptionDefinitions, renderTableCaptions, restoreTableCaptions } fr
 import { hwpInlineTableTop, hwpInlineTableTopAttribute, hwpTableTopGap } from '../table-anchor-data';
 import { hwpMarginCenteredTableAnchor } from './table-position';
 import { elementRanges, topLevelHwpPasteBlocks } from './markup-ranges';
-import { stageHwpCharacterWidths } from './export-character-width';
+import { stageHwpCharacterStyles } from './export-character-width';
 import { planHwpGridRows } from './export-grid-rows';
 import { repairBinaryDuplicatePage } from './export-binary-pages';
 import { restoreNativeTableLead, type NativePrintPlan } from './export-table-lead';
@@ -1994,7 +1994,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
         const withBreaks = restoreHardLineBreaks(html, [...text.matchAll(/\n/g)].map(m => m.index!));
         const runs = sourceFontRuns(doc.getCharShapeRuns(section, para, start, Math.min(end, textLength)), start, text,
           offset => JSON.parse(doc.getCharPropertiesAt(section, para, offset)), fontRuns, true);
-        const scripts = restoreScriptFonts(withBreaks, text, runs, columnCount > 1);
+        const scripts = restoreScriptFonts(withBreaks, text, runs, columnCount > 1, metadata?.latinFaces);
         const formatted = start === 0 && end >= textLength && positions.length === 0
           ? preserveHwpSourceSpaces(scripts, text, runs, metadata?.fontSpace,
             () => doc.getParagraphLineMetrics(section, para, '[]'), wrapOrigin, recordBodyWidth, !!singleBodyLine) : scripts;
@@ -2214,7 +2214,7 @@ export function editableHwp(doc: HwpDocument, onProgress?: HwpProgressReporter, 
             catch { return html; }
           }, noteReference, (path, html, policy) => nestedTableGeometry(doc, section, para, path, html, pitches, policy),
             (key, html) => captionKeys.has(key) ? html.replace(/^<table\b/, `<table data-hwp-caption-key="${key}"`) : html,
-            metadata?.fontSpace);
+            metadata?.fontSpace, metadata?.latinFaces);
           const hasNextPageBreak = !hasColumns && paragraphControls.length === 1 &&
             !doc.getTextRange(section, para, 0, 0xffffffff).trim() &&
             metadata?.paragraphs[`${section}:${para + 1}`]?.pageBreak === true;
@@ -2702,21 +2702,37 @@ export function serializeHwp(Core: typeof HwpDocument, html: string, page: PageS
     const fields = stageHwpFields(pictures.html);
     const navigation = stageHwpTextNavigation(fields.html);
     const columns = stageHwpColumns(navigation.html, page, sections.columnDefaults);
-    const widths = stageHwpCharacterWidths(columns.html);
+    let characters = stageHwpCharacterStyles(columns.html);
     const convertPageBreaks = (body: string) => body.replace(/<div\b[^>]*data-page-break=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, `<p>${breakToken}</p>`);
-    pasteHwpBody(doc, convertPageBreaks(widths.html), breakToken, onProgress);
-    const withWidths = widths.restore(Core, doc);
-    const warnings: string[] = [];
-    if (withWidths === null) {
-      // If pasted runs cannot be attributed exactly, use the original body
-      // so neither a temporary color nor another run's ratio can leak out.
+    const paste = (body: string) => pasteHwpBody(doc, convertPageBreaks(body), breakToken, onProgress);
+    const retryPaste = (body: string) => {
       const retry = Core.createEmpty();
       doc.free();
       doc = retry;
       doc.createBlankDocument();
-      pasteHwpBody(doc, convertPageBreaks(columns.html), breakToken, onProgress);
+      paste(body);
+    };
+    paste(characters.html);
+    let withCharacters: HwpDocument | null;
+    try { withCharacters = characters.restore(Core, doc); }
+    catch (error) {
+      if (!characters.hasSourceFonts) throw error;
+      withCharacters = null;
+    }
+    const warnings: string[] = [];
+    if (withCharacters === null && characters.hasSourceFonts) {
+      // Font attribution is optional. Retry with the established width
+      // transport so unsupported font runs cannot remove unrelated widths.
+      characters = stageHwpCharacterStyles(columns.html, false);
+      retryPaste(characters.html);
+      withCharacters = characters.restore(Core, doc);
+      warnings.push('일부 문자의 원본 글꼴을 한글 형식으로 옮기지 못했습니다.');
+    }
+    if (withCharacters === null) {
+      // No temporary color or another run's ratio can leak into the file.
+      retryPaste(columns.html);
       warnings.push('일부 글자의 장평을 한글 형식으로 옮기지 못했습니다.');
-    } else if (withWidths !== doc) { doc.free(); doc = withWidths; }
+    } else if (withCharacters !== doc) { doc.free(); doc = withCharacters; }
     setHwpPage(doc, page);
     const textboxPaint: NativeBoxPaint = new Map();
     const withTextBoxes = restoreHwpExportTextBoxes(Core, doc, textBoxes, textboxPaint);

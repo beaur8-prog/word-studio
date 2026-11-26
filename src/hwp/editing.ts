@@ -1,3 +1,5 @@
+import { activeHwpLatinFont, hwpLatinFontAttribute } from '../hwp-latin-font';
+import { characterScaleProperty } from '../character-scale';
 import { clearHwpNestedCellFaceProjection } from '../hwp-nested-cell-face-print';
 import { clearHwpNativeCellWidthProjection } from '../hwp-source-cell-lines';
 import { hwpSourceAdvanceRun } from '../hwp-text-advance-layout';
@@ -36,6 +38,9 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
   document.body.append(root);
   try {
     const textBoxes = prepareHwpExportTextBoxes(root);
+    const latinRuns = [...root.querySelectorAll<HTMLElement>(`span[${hwpLatinFontAttribute}]`)]
+      .filter(span => activeHwpLatinFont(span.getAttribute(hwpLatinFontAttribute), span.style.fontFamily))
+      .map(span => ({ span, color: getComputedStyle(span).color }));
     const emptyText = 'WORDSTUDIO-EMPTY-PARAGRAPH-' + crypto.randomUUID();
     let emptyCount = 0;
     // Read the same rendered source before changing any of its paragraphs.
@@ -75,6 +80,7 @@ function renderedBody(root: HTMLElement, doc: StudioDocument) {
       paragraph.append(span);
       element.replaceWith(paragraph);
     }
+    for (const { span, color } of latinRuns) span.style.color = color;
     // The Hancom parser reads cell dimensions, rather than Tiptap's grid attrs
     // and TR heights. Materialize the same grid in TD CSS before serialization.
     root.querySelectorAll<HTMLTableElement>('table').forEach(table => {
@@ -242,6 +248,11 @@ export async function exportEditableHwp(doc: StudioDocument, format: 'hwp' | 'hw
     // authored run spacing instead of serializing those temporary spans.
     for (const span of root.querySelectorAll(`span[${hwpSourceAdvanceRun}]`))
       span.replaceWith(...span.childNodes);
+    // Native paste needs the authored font and width run without the
+    // print-only strut that wraps its text.
+    const nativeRuns = `span:is([${hwpLatinFontAttribute}],[style*="${characterScaleProperty}"]) span[data-hwp-body-run="true"]`;
+    for (const span of root.querySelectorAll(nativeRuns))
+      if (span.attributes.length === 1) span.replaceWith(...span.childNodes);
     const anchors = [...root.querySelectorAll<HTMLElement>('[data-document-textbox]')].map(box =>
       [box.dataset.documentTextbox, box.getAttribute(nativeBoxAnchor)] as const);
     root.innerHTML = sanitizeImportedHtml(root.innerHTML).html;

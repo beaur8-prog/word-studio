@@ -6,7 +6,8 @@ import { hwpCellRasterSource, isHwpCellRasterBrightness, type HwpCellRasterPictu
 
 export type HwpParagraphLayout = { pageBreak: boolean; columnBreak: boolean; hideFirstPageNumber?: boolean; columns?: { count: number; space: number; balance?: boolean }; lineSpacings?: number[] };
 export type HwpLayoutMetadata = { paragraphs: Record<string, HwpParagraphLayout>; warnings: string[];
-  fontSpace?: boolean[]; hwpxCellFontSpace?: boolean[]; hwpxCellRasterFills?: Record<number, HwpCellRasterPicture>; conversionBlock?: string };
+  fontSpace?: boolean[]; latinFaces?: (string | undefined)[];
+  hwpxCellFontSpace?: boolean[]; hwpxCellRasterFills?: Record<number, HwpCellRasterPicture>; conversionBlock?: string };
 const LIMIT = 32 * 1024 * 1024;
 const columns = (count: number, gap: number) => count >= 1 && count <= 12 && gap >= 0 && gap <= 75000
   ? { count, space: Math.round(gap / 75 * 100) / 100 } : undefined;
@@ -198,23 +199,56 @@ function readHwpxFontSpace(xml: string): boolean[] | undefined {
   return flags.length ? flags : undefined;
 }
 
-/** CharShape records are indexed in document order. The UseFontSpace bit
- * distinguishes authored font advance from ordinary half-em HWP spaces. */
-function readFontSpace(bytes: Uint8Array): boolean[] {
+function readHwpxLatinFaces(xml: string, attr: (tag: string, name: string) => string) {
+  const content = xml.replace(/<!--[\s\S]*?-->|<!\[CDATA\[[\s\S]*?\]\]>/g, '');
+  const groups = [...content.matchAll(/(<(?:[\w.-]+:)?fontface\b[^>]*>)([\s\S]*?)<\/(?:[\w.-]+:)?fontface\s*>/g)]
+    .filter(group => attr(group[1], 'lang') === 'LATIN');
+  if (groups.length !== 1) return;
+  const names: string[] = [];
+  for (const [tag] of groups[0][2].matchAll(/<(?:[\w.-]+:)?font\b[^>]*>/g)) {
+    if (attr(tag, 'id') !== String(names.length)) return;
+    names.push(attr(tag, 'face'));
+  }
+  const result: (string | undefined)[] = [];
+  for (const [, tag, body] of content.matchAll(/(<(?:[\w.-]+:)?charPr\b[^>]*>)([\s\S]*?)<\/(?:[\w.-]+:)?charPr\s*>/g)) {
+    if (attr(tag, 'id') !== String(result.length)) return;
+    const reference = /<(?:[\w.-]+:)?fontRef\b[^>]*>/.exec(body)?.[0];
+    const latin = reference && attr(reference, 'latin');
+    result.push(latin && /^\d+$/.test(latin) ? names[Number(latin)] : undefined);
+  }
+  return result.length && names.length ? result : undefined;
+}
+
+/** DocInfo records contain the authored face name before the renderer
+ * resolves an alias. Retain the Latin slot in character-shape order. */
+function readHwpFontMetadata(bytes: Uint8Array) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength), result: boolean[] = [];
+  const fonts: (string | undefined)[] = [], latinIds: number[] = [];
+  const decoder = new TextDecoder('utf-16le');
+  let groups: number[] | undefined;
   for (let offset = 0; offset < bytes.length;) {
     const header = view.getUint32(offset, true);
     offset += 4;
     let length = header >>> 20;
     if (length === 4095) { length = view.getUint32(offset, true); offset += 4; }
     if (offset + length > bytes.length) throw new Error('Truncated HWP character metadata');
-    if ((header & 1023) === 21) {
+    const tag = header & 1023;
+    if (tag === 17 && length >= 32)
+      groups = Array.from({ length: 7 }, (_, i) => view.getUint32(offset + 4 + 4 * i, true));
+    else if (tag === 19) {
+      const count = length >= 3 ? view.getUint16(offset + 1, true) : 0;
+      fonts.push(count > 0 && count <= 500 && 3 + count * 2 <= length
+        ? decoder.decode(bytes.subarray(offset + 3, offset + 3 + count * 2)) : undefined);
+    } else if (tag === 21) {
       if (length < 50) throw new Error('Invalid HWP character shape');
       result.push(!!(view.getUint32(offset + 46, true) & (1 << 25)));
+      latinIds.push(view.getUint16(offset + 2, true));
     }
     offset += length;
   }
-  return result;
+  const latinFaces = groups && groups.reduce((sum, count) => sum + count, 0) === fonts.length
+    ? latinIds.map(id => id < groups[1] ? fonts[groups[0] + id] : undefined) : undefined;
+  return { fontSpace: result, latinFaces };
 }
 
 export async function readHwpLayoutMetadata(bytes: Uint8Array, hwpx = false): Promise<HwpLayoutMetadata> {
@@ -233,6 +267,8 @@ export async function readHwpLayoutMetadata(bytes: Uint8Array, hwpx = false): Pr
         const xml = await header.async('string').catch(() => '');
         try { output.hwpxCellFontSpace = readHwpxFontSpace(xml); }
         catch { /* Section flags remain available when optional fonts cannot be read. */ }
+        try { output.latinFaces = readHwpxLatinFaces(xml, layout.attr); }
+        catch { /* A malformed optional face list keeps the resolved run fonts. */ }
         try { output.hwpxCellRasterFills = await hwpxRasterFills(xml, layout); }
         catch { /* A malformed optional brush must not hide body content. */ }
       }
@@ -251,7 +287,7 @@ export async function readHwpLayoutMetadata(bytes: Uint8Array, hwpx = false): Pr
       if (info?.length && info.length <= LIMIT) {
         try {
           const bytes = new Uint8Array(info);
-          output.fontSpace = readFontSpace(compressed ? await inflateBounded(bytes) : bytes);
+          Object.assign(output, readHwpFontMetadata(compressed ? await inflateBounded(bytes) : bytes));
         } catch { /* Older or incomplete character metadata does not affect paragraph flags. */ }
       }
       for (let i = 0; i < cfb.FullPaths.length; i++) {

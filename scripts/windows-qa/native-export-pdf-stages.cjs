@@ -65,6 +65,15 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
       if (!pages || readback < 1 || readback !== Number(pages[2])) throw new Error('Native Hangul readback disagreed');
       console.log('WINDOWS_NATIVE_HANGUL ' + JSON.stringify({ id:item.id, format, bytes:bytes.length,
         printPages:Number(pages[1]), savedPages:readback, seconds:(Date.now()-started)/1000 }));
+      if (item.id === '04-language-plan' && process.env.WINDOWS_NATIVE_LINE_WITNESS === '1') {
+        const original = new Core(await fs.readFile(item.path));
+        try {
+          const witness = require('./hancom-line-witness.cjs');
+          const result = witness(original, native);
+          console.log('WINDOWS_HANCOM_LINE_WITNESS ' + JSON.stringify({format, ...result}));
+          if (result.lines !== 1 || result.nextPage !== 8) throw Error('Native saved line disagreed with the pinned witness');
+        } finally { original.free(); }
+      }
       const comparison = process.env.WINDOWS_NATIVE_HWP_COMPARISON;
       if (comparison) {
         const hash = createHash('sha256');
@@ -235,7 +244,18 @@ async function main() {
       }
       failures++;
     } finally {
-      if (close) await close().catch(() => { failures++; });
+      if (close) {
+        const closeStarted = Date.now();
+        try {
+          await close();
+          console.log('WINDOWS_NATIVE_CLOSE ' + JSON.stringify({ id:item.id, clean:true, milliseconds:Date.now()-closeStarted }));
+        } catch {
+          // A forced close of this disposable app is a separate failure from
+          // a PDF already written after the native print-to-file dialog.
+          console.log('WINDOWS_NATIVE_CLOSE ' + JSON.stringify({ id:item.id, clean:false, milliseconds:Date.now()-closeStarted }));
+          if (process.env.WINDOWS_NATIVE_PDF_CLOSE_CONTROL !== '1') failures++;
+        }
+      }
       else if (app?.process().exitCode === null) app.process().kill();
     }
   }

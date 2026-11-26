@@ -1,6 +1,6 @@
 const fs = require('node:fs/promises'), path = require('node:path'), { pathToFileURL } = require('node:url');
 const JSZip = require('jszip');
-module.exports = async function fixture(directory, { hangulFace = 'Arial', latinFace = 'Courier New', latinSize = 100, hangulSpacing = 0, hangulWidth = 100, latinWidth = 100, columns = 1, body = '한글 Latin 123, <b>Bold words</b><br>다음 Next line.' } = {}) {
+module.exports = async function fixture(directory, { hangulFace = 'Arial', latinFace = 'Courier New', latinRenderedFace = latinFace, latinSize = 100, hangulSpacing = 0, hangulWidth = 100, latinWidth = 100, columns = 1, body = '한글 Latin 123, <b>Bold words</b><br>다음 Next line.' } = {}) {
   const core = path.dirname(require.resolve('@rhwp/core'));
   const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
   await init({ module_or_path: await fs.readFile(path.join(core, 'rhwp_bg.wasm')) });
@@ -28,7 +28,7 @@ module.exports = async function fixture(directory, { hangulFace = 'Arial', latin
   const loaded = new HwpDocument(bytes);
   try {
     const char = JSON.parse(loaded.getCharPropertiesAt(0, 0, 3));
-    if (char.fontFamilies[0] !== hangulFace || char.fontFamilies[1] !== latinFace) throw Error('Fixture must have distinct native script faces: ' + JSON.stringify({ fonts: char.fontFamilies, text: loaded.getTextRange(0, 0, 0, 0xffffffff) }));
+    if (char.fontFamilies[0] !== hangulFace || char.fontFamilies[1] !== latinRenderedFace) throw Error('Fixture must have distinct native script faces: ' + JSON.stringify({ fonts: char.fontFamilies, text: loaded.getTextRange(0, 0, 0, 0xffffffff) }));
     if (char.relativeSizes[0] !== 100 || char.relativeSizes[1] !== latinSize) throw Error('Fixture must preserve native script sizes');
     if (char.spacings[0] !== hangulSpacing || char.spacings[1] !== 0) throw Error('Fixture must preserve native script tracking');
     if (char.ratios[0] !== hangulWidth || char.ratios[1] !== latinWidth) throw Error('Fixture must preserve native script widths');

@@ -1,3 +1,4 @@
+import { activeHwpLatinFont, hwpLatinFontNamespace } from './hwp-latin-font';
 import { parseHwpNativeGrid } from './hwp-native-grid';
 import { parseHwpRelatedTableLayout } from './hwp-related-table-layout';
 import { parseHwpNestedTableLayout } from './hwp-nested-table-layout';
@@ -980,7 +981,7 @@ const propertiesBeforeCharacterSpacing = new Set([
 class DocumentTextRun extends TextRun {
   private readonly explicitZeroSpacing: boolean;
 
-  constructor(options: IRunOptions, reflection?: unknown) {
+  constructor(options: IRunOptions, reflection?: unknown, private readonly latinFont?: string) {
     super(options);
     // docx 9.x omits numeric zero, which explicitly cancels inherited tracking.
     this.explicitZeroSpacing = options.characterSpacing === 0;
@@ -991,9 +992,13 @@ class DocumentTextRun extends TextRun {
 
   prepForXml(context: Parameters<TextRun['prepForXml']>[0]) {
     const result = super.prepForXml(context);
-    if (!this.explicitZeroSpacing) return result;
     const children = result?.['w:r'];
     if (!Array.isArray(children)) return result;
+    if (this.latinFont) children.unshift({ _attr: {
+      'xmlns:wslf': hwpLatinFontNamespace, 'xmlns:mc': 'http://schemas.openxmlformats.org/markup-compatibility/2006',
+      'mc:Ignorable': 'wslf', 'mc:PreserveAttributes': 'wslf:face', 'wslf:face': this.latinFont,
+    } });
+    if (!this.explicitZeroSpacing) return result;
     const properties = children.find(child => child && typeof child === 'object' && 'w:rPr' in child)?.['w:rPr'];
     if (!Array.isArray(properties)) return result;
     const spacing = properties.findIndex(property => property && Object.hasOwn(property, 'w:spacing'));
@@ -1007,12 +1012,12 @@ class DocumentTextRun extends TextRun {
 
 /** Word may discard a whitespace-only literal tab inside w:t on save.
  * Emit each authored tab as the standard run control, retaining run marks. */
-function documentTextRun(options: IRunOptions, reflection?: unknown): TextRun {
-  if (!options.text?.includes('\t')) return new DocumentTextRun(options, reflection);
+function documentTextRun(options: IRunOptions, reflection?: unknown, latinFont?: string): TextRun {
+  if (!options.text?.includes('\t')) return new DocumentTextRun(options, reflection, latinFont);
   const { text, ...properties } = options;
   return new DocumentTextRun({ ...properties, children: text.split('\t').flatMap((part, i) => [
     ...(i ? [new Tab()] : []), ...(part ? [part] : []),
-  ]) }, reflection);
+  ]) }, reflection, latinFont);
 }
 function runOptions(node: JSONContent): IRunOptions {
   const options: { -readonly [K in keyof IRunOptions]: IRunOptions[K] } = {
@@ -1323,7 +1328,9 @@ export async function exportDocx(document: StudioDocument): Promise<Blob> {
         // run. Materialize inherited CSS font/size/color on otherwise plain
         // text, while retaining each run's explicit overrides.
         const reflection = node.type === 'text' ? node.marks?.find(mark => mark.type === 'wordReflection')?.attrs?.effect : undefined;
-        const run = documentTextRun({ ...defaults, ...runOptions(node), ...(node.type === 'documentTab' ? { text: '\t' } : {}) }, reflection);
+        const textStyle = node.marks?.find(mark => mark.type === 'textStyle')?.attrs;
+        const latinFont = activeHwpLatinFont(textStyle?.hwpLatinFont, textStyle?.fontFamily) ? textStyle?.hwpLatinFont : undefined;
+        const run = documentTextRun({ ...defaults, ...runOptions(node), ...(node.type === 'documentTab' ? { text: '\t' } : {}) }, reflection, latinFont);
         const link = node.marks?.find((m) => m.type === "link");
         if (
           link &&

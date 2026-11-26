@@ -1,3 +1,4 @@
+import { hwpLatinFont, hwpLatinFontAttribute } from '../hwp-latin-font';
 import { characterScaleProperty } from '../character-scale';
 import { hwpSingleBodyFace, hwpSourceSpacesAttribute, hwpSourceWrapAttribute, hwpWrapFingerprint, normalizeHwpWrapText, parseHwpSourceWrap, type HwpSourceOrigin } from '../hwp-text-advances';
 
@@ -232,8 +233,11 @@ export function restoreUniformLatinMetrics(html: string, text: string, run: HwpF
   };
 }
 
-export function restoreScriptFonts(html: string, source: string, runs: readonly HwpFontRun[], inColumns = false): string {
-  const differentFaces = runs.some(run => run.fonts.some(font => font && font !== run.fonts[0]));
+export function restoreScriptFonts(html: string, source: string, runs: readonly HwpFontRun[], inColumns = false,
+  latinFaces?: readonly (string | undefined)[]): string {
+  const nativeLatin = (run: HwpFontRun) => latinFaces?.[run.charShapeId ?? -1] || run.fonts[1];
+  const differentFaces = runs.some(run => run.fonts.some(font => font && font !== run.fonts[0]) ||
+    !!nativeLatin(run) && nativeLatin(run) !== run.fonts[0]);
   const columnMetrics = inColumns && runs.every(run => run.base === runs[0].base);
   const canRestoreMetrics = (!inColumns || columnMetrics) && !/<(?:sup|sub)\b/i.test(html);
   const differentSizes = canRestoreMetrics && runs.some(run => run.sizes?.some(Boolean));
@@ -252,6 +256,7 @@ export function restoreScriptFonts(html: string, source: string, runs: readonly 
     if (token.text === undefined) return token.raw;
     if (/^<br\b/i.test(token.raw)) { offset++; previousLanguage = 0; return token.raw; }
     let output = '', pending = '', selected = '', selectedSize = 0, selectedWidth = 0, selectedTracking: number | null = null;
+    let selectedLatin: string | undefined;
     const flush = () => {
       if (!pending) return;
       // Quote each face so a document font name cannot inject a CSS property.
@@ -261,7 +266,8 @@ export function restoreScriptFonts(html: string, source: string, runs: readonly 
         (selectedWidth ? `${characterScaleProperty}:${selectedWidth};` : '');
       const style = css ? ` style="${css}"` : '';
       const size = selectedSize ? ` data-hwp-script-size="${selectedSize}pt"` : '';
-      output += style || size ? `<span${style}${size}>${escape(pending)}</span>` : escape(pending);
+      const latin = selectedLatin ? ` ${hwpLatinFontAttribute}="${escape(selectedLatin)}"` : '';
+      output += style || size || latin ? `<span${style}${size}${latin}>${escape(pending)}</span>` : escape(pending);
       pending = '';
     };
     for (const char of token.text) {
@@ -285,8 +291,9 @@ export function restoreScriptFonts(html: string, source: string, runs: readonly 
       const spacingSize = size || (run?.base ?? 0) / 100;
       const tracking = rate === null ? null : Math.round(spacingSize * rate / 5) / 20;
       const width = (differentWidths && run?.widths?.[script]) || 0;
-      if (next !== selected || size !== selectedSize || tracking !== selectedTracking || width !== selectedWidth) {
-        flush(); selected = next; selectedSize = size; selectedTracking = tracking; selectedWidth = width;
+      const latin = script === 0 && next && run ? hwpLatinFont(run.fonts[0], nativeLatin(run)) : undefined;
+      if (next !== selected || size !== selectedSize || tracking !== selectedTracking || width !== selectedWidth || latin !== selectedLatin) {
+        flush(); selected = next; selectedSize = size; selectedTracking = tracking; selectedWidth = width; selectedLatin = latin;
       }
       pending += char; offset += char.length;
     }

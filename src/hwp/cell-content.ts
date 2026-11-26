@@ -221,7 +221,8 @@ export function cellContents(doc: HwpDocument, files = serializedParts(doc)): Ma
 export function restoreCellContent(doc: HwpDocument, section: number, para: number, tableControl: number, tableOrdinal: number, html: string,
   equation: (value: Equation) => string, shape: (path: CellPath, index: number) => string | undefined, warnings: Set<string>, metadata: () => Map<string, CellContent>, headerPreserved = false,
   picture?: (path: CellPath, index: number, html: string) => string, note?: (value: SerializedControl) => string | undefined,
-  nestedTable?: (path: CellPath, html: string, policy?: SerializedTablePolicy) => string, caption?: (key: string, html: string) => string, fontSpace?: readonly boolean[]) {
+  nestedTable?: (path: CellPath, html: string, policy?: SerializedTablePolicy) => string, caption?: (key: string, html: string) => string, fontSpace?: readonly boolean[],
+  latinFaces?: readonly (string | undefined)[]) {
   const breakKeys = [...metadata()].filter(([, value]) => value.breaks.length).map(([key]) => key);
   const hasBreaks = (prefix: string) => breakKeys.some(key => key.startsWith(prefix + '/'));
   const fontCache = new Map<number, HwpScriptTypography>();
@@ -233,7 +234,7 @@ export function restoreCellContent(doc: HwpDocument, section: number, para: numb
       if (!text) return content;
       const runs = sourceFontRuns(doc.getCharShapeRunsInCellByPath(section, para, json, 0, [...text].length), 0, text,
         offset => JSON.parse(doc.getCellCharPropertiesAtByPath(section, para, json, offset)), fontCache);
-      const scripts = preserveHwpSourceSpaces(restoreScriptFonts(content, text, runs), text, runs, fontSpace,
+      const scripts = preserveHwpSourceSpaces(restoreScriptFonts(content, text, runs, false, latinFaces), text, runs, fontSpace,
         () => doc.getParagraphLineMetrics(section, para, json));
       return restoreHwpFixedSpaces(scripts, text, metadata().get(key)?.fixedSpaces ?? []);
     } catch {

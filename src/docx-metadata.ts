@@ -1,3 +1,4 @@
+import { activeHwpLatinFont, hwpLatinFontAttribute, hwpLatinFontNamespace } from './hwp-latin-font';
 import { hwpNativeGridAttribute, parseHwpNativeGrid } from './hwp-native-grid';
 import { hwpRelatedTableLayoutAttribute, parseHwpRelatedTableLayout } from './hwp-related-table-layout';
 import { hwpNestedTableLayoutAttribute, parseHwpNestedTableLayout } from './hwp-nested-table-layout';
@@ -138,7 +139,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
   let sequence = 900000;
   const numbering = new WeakMap<Element, ReturnType<typeof format.numbering>>();
   for (const p of all(body, 'p')) numbering.set(p, format.numbering(p));
-  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; page?: PageSettings; nextPage?: PageSettings; boundaryCarrier?: boolean; width?: number; height?: number; alt?: string; floating?: string; reflection?: string; reflectionEnd?: string }>();
+  const markers = new Map<string, { kind: string; id?: string; parts?: string[]; paragraph?: Element; cell?: Element; style?: string; eastAsianStyle?: string; page?: PageSettings; nextPage?: PageSettings; boundaryCarrier?: boolean; width?: number; height?: number; alt?: string; floating?: string; reflection?: string; reflectionEnd?: string; latinFont?: string }>();
   const bookmark = (name: string) => {
     const fragment = body.createDocumentFragment();
     const id = String(++sequence);
@@ -218,8 +219,9 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       Array.from(run.children).every(element => element.namespaceURI === W && ['rPr', 't', 'tab'].includes(element.localName));
     const reflection = literal ? readWordReflection(wordChild(run, 'rPr')) : undefined;
     if (!style && !reflection) continue;
+    const latinFont = run.namespaceURI === W ? run.getAttributeNS(hwpLatinFontNamespace, 'face') : null;
     const start = `ws_marker_${sequence}`;
-    markers.set(start, { kind: 'runStart', style, eastAsianStyle: format.run(run, 'eastAsia') }); run.before(bookmark(start));
+    markers.set(start, { kind: 'runStart', style, eastAsianStyle: format.run(run, 'eastAsia'), latinFont: latinFont && latinFont.length <= 2000 ? latinFont : undefined }); run.before(bookmark(start));
     const end = `ws_marker_${sequence}`;
     markers.set(end, { kind: 'runEnd' }); run.after(bookmark(end));
     if (reflection) Object.assign(markers.get(start)!, { reflection, reflectionEnd: end });
@@ -660,6 +662,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
       const active = new Set<string>();
       let activeStyle = '';
       let eastAsianStyle = '';
+      let latinFont: string | undefined;
       let activeReflection: { value: string; block: Element; link: Element | null } | undefined;
       const reflectionMarkerNames = new Set<string>();
       for (const [name, marker] of markers) {
@@ -709,6 +712,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
           if (marker.kind === 'runStart') {
             activeStyle = marker.style || '';
             eastAsianStyle = marker.eastAsianStyle || activeStyle;
+            latinFont = marker.latinFont;
             activeReflection = undefined;
             const start = item.getAttribute('data-ws-marker')!;
             if (marker.reflection && marker.reflectionEnd && reflectionMarkers.get(start) === item) {
@@ -721,7 +725,7 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
                 activeReflection = { value: marker.reflection, block, link };
             }
           }
-          if (marker.kind === 'runEnd') { activeStyle = ''; eastAsianStyle = ''; activeReflection = undefined; }
+          if (marker.kind === 'runEnd') { activeStyle = ''; eastAsianStyle = ''; activeReflection = undefined; latinFont = undefined; }
           item.remove();
         } else if (item.nodeType === Node.TEXT_NODE && (active.size || activeStyle || activeReflection) && item.textContent) {
           const fragment = document.createDocumentFragment();
@@ -732,6 +736,8 @@ export async function prepareDocxMetadata(zip: JSZip, body: Document, pages: Pag
             if (active.size) span.setAttribute('data-comment-ids', [...active].join(' '));
             span.style.cssText = /^[\u1100-\u11ff\u2e80-\ua4cf\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/u.test(text) ? eastAsianStyle : activeStyle;
             const font = symbolFont(span.style.cssText);
+            if (!font && latinFont && activeHwpLatinFont(latinFont, span.style.fontFamily))
+              span.setAttribute(hwpLatinFontAttribute, latinFont);
             if (!font && activeReflection && item.parentElement?.closest(reflectionBlock) === activeReflection.block &&
               item.parentElement?.closest('a[href]') === activeReflection.link)
               span.setAttribute(wordReflectionAttribute, activeReflection.value);
