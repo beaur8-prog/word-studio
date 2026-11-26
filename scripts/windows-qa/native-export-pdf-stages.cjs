@@ -2,6 +2,7 @@
 
 const { _electron: electron, expect } = require('@playwright/test');
 const fs = require('node:fs/promises');
+const { createHash } = require('node:crypto');
 const path = require('node:path');
 const os = require('node:os');
 const { pathToFileURL } = require('node:url');
@@ -64,6 +65,13 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
       if (!pages || readback < 1 || readback !== Number(pages[2])) throw new Error('Native Hangul readback disagreed');
       console.log('WINDOWS_NATIVE_HANGUL ' + JSON.stringify({ id:item.id, format, bytes:bytes.length,
         printPages:Number(pages[1]), savedPages:readback, seconds:(Date.now()-started)/1000 }));
+      const comparison = process.env.WINDOWS_NATIVE_HWP_COMPARISON;
+      if (comparison) {
+        const hash = createHash('sha256');
+        for (let i = 0; i < readback; i++) for (const evidence of [native.getPageInfo(i),
+          native.getPageTextLayout(i), native.getPageControlLayout(i)]) hash.update(evidence).update('\n');
+        await fs.writeFile(comparison, hash.digest('hex'));
+      }
     } finally { native.free(); }
   }
 }

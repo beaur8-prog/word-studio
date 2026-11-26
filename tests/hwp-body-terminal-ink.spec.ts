@@ -260,3 +260,33 @@ test('native page-end measurement preserves the original body paragraph', async 
   expect(measured.breaks).toBe(0);
   expect(measured.text).toBe('Last complete line.');
 });
+
+test('unchanged HWP body runs retain their measured nodes across repeated table-fit passes', async ({ page }) => {
+  await page.goto('/');
+  const result = await page.evaluate(async () => {
+    const { layoutHwpBodyLines } = await import('/src/hwp-body-line-metrics.ts');
+    const host = document.createElement('div');
+    host.className = 'tiptap print-content';
+    host.style.cssText = 'width:600px;position:fixed;visibility:hidden';
+    host.innerHTML = '<p data-hwp-body-line="1 150 24 36" style="font:24px Arial">' +
+      'Original <strong>bold</strong> <span style="font-size:16px">smaller run</span>.</p>';
+    document.body.append(host);
+    try {
+      const paragraph = host.querySelector('p')!;
+      const sample = () => [...paragraph.querySelectorAll('[data-hwp-body-run]')];
+      layoutHwpBodyLines(host);
+      const first = sample(), box = paragraph.getBoundingClientRect();
+      const before = paragraph.textContent;
+      layoutHwpBodyLines(host);
+      const second = sample(), repeated = paragraph.getBoundingClientRect();
+      const sameNodes = first.length === second.length && first.every((span, i) => span === second[i]);
+      const sameBox = JSON.stringify(box) === JSON.stringify(repeated);
+      paragraph.append(document.createElement('br'), 'Another line.');
+      layoutHwpBodyLines(host);
+      return { initialRuns: first.length, sameNodes, sameBox, afterRuns: sample().length,
+        text: paragraph.textContent, expected: before + 'Another line.', hardBreaks: paragraph.querySelectorAll('br').length };
+    } finally { host.remove(); }
+  });
+  expect(result).toMatchObject({ initialRuns: 5, sameNodes: true, sameBox: true, afterRuns: 0, hardBreaks: 1 });
+  expect(result.text).toBe(result.expected);
+});

@@ -2,7 +2,7 @@ import { version as APP_VERSION } from "../package.json";
 import { documentScale } from './document-scale';
 import { visibleEditorPages } from './editor-visible-pages';
 import { layoutFurnitureImages, updateUniformTablePageBody } from './furniture-layout';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDocumentZoom } from "./document-zoom-gesture";
 import { usePrintPreviewZoom } from "./print-preview-zoom";
 import type { CSSProperties, ReactNode } from "react";
@@ -1032,36 +1032,37 @@ export default function App({ androidSession }: { androidSession?: AndroidEditor
       off?.();
     };
   }, []);
-  if (!editor) return <div className="loading">Word Studio를 여는 중…</div>;
-  const text = editor.getText(),
-    words = text.trim() ? text.trim().split(/\s+/).length : 0;
-  const headings: { title: string; level: number; pos: number }[] = [];
-  editor.state.doc.descendants((node, pos) => {
-    if (node.type.name === "heading")
-      headings.push({ title: node.textContent, level: node.attrs.level, pos });
-  });
-  const matches: { from: number; to: number; preview: string }[] = [];
-  if (query) {
-    editor.state.doc.descendants((node, pos) => {
-      if (node.isTextblock) {
-        const value = node.textBetween(0, node.content.size, "\n", "\ufffc");
-        let index = 0;
-        while (
-          (index = value
-            .toLocaleLowerCase()
-            .indexOf(query.toLocaleLowerCase(), index)) >= 0
-        ) {
-          matches.push({
-            from: pos + 1 + index,
-            to: pos + 1 + index + query.length,
-            preview: value,
-          });
-          index += Math.max(1, query.length);
-        }
-        return false;
-      }
+  // Save progress and selection changes can render repeatedly while the
+  // immutable editing document stays the same.
+  const editorDocument = editor?.state.doc;
+  const { text, words, headings } = useMemo(() => {
+    const text = editor?.getText() ?? '';
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const headings: { title: string; level: number; pos: number }[] = [];
+    editorDocument?.descendants((node, pos) => {
+      if (node.type.name === "heading")
+        headings.push({ title: node.textContent, level: node.attrs.level, pos });
     });
-  }
+    return { text, words, headings };
+  }, [editor, editorDocument]);
+  const matches = useMemo(() => {
+    const matches: { from: number; to: number; preview: string }[] = [];
+    if (!query) return matches;
+    const needle = query.toLocaleLowerCase();
+    editorDocument?.descendants((node, pos) => {
+      if (!node.isTextblock) return;
+      const value = node.textBetween(0, node.content.size, "\n", "\ufffc");
+      const folded = value.toLocaleLowerCase();
+      let index = folded.indexOf(needle);
+      while (index >= 0) {
+        matches.push({ from: pos + 1 + index, to: pos + 1 + index + query.length, preview: value });
+        index = folded.indexOf(needle, index + query.length);
+      }
+      return false;
+    });
+    return matches;
+  }, [editorDocument, query]);
+  if (!editor) return <div className="loading">Word Studio를 여는 중…</div>;
   const selectMatch = (i: number) => {
     if (!matches.length) return;
     const index = (i + matches.length) % matches.length;

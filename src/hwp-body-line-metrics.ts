@@ -104,6 +104,7 @@ function storedPairHeight(paragraph: HTMLElement, line: HwpBodyLine, active = fa
 }
 
 const mixedLineSnapshots = new WeakMap<HTMLElement, Node[]>();
+const bodyRunSpans = new WeakSet<HTMLElement>();
 
 function layoutStoredMixedPair(paragraph: HTMLElement, line: HwpBodyLine) {
   const pair = line.mixedLinePair, body = paragraph.parentElement;
@@ -177,17 +178,33 @@ export function layoutHwpBodyLines(root: HTMLElement, paintSourcePairs = false) 
       p.style.removeProperty('height');
       delete p.dataset.hwpStoredMixedPitch;
     }
+    const retained = new Set<HTMLElement>();
     for (const span of p.querySelectorAll<HTMLElement>('[data-hwp-body-run]')) {
+      // A plain wrapper has no geometry of its own outside the body-line
+      // styles below. Keep it across fits; moves and edited runs still
+      // recheck the paragraph policy and any measured pitch.
+      if (bodyRunSpans.has(span) && span.attributes.length === 1 && span.childNodes.length === 1 &&
+          span.firstChild instanceof Text && span.firstChild.length) {
+        retained.add(span);
+        continue;
+      }
       delete span.dataset.hwpBodyRun; span.style.removeProperty('line-height');
       if (![...span.attributes].some(a => a.name !== 'style') && !span.style.length) span.replaceWith(...span.childNodes);
     }
     delete p.dataset.hwpBodyLayout; p.style.removeProperty('--hwp-body-ratio'); p.style.removeProperty('--hwp-body-ink-offset');
     p.style.lineHeight = `${line.base}px`;
-    if (!eligible(p, line)) continue;
+    if (!eligible(p, line)) {
+      for (const span of retained) span.replaceWith(span.firstChild!);
+      continue;
+    }
     const texts: Text[] = [], walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
-    while (walker.nextNode()) if (walker.currentNode.textContent?.length) texts.push(walker.currentNode as Text);
+    while (walker.nextNode()) {
+      const text = walker.currentNode as Text;
+      if (text.length && (!text.parentElement || !retained.has(text.parentElement))) texts.push(text);
+    }
     for (const text of texts) {
       const span = document.createElement('span'); span.dataset.hwpBodyRun = 'true';
+      bodyRunSpans.add(span);
       text.replaceWith(span); span.append(text);
     }
     p.dataset.hwpBodyLayout = line.paperHeading ? 'paper-heading' : line.align ?? 'true';

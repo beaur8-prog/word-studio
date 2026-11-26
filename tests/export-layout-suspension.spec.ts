@@ -91,3 +91,27 @@ test('desktop Hangul saving holds live layout while preparing the review', async
   await expect(review).toBeHidden();
   await expect(editor).toHaveText('Keep this editable during the native format review.');
 });
+
+test('native save progress does not rescan the unchanged live document', async ({ page }) => {
+  await page.goto('/');
+  const editor = page.getByRole('textbox', { name: '문서 편집 영역', exact: true });
+  await editor.fill('A document stays unchanged while preparing a native save.');
+  await expect(page.getByText('9개 단어', { exact: true })).toBeVisible();
+  await editor.evaluate(el => {
+    const live = (el as HTMLElement & { editor: import('@tiptap/core').Editor }).editor;
+    const original = live.getText.bind(live);
+    let reads = 0;
+    live.getText = options => { reads++; return original(options); };
+    Object.assign(window, { summaryReads: () => reads });
+  });
+  await page.getByRole('button', { name: '파일', exact: true }).click();
+  await page.getByRole('button', { name: '한글 표준 문서로 내보내기 HWPX', exact: true }).click();
+  const review = page.getByRole('dialog', { name: '한글 문서로 내보내기' });
+  await expect(review).toBeVisible();
+  const reads = await page.evaluate(() =>
+    (window as Window & typeof globalThis & { summaryReads: () => number }).summaryReads());
+  expect(reads).toBe(0);
+  await review.getByRole('button', { name: '취소', exact: true }).click();
+  await editor.fill('Four new words now');
+  await expect(page.getByText('4개 단어', { exact: true })).toBeVisible();
+});

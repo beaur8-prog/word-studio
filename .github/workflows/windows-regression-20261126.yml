@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Windows consecutive native HWP and HWPX saves with renderer profiling
+run-name: Compare Windows native pagination with stable document and text runs
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -11,9 +11,64 @@ jobs:
     timeout-minutes: 32
     env:
       WINDOWS_NATIVE_HWP_SAVES: '1'
-      WINDOWS_NATIVE_HWP_FORMATS: 'hwp,hwpx'
+      WINDOWS_NATIVE_HWP_FORMATS: hwpx
       WINDOWS_NATIVE_HWP_TRACE: '1'
-      WINDOWS_NATIVE_HWP_PROFILE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: node node_modules/electron/install.js
+      - name: Build both source trees in the same environment
+        shell: pwsh
+        run: |
+          npm run package:win:dir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item release/windows "$env:RUNNER_TEMP/hangul-candidate"
+          git restore --source fdc4d4ddfb807449c7d2f9a7fbbc0b442b383614 -- src
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code fdc4d4ddfb807449c7d2f9a7fbbc0b442b383614 -- src electron vendor package.json package-lock.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run package:win:dir
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item release/windows "$env:RUNNER_TEMP/hangul-control"
+      - name: Compare HWPX save and reopened page geometry
+        shell: pwsh
+        run: |
+          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/native-hangul" --ids 04-language-plan
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-hangul/inventory.json"
+          $status = @{}
+          foreach ($variant in @('control','candidate')) {
+            Write-Host "WINDOWS_NATIVE_HANGUL_PRODUCT $variant"
+            $env:WORD_STUDIO_EXECUTABLE="$env:RUNNER_TEMP/hangul-$variant/Word Studio/Word Studio.exe"
+            $env:WINDOWS_NATIVE_HWP_COMPARISON="$env:RUNNER_TEMP/hangul-$variant-shapes.txt"
+            node scripts/windows-qa/native-export-pdf-stages.cjs
+            $status[$variant] = $LASTEXITCODE
+            Write-Host "WINDOWS_NATIVE_HANGUL_EXIT $variant $LASTEXITCODE"
+          }
+          if ($status['candidate'] -ne 0) { exit $status['candidate'] }
+          if ($status['control'] -eq 0) {
+            $control = Get-Content "$env:RUNNER_TEMP/hangul-control-shapes.txt" -Raw
+            $candidate = Get-Content "$env:RUNNER_TEMP/hangul-candidate-shapes.txt" -Raw
+            $exact = $control -eq $candidate
+            Write-Host "WINDOWS_NATIVE_HANGUL_READBACK_EXACT $exact"
+            if (-not $exact) { exit 1 }
+          } else { Write-Host 'WINDOWS_NATIVE_HANGUL_READBACK_EXACT unavailable' }
+  affected:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    timeout-minutes: 18
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,15 +78,5 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - run: npm run build -- --sourcemap
-      - run: node scripts/package-win.cjs
-      - name: Record real save and recovery timing for both formats
-        shell: pwsh
-        run: |
-          python scripts/windows-qa/fetch-public-inputs.py hwp-1 "$env:RUNNER_TEMP/native-hangul" --ids 04-language-plan
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-hangul/inventory.json"
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          node scripts/windows-qa/native-export-pdf-stages.cjs
-          exit $LASTEXITCODE
+      - run: npx playwright install chromium
+      - run: npm run test -- tests/hwp-body-terminal-ink.spec.ts tests/hwp-source-text-advances.spec.ts tests/hwp-page-budget.spec.ts tests/hwp-column-terminal.spec.ts tests/hwp-paper-heading.spec.ts tests/export-layout-suspension.spec.ts tests/selection-navigation.spec.ts --workers=1 --trace=off
