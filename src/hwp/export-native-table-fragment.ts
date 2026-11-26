@@ -2,7 +2,7 @@ import type { HwpDocument } from '@rhwp/core';
 import { strFromU8, strToU8, zipSync } from 'fflate';
 import { hwpWrapFingerprint, normalizeHwpWrapText } from '../hwp-text-advances';
 import { tableAnchor, type AuthoredNativeTableFragment } from '../table-anchor-data';
-import { boundedNativeParts, nativeBodyRuns, nativePaintedControls, nativePaintedPayload, type NativePaintedControl } from './export-binary-pages';
+import { boundedNativeParts, nativeBodyRuns, nativePaintedControls, nativePaintedPayload, type NativeBodyRun, type NativePaintedControl } from './export-binary-pages';
 import { elementRanges } from './markup-ranges';
 
 export function measuredNativeTableFragment(body: Element, sheet: HTMLElement): AuthoredNativeTableFragment | undefined {
@@ -28,6 +28,17 @@ function ownInk(doc: HwpDocument, page: number, control: NativePaintedControl) {
   return nativeBodyRuns(doc, page).filter(run => normalizeHwpWrapText(run.text) &&
     run.secIdx === control.secIdx && run.parentParaIdx === control.paraIdx && run.cellPath?.length === 1 &&
     (run.cellPath[0] as { controlIndex: number }).controlIndex === control.controlIdx);
+}
+
+function visibleRight(run: NativeBodyRun) {
+  const end = run.text.trimEnd().length, advances = run.charX;
+  if (end > 0 && end < run.text.length && advances?.length === run.text.length + 1 &&
+      advances.every((advance, index) => Number.isFinite(advance) && advance >= (index ? advances[index - 1] : 0))) {
+    // The layout box includes the advance of trailing source whitespace.
+    // The last visible glyph can fit while that non-printing advance does not.
+    return run.x + advances[end];
+  }
+  return run.x + run.w;
 }
 
 function restoreFragment(Core: typeof HwpDocument, doc: HwpDocument, proof: AuthoredNativeTableFragment) {
@@ -89,7 +100,8 @@ export function restoreNativeTableFragment(Core: typeof HwpDocument, doc: HwpDoc
       const paper = JSON.parse(candidate.getPageInfo(page));
       if (!moved || !close(moved.x, proof.x) || !close(moved.y, proof.y) || moved.y + moved.h > paper.footerArea.y + .08 ||
           JSON.stringify(after.filter(item => item !== moved)) !== JSON.stringify(before) ||
-          ownInk(candidate, page, moved).some(run => run.x < paper.bodyLeft - .15 || run.x + run.w > paper.bodyRight + .15 ||
+          ownInk(candidate, page, moved).some(run => run.x < moved.x - .15 ||
+            visibleRight(run) > Math.min(paper.bodyRight, moved.x + moved.w) + .15 ||
             run.y < moved.y - .15 || run.y + run.h > paper.footerArea.y + .15) ||
           nativePaintedPayload(doc) !== nativePaintedPayload(candidate)) continue;
       const accepted = candidate;

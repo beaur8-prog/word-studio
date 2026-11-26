@@ -6,7 +6,7 @@ import { elementRanges } from './markup-ranges';
 export type NativeBodyRun = {
   secIdx: number; paraIdx: number; charStart: number; parentParaIdx?: number;
   text: string; x: number; y: number; w: number; h: number; fontSize: number; charShapeId: number;
-  headerFooter?: object; cellPath?: object[];
+  headerFooter?: object; cellPath?: object[]; charX?: number[];
 };
 export type NativePaintedControl = { headerFooter?: object; type: string; secIdx: number; paraIdx: number;
   controlIdx: number; x: number; y: number; w: number; h: number; rowStart?: number; rowEnd?: number;
