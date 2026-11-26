@@ -55,6 +55,23 @@ async function main(){
         attempts.push({mode,pages:out.pageCount(),sameText:JSON.stringify([...text(out)].sort())===prior,shape:size(out)});
       }finally{out.free();}
     }
+    const flow = (doc, owner) => {
+      const paper = JSON.parse(doc.getPageInfo(0));
+      const rows = Array.from({length:doc.getParagraphCount(owner.secIdx)}, (_, i) => {
+        const {pageBreakBefore, lineSpacingType, lineSpacing, spacingBefore, spacingAfter} = JSON.parse(doc.getParaPropertiesAt(owner.secIdx,i));
+        const {stored, controlCount, lines} = JSON.parse(doc.getParagraphLineMetrics(owner.secIdx,i,'[]'));
+        return {i, length:doc.getParagraphLength(owner.secIdx,i), stored, controlCount, pageBreakBefore, lineSpacingType, lineSpacing,
+          spacingBefore, spacingAfter, font:JSON.parse(doc.getCharPropertiesAt(owner.secIdx,i,0)).fontSize,
+          lines:lines.map(line=>[line.verticalPosition,line.height,line.spacing])};
+      });
+      const pages=Array.from({length:doc.pageCount()},(_,i)=>({
+        objects:shape(doc,i).map(box),
+        lines:JSON.parse(doc.getPageTextLayout(i)).runs.filter(run=>!run.headerFooter && run.paraIdx!==0xffffffff &&
+          !run.cellPath?.length && run.text.trim()).map(run=>[run.paraIdx??null,run.y,run.h,run.text.replace(/\s/gu,'').length])
+      }));
+      return {top:paper.marginTop+paper.marginHeader,bottom:paper.footerArea.y,rows,pages};
+    };
+    console.log('WINDOWS_RETURN_FORM_FLOW '+JSON.stringify({original:flow(original,input),target:flow(saved,target)}));
     console.log('WINDOWS_RETURN_FORM_INSET_TRIAL '+JSON.stringify({original:box(input),target:box(target),bounds:[props.width,props.height,props.footerArea.y],
       originalInsets:[originalStyle.outerTop,originalStyle.outerBottom,originalStyle.outerLeft],currentInsets:[savedStyle.outerTop,savedStyle.outerBottom,savedStyle.outerLeft],hostLeft:host.marginLeft,control:size(saved),attempts}));
   } finally {original.free();saved.free();}
