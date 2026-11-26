@@ -1,17 +1,27 @@
 name: Windows regression QA
-run-name: Find the remaining Word line-wrap boundaries at Windows display scales
+run-name: Trace the first Windows Hancom line splits before the writer
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
 permissions:
   contents: read
 jobs:
-  display:
-    name: Windows Word paragraph line boundaries
+  native-flow:
+    name: Windows native flow / ${{ matrix.id }}
     runs-on: windows-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { group: hwp-3, id: 06-mixed-document, watch: '78,80,81,83,88,97,98,107' }
+          - { group: hwp-1, id: 04-language-plan, watch: '127,145,148,150,153,155,156,158,161,162' }
     env:
-      WINDOWS_FORCE_DEVICE_SCALE: '1'
+      PLAYWRIGHT_CHANNEL: chromium
+      QA_GROUP: ${{ matrix.group }}
+      QA_ID: ${{ matrix.id }}
+      WINDOWS_NATIVE_EXPORT_FLOW: ${{ matrix.watch }}
+      WINDOWS_NATIVE_FLOW_ONLY: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,13 +32,13 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - run: node node_modules/electron/install.js
-      - name: Measure logical line starts and glyph bands in the Windows print flow
+      - run: npx playwright install chromium
+      - name: Inspect only the two DOCX saves and before-writer line blocks
         shell: pwsh
         run: |
-          python scripts/windows-qa/fetch-public-inputs.py word "$env:RUNNER_TEMP/word-breaks" --ids 06-long-body
+          python scripts/windows-qa/fetch-public-inputs.py $env:QA_GROUP "$env:RUNNER_TEMP/native-flow" --ids $env:QA_ID
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/word-breaks/inventory.json"
+          $env:WINDOWS_PUBLIC_QA_INVENTORY = "$env:RUNNER_TEMP/native-flow/inventory.json"
           $verified = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json | Where-Object verified).Count
           if ($verified -ne 1) { throw 'Pinned input missing' }
           $control = '0bf5bb6052ab0de96bc38ba3e8d011770fcb00d2'
@@ -36,16 +46,5 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           git diff --exit-code $control -- src electron vendor package.json package-lock.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run package:win:dir
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
-          foreach ($scale in @('1','1.25','1.5')) {
-            $env:WINDOWS_FORCE_DEVICE_SCALE = $scale
-            $env:WINDOWS_WORD_LINE_BREAKS = "$env:RUNNER_TEMP/breaks-$scale.json"
-            node scripts/windows-qa/native-export-pdf-stages.cjs
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
-          foreach ($scale in @('1.25','1.5')) {
-            node scripts/windows-qa/compare-word-line-breaks.cjs "$env:RUNNER_TEMP/breaks-1.json" "$env:RUNNER_TEMP/breaks-$scale.json" $scale
-            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          }
+          npm run test -- tests/windows-qa/public-originals.spec.ts --workers=1 --trace=off
+          exit $LASTEXITCODE

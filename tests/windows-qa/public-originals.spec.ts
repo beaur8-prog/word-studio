@@ -16,6 +16,7 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
   test.setTimeout(process.env.WINDOWS_STAGED_ORIGINAL === item.id ? 1800000 : 900000);
   const source = await readFile(item.path!);
   await page.goto('/');
+  if (process.env.WINDOWS_NATIVE_EXPORT_FLOW) await page.locator('#root .tiptap[role="textbox"]').first().waitFor();
   await page.exposeFunction('logOriginalStage', (stage: string, pages: number) => {
     console.log('WINDOWS_STAGED_PROGRESS ' + item.id + ' ' + stage + ' ' + pages);
   });
@@ -26,10 +27,24 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
     await writeFile(info.outputPath('textbox-save-' + item.id + '-' + stage + '.docx'), Buffer.from(encoded, 'base64'));
   });
   const verifyGeometry = process.env.WINDOWS_VERIFY_NATIVE_GEOMETRY === '1';
+  const watched: { ordinal: number; literal: string }[] = [];
+  if (process.env.WINDOWS_NATIVE_EXPORT_FLOW) {
+    const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
+    const { default: init, HwpDocument } = await import(pathToFileURL(path.join(core, 'rhwp.js')).href);
+    await init({ module_or_path: await readFile(path.join(core, 'rhwp_bg.wasm')) });
+    const original = new HwpDocument(new Uint8Array(source));
+    try {
+      for (const ordinal of process.env.WINDOWS_NATIVE_EXPORT_FLOW.split(',').map(Number)) {
+        const literal = original.getTextRange(0, ordinal, 0, 0xffffffff).replace(/\s/gu, '');
+        if (literal) watched.push({ ordinal, literal });
+      }
+    } finally { original.free(); }
+  }
+
   await page.exposeFunction('writeActualHangul', async (format: 'hwp' | 'hwpx', encoded: string) => {
     await writeFile(info.outputPath('hancom-saved.' + format), Buffer.from(encoded, 'base64'));
   });
-  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry}) => {
+  const result = await page.evaluate(async ({name, data, ext, verifyPictures, verifyGeometry, watched, flowOnly}) => {
     const qa = window as Window & {
       logOriginalForward(metrics: object): Promise<void>;
       logOriginalStage(stage: string, pages: number): Promise<void>;
@@ -82,10 +97,12 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       if (previous) preservation.push({ textTabAndBreakOrder: previous[0] === current[0], mediaOrderAndBytes: previous[1] === current[1], tableSpans: previous[2] === current[2] });
       previous = current;
       const html = generateHTML(doc.content, editorExtensions);
-      const print = await createPrintLayout(html, doc.page, undefined, undefined, wordLayoutOptions(doc));
-      try { printPages.push(print.pages); }
-      finally { print.dispose(); }
-      await qa.logOriginalStage("print-" + stage, printPages[stage]);
+      if (!flowOnly) {
+        const print = await createPrintLayout(html, doc.page, undefined, undefined, wordLayoutOptions(doc));
+        try { printPages.push(print.pages); }
+        finally { print.dispose(); }
+        await qa.logOriginalStage("print-" + stage, printPages[stage]);
+      }
       if (stage < 2) {
         const blob = await exportDocx(doc);
         const bytes = new Uint8Array(await blob.arrayBuffer()), chunks = [];
@@ -97,9 +114,46 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       }
     }
 
+    const nativeFlow = [];
+    if (watched.length) {
+      const { wordContentLanguage } = await import('/src/types.ts');
+      const html = generateHTML(doc.content, editorExtensions);
+      const layout = await createPrintLayout(html, doc.page, () => {}, undefined, {
+        paintHwpCellLines: false, hwpNativeExport: true, interactive: true, language: wordContentLanguage(doc.wordDefaultLanguage),
+      });
+      try {
+        const range = document.createRange(), paragraphs = [...layout.element.querySelectorAll<HTMLParagraphElement>('.print-content > p')];
+        const compact = (value: string) => value.replace(/\s/gu, '');
+        const entries = paragraphs.map(p => {
+          const paper = p.closest('.print-page')!, body = p.closest('.print-content')!;
+          const origin = paper.getBoundingClientRect(), box = p.getBoundingClientRect();
+          range.selectNodeContents(p);
+          const ink = [...range.getClientRects()].filter(rect => rect.width > .1 && rect.height > 1);
+          const lineY = [...new Set(ink.map(rect => Math.round((rect.top - origin.top) * 10) / 10))];
+          return { literal: compact(p.textContent ?? ''), details: { page: Number((paper as HTMLElement).dataset.page),
+            y: box.top - origin.top, height: box.height, bottom: box.bottom - origin.top,
+            bodyBottom: body.getBoundingClientRect().bottom - origin.top, lineY,
+            inkBottom: ink.length ? Math.max(...ink.map(rect => rect.bottom - origin.top)) : null,
+            fragment: p.hasAttribute('data-print-paragraph-fragment'), authored: p.dataset.hwpSourceWrap?.includes('authoredBodyLines') ?? false,
+            fontSize: getComputedStyle(p).fontSize, lineHeight: getComputedStyle(p).lineHeight } };
+        }).filter(row => row.literal);
+        for (const {ordinal, literal} of watched) {
+          const results = [];
+          for (let i = 0; i < entries.length; i++) {
+            const first = entries[i], next = entries[i+1];
+            const details = (entry: typeof first) => ({ literalLength: entry.literal.length, ...entry.details });
+            if (first.literal === literal) results.push([details(first)]);
+            else if (first.details.fragment && next?.details.fragment && first.literal + next.literal === literal)
+              results.push([details(first), details(next)]);
+          }
+          nativeFlow.push({ ordinal, length: literal.length, results });
+        }
+      } finally { layout.dispose(); }
+    }
+
     const reverse = [];
     await qa.logOriginalForward({ nativeOriginalPages, printPages, preservation, saves });
-    if (ext !== 'docx') for (const format of ['hwp', 'hwpx'] as const) {
+    if (!flowOnly && ext !== 'docx') for (const format of ['hwp', 'hwpx'] as const) {
       let reader: InstanceType<typeof HwpReaderSession> | undefined;
       try {
         const saved = await exportEditableHwp(doc, format, () => {});
@@ -127,12 +181,15 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
       } finally { reader?.close(); }
       await qa.logOriginalStage('reverse-' + format, reverse.at(-1)?.pages ?? 0);
     }
-    return { nativeOriginalPages, printPages, preservation, reverse, saves };
-  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1' });
-  expect(result.printPages).toHaveLength(3);
-  expect(result.printPages.every(pages => pages > 0)).toBe(true);
+    return { nativeOriginalPages, printPages, preservation, reverse, saves, nativeFlow };
+  }, { name: item.id + '.' + item.ext, data: [...source], ext: item.ext, verifyGeometry, verifyPictures: process.env.WINDOWS_REQUIRE_REVERSE === '1' || process.env.WINDOWS_VERIFY_REVERSE_MEDIA === '1', watched, flowOnly: process.env.WINDOWS_NATIVE_FLOW_ONLY === '1' });
+  if (process.env.WINDOWS_NATIVE_FLOW_ONLY !== '1') {
+    expect(result.printPages).toHaveLength(3);
+    expect(result.printPages.every(pages => pages > 0)).toBe(true);
+  }
   expect(result.saves).toBe(2);
-  const { saves: _, ...metrics } = result;
+  const { saves: _, nativeFlow, ...metrics } = result;
+  if (watched.length) console.log('WINDOWS_HANCOM_PRE_EXPORT_FLOW ' + JSON.stringify(nativeFlow));
   console.log('WINDOWS_PUBLIC_RESULT ' + JSON.stringify({ id: item.id, ext: item.ext, ...metrics }));
   if (verifyGeometry) {
     const require = createRequire(import.meta.url), core = path.dirname(require.resolve('@rhwp/core'));
