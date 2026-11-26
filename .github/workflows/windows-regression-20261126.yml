@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Windows HWP print event-stage baseline
+run-name: Windows HWP responsive preview candidate
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -40,3 +40,57 @@ jobs:
           $env:WORD_STUDIO_EXECUTABLE = (Resolve-Path 'release/windows/Word Studio/Word Studio.exe').Path
           node scripts/windows-qa/native-preview-stages.cjs
           exit $LASTEXITCODE
+  regression:
+    name: Windows print coordination and layout regression
+    runs-on: windows-latest
+    timeout-minutes: 26
+    env:
+      PLAYWRIGHT_CHANNEL: chromium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - name: Exercise print cancellation, layout, and DOCX saves
+        shell: pwsh
+        run: |
+          @'
+          import { registerHooks } from 'node:module';
+          import { pathToFileURL } from 'node:url';
+          import { resolve } from 'node:path';
+          const limits = pathToFileURL(resolve('electron/document-limits.json')).href;
+          registerHooks({
+            load(url, context, next) {
+              if (url === limits && !context.importAttributes?.type)
+                return next(url, { ...context, importAttributes: { ...context.importAttributes, type: 'json' } });
+              return next(url, context);
+            },
+          });
+          '@ | Set-Content -Encoding utf8 ci-document-limits.mjs
+          $env:NODE_OPTIONS = '--import=./ci-document-limits.mjs'
+          $env:PLAYWRIGHT_JSON_OUTPUT_FILE = Join-Path $env:RUNNER_TEMP 'hwp-preview-tests.json'
+          node node_modules/@playwright/test/cli.js test tests/desktop-print-coordination.spec.ts tests/hwp-source-text-advances.spec.ts tests/hwp-cell-content.spec.ts tests/paragraph-widows.spec.ts --reporter=line,json --trace=off
+          $status = $LASTEXITCODE
+          if (Test-Path $env:PLAYWRIGHT_JSON_OUTPUT_FILE) {
+            $s = (Get-Content $env:PLAYWRIGHT_JSON_OUTPUT_FILE -Raw | ConvertFrom-Json).stats
+            Write-Host "WINDOWS_HWP_PREVIEW_TESTS expected $($s.expected) failed $($s.unexpected) skipped $($s.skipped)"
+          }
+          exit $status
+      - name: Check written DOCX packages with the official SDK
+        if: always()
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'test-results')) { Write-Host 'WINDOWS_HWP_SDK unavailable'; exit 1 }
+          $outputs = @(Get-ChildItem test-results -Recurse -Filter 'textbox-save-*.docx')
+          if (-not $outputs.Count) { Write-Host 'WINDOWS_HWP_SDK no outputs'; exit 1 }
+          dotnet run --project scripts/word-openxml-validator -- test-results $outputs.Count *> "$env:RUNNER_TEMP/preview-sdk.log"
+          $status = $LASTEXITCODE
+          $bad = @(Get-Content "$env:RUNNER_TEMP/preview-sdk.log" | Where-Object { $_ -match '^\{' } |
+            ForEach-Object { $_ | ConvertFrom-Json } | Where-Object { $_.PSObject.Properties.Name -contains 'failure' -or $_.errors.Count -gt 0 })
+          Write-Host "WINDOWS_HWP_SDK total $($outputs.Count) withErrors $($bad.Count) exit $status"
+          exit $status
