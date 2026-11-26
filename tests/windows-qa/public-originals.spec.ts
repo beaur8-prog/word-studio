@@ -245,6 +245,13 @@ for (const item of cases) test('Windows public original ' + item.id, async ({pag
         }
         console.log('WINDOWS_NATIVE_GRID ' + JSON.stringify({ id:item.id, format, pages:saved.pageCount(),
           tables, outsideRight:outside, maxOutsidePx:Math.round(maxOutside*10)/10, firstSevenCellRow }));
+        if (process.env.WINDOWS_HANCOM_FIXED_AGREEMENT === '1') {
+          const original = new HwpDocument(new Uint8Array(source));
+          try {
+            const stats = require('../../scripts/windows-qa/hancom-page-agreement.cjs')(original, saved);
+            console.log('WINDOWS_HANCOM_FIXED_AGREEMENT ' + JSON.stringify({ id:item.id, format, ...stats }));
+          } finally { original.free(); }
+        }
         if (item.id === '04-language-plan' && process.env.WINDOWS_LATIN_WITNESS) {
           const original = new HwpDocument(new Uint8Array(source));
           const witness = require('../../scripts/windows-qa/hancom-line-witness.cjs');
