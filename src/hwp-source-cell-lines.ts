@@ -334,9 +334,7 @@ export function editorHwpSingleCellLine(p: HTMLElement, scale: number): number |
 /** Restore an authored short cell line only where the real glyph ink fits
  * at the unchanged measured column width. Changing the print copy leaves
  * all literal whitespace and the editable model in their original order. */
-const nativeSingleCellSpace = 'data-print-native-cell-whitespace';
-
-export function layoutHwpSingleCellLines(table: HTMLTableElement, measureForNative = false) {
+export function layoutHwpSingleCellLines(table: HTMLTableElement) {
   const candidates = table.querySelectorAll<HTMLParagraphElement>(`td > p[${hwpSourceWrapAttribute}*="singleCellLine"],th > p[${hwpSourceWrapAttribute}*="singleHeaderLine"]`);
   if (!candidates.length || !fixedSingleLineTable(table)) return;
   const range = document.createRange();
@@ -354,17 +352,7 @@ export function layoutHwpSingleCellLines(table: HTMLTableElement, measureForNati
         glyphs.some(rect => rect.top < cellBox.top - .5 || rect.bottom > cellBox.bottom + .5) ||
         !horizontalInkFits(p, range, cellBox)) {
       inline.forEach((node, index) => { node.style.whiteSpace = previous[index]; });
-    } else if (measureForNative) {
-      inline.forEach((node, index) => node.setAttribute(nativeSingleCellSpace, previous[index]));
     }
-  }
-}
-
-/** Restore source whitespace styling before detaching the editable native body. */
-export function clearHwpSingleCellLineProjection(root: Element) {
-  for (const node of root.querySelectorAll<HTMLElement>(`[${nativeSingleCellSpace}]`)) {
-    node.style.whiteSpace = node.getAttribute(nativeSingleCellSpace) ?? '';
-    node.removeAttribute(nativeSingleCellSpace);
   }
 }
 
