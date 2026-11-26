@@ -230,6 +230,13 @@ async function saveHangulFile(app, page, item, directory, Core, phase) {
       const expected = (process.env.WINDOWS_EXPECT_NATIVE_PAGES || undefined)?.split(',').map(Number);
       console.log('WINDOWS_NATIVE_HANGUL ' + JSON.stringify({ id:item.id, format, bytes:bytes.length,
         printPages:Number(pages[1]), savedPages:readback, seconds:(Date.now()-started)/1000 }));
+      if (process.env.WINDOWS_NATIVE_BLANK_SHEET_AUDIT === '1') {
+        const original = new Core(await fs.readFile(item.path));
+        try {
+          const metrics = require('./hancom-blank-sheet-boundaries.cjs')(Core, original, native, bytes);
+          console.log('WINDOWS_NATIVE_BLANK_SHEET_AUDIT ' + JSON.stringify({ format, ...metrics }));
+        } finally { original.free(); }
+      }
       if (process.env.WINDOWS_HWP_FIRST_PAGE_SOURCE_TRIAL === '1') {
         const original = new Core(await fs.readFile(item.path));
         try {

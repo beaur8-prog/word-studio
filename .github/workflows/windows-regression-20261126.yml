@@ -1,5 +1,5 @@
 name: Windows regression QA
-run-name: Confirm the authored page-nine table slice after two actual Windows DOCX saves
+run-name: Audit blank sheet boundaries in the exact Windows native output
 on:
   push:
     branches: [codex/windows-layout-qa-20261126]
@@ -14,7 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {group: hwp-2, id: 02-work-rules, pages: '166,169'}
+          - {group: hwp-1, id: 04-language-plan, pages: '42,43'}
+          - {group: hwp-3, id: 06-mixed-document, pages: '39,42'}
     env:
       QA_GROUP: ${{ matrix.group }}
       QA_ID: ${{ matrix.id }}
@@ -22,6 +23,7 @@ jobs:
       WINDOWS_FORCE_DEVICE_SCALE: '1'
       WINDOWS_NATIVE_HWP_SAVES: '1'
       WINDOWS_MEASURE_PACKAGED_PAGE_BOUNDARIES: '1'
+      WINDOWS_NATIVE_BLANK_SHEET_AUDIT: '1'
       WINDOWS_NATIVE_HWP_REVIEW_MS: '540000'
     steps:
       - uses: actions/checkout@v4
@@ -49,18 +51,6 @@ jobs:
           if ((git rev-parse 'HEAD:src') -ne '7dce0645084f50855723dd2bfbe44460dddc3570') { throw 'Unexpected product tree' }
           $inventory = @(Get-Content $env:WINDOWS_PUBLIC_QA_INVENTORY -Raw | ConvertFrom-Json)
           if ($inventory.Count -ne 1 -or -not $inventory[0].verified) { throw 'One byte-pinned input is required' }
-          if ($env:QA_ID -eq '02-work-rules') {
-            $env:WINDOWS_NATIVE_PICTURE_PAINT = '1'
-            $env:WINDOWS_NATIVE_LARGE_HANGUL = '1'
-            $env:WINDOWS_NATIVE_OVERHANG_READBACK = '1'
-            $env:WINDOWS_NATIVE_OVERHANG_ORIGIN = '1'
-            $env:WINDOWS_NATIVE_LARGE_TEXT = '1'
-            $env:WINDOWS_NATIVE_DOCX_SAVE_TRACE = '1'
-            $env:WINDOWS_NATIVE_HWP_TRACE = '1'
-          } elseif ($env:QA_ID -eq '07-english-exam') {
-            $env:WINDOWS_CHECK_NATIVE_NBSPACE = '1'
-            $env:WINDOWS_CHECK_HWP_MIXED_ADVANCE = '1'
-          }
           node scripts/windows-qa/native-export-pdf-stages.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet run --project scripts/word-openxml-validator -- $env:WINDOWS_NATIVE_DOCX_DIR 2 *> "$env:RUNNER_TEMP/native-sdk.log"
